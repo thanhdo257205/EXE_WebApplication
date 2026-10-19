@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.*;
 /** Browser redirect is presentation only. Status is always fetched from the authenticated order API. */
 @RestController
 public class PaymentReturnController {
-    @GetMapping(value="/api/v1/payments/return/{id}",produces=MediaType.TEXT_HTML_VALUE)
+    @GetMapping(value="/api/v1/payments/return/{id}",produces="text/html;charset=UTF-8")
     public ResponseEntity<String> page(@PathVariable UUID id) {
         String html="""
             <!doctype html><html lang="vi"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">

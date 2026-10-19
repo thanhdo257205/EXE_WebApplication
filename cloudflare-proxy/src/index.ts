@@ -160,7 +160,8 @@ export async function reconcilePayments(env: Env, fetcher: typeof fetch = fetch)
   const backend = origin(env.BACKEND_ORIGIN);
   const response = await fetcher(new URL('/api/v1/internal/payments/reconcile', backend), {
     method: 'POST', headers: { 'X-Origin-Verify': env.ORIGIN_PROXY_SECRET },
-    redirect: 'manual', signal: AbortSignal.timeout(60000),
+    // Scheduled invocations can wait through Render Free cold starts and a bounded reconciliation batch.
+    redirect: 'manual', signal: AbortSignal.timeout(180000),
   });
   if (!response.ok) throw new Error(`Payment reconciliation returned ${response.status}`);
 }

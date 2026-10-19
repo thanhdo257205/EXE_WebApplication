@@ -119,6 +119,12 @@ administration, fulfillment administration and refund execution are separate
 unfinished work. Backend integration does not make these storefront screens
 available automatically.
 
+Merchant connectivity verified 2026-10-20 using the official Java SDK:
+create=PENDING, query=PENDING/amountPaid=0, cancel=CANCELLED/amountPaid=0.
+This probe created no application order and transferred no money. The
+scheduled request allows 180 seconds for a Render Free cold start plus the
+bounded batch; ordinary browser requests retain their existing timeout.
+
 Official references: [Java SDK](https://github.com/payOSHQ/payos-lib-java),
 [Merchant API](https://payos.vn/docs/api/),
 [webhook signatures](https://payos.vn/docs/tich-hop-webhook/kiem-tra-du-lieu-voi-signature/).
