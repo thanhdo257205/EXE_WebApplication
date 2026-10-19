@@ -1,6 +1,6 @@
 # EXE_WebApplication — Checklist triển khai
 
-Cập nhật: 2026-10-19 (Asia/Saigon).
+Cập nhật: 2026-10-20 (Asia/Saigon).
 
 Đây là danh sách công việc chính thức để theo dõi hoàn thành. Bối cảnh, quyết định kỹ thuật, nhật ký và điểm tiếp tục được lưu trong [PROGRESS.md](PROGRESS.md).
 
@@ -144,7 +144,7 @@ Cập nhật: 2026-10-19 (Asia/Saigon).
 - [x] Kết nối backend với Aiven; giới hạn connection pool.
 - [x] Cấu hình API URL, CORS và cookie phù hợp cách đăng nhập đã chọn.
 - [x] Viết CI → CD, lưu secrets và gate chỉ deploy push main đã test thành công.
-- [ ] Xác minh một lần chạy CI → CD tự động hoàn chỉnh trên GitHub.
+- [x] Xác minh CI → CD tự động hoàn chỉnh: CI #39296229959, CD #39296516356, deploy job và production smoke pass.
 - [x] Kiểm tra frontend, API và database hoạt động cùng nhau.
 - [ ] Kiểm tra nội dung tĩnh khi backend ngủ; xử lý trạng thái chờ/lỗi ở chức năng động.
 - [ ] Đo RAM, thời gian khởi động và các giới hạn miễn phí liên quan.
@@ -178,8 +178,8 @@ Cập nhật: 2026-10-19 (Asia/Saigon).
 - [x] Thiết kế SKU, giữ tồn kho và ledger biến động chống bán trùng.
 - [x] Thiết kế PayOS orderCode/link ID, một attempt active/đơn, inbox verified, dedup ledger và hoàn tiền có chứng từ.
 - [x] Phân biệt ràng buộc DB với nghiệp vụ cần service/locking; ghi rõ returnUrl không xác nhận thu tiền.
-- [x] Cấu hình PostgreSQL 18 disposable trong CI backend (chưa push trong phiên thiết kế).
-- [ ] Áp dụng V3–V5 vào schema production khi triển khai backend chứa migrations.
+- [x] Cấu hình PostgreSQL 18 disposable trong CI backend; CI thực tế đã pass 28 tests.
+- [x] Áp dụng V3–V5 vào Aiven production qua CD/Flyway; xác minh V5 và 34 bảng ứng dụng.
 - [ ] Xây JPA/JDBC repositories, checkout/inventory/payment services và API mua hàng.
 - [ ] Mở ngoại lệ webhook đúng endpoint ở gateway/Spring sau khi có verifier; không bypass bảo vệ chung.
 - [x] Bản cuối: 18 schema contract tests pass trên H2/PostgreSQL 18, có upgrade V2→V5 giữ user và tranh chấp tồn kho.

@@ -220,4 +220,11 @@ Migration nằm trong backend nên sẽ được Flyway tự áp dụng khi bả
 - Full backend suite: 28 tests pass (10 auth/smoke và 18 contract tests H2/PostgreSQL).
 - Sau khi bổ sung kiểm tra upgrade giữ user cũ và siết active_slot: chạy lại 18 contract tests trên bản cuối, 0 failures/errors.
 - PostgreSQL thực tế: Aiven 18.6, TLS verify-full, schema test riêng; migration từ V2 lên V5, chạy lại không phát sinh migration và Flyway validate thành công.
-- Thay đổi thiết kế/migrations/CI đang local, chưa push và chưa áp dụng public schema production. Không có giao dịch PayOS thật nào được tạo.
+- Cuối phiên thiết kế 19/10, thay đổi còn local và chưa áp dụng production; đây là ghi nhận lịch sử. Trạng thái release mới ở mục dưới.
+
+### Release production — 20/10/2026
+
+- Đã push schema ở commit 42d32ba và triển khai tự động qua [CI #39296229959](https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/39296229959) → [CD #39296516356](https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/39296516356). Toàn bộ job, bao gồm Deploy tested commit, thành công.
+- CI thực tế: backend 28 tests pass với PostgreSQL 18 disposable; gateway/frontend/build và Docker smoke 512 MB pass.
+- Aiven production đã áp dụng V3, V4, V5; JDBC kiểm tra Flyway V5, 34 bảng ứng dụng, không có migration lỗi và không còn schema thử nghiệm. Dữ liệu tài khoản không đổi.
+- API qua Pages báo đúng SHA được test; Pages production deployment và Render deploy đều khớp SHA. Smoke website/API/health/guard pass. Schema PayOS đã có, API mua hàng/PayOS vẫn chưa triển khai và chưa có giao dịch tiền thật.

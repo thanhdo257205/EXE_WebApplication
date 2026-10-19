@@ -58,8 +58,14 @@ Rate Limiting binding của Cloudflare được áp dụng theo location và đ�
 
 Bản `69ed38c` đã được deploy bằng đúng hook/CLI dùng trong CD và smoke script production pass. Render trả đúng commit, database health UP, 4 route tĩnh được phục vụ; origin guard và Turnstile thiếu token trả 403, login rate limit đã trả 429. Pages artifact từ CI run #39282044333 được publish thành công. Đây là xác minh các bước triển khai thủ công, chưa phải xác minh một run CI → CD tự động hoàn chỉnh.
 
-GitHub đang có [sự cố Actions/Webhooks](https://www.githubstatus.com/incidents/8tzbpcnl75jp), làm chậm trạng thái workflow và sự kiện. CI auth cũ #39278743322 đã success; CI bản CD #39282044333 có logs test/build và Docker smoke pass nhưng API/UI chưa báo hoàn tất lúc ghi tài liệu. Sau khi GitHub phục hồi, kiểm tra run CI/CD mới nhất; nếu sự kiện bị trễ hoặc mất, dùng Run workflow ở CD sau khi CI của main xác nhận success. Không thay điều kiện gate để vượt qua lỗi hạ tầng.
+Trong phiên ngày 19/10, GitHub ghi nhận [sự cố Actions/Webhooks](https://www.githubstatus.com/incidents/8tzbpcnl75jp), làm chậm trạng thái workflow và sự kiện. CI auth cũ #39278743322 đã success; CI bản CD #39282044333 có logs test/build và Docker smoke pass nhưng API/UI chưa báo hoàn tất lúc ghi tài liệu. Sau khi GitHub phục hồi, kiểm tra run CI/CD mới nhất; nếu sự kiện bị trễ hoặc mất, dùng Run workflow ở CD sau khi CI của main xác nhận success. Không thay điều kiện gate để vượt qua lỗi hạ tầng.
 
 ## Chuyển project riêng
 
 Ngày 19/10/2026 tạo mới Pages `exe-webapp` và Worker nội bộ `exe-webapp-gateway`, không đổi subdomain dùng chung của account. Config Pages trong `cloudflare-pages/wrangler.jsonc`; chạy Pages CLI từ thư mục đó để Wrangler tự đọc file. Rate limiter dùng namespace mới 257200511–257200513. Turnstile, Render origin và GitHub variables chuyển sang hostname mới. Địa chỉ cũ không phải endpoint đang sử dụng.
+
+## Bằng chứng CI/CD — 20/10/2026
+
+Bản schema `42d32ba` được push rồi tự chạy [CI #39296229959](https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/39296229959) thành công cả 4 job và [CD #39296516356](https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/39296516356) thành công cả 2 job. Deploy job thực sự chạy: Worker → Render exact commit → chờ SHA live → publish Pages artifact cùng CI → production smoke. Không coi workflow success nhưng deploy skipped là bằng chứng triển khai.
+
+Render deployment `dep-dbb5djon74is73bm2stg` và Pages canonical production deployment `6fd6c029-60c4-4c13-9c8d-8c9f62a0b26b` đều khớp SHA. Aiven Flyway V5, 34 bảng ứng dụng, dữ liệu user không đổi. Nguồn dữ liệu vẫn PostgreSQL Free; không tạo thêm tài nguyên trả phí. Các push cập nhật tài liệu cũng tiếp tục chạy CI/CD, nên xem Actions summary và API info để biết SHA mới nhất.

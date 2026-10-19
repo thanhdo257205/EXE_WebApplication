@@ -6,10 +6,11 @@
 
 - Ngày: 2026-10-20 (Asia/Saigon).
 - Trạng thái: Website đã live trên Cloudflare, Spring Boot live trên Render Free, PostgreSQL Free Aiven đã kết nối TLS và chạy migration.
-- Công việc hiện tại: Theo yêu cầu người dùng, push database V3–V5 và kiểm chứng CI → CD tự deploy lên Cloudflare/Render, Flyway áp dụng Aiven production.
-- Trạng thái GitHub: Đã đối chiếu local với origin/main (không lệch commit); CI/CD của bản 01ae340 đã chạy deploy thật thành công ở CD #39286252643. Thay đổi database chuẩn bị push trong phiên này.
-- Việc tiếp theo: Theo dõi CI có PostgreSQL 18, CD deploy đúng SHA, kiểm tra migration version/tables và smoke test production; cập nhật bằng chứng sau khi hoàn tất.
-- Phần chưa triển khai: API mua hàng/PayOS, merchant credentials, Google credentials và UI login. Schema mới không đồng nghĩa thanh toán thật đã hoạt động.
+- Công việc vừa hoàn thành: Push schema/database V3–V5 ở 42d32ba; CI #39296229959 và CD #39296516356 đều thành công, có job deploy thật và smoke production pass.
+- Trạng thái deploy: Cloudflare Pages và Render khớp SHA 42d32ba; Aiven public đã V5 với 34 bảng ứng dụng (không tính Flyway history). Dữ liệu user giữ nguyên; không còn schema thử nghiệm.
+- Trạng thái GitHub: Schema và cấu hình CI PostgreSQL đã push. Commit cập nhật bằng chứng triển khai trong tài liệu cũng chạy CI/CD như các push main khác; xem Actions để biết SHA triển khai mới nhất.
+- Việc tiếp theo: Xây repositories/services/API checkout, inventory và PayOS; tích hợp merchant credentials thật và verifier trước khi mở webhook.
+- Phần chưa triển khai: API mua hàng/PayOS, merchant credentials, Google credentials và UI login. Schema đã deploy không đồng nghĩa thanh toán thật đã hoạt động.
 
 ## Bối cảnh và tài liệu
 
@@ -165,3 +166,8 @@ Trạng thái xác thực có thể thay đổi; kiểm tra lại khi cần depl
 
 - Người dùng yêu cầu push toàn bộ thay đổi và deploy, bảo đảm CI/CD hoạt động. Chuẩn bị release migrations V3–V5 đã có 18 contract tests cuối pass H2/PostgreSQL và 10 auth/smoke tests pass trước đó.
 - Xác minh CD bản trước #39286252643 có job Deploy tested commit success; các run bị gate skip được phân biệt với deploy thật. Không sử dụng deploy thủ công thay bằng chứng CD của release mới.
+
+- Release schema 42d32ba hoàn tất: CI https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/39296229959 (4/4 jobs, backend 28 tests; Docker 512 MB), CD https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/39296516356 (2/2 jobs, mọi bước deploy/smoke success).
+- Render deploy dep-dbb5djon74is73bm2stg live đúng SHA; Pages production 6fd6c029-60c4-4c13-9c8d-8c9f62a0b26b đúng SHA. Truy cập https://exe-webapp.pages.dev . Không triển khai bằng tay để thay bằng chứng CD.
+- Kiểm tra JDBC TLS trên Aiven: public Flyway V2/4 bảng trước release → V5/34 bảng sau release; 0 failed migrations, app_users không đổi (0), không còn schema test. Script smoke production pass: 4 trang tĩnh, API đúng commit, database UP và origin/direct-backend guard 403.
+- Cập nhật checklist và tài liệu sau khi xác minh; chưa có giao dịch PayOS thật, không thêm credentials thanh toán hay seed giả.
