@@ -122,8 +122,28 @@ available automatically.
 Merchant connectivity verified 2026-10-20 using the official Java SDK:
 create=PENDING, query=PENDING/amountPaid=0, cancel=CANCELLED/amountPaid=0.
 This probe created no application order and transferred no money. The
-scheduled request allows 180 seconds for a Render Free cold start plus the
-bounded batch; ordinary browser requests retain their existing timeout.
+scheduled request allows 300 seconds for a Render Free cold start plus the
+bounded batch, with one idempotent retry and JSON response validation to
+reject wake-up/error pages. Both attempts fit within the scheduled handler's
+15-minute wall-time limit; ordinary browser requests retain their existing timeout.
+
+Release proof for backend `0cfb553`:
+- CI [39303973150](https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/39303973150):
+  all 4 jobs passed; 63 backend tests, PostgreSQL 18 and a 512 MB Docker smoke.
+- CD [39304413119](https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/39304413119):
+  both jobs passed including real deployment and production PayOS guard smoke.
+- Pages canonical deployment `08a37e8f-47ea-410c-b669-15bf02e96245`; Render
+  deployment `dep-dbb688agjjms73d65rm0` reached live on the same tested SHA.
+- Merchant SDK `confirm` accepted the exact public webhook URL and delivered
+  a signed registration probe; the inbox contains that verified unmatched
+  event, with zero application orders/attempts/money transactions created.
+- Internal reconciliation returns 200 with `checked=0`; Cloudflare API reports
+  cron `*/30 * * * *`. Actual scheduled execution timing is provider-controlled.
+- All 16 service tests also passed against Aiven in an isolated schema; both
+  schema-test prefixes were checked clean afterward. Existing public users,
+  products and orders remain at zero.
+- The final cold-start retry adjustment and documentation update go through
+  the same CI/CD pipeline; consult Actions for their newer release SHA.
 
 Official references: [Java SDK](https://github.com/payOSHQ/payos-lib-java),
 [Merchant API](https://payos.vn/docs/api/),

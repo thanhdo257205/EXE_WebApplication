@@ -70,6 +70,17 @@ test('scheduled reconciliation calls only fixed backend and fails on upstream er
   });
   await assert.rejects(reconcilePayments(environment(), async () => new Response(null, { status: 503 })));
 });
+test('scheduled reconciliation retries cold-start errors and rejects HTML wake-up pages', async () => {
+  let calls = 0;
+  await reconcilePayments(environment(), async () => ++calls === 1
+    ? new Response('Waking up', { status: 503 }) : Response.json({ checked: 0 }));
+  assert.equal(calls, 2);
+  calls = 0;
+  await assert.rejects(reconcilePayments(environment(), async () => {
+    calls++; return new Response('<html>Waking up</html>', { headers: { 'Content-Type': 'text/html' } });
+  }));
+  assert.equal(calls, 2);
+});
 
 test('ordinary Postman request without browser context is rejected', async () => {
   const req = new Request(ORIGIN + '/api/v1/info', { headers: { 'CF-Connecting-IP': '192.0.2.1', 'User-Agent': 'PostmanRuntime/7' } });

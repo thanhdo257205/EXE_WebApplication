@@ -158,12 +158,24 @@ export async function handle(request: Request, env: Env, fetcher: typeof fetch =
 export async function reconcilePayments(env: Env, fetcher: typeof fetch = fetch): Promise<void> {
   if (!env.ORIGIN_PROXY_SECRET || env.ORIGIN_PROXY_SECRET.length < 32) throw new Error('Missing proxy credential');
   const backend = origin(env.BACKEND_ORIGIN);
-  const response = await fetcher(new URL('/api/v1/internal/payments/reconcile', backend), {
-    method: 'POST', headers: { 'X-Origin-Verify': env.ORIGIN_PROXY_SECRET },
-    // Scheduled invocations can wait through Render Free cold starts and a bounded reconciliation batch.
-    redirect: 'manual', signal: AbortSignal.timeout(180000),
-  });
-  if (!response.ok) throw new Error(`Payment reconciliation returned ${response.status}`);
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const response = await fetcher(new URL('/api/v1/internal/payments/reconcile', backend), {
+        method: 'POST', headers: { 'X-Origin-Verify': env.ORIGIN_PROXY_SECRET, Accept: 'application/json' },
+        // A cold start was observed taking ~147s. Allow startup plus the batch and one recovery attempt.
+        redirect: 'manual', signal: AbortSignal.timeout(300000),
+      });
+      if (!response.ok) throw new Error('Reconciliation unavailable');
+      const result = await response.json() as { checked?: number };
+      if (!Number.isInteger(result.checked) || result.checked! < 0 || result.checked! > 5) {
+        throw new Error('Unexpected reconciliation response');
+      }
+      return;
+    } catch {
+      // The endpoint is idempotent. A second call can recover from an origin wake-up/error page.
+      if (attempt === 1) throw new Error('Payment reconciliation unavailable after retry');
+    }
+  }
 }
 
 export default {

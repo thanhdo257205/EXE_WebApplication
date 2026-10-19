@@ -9,7 +9,7 @@
 - Công việc vừa hoàn thành: Push schema/database V3–V5 ở 42d32ba; CI #39296229959 và CD #39296516356 đều thành công, có job deploy thật và smoke production pass.
 - Trạng thái deploy: Cloudflare Pages và Render khớp SHA 42d32ba; Aiven public đã V5 với 34 bảng ứng dụng (không tính Flyway history). Dữ liệu user giữ nguyên; không còn schema thử nghiệm.
 - Trạng thái GitHub: Schema và cấu hình CI PostgreSQL đã push. Commit cập nhật bằng chứng triển khai trong tài liệu cũng chạy CI/CD như các push main khác; xem Actions để biết SHA triển khai mới nhất.
-- Đang thực hiện: Tích hợp PayOS backend, signed webhook, checkout/inventory, đối soát qua Cloudflare cron; xem docs/PAYOS.md. Cần xác minh bản deploy và merchant webhook trước khi kết luận hoàn tất.
+- PayOS backend đã deploy ở 0cfb553: CI #39303973150 (63 tests) và CD #39304413119 đều pass; webhook thật đã confirm, SDK create/query/cancel probe thành công với amountPaid=0. Chi tiết docs/PAYOS.md.
 - Phần còn thiếu: Google credentials, UI login, Angular catalog/cart/checkout và quản trị bán hàng/refund. Chưa kiểm thử chuyển tiền thật. Merchant keys đã được người dùng lưu trên Render.
 
 ## Bối cảnh và tài liệu
@@ -178,4 +178,6 @@ Trạng thái xác thực có thể thay đổi; kiểm tra lại khi cần depl
 - Timeout giữ nguyên orderCode/UNKNOWN; webhook trùng và đối soát không ghi nhận tiền/kho hai lần. Partial/overpayment/late payment và lệch provider totals có trạng thái riêng/REVIEW.
 - Trang return chỉ hiển thị trạng thái backend; không tin query status. Internal reconciliation chỉ Worker cron gọi bằng proxy secret, public gateway chặn; lịch mỗi 30 phút, batch 5.
 - Frontend có thay đổi chưa commit của phiên khác: giữ nguyên, không stage/push vào commit PayOS.
-- Xác minh deploy, đăng ký merchant webhook và probe thật sẽ được ghi sau khi có kết quả. Chưa có chuyển tiền thật hoặc hoàn tiền tự động.
+- Bản 0cfb553 đã xác minh deploy khớp SHA ở Pages/Render, webhook SDK confirm thành công, signed probe lưu inbox nhưng không tạo đơn/tiền. Internal reconciliation HTTP 200; lịch cron 30 phút có trên Cloudflare. Chưa có chuyển tiền thật hoặc hoàn tiền tự động.
+- CI backend 63 tests pass; 16 payment service tests chạy thêm trên Aiven schema riêng cũng pass và đã dọn schema. Public users/products/orders/transactions vẫn 0.
+- Theo log Render, startup khoảng 147 giây; bản điều chỉnh cuối cho cron chờ tối đa 300 giây/lần, retry một lần, yêu cầu JSON checked để không nhầm trang wake-up là đối soát thành công. Bản này cùng tài liệu sẽ chạy CI/CD tiếp; xem Actions cho SHA mới nhất.

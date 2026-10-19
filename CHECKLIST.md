@@ -159,7 +159,8 @@ Cập nhật: 2026-10-20 (Asia/Saigon).
 - [x] Backend kiểm tra giá, tồn kho và tạo đơn trong transaction.
 - [ ] Xây trang xác nhận và theo dõi đơn hàng.
 - [x] Chọn PayOS; thiết kế attempts, inbox, ledger, idempotency và refund workflow.
-- [ ] Tích hợp PayOS SDK/credentials và xác minh webhook thật, đối soát, thử luồng thanh toán.
+- [x] Tích hợp PayOS SDK/credentials, xác minh webhook thật và đối soát.
+- [ ] Kiểm thử chuyển tiền thật và luồng mua hàng đầy đủ qua Angular.
 - [ ] Xây quản trị sản phẩm và đơn hàng.
 - [ ] Đánh giá lại khả năng vận hành thực tế trên gói miễn phí trước khi bán hàng.
 
@@ -189,7 +190,7 @@ Cập nhật: 2026-10-20 (Asia/Saigon).
 - [x] Đọc ba merchant keys từ Render; không lưu giá trị vào repo/frontend/log.
 - [x] Tích hợp SDK 2.0.1, checkout idempotency, inventory locking, signed inbox và đối soát.
 - [x] Thêm trang return đọc trạng thái từ backend và cron Cloudflare mỗi 30 phút.
-- [ ] Xác minh CI/CD của bản PayOS trên production.
-- [ ] Đăng ký webhook thật và kiểm tra create/query/cancel trên kênh mới.
+- [x] Xác minh CI/CD của bản PayOS trên production: CI #39303973150, CD #39304413119.
+- [x] Đăng ký webhook thật và kiểm tra create/query/cancel trên kênh mới; số tiền đã nhận 0 đồng.
 - [ ] Kiểm thử chuyển tiền thật do chủ tài khoản thực hiện.
 - [ ] Nối Angular catalog/cart/checkout và hoàn thiện đăng nhập khách hàng.
