@@ -38,7 +38,7 @@ Cập nhật: 2026-10-19 (Asia/Saigon).
 - [x] Tạo `CHECKLIST.md` riêng để theo dõi hạng mục.
 - [x] Kiểm tra Cloudflare Wrangler và Render CLI đã đăng nhập trong phiên 2026-10-19.
 - [x] Đăng nhập Aiven CLI bằng token và xác minh tài khoản hoạt động trong phiên 2026-10-19.
-- [ ] Đưa tài liệu tiến trình lên GitHub bằng commit/push.
+- [x] Đưa tài liệu tiến trình lên GitHub bằng commit/push.
 - [ ] Xác định vị trí mã demo và dữ liệu nguồn của 148 thẻ, 8 nhân vật, wiki, hình ảnh.
 
 ### 1A. Thiết kế và prototype
@@ -132,4 +132,3 @@ Cập nhật: 2026-10-19 (Asia/Saigon).
 - [ ] Chọn cổng thanh toán; xác minh webhook và chống xử lý giao dịch trùng.
 - [ ] Xây quản trị sản phẩm và đơn hàng.
 - [ ] Đánh giá lại khả năng vận hành thực tế trên gói miễn phí trước khi bán hàng.
-

@@ -6,7 +6,8 @@
 
 - Ngày: 2026-10-19 (Asia/Saigon).
 - Trạng thái: Đã chốt công nghệ và tạo repo; chưa khởi tạo mã nguồn ứng dụng.
-- Công việc vừa hoàn thành: Xác minh prototype Figma đã có qua MCP; lưu danh mục 19 màn hình và screenshot trang chủ trong `docs/design/`.
+- Công việc vừa hoàn thành: Commit và push tài liệu, checklist, báo cáo Figma và screenshot lên nhánh `main` của GitHub.
+- Trạng thái GitHub: Đã push bộ tài liệu tại commit `bb3c322`; cập nhật trạng thái hoàn thành trong commit tiếp theo.
 - Việc tiếp theo: Khởi tạo cấu trúc frontend Angular và backend Spring Boot.
 - Trở ngại hiện tại: Chưa ghi nhận; các dịch vụ cloud chưa được tạo hoặc kiểm tra cấu hình cho dự án.
 
@@ -89,6 +90,7 @@ Trạng thái xác thực có thể thay đổi; kiểm tra lại khi cần depl
 | 2026-10-19 | Clone repo và tạo file tiến trình | File đang local, chưa commit/push |
 | 2026-10-19 | Tách checklist chi tiết sang `CHECKLIST.md`, quy định tick sau khi hoàn thành và kiểm tra | Hai file đang local, chưa commit/push |
 | 2026-10-19 | Xác minh Figma MCP, 19 màn hình và screenshot trang chủ; thêm mục checklist thiết kế | Chưa chạy lại toàn bộ tương tác; tài liệu và ảnh đang local, chưa push |
+| 2026-10-19 | Push bộ tài liệu và ảnh prototype lên `origin/main` | Commit `bb3c322` đã push thành công; tick checklist và ghi nhận trạng thái trong commit tiếp theo |
 
 ## Kết quả kiểm tra ứng dụng
 
