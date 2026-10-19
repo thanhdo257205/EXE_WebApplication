@@ -1,0 +1,61 @@
+.wiki-canvas-card {
+  background-color: rgba(16, 23, 32, 0.97);
+  border: 1px solid #405367;
+  border-radius: 0.25rem;
+  padding: 1.25rem;
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+}
+
+@media (min-width: 640px) {
+  .wiki-canvas-card {
+    padding: 2rem;
+  }
+}
+
+.canvas-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(39, 70, 91, 0.5);
+}
+
+.left-tag {
+  color: #5ab2e7;
+}
+
+.right-tag {
+  color: #94a3b8;
+}
+
+.canvas-body {
+  width: 100%;
+}
+
+.canvas-footer {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid #27465b;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+@media (min-width: 640px) {
+  .canvas-footer {
+    flex-direction: row;
+  }
+}
+
+.prototype-label {
+  color: #e5a93b;
+  font-weight: 600;
+}

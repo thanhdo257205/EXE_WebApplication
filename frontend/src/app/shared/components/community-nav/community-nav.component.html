@@ -1,0 +1,11 @@
+<nav aria-label="Điều hướng cộng đồng" class="community-nav-bar">
+  @for (tab of tabs; track tab.link) {
+    <a [routerLink]="tab.link"
+       routerLinkActive="active-tab"
+       [routerLinkActiveOptions]="tab.exact ? { exact: true } : { exact: false }"
+       class="nav-tab"
+       [class.store-tab]="tab.isAccent">
+      {{ tab.label }}
+    </a>
+  }
+</nav>

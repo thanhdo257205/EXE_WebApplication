@@ -76,7 +76,7 @@ Cập nhật: 2026-10-20 (Asia/Saigon).
 
 ### 3. Website giới thiệu và tra cứu
 
-- [ ] Xây trang chủ.
+- [x] Xây trang chủ.
 - [ ] Xây trang câu chuyện.
 - [ ] Xây trang giới thiệu game.
 - [ ] Hồ sơ 8 nhân vật.

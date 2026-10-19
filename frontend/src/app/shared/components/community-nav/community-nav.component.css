@@ -1,0 +1,45 @@
+.community-nav-bar {
+  display: flex;
+  align-items: center;
+  overflow-x: auto;
+  background-color: #18232f;
+  border: 1px solid #405367;
+  border-radius: 0.25rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #cbd5e1;
+  user-select: none;
+}
+
+.community-nav-bar::-webkit-scrollbar {
+  height: 4px;
+}
+
+.nav-tab {
+  padding: 0.625rem 1.25rem;
+  white-space: nowrap;
+  border-right: 1px solid #27465b;
+  transition: all 0.15s ease-in-out;
+  text-decoration: none;
+}
+
+.nav-tab:last-child {
+  border-right: none;
+}
+
+.nav-tab:hover {
+  color: #ffffff;
+  background-color: #203244;
+}
+
+.active-tab {
+  color: #e5a93b !important;
+  font-weight: 700;
+  background-color: #101720 !important;
+  box-shadow: inset 0 -2px 0 0 #e5a93b;
+}
+
+.store-tab {
+  color: #5ab2e7;
+}

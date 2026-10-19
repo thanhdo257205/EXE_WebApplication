@@ -1,14 +1,33 @@
 <a class="skip-link" href="#main">Chuyển đến nội dung</a>
-<header class="border-b border-slate-700 bg-slate-950">
-  <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-5">
-    <a routerLink="/" class="font-bold tracking-wide text-sky-300">NHÀ NÀY HƠI BÁO!</a>
-    <nav aria-label="Điều hướng chính" class="flex flex-wrap gap-5 text-sm">
-      <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">Trang chủ</a>
-      <a routerLink="/thu-vien" routerLinkActive="active">Thư viện thẻ</a>
-      <a routerLink="/wiki" routerLinkActive="active">Wiki luật</a>
-      <a routerLink="/huong-dan" routerLinkActive="active">Hướng dẫn tương tác</a>
+
+<div class="app-container">
+  <!-- Background Vector Artwork -->
+  <div class="artwork-bg"></div>
+
+  <!-- Shared Left Compact Wiki Rail (Sidebar) -->
+  <app-wiki-rail></app-wiki-rail>
+
+  <!-- Shared Top Global Wiki Bar -->
+  <app-global-bar (menuToggle)="toggleMobileMenu()"></app-global-bar>
+
+  <!-- Mobile Drawer Menu -->
+  @if (mobileMenuOpen()) {
+    <div class="mobile-overlay md:hidden" (click)="toggleMobileMenu()"></div>
+    <nav class="mobile-drawer md:hidden" aria-label="Menu di động">
+      <a routerLink="/" (click)="toggleMobileMenu()" class="drawer-link">Trang chủ</a>
+      <a routerLink="/cau-chuyen" (click)="toggleMobileMenu()" class="drawer-link">Câu chuyện</a>
+      <a routerLink="/cu-dan" (click)="toggleMobileMenu()" class="drawer-link">Cư dân (8 người)</a>
+      <a routerLink="/cach-choi" (click)="toggleMobileMenu()" class="drawer-link">Cách chơi</a>
+      <a routerLink="/wiki" (click)="toggleMobileMenu()" class="drawer-link">Wiki luật</a>
+      <a routerLink="/thu-vien" (click)="toggleMobileMenu()" class="drawer-link">Thư viện thẻ (148 thẻ)</a>
+      <a routerLink="/quy-nha" (click)="toggleMobileMenu()" class="drawer-link">Mô phỏng Quỹ nhà</a>
+      <a routerLink="/cua-hang" (click)="toggleMobileMenu()" class="drawer-link">Cửa hàng board game</a>
+      <a routerLink="/gio-hang" (click)="toggleMobileMenu()" class="drawer-link">Giỏ hàng & Thanh toán</a>
     </nav>
-  </div>
-</header>
-<main id="main" tabindex="-1" class="mx-auto min-h-[75vh] max-w-6xl px-6 py-12"><router-outlet /></main>
-<footer class="border-t border-slate-700 px-6 py-6 text-center text-sm text-slate-400">Chưa Giàu Đã Lớn · Khung phát triển ban đầu</footer>
+  }
+
+  <!-- Main Content View Area -->
+  <main id="main" tabindex="-1" class="main-content">
+    <router-outlet />
+  </main>
+</div>

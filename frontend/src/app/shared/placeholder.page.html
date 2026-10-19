@@ -1,0 +1,36 @@
+<div class="placeholder-container">
+  <!-- Title & Subtitle Block -->
+  <div class="header-block">
+    <div>
+      <p class="brand-prefix">NHÀ NÀY</p>
+      <h1 class="main-title">HƠI BÁO! WIKI</h1>
+      <p class="subtitle">{{ heading() }}</p>
+    </div>
+
+    <div class="card-badge">
+      <span class="badge-number">V2</span>
+      <span class="badge-label">CHƯA GIÀU ĐÃ LỚN</span>
+    </div>
+  </div>
+
+  <!-- Shared Community Navigation Component -->
+  <app-community-nav></app-community-nav>
+
+  <!-- Main Canvas Card -->
+  <app-wiki-canvas [versionTag]="'TRANG WIKI / PHIÊN BẢN V2'" [subtitleTag]="'ĐANG HOÀN THIỆN'">
+    <div class="canvas-inner">
+      <div class="content-left">
+        <h2 class="section-title">{{ heading() }}</h2>
+        <div class="accent-bar"></div>
+        <p class="section-desc">{{ description() }}</p>
+        <div class="notice-callout">
+          💡 Giao diện trang này đang được xây dựng bám sát theo các màn hình prototype trong Figma (Cư dân, Thư viện 148 thẻ, Wiki luật, Cửa hàng).
+        </div>
+      </div>
+
+      <div class="back-link-wrapper">
+        <a routerLink="/" class="back-link">← Quay lại trang chủ</a>
+      </div>
+    </div>
+  </app-wiki-canvas>
+</div>

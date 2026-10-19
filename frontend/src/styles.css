@@ -1,14 +1,89 @@
 @import "tailwindcss";
 
-:root { color-scheme: dark; font-family: system-ui, sans-serif; background: #06182d; color: #e6e6e6; }
-body { margin: 0; }
-a, button { -webkit-tap-highlight-color: transparent; }
-a { text-decoration: none; }
-button { cursor: pointer; }
-button:disabled { cursor: default; }
-:focus-visible { outline: 2px solid #7dd3fc; outline-offset: 4px; }
-.active { color: #7dd3fc; }
-.panel { display: block; padding: 1.5rem; border: 1px solid #405367; border-radius: .75rem; background: #101720; }
-a.panel:hover { border-color: #7dd3fc; }
-.skip-link { position: absolute; left: 1rem; top: -5rem; background: #0f172a; padding: .75rem; z-index: 10; }
-.skip-link:focus { top: 1rem; }
+:root {
+  color-scheme: dark;
+  font-family: 'Rubik', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: #06182d;
+  color: #e6e6e6;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #06182d;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+a, button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+  font-family: inherit;
+}
+
+button:disabled {
+  cursor: default;
+}
+
+:focus-visible {
+  outline: 2px solid #5ab2e7;
+  outline-offset: 2px;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #080c12;
+}
+::-webkit-scrollbar-thumb {
+  background: #27465b;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #405367;
+}
+
+/* Canvas Card Box Shadow & Border */
+.wiki-canvas {
+  background-color: rgba(16, 23, 32, 0.97);
+  border: 1px solid #405367;
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+}
+
+.wiki-box {
+  background-color: #0c1520;
+  border: 1px solid #27465b;
+}
+
+.wiki-box:hover {
+  border-color: #5ab2e7;
+}
+
+.skip-link {
+  position: absolute;
+  left: 1rem;
+  top: -5rem;
+  background: #0f172a;
+  padding: 0.75rem 1.25rem;
+  color: #5ab2e7;
+  border: 1px solid #5ab2e7;
+  border-radius: 0.25rem;
+  z-index: 100;
+  transition: top 0.2s ease;
+}
+.skip-link:focus {
+  top: 1rem;
+}

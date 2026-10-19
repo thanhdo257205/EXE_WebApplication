@@ -1,0 +1,29 @@
+.rail-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 0.25rem;
+  border-radius: 0.25rem;
+  font-size: 10px;
+  color: #94a3b8;
+  transition: all 0.15s ease-in-out;
+  text-decoration: none;
+}
+
+.rail-btn:hover {
+  background-color: #121c27;
+  color: #f1f5f9;
+}
+
+.active-rail {
+  background-color: #18232f !important;
+  color: #e5a93b !important;
+  font-weight: 700;
+  border-left: 2px solid #e5a93b;
+}
+
+.label {
+  line-height: 1.2;
+  white-space: nowrap;
+}

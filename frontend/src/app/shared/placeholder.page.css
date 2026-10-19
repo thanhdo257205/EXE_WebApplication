@@ -1,0 +1,145 @@
+.placeholder-container {
+  max-width: 1240px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  padding-top: 1.5rem;
+  padding-bottom: 4rem;
+  font-family: 'Rubik', sans-serif;
+}
+
+@media (min-width: 640px) {
+  .placeholder-container {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+.header-block {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+@media (min-width: 768px) {
+  .header-block {
+    flex-direction: row;
+    align-items: flex-end;
+  }
+}
+
+.brand-prefix {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #38bdf8;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.25rem;
+}
+
+.main-title {
+  font-size: 1.875rem;
+  line-height: 2.25rem;
+  font-weight: 900;
+  color: #ffffff;
+  letter-spacing: 0.025em;
+}
+
+@media (min-width: 768px) {
+  .main-title {
+    font-size: 3rem;
+    line-height: 1;
+  }
+}
+
+.subtitle {
+  font-size: 0.75rem;
+  color: #cbd5e1;
+  margin-top: 0.25rem;
+}
+
+.card-badge {
+  display: none;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+@media (min-width: 768px) {
+  .card-badge {
+    display: flex;
+  }
+}
+
+.badge-number {
+  font-size: 3rem;
+  line-height: 1;
+  font-weight: 900;
+  color: #5ab2e7;
+}
+
+.badge-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #94a3b8;
+  letter-spacing: 0.05em;
+}
+
+.canvas-inner {
+  min-height: 380px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.content-left {
+  max-width: 42rem;
+}
+
+.section-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 0.75rem;
+}
+
+.accent-bar {
+  width: 4rem;
+  height: 0.25rem;
+  background-color: #fbbf24;
+  margin-bottom: 1.25rem;
+}
+
+.section-desc {
+  font-size: 0.875rem;
+  color: #cbd5e1;
+  line-height: 1.625;
+  margin-bottom: 1.5rem;
+}
+
+.notice-callout {
+  padding: 1rem;
+  border-radius: 0.25rem;
+  background-color: #0c1520;
+  border: 1px solid #27465b;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.back-link-wrapper {
+  margin-top: 2rem;
+}
+
+.back-link {
+  color: #fbbf24;
+  text-decoration: none;
+  font-size: 0.75rem;
+  font-weight: 600;
+  transition: color 0.15s ease;
+}
+
+.back-link:hover {
+  color: #fde68a;
+  text-decoration: underline;
+}

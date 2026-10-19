@@ -1,0 +1,22 @@
+<aside aria-label="Thanh điều hướng bên"
+       class="hidden md:flex fixed left-0 top-0 bottom-0 w-16 bg-[#080c12] border-r border-[#1e2e3e] flex-col items-center py-2 z-30 select-none">
+  <!-- Top logo icon -->
+  <a routerLink="/" class="w-12 h-12 flex items-center justify-center rounded text-sky-400 hover:bg-[#18232f] transition-colors mb-2" title="Trang chủ">
+    <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+    </svg>
+  </a>
+
+  <!-- Rail Navigation Items -->
+  <nav class="flex flex-col gap-1 w-full px-1 text-center">
+    @for (item of railItems; track item.link) {
+      <a [routerLink]="item.link"
+         routerLinkActive="active-rail"
+         [routerLinkActiveOptions]="item.exact ? { exact: true } : { exact: false }"
+         class="rail-btn">
+        <span class="text-base mb-0.5">{{ item.icon }}</span>
+        <span class="label">{{ item.label }}</span>
+      </a>
+    }
+  </nav>
+</aside>

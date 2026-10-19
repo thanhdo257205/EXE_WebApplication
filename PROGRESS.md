@@ -6,8 +6,8 @@
 
 - Ngày: 2026-10-20 (Asia/Saigon).
 - Trạng thái: Website đã live trên Cloudflare, Spring Boot live trên Render Free, PostgreSQL Free Aiven đã kết nối TLS và chạy migration.
-- Công việc vừa hoàn thành: Push schema/database V3–V5 ở 42d32ba; CI #39296229959 và CD #39296516356 đều thành công, có job deploy thật và smoke production pass.
-- Trạng thái deploy: Cloudflare Pages và Render khớp SHA 42d32ba; Aiven public đã V5 với 34 bảng ứng dụng (không tính Flyway history). Dữ liệu user giữ nguyên; không còn schema thử nghiệm.
+- Công việc vừa hoàn thành: Tái cấu trúc và xây dựng hoàn chỉnh giao diện Trang chủ (Home) và Shell layout theo đúng chuẩn Figma prototype (Frame 01). Tổ chức mã nguồn Angular thành các standalone components chuyên biệt (WikiRailComponent, GlobalBarComponent, CommunityNavComponent, WikiCanvasComponent) với template HTML, stylesheet CSS và TypeScript riêng biệt. Build prerender và 3/3 unit tests pass.
+- Trạng thái deploy: Chuẩn bị kích hoạt CI/CD push commit giao diện lên main.
 - Trạng thái GitHub: Schema và cấu hình CI PostgreSQL đã push. Commit cập nhật bằng chứng triển khai trong tài liệu cũng chạy CI/CD như các push main khác; xem Actions để biết SHA triển khai mới nhất.
 - PayOS backend đã deploy ở 0cfb553: CI #39303973150 (63 tests) và CD #39304413119 đều pass; webhook thật đã confirm, SDK create/query/cancel probe thành công với amountPaid=0. Chi tiết docs/PAYOS.md.
 - Phần còn thiếu: Google credentials, UI login, Angular catalog/cart/checkout và quản trị bán hàng/refund. Chưa kiểm thử chuyển tiền thật. Merchant keys đã được người dùng lưu trên Render.
