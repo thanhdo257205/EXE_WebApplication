@@ -20,4 +20,13 @@ assert.equal((await get(`${process.env.BACKEND_ORIGIN}/api/v1/info`)).status, 40
 const health = await get(`${process.env.BACKEND_ORIGIN}/actuator/health`);
 assert.equal(health.status, 200, 'Backend and PostgreSQL health');
 assert.equal((await health.json()).status, 'UP');
-console.log('Production smoke checks passed: static routes, tested API commit, origin guard and database health.');
+const paymentConfig = await get(`${origin}/api/v1/payments/config`, { Origin: origin });
+assert.equal(paymentConfig.status, 200, 'Payment configuration');
+assert.equal((await paymentConfig.json()).enabled, true, 'PayOS merchant credentials configured');
+assert.equal((await get(`${origin}/api/v1/orders`, { Origin: origin })).status, 401, 'Orders require authentication');
+assert.equal((await get(`${origin}/api/v1/internal/payments/reconcile`, { Origin: origin })).status, 404, 'Internal reconciliation hidden');
+const invalidWebhook = await fetch(`${origin}/api/v1/payments/payos/webhook`, {
+  method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}', signal: AbortSignal.timeout(60_000),
+});
+assert.equal(invalidWebhook.status, 400, 'Unsigned webhook rejected by backend');
+console.log('Production smoke checks passed: static routes, tested API commit, origin guard, database health and PayOS guards.');

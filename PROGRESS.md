@@ -9,8 +9,8 @@
 - Công việc vừa hoàn thành: Push schema/database V3–V5 ở 42d32ba; CI #39296229959 và CD #39296516356 đều thành công, có job deploy thật và smoke production pass.
 - Trạng thái deploy: Cloudflare Pages và Render khớp SHA 42d32ba; Aiven public đã V5 với 34 bảng ứng dụng (không tính Flyway history). Dữ liệu user giữ nguyên; không còn schema thử nghiệm.
 - Trạng thái GitHub: Schema và cấu hình CI PostgreSQL đã push. Commit cập nhật bằng chứng triển khai trong tài liệu cũng chạy CI/CD như các push main khác; xem Actions để biết SHA triển khai mới nhất.
-- Việc tiếp theo: Xây repositories/services/API checkout, inventory và PayOS; tích hợp merchant credentials thật và verifier trước khi mở webhook.
-- Phần chưa triển khai: API mua hàng/PayOS, merchant credentials, Google credentials và UI login. Schema đã deploy không đồng nghĩa thanh toán thật đã hoạt động.
+- Đang thực hiện: Tích hợp PayOS backend, signed webhook, checkout/inventory, đối soát qua Cloudflare cron; xem docs/PAYOS.md. Cần xác minh bản deploy và merchant webhook trước khi kết luận hoàn tất.
+- Phần còn thiếu: Google credentials, UI login, Angular catalog/cart/checkout và quản trị bán hàng/refund. Chưa kiểm thử chuyển tiền thật. Merchant keys đã được người dùng lưu trên Render.
 
 ## Bối cảnh và tài liệu
 
@@ -171,3 +171,11 @@ Trạng thái xác thực có thể thay đổi; kiểm tra lại khi cần depl
 - Render deploy dep-dbb5djon74is73bm2stg live đúng SHA; Pages production 6fd6c029-60c4-4c13-9c8d-8c9f62a0b26b đúng SHA. Truy cập https://exe-webapp.pages.dev . Không triển khai bằng tay để thay bằng chứng CD.
 - Kiểm tra JDBC TLS trên Aiven: public Flyway V2/4 bảng trước release → V5/34 bảng sau release; 0 failed migrations, app_users không đổi (0), không còn schema test. Script smoke production pass: 4 trang tĩnh, API đúng commit, database UP và origin/direct-backend guard 403.
 - Cập nhật checklist và tài liệu sau khi xác minh; chưa có giao dịch PayOS thật, không thêm credentials thanh toán hay seed giả.
+
+### PayOS backend — 2026-10-20
+
+- Tích hợp SDK chính thức, API checkout/orders/refresh, xác minh webhook và durable inbox, transaction ledger, stock reservation/consumption/release.
+- Timeout giữ nguyên orderCode/UNKNOWN; webhook trùng và đối soát không ghi nhận tiền/kho hai lần. Partial/overpayment/late payment và lệch provider totals có trạng thái riêng/REVIEW.
+- Trang return chỉ hiển thị trạng thái backend; không tin query status. Internal reconciliation chỉ Worker cron gọi bằng proxy secret, public gateway chặn; lịch mỗi 30 phút, batch 5.
+- Frontend có thay đổi chưa commit của phiên khác: giữ nguyên, không stage/push vào commit PayOS.
+- Xác minh deploy, đăng ký merchant webhook và probe thật sẽ được ghi sau khi có kết quả. Chưa có chuyển tiền thật hoặc hoàn tiền tự động.

@@ -156,7 +156,7 @@ Cập nhật: 2026-10-20 (Asia/Saigon).
 - [ ] Xây danh sách và chi tiết sản phẩm.
 - [ ] Xây giỏ hàng và cập nhật số lượng.
 - [ ] Xây biểu mẫu đặt hàng và thông tin giao hàng.
-- [ ] Backend kiểm tra giá, tồn kho và tạo đơn trong transaction.
+- [x] Backend kiểm tra giá, tồn kho và tạo đơn trong transaction.
 - [ ] Xây trang xác nhận và theo dõi đơn hàng.
 - [x] Chọn PayOS; thiết kế attempts, inbox, ledger, idempotency và refund workflow.
 - [ ] Tích hợp PayOS SDK/credentials và xác minh webhook thật, đối soát, thử luồng thanh toán.
@@ -180,6 +180,16 @@ Cập nhật: 2026-10-20 (Asia/Saigon).
 - [x] Phân biệt ràng buộc DB với nghiệp vụ cần service/locking; ghi rõ returnUrl không xác nhận thu tiền.
 - [x] Cấu hình PostgreSQL 18 disposable trong CI backend; CI thực tế đã pass 28 tests.
 - [x] Áp dụng V3–V5 vào Aiven production qua CD/Flyway; xác minh V5 và 34 bảng ứng dụng.
-- [ ] Xây JPA/JDBC repositories, checkout/inventory/payment services và API mua hàng.
-- [ ] Mở ngoại lệ webhook đúng endpoint ở gateway/Spring sau khi có verifier; không bypass bảo vệ chung.
+- [x] Xây JDBC checkout/inventory/payment services và API mua hàng; xem docs/PAYOS.md.
+- [x] Mở ngoại lệ POST webhook đúng endpoint ở gateway/Spring với SDK verifier; giữ proxy secret/body/rate limits.
 - [x] Bản cuối: 18 schema contract tests pass trên H2/PostgreSQL 18, có upgrade V2→V5 giữ user và tranh chấp tồn kho.
+
+### PayOS integration — 2026-10-20
+
+- [x] Đọc ba merchant keys từ Render; không lưu giá trị vào repo/frontend/log.
+- [x] Tích hợp SDK 2.0.1, checkout idempotency, inventory locking, signed inbox và đối soát.
+- [x] Thêm trang return đọc trạng thái từ backend và cron Cloudflare mỗi 30 phút.
+- [ ] Xác minh CI/CD của bản PayOS trên production.
+- [ ] Đăng ký webhook thật và kiểm tra create/query/cancel trên kênh mới.
+- [ ] Kiểm thử chuyển tiền thật do chủ tài khoản thực hiện.
+- [ ] Nối Angular catalog/cart/checkout và hoàn thiện đăng nhập khách hàng.

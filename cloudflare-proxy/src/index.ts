@@ -11,6 +11,7 @@ export interface Env {
 }
 
 const LOGIN = '/api/v1/auth/login';
+const PAYOS_WEBHOOK = '/api/v1/payments/payos/webhook';
 const OAUTH_START = '/api/v1/auth/oauth2/authorization/google';
 const OAUTH_CALLBACK = '/api/v1/auth/oauth2/callback/google';
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
@@ -63,6 +64,7 @@ export async function handle(request: Request, env: Env, fetcher: typeof fetch =
     if (url.origin !== publicUrl.origin) return problem(403, 'Unexpected host');
     if (backend.origin === publicUrl.origin) return problem(503, 'Invalid gateway configuration');
     const api = url.pathname === '/api' || url.pathname.startsWith('/api/');
+    if (decodeURIComponent(url.pathname).startsWith('/api/v1/internal')) return problem(404, 'Not found');
     if (!api) {
       if (frontend.origin === publicUrl.origin) return problem(503, 'Static assets must be served by Pages');
       if (!['GET', 'HEAD'].includes(request.method)) return problem(405, 'Method not allowed');
@@ -82,12 +84,16 @@ export async function handle(request: Request, env: Env, fetcher: typeof fetch =
     const site = request.headers.get('Sec-Fetch-Site');
     const mode = request.headers.get('Sec-Fetch-Mode');
     const oauthNavigation = request.method === 'GET' && [OAUTH_START, OAUTH_CALLBACK].includes(url.pathname);
+    const paymentNavigation = request.method === 'GET' && /^\/api\/v1\/payments\/return\/[a-f0-9-]{36}$/.test(url.pathname);
+    const webhook = request.method === 'POST' && url.pathname === PAYOS_WEBHOOK;
+    if (url.pathname === PAYOS_WEBHOOK && !webhook) return problem(405, 'Method not allowed');
     if (suppliedOrigin && suppliedOrigin !== publicUrl.origin) return problem(403, 'Origin not allowed');
-    if (!oauthNavigation && suppliedOrigin !== publicUrl.origin
+    if (!webhook && !oauthNavigation && !paymentNavigation && suppliedOrigin !== publicUrl.origin
         && !(site === 'same-origin' && ['cors', 'same-origin'].includes(mode ?? ''))) {
       return problem(403, 'Browser request required');
     }
-    if (!SAFE_METHODS.has(request.method) && suppliedOrigin !== publicUrl.origin) return problem(403, 'Origin required');
+    if (!webhook && !SAFE_METHODS.has(request.method) && suppliedOrigin !== publicUrl.origin) return problem(403, 'Origin required');
+    if (webhook && !request.headers.get('Content-Type')?.toLowerCase().startsWith('application/json')) return problem(415, 'JSON required');
     if (request.method === 'OPTIONS') {
       // This is intentionally a same-origin gateway; cross-origin browser API access is not supported.
       return new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store' } });
@@ -95,7 +101,7 @@ export async function handle(request: Request, env: Env, fetcher: typeof fetch =
     if (!['GET', 'POST', 'HEAD', 'PUT', 'PATCH', 'DELETE'].includes(request.method)) return problem(405, 'Method not allowed');
     const authAttempt = (request.method === 'POST' && url.pathname === LOGIN) || url.pathname === OAUTH_START;
     if (authAttempt && !(await env.LOGIN_LIMITER.limit({ key: `login:${ip}` })).success) return problem(429, 'Too many login attempts', '60');
-    const body = SAFE_METHODS.has(request.method) ? undefined : await readLimitedBody(request, 65536);
+    const body = SAFE_METHODS.has(request.method) ? undefined : await readLimitedBody(request, webhook ? 16384 : 65536);
     if (body === null) return problem(413, 'Request too large');
     if (request.method === 'POST' && url.pathname === LOGIN) {
       if (!request.headers.get('Content-Type')?.toLowerCase().startsWith('application/json')) return problem(415, 'JSON required');
@@ -118,6 +124,7 @@ export async function handle(request: Request, env: Env, fetcher: typeof fetch =
     }
     const headers = new Headers();
     for (const name of ['Accept', 'Content-Type', 'Cookie', 'X-XSRF-TOKEN']) {
+      if (webhook && ['Cookie', 'X-XSRF-TOKEN'].includes(name)) continue;
       const value = request.headers.get(name); if (value) headers.set(name, value);
     }
     headers.set('X-Origin-Verify', env.ORIGIN_PROXY_SECRET);
@@ -148,4 +155,17 @@ export async function handle(request: Request, env: Env, fetcher: typeof fetch =
   }
 }
 
-export default { fetch: (request: Request, env: Env) => handle(request, env) };
+export async function reconcilePayments(env: Env, fetcher: typeof fetch = fetch): Promise<void> {
+  if (!env.ORIGIN_PROXY_SECRET || env.ORIGIN_PROXY_SECRET.length < 32) throw new Error('Missing proxy credential');
+  const backend = origin(env.BACKEND_ORIGIN);
+  const response = await fetcher(new URL('/api/v1/internal/payments/reconcile', backend), {
+    method: 'POST', headers: { 'X-Origin-Verify': env.ORIGIN_PROXY_SECRET },
+    redirect: 'manual', signal: AbortSignal.timeout(60000),
+  });
+  if (!response.ok) throw new Error(`Payment reconciliation returned ${response.status}`);
+}
+
+export default {
+  fetch: (request: Request, env: Env) => handle(request, env),
+  scheduled: (_event: unknown, env: Env, ctx: { waitUntil(promise: Promise<unknown>): void }) => ctx.waitUntil(reconcilePayments(env)),
+};

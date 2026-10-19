@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { handle } from '../src/index.ts';
+import { handle, reconcilePayments } from '../src/index.ts';
 
 const ORIGIN = 'https://game.example.test';
 const SECRET = 'test-only-origin-secret-at-least-32-characters';
@@ -27,6 +27,49 @@ function login(overrides = {}) {
   });
 }
 const noUpstream = async () => { assert.fail('Request must not reach upstream'); };
+
+test('only exact POST PayOS webhook bypasses browser metadata; cookies are stripped', async () => {
+  const request = new Request(ORIGIN + '/api/v1/payments/payos/webhook', {
+    method: 'POST', headers: { 'CF-Connecting-IP': '192.0.2.2', 'Content-Type': 'application/json', Cookie: 'SESSION=spoof' }, body: '{}',
+  });
+  const response = await handle(request, environment(), async (input, init) => {
+    assert.equal(String(input), 'https://backend.example.test/api/v1/payments/payos/webhook');
+    assert.equal(init.headers.get('X-Origin-Verify'), SECRET);
+    assert.equal(init.headers.get('Cookie'), null);
+    return Response.json({ error: 'invalid signature' }, { status: 400 });
+  });
+  assert.equal(response.status, 400);
+  assert.equal((await handle(new Request(ORIGIN + '/api/v1/payments/payos/webhook/extra', {
+    method: 'POST', headers: { 'CF-Connecting-IP': '192.0.2.2' }, body: '{}',
+  }), environment(), noUpstream)).status, 403);
+});
+test('webhook retains body and rate limits', async () => {
+  const request = () => new Request(ORIGIN + '/api/v1/payments/payos/webhook', {
+    method: 'POST', headers: { 'CF-Connecting-IP': '192.0.2.2', 'Content-Type': 'application/json' }, body: 'x'.repeat(16385),
+  });
+  assert.equal((await handle(request(), environment(), noUpstream)).status, 413);
+  assert.equal((await handle(request(), environment({ API_LIMITER: limiter(0) }), noUpstream)).status, 429);
+});
+test('internal reconciliation is inaccessible through public routes, even with forged browser headers', async () => {
+  const request = browser('/api/v1/internal/payments/reconcile', { method: 'POST', headers: { Origin: ORIGIN, 'X-Origin-Verify': SECRET } });
+  assert.equal((await handle(request, environment(), noUpstream)).status, 404);
+});
+test('PayOS return navigation is allowed but never confirms a payment', async () => {
+  const request = new Request(ORIGIN + '/api/v1/payments/return/00000000-0000-0000-0000-000000000001?status=PAID', {
+    headers: { 'CF-Connecting-IP': '192.0.2.2', 'Sec-Fetch-Site': 'cross-site', 'Sec-Fetch-Mode': 'navigate' },
+  });
+  assert.equal((await handle(request, environment(), async (input, init) => {
+    assert.equal(init.method, 'GET'); return new Response('<html></html>');
+  })).status, 200);
+});
+test('scheduled reconciliation calls only fixed backend and fails on upstream error', async () => {
+  await reconcilePayments(environment(), async (input, init) => {
+    assert.equal(String(input), 'https://backend.example.test/api/v1/internal/payments/reconcile');
+    assert.equal(init.method, 'POST'); assert.equal(init.headers['X-Origin-Verify'], SECRET);
+    assert.equal(init.redirect, 'manual'); return Response.json({ checked: 0 });
+  });
+  await assert.rejects(reconcilePayments(environment(), async () => new Response(null, { status: 503 })));
+});
 
 test('ordinary Postman request without browser context is rejected', async () => {
   const req = new Request(ORIGIN + '/api/v1/info', { headers: { 'CF-Connecting-IP': '192.0.2.1', 'User-Agent': 'PostmanRuntime/7' } });

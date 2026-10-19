@@ -61,14 +61,22 @@ public class SecurityConfig {
             ObjectProvider<ClientRegistrationRepository> registrations) throws Exception {
         http.cors(cors -> {})
             .securityContext(context -> context.securityContextRepository(contexts))
-            .csrf(config -> config.csrfTokenRepository(csrf))
+            .csrf(config -> config.csrfTokenRepository(csrf).ignoringRequestMatchers(
+                org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher.withDefaults()
+                    .matcher(HttpMethod.POST, "/api/v1/payments/payos/webhook"),
+                org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher.withDefaults()
+                    .matcher(HttpMethod.POST, "/api/v1/internal/payments/reconcile")))
             .sessionManagement(session -> session.sessionFixation(fixation -> fixation.changeSessionId()))
             .requestCache(cache -> cache.disable())
             .formLogin(form -> form.disable())
             .httpBasic(basic -> basic.disable())
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.GET, "/api/v1/info", "/actuator/health",
-                    "/api/v1/auth/csrf", "/api/v1/auth/config").permitAll()
+                    "/api/v1/auth/csrf", "/api/v1/auth/config", "/api/v1/payments/config").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/payments/payos/webhook", "/api/v1/internal/payments/reconcile").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/payments/return/*").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/checkout", "/api/v1/orders/*/refresh-payment").authenticated()
+                .requestMatchers(HttpMethod.GET, "/api/v1/orders", "/api/v1/orders/*").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/login").permitAll()
                 .requestMatchers("/api/v1/auth/oauth2/**").permitAll()
                 .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")

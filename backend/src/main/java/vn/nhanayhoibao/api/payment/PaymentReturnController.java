@@ -1,0 +1,49 @@
+package vn.nhanayhoibao.api.payment;
+
+import java.util.UUID;
+import org.springframework.http.*;
+import org.springframework.web.bind.annotation.*;
+
+/** Browser redirect is presentation only. Status is always fetched from the authenticated order API. */
+@RestController
+public class PaymentReturnController {
+    @GetMapping(value="/api/v1/payments/return/{id}",produces=MediaType.TEXT_HTML_VALUE)
+    public ResponseEntity<String> page(@PathVariable UUID id) {
+        String html="""
+            <!doctype html><html lang="vi"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+            <title>Kiểm tra thanh toán</title><style>
+            body{font:17px system-ui,sans-serif;background:#faf8f2;color:#242424;margin:0;padding:8vh 20px}
+            main{max-width:600px;margin:auto;padding:32px;border:1px solid #ddd;border-radius:16px;background:white}
+            h1{font-size:26px}p{line-height:1.7;overflow-wrap:anywhere}button,a{font:inherit}button{padding:10px 18px;cursor:pointer}
+            </style><main><h1>Trạng thái thanh toán</h1><p id="status" aria-live="polite">Đang xác minh thanh toán…</p>
+            <p>Mã đơn: <code>ORDER_UUID</code></p><p>Nếu bạn đã chuyển tiền, hãy giữ lại mã đơn và kiểm tra trạng thái trước khi thanh toán lại.</p>
+            <button id="check" type="button">Kiểm tra lại</button> <a href="/">Về trang chủ</a></main>
+            <script>
+            const order='ORDER_UUID',status=document.getElementById('status'),button=document.getElementById('check');
+            let count=0,finished=false;
+            async function check(){
+              if(button.disabled)return;button.disabled=true;
+              try{
+                const csrfResponse=await fetch('/api/v1/auth/csrf',{cache:'no-store'});
+                if(!csrfResponse.ok)throw Error();const csrf=await csrfResponse.json();
+                const response=await fetch('/api/v1/orders/'+order+'/refresh-payment',{
+                  method:'POST',headers:{[csrf.headerName]:csrf.token},cache:'no-store'});
+                if(response.status===401){status.textContent='Vui lòng đăng nhập bằng tài khoản đã đặt đơn để xem kết quả.';finished=true;return;}
+                if(response.status===404){status.textContent='Không tìm thấy đơn trong tài khoản hiện tại.';finished=true;return;}
+                if(!response.ok)throw Error();const data=await response.json();
+                const messages={PAID:'Đã thanh toán. Đơn hàng đã được xác nhận.',UNPAID:'Chưa ghi nhận thanh toán. Nếu đã chuyển tiền, hệ thống đang tiếp tục xác minh.',
+                  PARTIALLY_PAID:'Đã nhận một phần số tiền. Đơn hàng đang chờ thanh toán đủ.',REVIEW:'Đã ghi nhận thông tin thanh toán; đơn cần được kiểm tra thêm. Hãy liên hệ cửa hàng với mã đơn này.'};
+                status.textContent=data.status==='CANCELLED'&&data.paymentStatus==='UNPAID'?'Đơn thanh toán đã đóng.':messages[data.paymentStatus]||'Đang xác minh thanh toán.';
+                finished=['PAID','REVIEW'].includes(data.paymentStatus)||data.status==='CANCELLED';
+              }catch{status.textContent='Chưa kết nối được hệ thống. Hãy thử kiểm tra lại; việc mất kết nối không chứng minh thanh toán thất bại.';}
+              finally{button.disabled=false;}
+            }
+            button.addEventListener('click',check);check();
+            const timer=setInterval(()=>{if(finished||++count>=10){clearInterval(timer);return;}check();},15000);
+            </script></html>
+            """.replace("ORDER_UUID",id.toString());
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+            .header("Content-Security-Policy","default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'")
+            .header("Referrer-Policy","no-referrer").body(html);
+    }
+}
