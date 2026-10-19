@@ -167,3 +167,4 @@ Cập nhật: 2026-10-19 (Asia/Saigon).
 - [x] Kiểm tra website/API/database qua https://exe-webapp.pages.dev, không dùng URL fville.
 - [x] Kiểm tra service binding, origin guard và Turnstile thiếu token bị chặn.
 - [x] Cập nhật cấu hình CI/CD và tài liệu cho project mới.
+- [x] Tắt workers.dev/preview endpoint gateway EXE cũ sau khi kiểm tra URL mới.

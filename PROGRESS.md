@@ -7,7 +7,7 @@
 - Ngày: 2026-10-19 (Asia/Saigon).
 - Trạng thái: Website đã live trên Cloudflare, Spring Boot live trên Render Free, PostgreSQL Free Aiven đã kết nối TLS và chạy migration.
 - Công việc vừa hoàn thành: Theo yêu cầu người dùng, chuyển public origin sang project mới https://exe-webapp.pages.dev; gateway mới chạy nội bộ qua service binding, không dùng URL fville.
-- Trạng thái GitHub: Code CI/CD đã push `69ed38c`; bản này đã deploy bằng hook/CLI và smoke test production pass. Commit tài liệu kèm sửa smoke test redirect Pages được push sau đó. CI #39278743322 đã success; #39282044333 có logs pass nhưng trạng thái queued do sự cố GitHub; chưa có kết quả CD tự động.
+- Trạng thái GitHub: Cấu hình chuyển project đã push `a02552a`; GitHub variables PUBLIC_ORIGIN=https://exe-webapp.pages.dev, CLOUDFLARE_PAGES_PROJECT=exe-webapp. CI/CD tự động vẫn cần xác minh sau sự cố GitHub. Backend cloud đang chạy bản 69ed38c đã smoke test.
 - Việc tiếp theo: Sau khi GitHub phục hồi, kiểm tra CI → CD và tick ô còn mở; cấu hình Google credentials, làm UI đăng nhập/Turnstile rồi phát triển nội dung game.
 - Trở ngại hiện tại: GitHub báo incident Actions/Webhooks từ 22:49 ngày 19/10/2026; https://www.githubstatus.com/incidents/8tzbpcnl75jp . Google Client ID/Secret chưa có; chưa đo RAM production.
 
@@ -147,3 +147,5 @@ Trạng thái xác thực có thể thay đổi; kiểm tra lại khi cần depl
 - URL public: https://exe-webapp.pages.dev ; deployment đầu https://c24c806f.exe-webapp.pages.dev . Gateway không phụ thuộc Pages/Worker cũ.
 - Smoke test production pass trên hostname mới: static routes, API/SHA backend 69ed38c, origin guard, trực tiếp Render 403, DB health UP. Test local: 15 gateway/Pages tests, typecheck và dry-run pass.
 - Cập nhật CI đóng gói Pages function/routing, CD chạy Pages CLI đúng thư mục config, Render origin, Turnstile hostname và GitHub variables cho project mới. Chưa có Google credentials/UI login.
+
+- Cutover hoàn tất: API Cloudflare xác nhận workers.dev/previews_enabled đều false cho gateway cũ exe-web-api-gateway và gateway mới exe-webapp-gateway. Turnstile chỉ cho hostname exe-webapp.pages.dev; GitHub variables đã xác minh đúng. CSRF 200/cookie Secure, thiếu challenge 403, rate limit 429 Retry-After 60; smoke test vẫn pass sau khi tắt endpoint cũ.
