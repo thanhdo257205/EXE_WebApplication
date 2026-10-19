@@ -160,3 +160,10 @@ Cập nhật: 2026-10-19 (Asia/Saigon).
 - [ ] Chọn cổng thanh toán; xác minh webhook và chống xử lý giao dịch trùng.
 - [ ] Xây quản trị sản phẩm và đơn hàng.
 - [ ] Đánh giá lại khả năng vận hành thực tế trên gói miễn phí trước khi bán hàng.
+
+### 5A. Project Cloudflare riêng theo yêu cầu
+
+- [x] Tạo Pages exe-webapp và gateway nội bộ exe-webapp-gateway.
+- [x] Kiểm tra website/API/database qua https://exe-webapp.pages.dev, không dùng URL fville.
+- [x] Kiểm tra service binding, origin guard và Turnstile thiếu token bị chặn.
+- [x] Cập nhật cấu hình CI/CD và tài liệu cho project mới.

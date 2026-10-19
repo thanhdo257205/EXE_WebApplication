@@ -72,13 +72,13 @@ Trong `backend/`:
 
 Frontend tạo file tĩnh tại `frontend/dist/exe-web/browser/`, prerender `/`, `/thu-vien`, `/wiki`, `/huong-dan`. Các trang hiện là khung/placeholder. Build không gọi backend. `_redirects` hỗ trợ Angular client routing trên Cloudflare Pages.
 
-## Triển khai dự kiến — chưa deploy
+## Triển khai hiện tại
 
 ### Cloudflare Pages Free
 
 - Root: `frontend`; build: `npm ci && npm run build`; output: `dist/exe-web/browser`; Node: `24.15.0`.
-- Với gateway mới, đặt production `apiBaseUrl` thành `/api`, build Pages và truy cập qua PUBLIC_ORIGIN của Worker. Không gọi thẳng Render; xem tài liệu auth/gateway.
-- Khi chưa có URL, nút kiểm tra API bị vô hiệu trong production. Nội dung tĩnh vẫn chạy. Cập nhật nội dung prerender cần build lại.
+- Production `apiBaseUrl` là `/api`. Project `exe-webapp` phục vụ website, Pages Function chuyển `/api/*` qua service binding tới Worker nội bộ `exe-webapp-gateway`. Không gọi thẳng Render; xem tài liệu auth/gateway.
+- CI thêm `_worker.js` và `_routes.json` vào artifact sau Angular build. Nội dung tĩnh vẫn chạy độc lập với Render. Cập nhật nội dung prerender cần build lại.
 
 ### Render Free
 
@@ -111,4 +111,4 @@ GitHub Actions chạy khi push, pull request hoặc chạy thủ công tại tab
 
  Không commit `.env`, token, private key hoặc credentials.
 
-Website triển khai: https://exe-web-api-gateway.fville-onboard.workers.dev .
+Website triển khai: https://exe-webapp.pages.dev .

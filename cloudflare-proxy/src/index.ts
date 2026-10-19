@@ -61,9 +61,10 @@ export async function handle(request: Request, env: Env, fetcher: typeof fetch =
     const frontend = origin(env.FRONTEND_ORIGIN);
     const url = new URL(request.url);
     if (url.origin !== publicUrl.origin) return problem(403, 'Unexpected host');
-    if (backend.origin === publicUrl.origin || frontend.origin === publicUrl.origin) return problem(503, 'Invalid gateway configuration');
+    if (backend.origin === publicUrl.origin) return problem(503, 'Invalid gateway configuration');
     const api = url.pathname === '/api' || url.pathname.startsWith('/api/');
     if (!api) {
+      if (frontend.origin === publicUrl.origin) return problem(503, 'Static assets must be served by Pages');
       if (!['GET', 'HEAD'].includes(request.method)) return problem(405, 'Method not allowed');
       // Static requests never carry authentication, origin secrets or user-controlled forwarding headers.
       const headers = new Headers();

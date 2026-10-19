@@ -1,0 +1,7 @@
+{
+  "$schema": "../cloudflare-proxy/node_modules/wrangler/config-schema.json",
+  "name": "exe-webapp",
+  "compatibility_date": "2026-10-19",
+  "pages_build_output_dir": "../release-site",
+  "services": [{ "binding": "GATEWAY", "service": "exe-webapp-gateway" }]
+}

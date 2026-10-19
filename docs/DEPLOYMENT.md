@@ -4,18 +4,18 @@
 
 | Thành phần | Tài nguyên | Gói |
 | --- | --- | --- |
-| Website và API gateway | https://exe-web-api-gateway.fville-onboard.workers.dev | Cloudflare Workers Free |
-| Website tĩnh upstream | https://exe-webapplication.pages.dev | Cloudflare Pages Free |
+| Website và API cùng origin | https://exe-webapp.pages.dev | Cloudflare Pages Free |
+| Gateway nội bộ | Worker `exe-webapp-gateway`, service binding `GATEWAY` | Cloudflare Workers Free, tắt workers.dev/preview URL |
 | Backend | https://exe-web-backend.onrender.com | Render Free, Singapore |
 | Database | Aiven `exe-web-pg`, project `dothanh2572005-a894`, DigitalOcean NYC | PostgreSQL `free-1-1gb` |
 
-Người dùng truy cập URL gateway để website và API cùng origin. URL Pages chỉ cung cấp nội dung tĩnh; API ở đó không được nối tới Render. Backend Render yêu cầu origin secret cho API; `/actuator/health` được miễn để hosting kiểm tra sức khỏe.
+Người dùng truy cập project Pages `exe-webapp`. Static assets được phục vụ trực tiếp; riêng `/api` và `/api/*` đi qua Pages Function và service binding tới Worker nội bộ. Gateway không có URL workers.dev công khai và không gọi project cũ làm upstream. Backend Render yêu cầu origin secret cho API; `/actuator/health` được miễn để hosting kiểm tra sức khỏe.
 
 ## Luồng tự động
 
 1. Push hoặc merge vào `main` chạy CI: gateway typecheck/tests/build, Angular tests/build, Maven verify, Docker build và smoke test trong 512 MB.
 2. Workflow `CD` nhận sự kiện CI hoàn tất, chỉ chọn **push CI thành công của chính repo, nhánh main, SHA đang là đầu main**. PR, fork, bản cũ, CI thất bại không được deploy.
-3. Tải artifact `angular-static-site` từ đúng run CI, checkout đúng SHA đã test, deploy Worker bằng phiên bản Wrangler trong lockfile.
+3. CI đóng gói Pages `_worker.js` và `_routes.json` vào artifact Angular. CD tải artifact từ đúng run CI, checkout đúng SHA đã test, deploy Worker nội bộ bằng phiên bản Wrangler trong lockfile.
 4. Gọi Render hook riêng của service với `ref=<tested SHA>`. Render tự build Docker từ SHA đó, Flyway chạy migration trên Aiven. Auto-deploy trực tiếp của Render đã tắt để tránh bỏ qua CI.
 5. Chờ API qua gateway báo đúng `RENDER_GIT_COMMIT`, sau đó publish artifact Angular lên Pages. Các secret Worker hiện có được giữ nguyên.
 6. Kiểm tra các trang tĩnh, API/SHA, health database, chặn origin ngoài và gọi trực tiếp Render. URL và SHA được ghi ở GitHub Actions summary.
@@ -47,7 +47,7 @@ Xem [Render deploy hooks](https://render.com/docs/deploy-hooks) và [GitHub work
 ## Phần còn lại
 
 - Giao diện hiện là scaffold; chưa có màn hình đăng nhập/Turnstile.
-- Google OAuth cần Client ID/Secret thật và callback `https://exe-web-api-gateway.fville-onboard.workers.dev/api/v1/auth/oauth2/callback/google`. Chưa cấu hình nên `GOOGLE_ENABLED=false`.
+- Google OAuth cần Client ID/Secret thật và callback `https://exe-webapp.pages.dev/api/v1/auth/oauth2/callback/google`. Chưa cấu hình nên `GOOGLE_ENABLED=false`.
 - Chưa khởi tạo admin production, không có tài khoản/mật khẩu mặc định. Chỉ đặt bootstrap admin qua Render secrets khi cần.
 - Backend Free có thể ngủ và cần thời gian khởi động; nội dung tĩnh vẫn được phục vụ độc lập từ Cloudflare. Cần tiếp tục đo RAM/latency thực tế, đặc biệt kết nối Singapore–NYC.
 - Gateway lọc browser metadata và có rate limit; các header có thể bị giả. Không thể bảo đảm phân biệt Postman với trình duyệt chỉ từ HTTP headers.
@@ -59,3 +59,7 @@ Rate Limiting binding của Cloudflare được áp dụng theo location và đ�
 Bản `69ed38c` đã được deploy bằng đúng hook/CLI dùng trong CD và smoke script production pass. Render trả đúng commit, database health UP, 4 route tĩnh được phục vụ; origin guard và Turnstile thiếu token trả 403, login rate limit đã trả 429. Pages artifact từ CI run #39282044333 được publish thành công. Đây là xác minh các bước triển khai thủ công, chưa phải xác minh một run CI → CD tự động hoàn chỉnh.
 
 GitHub đang có [sự cố Actions/Webhooks](https://www.githubstatus.com/incidents/8tzbpcnl75jp), làm chậm trạng thái workflow và sự kiện. CI auth cũ #39278743322 đã success; CI bản CD #39282044333 có logs test/build và Docker smoke pass nhưng API/UI chưa báo hoàn tất lúc ghi tài liệu. Sau khi GitHub phục hồi, kiểm tra run CI/CD mới nhất; nếu sự kiện bị trễ hoặc mất, dùng Run workflow ở CD sau khi CI của main xác nhận success. Không thay điều kiện gate để vượt qua lỗi hạ tầng.
+
+## Chuyển project riêng
+
+Ngày 19/10/2026 tạo mới Pages `exe-webapp` và Worker nội bộ `exe-webapp-gateway`, không đổi subdomain dùng chung của account. Config Pages trong `cloudflare-pages/wrangler.jsonc`; chạy Pages CLI từ thư mục đó để Wrangler tự đọc file. Rate limiter dùng namespace mới 257200511–257200513. Turnstile, Render origin và GitHub variables chuyển sang hostname mới. Địa chỉ cũ không phải endpoint đang sử dụng.

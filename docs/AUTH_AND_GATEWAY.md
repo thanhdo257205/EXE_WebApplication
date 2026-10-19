@@ -1,3 +1,5 @@
+> Production hiện tại: https://exe-webapp.pages.dev . Pages Function chuyển API qua service binding `GATEWAY` tới Worker nội bộ `exe-webapp-gateway`; workers.dev và preview URL của gateway đã tắt. Không đổi namespace dùng chung `fville-onboard`. Xem [DEPLOYMENT.md](DEPLOYMENT.md).
+
 # Đăng nhập và Cloudflare API gateway
 
 ## Phạm vi
@@ -48,7 +50,7 @@ Trình tự mật khẩu:
 4. Sau login, token CSRF cũ không còn hợp lệ; GET csrf lại trước request thay đổi dữ liệu hoặc logout. Angular service đã làm việc này.
 5. Gọi `/me` để khôi phục trạng thái giao diện khi tải lại trang. Không lưu mật khẩu/session token vào localStorage.
 
-Đối với Google, điều hướng toàn trang tới URL authorization, không dùng fetch. Thành công quay về `/`; thất bại quay về `/?authError=google`. Mọi nguyên nhân lỗi dùng thông báo chung. Nếu dùng Pages trực tiếp và API khác origin, cookie/chính sách trình duyệt sẽ khác; cấu hình hiện tại dành cho gateway cùng origin.
+Đối với Google, điều hướng toàn trang tới URL authorization, không dùng fetch. Thành công quay về `/`; thất bại quay về `/?authError=google`. Mọi nguyên nhân lỗi dùng thông báo chung. Pages và API hiện cùng origin thông qua service binding; không dùng API Render trực tiếp từ browser.
 
 ## Tài khoản và quyền
 

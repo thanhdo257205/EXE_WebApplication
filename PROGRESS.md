@@ -6,7 +6,7 @@
 
 - Ngày: 2026-10-19 (Asia/Saigon).
 - Trạng thái: Website đã live trên Cloudflare, Spring Boot live trên Render Free, PostgreSQL Free Aiven đã kết nối TLS và chạy migration.
-- Công việc vừa hoàn thành: Tạo tài nguyên thật, cấu hình secrets/Turnstile, thêm workflow CD với gate CI, artifact theo run và deploy backend đúng commit.
+- Công việc vừa hoàn thành: Theo yêu cầu người dùng, chuyển public origin sang project mới https://exe-webapp.pages.dev; gateway mới chạy nội bộ qua service binding, không dùng URL fville.
 - Trạng thái GitHub: Code CI/CD đã push `69ed38c`; bản này đã deploy bằng hook/CLI và smoke test production pass. Commit tài liệu kèm sửa smoke test redirect Pages được push sau đó. CI #39278743322 đã success; #39282044333 có logs pass nhưng trạng thái queued do sự cố GitHub; chưa có kết quả CD tự động.
 - Việc tiếp theo: Sau khi GitHub phục hồi, kiểm tra CI → CD và tick ô còn mở; cấu hình Google credentials, làm UI đăng nhập/Turnstile rồi phát triển nội dung game.
 - Trở ngại hiện tại: GitHub báo incident Actions/Webhooks từ 22:49 ngày 19/10/2026; https://www.githubstatus.com/incidents/8tzbpcnl75jp . Google Client ID/Secret chưa có; chưa đo RAM production.
@@ -140,3 +140,10 @@ Trạng thái xác thực có thể thay đổi; kiểm tra lại khi cần depl
 - Chạy chính script `.github/scripts/smoke.mjs` trên production thành công: 4 trang tĩnh (theo redirect thêm / của Pages), API đúng commit, health/database UP, thiếu browser metadata/foreign origin/direct backend đều 403.
 - CI auth #39278743322 đã conclusion success. CD #39283009384 được GitHub tạo; chưa xác nhận chạy xong. CI mới và webhook còn chậm do incident; vẫn giữ điều kiện chỉ auto deploy CI thành công, không bỏ qua gate.
 - Đã khởi động lại backend local cổng 8080 sau đóng gói, health UP. Angular dev server cổng 4200 còn hoạt động.
+
+### Chuyển sang Cloudflare project mới
+
+- Tạo Pages `exe-webapp` và Worker `exe-webapp-gateway`; gateway tắt workers.dev/preview URL, API qua Pages service binding GATEWAY. Không đổi account subdomain hoặc tác động các Worker khác.
+- URL public: https://exe-webapp.pages.dev ; deployment đầu https://c24c806f.exe-webapp.pages.dev . Gateway không phụ thuộc Pages/Worker cũ.
+- Smoke test production pass trên hostname mới: static routes, API/SHA backend 69ed38c, origin guard, trực tiếp Render 403, DB health UP. Test local: 15 gateway/Pages tests, typecheck và dry-run pass.
+- Cập nhật CI đóng gói Pages function/routing, CD chạy Pages CLI đúng thư mục config, Render origin, Turnstile hostname và GitHub variables cho project mới. Chưa có Google credentials/UI login.
