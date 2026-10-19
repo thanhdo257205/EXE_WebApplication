@@ -102,7 +102,7 @@ Cập nhật: 2026-10-19 (Asia/Saigon).
 ### 4. Database, phản hồi và quản trị
 
 - [ ] Thiết kế dữ liệu nhân vật, thẻ, bộ thẻ, luật và phiên bản nội dung.
-- [ ] Tạo PostgreSQL Free trên Aiven và cấu hình TLS xác minh chứng chỉ.
+- [x] Tạo PostgreSQL Free trên Aiven và cấu hình TLS xác minh chứng chỉ.
 - [ ] Viết migration và seed từ dữ liệu nguồn đã xác nhận.
 - [ ] Xây API đọc nội dung và nhận phản hồi.
 - [x] Chốt đăng nhập email/mật khẩu và Google OAuth2 với người dùng.
@@ -133,20 +133,21 @@ Cập nhật: 2026-10-19 (Asia/Saigon).
 - [x] Bổ sung job CI gateway; cấu hình đã push `a92a952`.
 - [ ] Xác minh CI auth/gateway #39278743322 thành công (hiện queued chờ runner).
 - [ ] Cấu hình Google Client ID/Secret và callback, kiểm tra Google login thật.
-- [ ] Tạo Turnstile widget, cấu hình sitekey/secret cho hostname thật.
+- [x] Tạo Turnstile widget, cấu hình sitekey/secret cho hostname thật.
 - [ ] Cấu hình origin/secrets thật, deploy gateway cùng Pages/Render/Aiven và kiểm tra end-to-end.
 
 ### 5. Triển khai và kiểm tra
 
-- [ ] Tạo frontend Cloudflare Pages và cấu hình build/routing.
-- [ ] Tạo backend Render Free; cấu hình port, health check và secrets.
-- [ ] Kết nối backend với Aiven; giới hạn connection pool.
-- [ ] Cấu hình API URL, CORS và cookie phù hợp cách đăng nhập đã chọn.
-- [ ] Thiết lập kiểm tra build/test và triển khai qua GitHub.
-- [ ] Kiểm tra frontend, API và database hoạt động cùng nhau.
+- [x] Tạo frontend Cloudflare Pages và cấu hình build/routing.
+- [x] Tạo backend Render Free; cấu hình port, health check và secrets.
+- [x] Kết nối backend với Aiven; giới hạn connection pool.
+- [x] Cấu hình API URL, CORS và cookie phù hợp cách đăng nhập đã chọn.
+- [x] Viết CI → CD, lưu secrets và gate chỉ deploy push main đã test thành công.
+- [ ] Xác minh một lần chạy CI → CD tự động hoàn chỉnh trên GitHub.
+- [x] Kiểm tra frontend, API và database hoạt động cùng nhau.
 - [ ] Kiểm tra nội dung tĩnh khi backend ngủ; xử lý trạng thái chờ/lỗi ở chức năng động.
 - [ ] Đo RAM, thời gian khởi động và các giới hạn miễn phí liên quan.
-- [ ] Ghi URL triển khai và hướng dẫn khôi phục/rollback.
+- [x] Ghi URL triển khai và hướng dẫn khôi phục/rollback.
 
 ### 6. Mở rộng bán hàng — giai đoạn sau
 

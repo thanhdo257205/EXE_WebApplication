@@ -33,6 +33,8 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: npm test
+      - name: Verify deployment release gate
+        run: node --test ../.github/scripts/*.test.mjs
       - run: npm run build
 
   frontend:

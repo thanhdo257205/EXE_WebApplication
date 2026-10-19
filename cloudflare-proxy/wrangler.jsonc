@@ -1,13 +1,14 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "exe-web-api-gateway",
+  "account_id": "345623adea5a4542fb1ba24b89fa3b56",
   "main": "src/index.ts",
   "compatibility_date": "2026-10-19",
   "workers_dev": true,
   "vars": {
-    "PUBLIC_ORIGIN": "https://YOUR_GATEWAY.YOUR_SUBDOMAIN.workers.dev",
-    "BACKEND_ORIGIN": "https://YOUR_BACKEND.onrender.com",
-    "FRONTEND_ORIGIN": "https://YOUR_FRONTEND.pages.dev"
+    "PUBLIC_ORIGIN": "https://exe-web-api-gateway.fville-onboard.workers.dev",
+    "BACKEND_ORIGIN": "https://exe-web-backend.onrender.com",
+    "FRONTEND_ORIGIN": "https://exe-webapplication.pages.dev"
   },
   "ratelimits": [
     { "name": "API_LIMITER", "namespace_id": "257200501", "simple": { "limit": 120, "period": 60 } },

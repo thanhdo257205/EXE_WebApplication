@@ -85,7 +85,7 @@ Frontend tạo file tĩnh tại `frontend/dist/exe-web/browser/`, prerender `/`,
 - Docker context: `backend/`; Dockerfile: `backend/Dockerfile`; health check: `/actuator/health`.
 - Spring Boot đọc `PORT` do Render cung cấp; container dùng profile `prod`.
 - Đặt `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `APP_CORS_ALLOWED_ORIGINS` (origin gateway), `ORIGIN_PROXY_SECRET` và cấu hình Google nếu bật.
-- Dockerfile dùng user không phải root và giới hạn heap theo RAM. Cần đo thực tế; chưa xác nhận chạy vừa Render Free.
+- Dockerfile dùng user không phải root và giới hạn heap theo RAM. Đã chạy trên Render Free; tiếp tục theo dõi RAM khi bổ sung nghiệp vụ.
 - Render có thể ngủ; chức năng động cần xử lý chờ/lỗi. Không lưu upload trên filesystem tạm của backend.
 
 ### Aiven PostgreSQL Free
@@ -102,11 +102,13 @@ GitHub Actions chạy khi push, pull request hoặc chạy thủ công tại tab
 
 - Angular: `npm ci`, unit test, build website tĩnh.
 - Spring Boot: Maven Wrapper `verify`, kiểm tra auth/CSRF/proxy guard và đóng gói JAR.
-- Cloudflare gateway: typecheck, unit tests và Wrangler dry-run; chưa tự deploy.
+- Cloudflare gateway: typecheck, unit tests, release gate tests và Wrangler dry-run.
 - Docker: build backend image, kiểm tra health/API trong container giới hạn 512 MB RAM với profile H2 local. Việc này chưa xác nhận cấu hình Aiven hoặc CPU của Render.
 - Lưu website tĩnh, JAR và báo cáo test thành artifacts trong 7 ngày.
-- Tự hủy lần chạy cũ khi có commit mới trên cùng nhánh; CI chưa tự deploy.
+- Tự hủy CI cũ khi có commit mới trên cùng nhánh. CI thành công trên main kích hoạt CD deploy đúng SHA đã test lên Cloudflare và Render; Flyway quản lý schema Aiven. Xem [quy trình triển khai và rollback](docs/DEPLOYMENT.md).
 
 [Theo dõi CI trên GitHub](https://github.com/thanhdo257205/EXE_WebApplication/actions/workflows/ci.yml).
 
  Không commit `.env`, token, private key hoặc credentials.
+
+Website triển khai: https://exe-web-api-gateway.fville-onboard.workers.dev .

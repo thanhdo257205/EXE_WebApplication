@@ -61,15 +61,15 @@ Theo dõi và tick các hạng mục tại [CHECKLIST.md](CHECKLIST.md). File đ
 | Hạng mục | Trạng thái đã xác minh |
 | --- | --- |
 | GitHub CLI | Tài khoản `thanhdo257205`, đã tạo repo thành công |
-| Cloudflare Wrangler | Đã đăng nhập; chưa deploy app |
-| Render CLI | Đã đăng nhập; chưa deploy backend |
+| Cloudflare Wrangler | Pages + Worker đã deploy; xem docs/DEPLOYMENT.md |
+| Render CLI | Backend exe-web-backend đã live trên Free |
 | Aiven CLI | Đã đăng nhập bằng token; project mặc định `dothanh2572005-a894` |
 | Lệnh Aiven local | `avn` chưa nằm trong PATH; executable tại `%APPDATA%/Python/Python314/Scripts/avn.exe` |
 | Database local | H2 trong bộ nhớ; Flyway V1 chạy thành công; chưa có schema nghiệp vụ |
-| Database Aiven | Chưa tạo hoặc kết nối từ app |
+| Database Aiven | exe-web-pg Free đã RUNNING; backend kết nối TLS verify-full, Flyway chạy thành công |
 | Docker | Chưa có local; GitHub Actions đã build và kiểm tra container 512 MB thành công |
 | App local | Angular cổng 4200 và Spring Boot cổng 8080 đã chạy kiểm tra |
-| URL frontend/backend | Chưa có |
+| URL frontend/backend | Xem docs/DEPLOYMENT.md; website qua gateway workers.dev |
 | Tên miền riêng | Chưa chốt |
 
 Trạng thái xác thực có thể thay đổi; kiểm tra lại khi cần deploy, không suy ra rằng mọi phiên sau vẫn đăng nhập.
@@ -120,3 +120,15 @@ Trạng thái xác thực có thể thay đổi; kiểm tra lại khi cần depl
 
 - Kết quả phiên auth: 26 tests local pass, gateway typecheck/dry-run pass; CI remote đang queued tại https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/39278743322 .
 - Backend bản mới đã khởi động lại cổng 8080 ở local, health UP; Google mặc định tắt khi chưa có credentials.
+
+### Phiên deployment 19/10/2026
+
+- Đã tạo và chạy Cloudflare Pages `exe-webapplication`, Worker `exe-web-api-gateway`, Render Free `exe-web-backend`, Aiven PostgreSQL Free `exe-web-pg`.
+- Render deploy `dep-dbb3qngn74is73bgaglg` live với code `a92a952`; health UP, gateway info 200, CSRF 200, cookie Secure/HttpOnly/SameSite=Lax. Khởi động khoảng 150 giây trên Free (log startup 139.8 giây). Chưa đo RAM thực tế.
+- Đã sửa cấu hình credentials Aiven: API che mặc định `<redacted>`, phải GET include_secrets=true; không thay/reset mật khẩu.
+- Đã tạo managed Turnstile widget cho hostname gateway; secret đặt trong Worker, sitekey công khai đặt GitHub variable. Chưa có giao diện đăng nhập để sử dụng widget.
+- Người dùng đã xác nhận tạo/lưu token Cloudflare CD và Render deploy hook. GitHub Secrets có CLOUDFLARE_API_TOKEN và RENDER_DEPLOY_HOOK_URL; không ghi giá trị vào repo. Token Cloudflare hết hạn 19/10/2027.
+- CD workflow mới: chỉ push main CI thành công, đúng main SHA; tải artifact đúng run, deploy Worker, Render exact ref, chờ commit live, deploy Pages, smoke check. Có test gate loại PR/fork/CI failed/stale.
+- Google chưa có credentials thật, GOOGLE_ENABLED=false; chưa có bootstrap admin production. Phần auth production chưa kiểm tra đăng nhập tài khoản thật.
+- Kiểm tra local sau thay đổi: backend 10 tests pass; package ban đầu vướng JAR đang chạy trên Windows, đã dừng process local để đóng gói lại. Gate test pass.
+- Cấu hình CI/CD mới đang local tại thời điểm ghi mục này; cần push và xác minh lần chạy tự động. Tài nguyên cloud đã live. Tham khảo docs/DEPLOYMENT.md.
