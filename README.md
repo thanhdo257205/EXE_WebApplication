@@ -8,7 +8,7 @@ Website board game **Chưa Giàu Đã Lớn — Nhà Này Hơi Báo!**
 - Spring Boot 4.1.1, Java 25, Maven Wrapper, Spring Security, JPA, Flyway.
 - Local dùng H2 trong bộ nhớ; production dùng PostgreSQL trên Aiven qua TLS.
 - Có khung điều hướng, trang chủ tạm, trang placeholder và nút kiểm tra API. Chưa có dữ liệu 148 thẻ, đăng nhập, quản trị, bán hàng hoặc mô phỏng chơi thật.
-- Chưa deploy cloud. Có Dockerfile và GitHub Actions; chưa kiểm tra Docker image vì máy hiện tại chưa có Docker.
+- Chưa deploy cloud. Có Dockerfile và GitHub Actions. CI đã build và kiểm tra container giới hạn 512 MB với H2 trên GitHub; máy local chưa có Docker.
 
 ## Cấu trúc
 

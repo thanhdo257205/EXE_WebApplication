@@ -64,14 +64,15 @@ Cập nhật: 2026-10-19 (Asia/Saigon).
 - [x] Thêm JPA, PostgreSQL, Flyway và Spring Security.
 - [x] Tạo REST endpoint kiểm tra kết nối, cấu hình Problem Details và dependency validation.
 - [ ] Áp dụng validation/xử lý lỗi cho API nghiệp vụ khi được xây dựng.
-- [ ] Build và kiểm tra Dockerfile đã tạo; đo RAM trên Render Free (máy local chưa có Docker).
+- [x] Build Docker image và kiểm tra health/API trong container 512 MB trên GitHub Actions.
+- [ ] Đo RAM, CPU và thời gian khởi động thực tế trên Render Free với Aiven.
 - [x] Thêm `.gitignore`, `.env.example` không chứa secrets và README hướng dẫn chạy.
 
 - [x] Frontend build production và chạy unit test local.
 - [x] Backend build JAR bằng Maven Wrapper và chạy smoke test local.
 - [x] Kiểm tra Angular gọi Spring Boot qua dev proxy.
-- [x] Chuẩn bị workflow GitHub Actions build/test (chưa xác minh trên GitHub).
-- [ ] Commit/push khung mã nguồn và xác minh workflow trên GitHub.
+- [x] Thiết lập CI Angular, Spring Boot, Docker và artifacts; đã xác minh cả ba job trên GitHub.
+- [x] Commit/push khung mã nguồn và xác minh workflow trên GitHub.
 
 ### 3. Website giới thiệu và tra cứu
 

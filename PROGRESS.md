@@ -6,10 +6,10 @@
 
 - Ngày: 2026-10-19 (Asia/Saigon).
 - Trạng thái: Đã khởi tạo Angular và Spring Boot; build/test và kết nối local thành công; chưa deploy cloud.
-- Công việc vừa hoàn thành: Tạo frontend/backend, profile local/prod, migration kỹ thuật, Dockerfile, CI và README; xác minh chạy local.
-- Trạng thái GitHub: Bộ tài liệu trước đã push tại `d16f822`; Đang chuẩn bị push khung mã nguồn và CI trong phiên hiện tại; cần xác minh kết quả GitHub Actions sau khi push.
-- Việc tiếp theo: Xác định dữ liệu nguồn chính thức, triển khai giao diện theo Figma và schema nghiệp vụ; kiểm tra Docker khi có runtime.
-- Trở ngại hiện tại: Máy chưa có Docker; chưa tạo/kết nối database Aiven, chưa có API production URL và chưa deploy cloud.
+- Công việc vừa hoàn thành: Push mã nguồn tại `f8403dd` và xác minh GitHub Actions CI thành công cả 3 job Angular, Spring Boot và Docker.
+- Trạng thái GitHub: Mã nguồn/CI đã push tại `f8403dd`; bản cập nhật tài liệu kết quả được push trong commit riêng với `[skip ci]` vì không đổi mã nguồn.
+- Việc tiếp theo: Xác định dữ liệu nguồn chính thức, triển khai giao diện theo Figma và schema nghiệp vụ; triển khai thử lên cloud khi được yêu cầu.
+- Trở ngại hiện tại: Máy chưa có Docker (đã kiểm tra image trên GitHub Actions); chưa tạo/kết nối database Aiven, chưa có API production URL và chưa deploy cloud.
 
 ## Bối cảnh và tài liệu
 
@@ -67,7 +67,7 @@ Theo dõi và tick các hạng mục tại [CHECKLIST.md](CHECKLIST.md). File đ
 | Lệnh Aiven local | `avn` chưa nằm trong PATH; executable tại `%APPDATA%/Python/Python314/Scripts/avn.exe` |
 | Database local | H2 trong bộ nhớ; Flyway V1 chạy thành công; chưa có schema nghiệp vụ |
 | Database Aiven | Chưa tạo hoặc kết nối từ app |
-| Docker | Chưa có trên máy; Dockerfile chưa build/kiểm tra |
+| Docker | Chưa có local; GitHub Actions đã build và kiểm tra container 512 MB thành công |
 | App local | Angular cổng 4200 và Spring Boot cổng 8080 đã chạy kiểm tra |
 | URL frontend/backend | Chưa có |
 | Tên miền riêng | Chưa chốt |
@@ -95,7 +95,7 @@ Trạng thái xác thực có thể thay đổi; kiểm tra lại khi cần depl
 | 2026-10-19 | Xác minh Figma MCP, 19 màn hình và screenshot trang chủ; thêm mục checklist thiết kế | Chưa chạy lại toàn bộ tương tác; tài liệu và ảnh đang local, chưa push |
 | 2026-10-19 | Push bộ tài liệu và ảnh prototype lên `origin/main` | Commit `bb3c322` đã push thành công; tick checklist và ghi nhận trạng thái trong commit tiếp theo |
 | 2026-10-19 | Khởi tạo Angular 22.2.3 + Spring Boot 4.1.1/Java 25; cấu hình H2/prod PostgreSQL, Security, Flyway, Tailwind, prerender, CI và README | Frontend 2 tests, backend 3 tests pass; 4 trang prerender; dev proxy trả thông tin backend; chưa push/deploy |
-| 2026-10-19 | Bổ sung CI cho push/PR/thủ công, test/build, artifacts và Docker smoke test 512 MB | Đang chuẩn bị push và chờ xác minh GitHub Actions |
+| 2026-10-19 | Bổ sung CI cho push/PR/thủ công, test/build, artifacts và Docker smoke test 512 MB | Đã push `f8403dd`; CI #39275516379 thành công cả ba job, có artifacts |
 
 ## Kết quả kiểm tra ứng dụng
 
@@ -103,6 +103,7 @@ Trạng thái xác thực có thể thay đổi; kiểm tra lại khi cần depl
 - `frontend`: `npm test -- --watch=false` — 2 tests pass (shell và API contract).
 - `backend`: `.\mvnw.cmd -B -ntp verify` — 3 tests pass, tạo executable JAR; kiểm tra health, info, endpoint bị chặn và CORS.
 - Chạy thực tế: `/actuator/health` trả UP; gọi `/api/v1/info` qua dev proxy Angular trả `EXE_WebApplication`; route `/thu-vien` trả HTTP 200.
-- Chưa kiểm tra Docker image, PostgreSQL thật, GitHub Actions trên remote hoặc deployment cloud.
+- GitHub Actions: 3/3 job thành công; Docker image chạy health/API với H2 trong giới hạn 512 MB. Chưa kiểm tra PostgreSQL thật hoặc deployment cloud.
+- Kết quả CI: https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/39275516379
 - Giao diện chỉ là scaffold/placeholder; chưa tick hoàn thành các chức năng website.
-- File `docs/design/SHOP_CART_PROTOTYPE.md` đã có trước phiên khởi tạo, được giữ nguyên và chưa đưa vào commit nào.
+- File `docs/design/SHOP_CART_PROTOTYPE.md` đã có trước phiên khởi tạo; giữ nguyên nội dung và đã push cùng bộ dự án theo yêu cầu.
