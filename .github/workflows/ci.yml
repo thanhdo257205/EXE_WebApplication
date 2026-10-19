@@ -78,6 +78,24 @@ jobs:
     name: Spring Boot tests and JAR
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: exe_schema_test
+          POSTGRES_USER: schema_test
+          POSTGRES_PASSWORD: ci-disposable-schema-test-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U schema_test -d exe_schema_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      SCHEMA_TEST_JDBC_URL: jdbc:postgresql://localhost:5432/exe_schema_test
+      SCHEMA_TEST_USERNAME: schema_test
+      SCHEMA_TEST_PASSWORD: ci-disposable-schema-test-only
     defaults:
       run:
         working-directory: backend

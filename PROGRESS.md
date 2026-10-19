@@ -4,12 +4,12 @@
 
 ## Cập nhật gần nhất
 
-- Ngày: 2026-10-19 (Asia/Saigon).
+- Ngày: 2026-10-20 (Asia/Saigon).
 - Trạng thái: Website đã live trên Cloudflare, Spring Boot live trên Render Free, PostgreSQL Free Aiven đã kết nối TLS và chạy migration.
-- Công việc vừa hoàn thành: Theo yêu cầu người dùng, chuyển public origin sang project mới https://exe-webapp.pages.dev; gateway mới chạy nội bộ qua service binding, không dùng URL fville.
-- Trạng thái GitHub: Cấu hình chuyển project đã push `a02552a`; GitHub variables PUBLIC_ORIGIN=https://exe-webapp.pages.dev, CLOUDFLARE_PAGES_PROJECT=exe-webapp. CI/CD tự động vẫn cần xác minh sau sự cố GitHub. Backend cloud đang chạy bản 69ed38c đã smoke test.
-- Việc tiếp theo: Sau khi GitHub phục hồi, kiểm tra CI → CD và tick ô còn mở; cấu hình Google credentials, làm UI đăng nhập/Turnstile rồi phát triển nội dung game.
-- Trở ngại hiện tại: GitHub báo incident Actions/Webhooks từ 22:49 ngày 19/10/2026; https://www.githubstatus.com/incidents/8tzbpcnl75jp . Google Client ID/Secret chưa có; chưa đo RAM production.
+- Công việc hiện tại: Theo yêu cầu người dùng, push database V3–V5 và kiểm chứng CI → CD tự deploy lên Cloudflare/Render, Flyway áp dụng Aiven production.
+- Trạng thái GitHub: Đã đối chiếu local với origin/main (không lệch commit); CI/CD của bản 01ae340 đã chạy deploy thật thành công ở CD #39286252643. Thay đổi database chuẩn bị push trong phiên này.
+- Việc tiếp theo: Theo dõi CI có PostgreSQL 18, CD deploy đúng SHA, kiểm tra migration version/tables và smoke test production; cập nhật bằng chứng sau khi hoàn tất.
+- Phần chưa triển khai: API mua hàng/PayOS, merchant credentials, Google credentials và UI login. Schema mới không đồng nghĩa thanh toán thật đã hoạt động.
 
 ## Bối cảnh và tài liệu
 
@@ -149,3 +149,19 @@ Trạng thái xác thực có thể thay đổi; kiểm tra lại khi cần depl
 - Cập nhật CI đóng gói Pages function/routing, CD chạy Pages CLI đúng thư mục config, Render origin, Turnstile hostname và GitHub variables cho project mới. Chưa có Google credentials/UI login.
 
 - Cutover hoàn tất: API Cloudflare xác nhận workers.dev/previews_enabled đều false cho gateway cũ exe-web-api-gateway và gateway mới exe-webapp-gateway. Turnstile chỉ cho hostname exe-webapp.pages.dev; GitHub variables đã xác minh đúng. CSRF 200/cookie Secure, thiếu challenge 403, rate limit 429 Retry-After 60; smoke test vẫn pass sau khi tắt endpoint cũ.
+
+### Thiết kế database user, shop và PayOS — 19/10/2026
+
+- Người dùng chọn PayOS cho mua hàng/thanh toán. Thiết kế 30 bảng mới (tổng 34 bảng ngoài Flyway history), giữ app_users/Spring Session tương thích. Mặc định checkout yêu cầu login, VND, một kho/một kiện; coupon engine và hóa đơn thuế chưa triển khai.
+- Tài liệu docs/DATABASE_DESIGN.md có ERD, dictionary, trạng thái, khóa/index, luồng transaction, TTL/late payment, đối soát, hoàn tiền thủ công, PII/retention và ranh giới DB/service.
+- Migration V3 (profiles/addresses/content), V4 (catalog/cart/order snapshots/inventory/shipments), V5 (PayOS attempts/verified inbox/ledger/refunds/audit); không sửa V1/V2, không seed giá/nội dung minh họa.
+- Thêm DatabaseSchemaTests cho constraints, duplicate checkout/webhook/credit, SKU matching, snapshots, content version và hai buyer giữ SKU cuối cùng. PostgreSQL test dùng schema ngẫu nhiên riêng trên Aiven, tự drop đúng schema sau test; không chạm các bảng production.
+- Một lượt full suite đã pass 28 tests (10 auth/smoke cũ, 18 contract H2/PostgreSQL). Bản cuối đã chạy lại 18 contract tests H2/PostgreSQL, tất cả pass, gồm upgrade V2→V5 giữ user và CHECK siết active_slot.
+- H2 2.4.240 lỗi CHECK sau khi connection Flyway đóng (H2 #4302); pin 2.5.250 đã sửa lỗi, giữ constraints. Flyway có version warning H2 nhưng migration/constraints đã kiểm tra thực tế.
+- CI backend được thêm service PostgreSQL 18 disposable và test env riêng, chưa push/run remote. Không lưu PayOS key trong DB/repo; không mở ngoại lệ webhook khi chưa có verifier.
+- Chỉ thiết kế/schema/test đã làm; chưa có API shop/checkout/PayOS/refund hay thanh toán thật. V3–V5 sẽ tự chạy khi backend chứa chúng được deploy, cần xem lại trạng thái Git và release có chủ đích.
+
+### Release database — 20/10/2026
+
+- Người dùng yêu cầu push toàn bộ thay đổi và deploy, bảo đảm CI/CD hoạt động. Chuẩn bị release migrations V3–V5 đã có 18 contract tests cuối pass H2/PostgreSQL và 10 auth/smoke tests pass trước đó.
+- Xác minh CD bản trước #39286252643 có job Deploy tested commit success; các run bị gate skip được phân biệt với deploy thật. Không sử dụng deploy thủ công thay bằng chứng CD của release mới.

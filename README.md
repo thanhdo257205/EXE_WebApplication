@@ -96,6 +96,8 @@ Spring Boot **không tự đọc `.env`**; đặt biến trong terminal hoặc d
 
 ## Quy trình làm việc
 
+Thiết kế PostgreSQL cho user, nội dung game, shop, đơn hàng và PayOS: [DATABASE_DESIGN.md](docs/DATABASE_DESIGN.md). Migration V3–V5 đi kèm; API shop/PayOS chưa triển khai. Database contract tests chạy H2 và PostgreSQL 18 disposable trên CI.
+
 Đọc [PROGRESS.md](PROGRESS.md) và [CHECKLIST.md](CHECKLIST.md) trước mỗi phiên. Chỉ tick khi hoàn thành và kiểm tra. Xem [tham chiếu Figma](docs/design/FIGMA_PROTOTYPE.md); khung hiện tại chưa triển khai đầy đủ prototype.
 
 GitHub Actions chạy khi push, pull request hoặc chạy thủ công tại tab Actions:

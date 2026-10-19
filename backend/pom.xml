@@ -28,6 +28,8 @@
 	</scm>
 	<properties>
 		<java.version>25</java.version>
+		<!-- Fix CHECK constraints evaluated after the Flyway connection closes (H2 #4302). -->
+		<h2.version>2.5.250</h2.version>
 	</properties>
 	<dependencies>
 		<dependency>

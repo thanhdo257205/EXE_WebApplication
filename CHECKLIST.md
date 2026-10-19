@@ -101,9 +101,10 @@ Cập nhật: 2026-10-19 (Asia/Saigon).
 
 ### 4. Database, phản hồi và quản trị
 
-- [ ] Thiết kế dữ liệu nhân vật, thẻ, bộ thẻ, luật và phiên bản nội dung.
+- [x] Thiết kế dữ liệu nhân vật, thẻ, bộ thẻ, luật và phiên bản nội dung.
 - [x] Tạo PostgreSQL Free trên Aiven và cấu hình TLS xác minh chứng chỉ.
-- [ ] Viết migration và seed từ dữ liệu nguồn đã xác nhận.
+- [x] Viết migration schema V3–V5 cho content, user, shop và thanh toán.
+- [ ] Seed nội dung/sản phẩm từ dữ liệu nguồn đã xác nhận; không dùng giá minh họa prototype.
 - [ ] Xây API đọc nội dung và nhận phản hồi.
 - [x] Chốt đăng nhập email/mật khẩu và Google OAuth2 với người dùng.
 - [x] Triển khai API đăng nhập mật khẩu/Google, logout, /me và phiên JDBC; kiểm tra local.
@@ -157,7 +158,8 @@ Cập nhật: 2026-10-19 (Asia/Saigon).
 - [ ] Xây biểu mẫu đặt hàng và thông tin giao hàng.
 - [ ] Backend kiểm tra giá, tồn kho và tạo đơn trong transaction.
 - [ ] Xây trang xác nhận và theo dõi đơn hàng.
-- [ ] Chọn cổng thanh toán; xác minh webhook và chống xử lý giao dịch trùng.
+- [x] Chọn PayOS; thiết kế attempts, inbox, ledger, idempotency và refund workflow.
+- [ ] Tích hợp PayOS SDK/credentials và xác minh webhook thật, đối soát, thử luồng thanh toán.
 - [ ] Xây quản trị sản phẩm và đơn hàng.
 - [ ] Đánh giá lại khả năng vận hành thực tế trên gói miễn phí trước khi bán hàng.
 
@@ -168,3 +170,16 @@ Cập nhật: 2026-10-19 (Asia/Saigon).
 - [x] Kiểm tra service binding, origin guard và Turnstile thiếu token bị chặn.
 - [x] Cập nhật cấu hình CI/CD và tài liệu cho project mới.
 - [x] Tắt workers.dev/preview endpoint gateway EXE cũ sau khi kiểm tra URL mới.
+
+### 4B. Thiết kế database mua hàng và PayOS
+
+- [x] Hoàn thành ERD, danh sách 34 bảng (4 cũ + 30 mới) và hợp đồng transaction tại docs/DATABASE_DESIGN.md.
+- [x] Tách hồ sơ/địa chỉ khỏi credentials; giữ snapshot thông tin đơn hàng.
+- [x] Thiết kế SKU, giữ tồn kho và ledger biến động chống bán trùng.
+- [x] Thiết kế PayOS orderCode/link ID, một attempt active/đơn, inbox verified, dedup ledger và hoàn tiền có chứng từ.
+- [x] Phân biệt ràng buộc DB với nghiệp vụ cần service/locking; ghi rõ returnUrl không xác nhận thu tiền.
+- [x] Cấu hình PostgreSQL 18 disposable trong CI backend (chưa push trong phiên thiết kế).
+- [ ] Áp dụng V3–V5 vào schema production khi triển khai backend chứa migrations.
+- [ ] Xây JPA/JDBC repositories, checkout/inventory/payment services và API mua hàng.
+- [ ] Mở ngoại lệ webhook đúng endpoint ở gateway/Spring sau khi có verifier; không bypass bảo vệ chung.
+- [x] Bản cuối: 18 schema contract tests pass trên H2/PostgreSQL 18, có upgrade V2→V5 giữ user và tranh chấp tồn kho.
