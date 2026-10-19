@@ -51,3 +51,11 @@ Xem [Render deploy hooks](https://render.com/docs/deploy-hooks) và [GitHub work
 - Chưa khởi tạo admin production, không có tài khoản/mật khẩu mặc định. Chỉ đặt bootstrap admin qua Render secrets khi cần.
 - Backend Free có thể ngủ và cần thời gian khởi động; nội dung tĩnh vẫn được phục vụ độc lập từ Cloudflare. Cần tiếp tục đo RAM/latency thực tế, đặc biệt kết nối Singapore–NYC.
 - Gateway lọc browser metadata và có rate limit; các header có thể bị giả. Không thể bảo đảm phân biệt Postman với trình duyệt chỉ từ HTTP headers.
+
+Rate Limiting binding của Cloudflare được áp dụng theo location và đồng bộ dần; ngưỡng cấu hình không phải bộ đếm chính xác toàn cầu. Xem [Cloudflare Rate Limiting API](https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/).
+
+## Xác minh ban đầu ngày 19/10/2026
+
+Bản `69ed38c` đã được deploy bằng đúng hook/CLI dùng trong CD và smoke script production pass. Render trả đúng commit, database health UP, 4 route tĩnh được phục vụ; origin guard và Turnstile thiếu token trả 403, login rate limit đã trả 429. Pages artifact từ CI run #39282044333 được publish thành công. Đây là xác minh các bước triển khai thủ công, chưa phải xác minh một run CI → CD tự động hoàn chỉnh.
+
+GitHub đang có [sự cố Actions/Webhooks](https://www.githubstatus.com/incidents/8tzbpcnl75jp), làm chậm trạng thái workflow và sự kiện. CI auth cũ #39278743322 đã success; CI bản CD #39282044333 có logs test/build và Docker smoke pass nhưng API/UI chưa báo hoàn tất lúc ghi tài liệu. Sau khi GitHub phục hồi, kiểm tra run CI/CD mới nhất; nếu sự kiện bị trễ hoặc mất, dùng Run workflow ở CD sau khi CI của main xác nhận success. Không thay điều kiện gate để vượt qua lỗi hạ tầng.

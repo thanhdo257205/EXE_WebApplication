@@ -5,11 +5,11 @@
 ## Cập nhật gần nhất
 
 - Ngày: 2026-10-19 (Asia/Saigon).
-- Trạng thái: Đã khởi tạo Angular và Spring Boot; build/test và kết nối local thành công; chưa deploy cloud.
-- Công việc vừa hoàn thành: Xây auth mật khẩu/Google, JDBC session, CSRF, role và Cloudflare gateway/rate limit/Turnstile; đã push tại `a92a952`; 26 tests local thành công, CI remote đang queued chờ runner.
-- Trạng thái GitHub: Mã nguồn auth/gateway đã push tại `a92a952`; cập nhật tài liệu kết quả ở commit riêng `[skip ci]`. CI #39278743322 đang queued, chưa xác nhận remote thành công.
-- Việc tiếp theo: Cấu hình Google/Turnstile và origin triển khai thật, tạo UI đăng nhập; tiếp tục dữ liệu và giao diện game.
-- Trở ngại hiện tại: Máy chưa có Docker (đã kiểm tra image trên GitHub Actions); chưa tạo/kết nối database Aiven, chưa có API production URL và chưa deploy cloud.
+- Trạng thái: Website đã live trên Cloudflare, Spring Boot live trên Render Free, PostgreSQL Free Aiven đã kết nối TLS và chạy migration.
+- Công việc vừa hoàn thành: Tạo tài nguyên thật, cấu hình secrets/Turnstile, thêm workflow CD với gate CI, artifact theo run và deploy backend đúng commit.
+- Trạng thái GitHub: Code CI/CD đã push `69ed38c`; bản này đã deploy bằng hook/CLI và smoke test production pass. Commit tài liệu kèm sửa smoke test redirect Pages được push sau đó. CI #39278743322 đã success; #39282044333 có logs pass nhưng trạng thái queued do sự cố GitHub; chưa có kết quả CD tự động.
+- Việc tiếp theo: Sau khi GitHub phục hồi, kiểm tra CI → CD và tick ô còn mở; cấu hình Google credentials, làm UI đăng nhập/Turnstile rồi phát triển nội dung game.
+- Trở ngại hiện tại: GitHub báo incident Actions/Webhooks từ 22:49 ngày 19/10/2026; https://www.githubstatus.com/incidents/8tzbpcnl75jp . Google Client ID/Secret chưa có; chưa đo RAM production.
 
 ## Bối cảnh và tài liệu
 
@@ -49,7 +49,7 @@
 - Render Free có giới hạn tài nguyên và cơ chế ngủ; cần đo RAM thực tế, tối ưu JVM, connection pool và thời gian khởi động.
 - Ảnh cố định ban đầu lưu cùng frontend; chưa chốt dịch vụ upload ảnh. R2 chỉ là phương án tương lai, chưa kích hoạt cho dự án.
 - Đã chọn Angular 22.2.3, Spring Boot 4.1.1, Java 25 và Node.js 24.15.0. Frontend có package-lock.json; backend có Maven Wrapper. Local dùng H2 trong bộ nhớ, production bắt buộc PostgreSQL qua biến môi trường.
-- Người dùng đã chọn cả email/mật khẩu và Google. Backend đã triển khai hai luồng; chưa cấu hình Google/Turnstile thật và chưa có UI đăng nhập. Nhà cung cấp thanh toán chưa chốt.
+- Người dùng đã chọn cả email/mật khẩu và Google. Backend đã triển khai hai luồng; đã có Turnstile thật, chưa có Google credentials và UI đăng nhập. Nhà cung cấp thanh toán chưa chốt.
 - Không lưu ảnh dạng nhị phân trong database; secrets phải nằm ngoài Git.
 
 ## Checklist công việc
@@ -96,7 +96,7 @@ Trạng thái xác thực có thể thay đổi; kiểm tra lại khi cần depl
 | 2026-10-19 | Push bộ tài liệu và ảnh prototype lên `origin/main` | Commit `bb3c322` đã push thành công; tick checklist và ghi nhận trạng thái trong commit tiếp theo |
 | 2026-10-19 | Khởi tạo Angular 22.2.3 + Spring Boot 4.1.1/Java 25; cấu hình H2/prod PostgreSQL, Security, Flyway, Tailwind, prerender, CI và README | Frontend 2 tests, backend 3 tests pass; 4 trang prerender; dev proxy trả thông tin backend; chưa push/deploy |
 | 2026-10-19 | Bổ sung CI cho push/PR/thủ công, test/build, artifacts và Docker smoke test 512 MB | Đã push `f8403dd`; CI #39275516379 thành công cả ba job, có artifacts |
-| 2026-10-19 | Xây backend auth và Cloudflare gateway; tài liệu tại `docs/AUTH_AND_GATEWAY.md` | 10 backend tests, 3 frontend tests và 13 proxy tests pass; runtime local 403/200/429; đã push `a92a952`, CI #39278743322 queued |
+| 2026-10-19 | Xây backend auth và Cloudflare gateway; tài liệu tại `docs/AUTH_AND_GATEWAY.md` | 10 backend tests, 3 frontend tests và 13 proxy tests pass; runtime local 403/200/429; đã push `a92a952`, CI #39278743322 đã success |
 
 ## Kết quả kiểm tra ứng dụng
 
@@ -104,7 +104,7 @@ Trạng thái xác thực có thể thay đổi; kiểm tra lại khi cần depl
 - `frontend`: `npm test -- --watch=false` — 3 tests pass (shell, API và auth client contract).
 - `backend`: `.\mvnw.cmd -B -ntp verify` — 10 tests pass local trên bản cuối (mvnw test); đã đóng gói JAR. Kiểm tra health/info, CORS, mật khẩu/Google, CSRF, phiên JDBC kể cả email dài và proxy guard.
 - Chạy thực tế: `/actuator/health` trả UP; gọi `/api/v1/info` qua dev proxy Angular trả `EXE_WebApplication`; route `/thu-vien` trả HTTP 200.
-- CI scaffold trước: 3/3 job thành công; Docker đã chạy trong 512 MB ở bản scaffold. CI auth/gateway hiện tại có 4 job nhưng đang queued; chưa xác nhận Docker với auth trên remote. Chưa kiểm tra PostgreSQL thật hoặc deployment cloud.
+- CI scaffold trước: 3/3 job thành công; Docker đã chạy trong 512 MB ở bản scaffold. CI auth/gateway hiện tại có 4 job nhưng đang queued; chưa xác nhận Docker với auth trên remote. Mục này ghi kết quả phiên auth; phiên deployment bên dưới đã xác minh PostgreSQL và cloud thật.
 - Kết quả CI: https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/39275516379
 - Giao diện chỉ là scaffold/placeholder; chưa tick hoàn thành các chức năng website.
 - File `docs/design/SHOP_CART_PROTOTYPE.md` đã có trước phiên khởi tạo; giữ nguyên nội dung và đã push cùng bộ dự án theo yêu cầu.
@@ -131,4 +131,12 @@ Trạng thái xác thực có thể thay đổi; kiểm tra lại khi cần depl
 - CD workflow mới: chỉ push main CI thành công, đúng main SHA; tải artifact đúng run, deploy Worker, Render exact ref, chờ commit live, deploy Pages, smoke check. Có test gate loại PR/fork/CI failed/stale.
 - Google chưa có credentials thật, GOOGLE_ENABLED=false; chưa có bootstrap admin production. Phần auth production chưa kiểm tra đăng nhập tài khoản thật.
 - Kiểm tra local sau thay đổi: backend 10 tests pass; package ban đầu vướng JAR đang chạy trên Windows, đã dừng process local để đóng gói lại. Gate test pass.
-- Cấu hình CI/CD mới đang local tại thời điểm ghi mục này; cần push và xác minh lần chạy tự động. Tài nguyên cloud đã live. Tham khảo docs/DEPLOYMENT.md.
+- Cấu hình CI/CD đã push `69ed38c`; còn phải xác minh lần chạy tự động sau khi GitHub phục hồi. Tài nguyên cloud đã live. Tham khảo docs/DEPLOYMENT.md.
+
+- Production kiểm tra bằng browser: nút Kiểm tra API báo đã kết nối EXE_WebApplication 0.0.1; trực tiếp Render API 403, thiếu Turnstile 403, gọi login lặp lại nhận 429/Retry-After 60. Cloudflare rate limit theo location, eventual consistency, không đảm bảo request thứ 6 luôn bị chặn ngay.
+- Local backend 10 tests pass và JAR đóng gói thành công sau khi dừng process giữ file. GitHub logs run #39282044333 có 13 Worker tests + release gate test pass, Maven 10 tests pass/BUILD SUCCESS, Docker health UP và API đúng application/commit local; artifacts Angular/JAR đã có. Không coi các logs này là kết luận toàn workflow success khi GitHub chưa xác nhận.
+
+- Triển khai thủ công để xác minh từng bước CD: hook Render nhận chính xác `69ed38c6e635d4addf8136b85b19dffb659ecaae`, deploy `dep-dbb3v39jfumc73d45r70` live, API báo đúng SHA; Pages publish artifact CI tương ứng tại `https://fe6221b7.exe-webapplication.pages.dev`.
+- Chạy chính script `.github/scripts/smoke.mjs` trên production thành công: 4 trang tĩnh (theo redirect thêm / của Pages), API đúng commit, health/database UP, thiếu browser metadata/foreign origin/direct backend đều 403.
+- CI auth #39278743322 đã conclusion success. CD #39283009384 được GitHub tạo; chưa xác nhận chạy xong. CI mới và webhook còn chậm do incident; vẫn giữ điều kiện chỉ auto deploy CI thành công, không bỏ qua gate.
+- Đã khởi động lại backend local cổng 8080 sau đóng gói, health UP. Angular dev server cổng 4200 còn hoạt động.

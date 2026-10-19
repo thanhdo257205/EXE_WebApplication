@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
 
 const origin = process.env.PUBLIC_ORIGIN;
-const get = (url, headers = {}) => fetch(url, { headers, redirect: 'manual', signal: AbortSignal.timeout(60_000) });
+const get = (url, headers = {}, redirect = 'manual') => fetch(url, { headers, redirect, signal: AbortSignal.timeout(60_000) });
 for (const path of ['/', '/thu-vien', '/wiki', '/huong-dan']) {
-  const page = await get(origin + path);
+  // Pages redirects prerendered directories to a trailing slash.
+  const page = await get(origin + path, {}, 'follow');
+  assert.equal(new URL(page.url).origin, origin, `Static page origin ${path}`);
   assert.equal(page.status, 200, `Static page ${path}`);
   assert.match(page.headers.get('content-type'), /text\/html/);
 }

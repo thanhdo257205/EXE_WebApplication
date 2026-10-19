@@ -131,10 +131,10 @@ Cập nhật: 2026-10-19 (Asia/Saigon).
 - [x] Worker typecheck, 13 tests và Wrangler dry-run thành công.
 - [x] Kiểm tra Wrangler runtime local: direct backend 403, browser proxy 200, login lần 6 trả 429.
 - [x] Bổ sung job CI gateway; cấu hình đã push `a92a952`.
-- [ ] Xác minh CI auth/gateway #39278743322 thành công (hiện queued chờ runner).
+- [x] CI auth/gateway #39278743322 thành công; đã xác nhận conclusion success.
 - [ ] Cấu hình Google Client ID/Secret và callback, kiểm tra Google login thật.
 - [x] Tạo Turnstile widget, cấu hình sitekey/secret cho hostname thật.
-- [ ] Cấu hình origin/secrets thật, deploy gateway cùng Pages/Render/Aiven và kiểm tra end-to-end.
+- [x] Cấu hình origin/secrets thật, deploy gateway cùng Pages/Render/Aiven và smoke test website/API/database.
 
 ### 5. Triển khai và kiểm tra
 
