@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+:root { color-scheme: dark; font-family: system-ui, sans-serif; background: #06182d; color: #e6e6e6; }
+body { margin: 0; }
+a, button { -webkit-tap-highlight-color: transparent; }
+a { text-decoration: none; }
+button { cursor: pointer; }
+button:disabled { cursor: default; }
+:focus-visible { outline: 2px solid #7dd3fc; outline-offset: 4px; }
+.active { color: #7dd3fc; }
+.panel { display: block; padding: 1.5rem; border: 1px solid #405367; border-radius: .75rem; background: #101720; }
+a.panel:hover { border-color: #7dd3fc; }
+.skip-link { position: absolute; left: 1rem; top: -5rem; background: #0f172a; padding: .75rem; z-index: 10; }
+.skip-link:focus { top: 1rem; }

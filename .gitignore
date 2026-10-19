@@ -1,0 +1,19 @@
+# Local secrets and certificates
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+*.pem
+*.key
+*.p12
+# Build/cache output
+**/node_modules/
+**/dist/
+**/.angular/
+**/target/
+*.log
+**/test-results/
+.idea/
+.DS_Store

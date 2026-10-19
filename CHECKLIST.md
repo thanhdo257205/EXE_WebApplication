@@ -52,19 +52,26 @@ Cập nhật: 2026-10-19 (Asia/Saigon).
 
 ### 2. Khởi tạo kỹ thuật
 
-- [ ] Kiểm tra công cụ local và chọn phiên bản runtime/framework tương thích.
-- [ ] Khởi tạo Angular trong `frontend/`.
-- [ ] Cấu hình Tailwind CSS.
-- [ ] Cấu hình routing và trang 404.
-- [ ] Xây layout chung: header, menu, footer.
-- [ ] Cấu hình lazy loading cho các khu vực phù hợp.
-- [ ] Cấu hình prerender và xuất frontend tĩnh.
-- [ ] Khởi tạo Spring Boot trong `backend/` bằng Maven.
-- [ ] Cấu hình profile local/production và biến môi trường.
-- [ ] Thêm JPA, PostgreSQL, Flyway và Spring Security.
-- [ ] Thiết lập cấu trúc REST API, validation và xử lý lỗi.
-- [ ] Tạo Dockerfile phù hợp giới hạn Render Free.
-- [ ] Thêm `.gitignore`, `.env.example` không chứa secrets và README hướng dẫn chạy.
+- [x] Kiểm tra công cụ local và chọn phiên bản runtime/framework tương thích.
+- [x] Khởi tạo Angular trong `frontend/`.
+- [x] Cấu hình Tailwind CSS.
+- [x] Cấu hình routing và trang 404.
+- [x] Xây layout chung: header, menu, footer.
+- [x] Cấu hình lazy loading cho các khu vực phù hợp.
+- [x] Cấu hình prerender và xuất frontend tĩnh.
+- [x] Khởi tạo Spring Boot trong `backend/` bằng Maven.
+- [x] Cấu hình profile local/production và biến môi trường.
+- [x] Thêm JPA, PostgreSQL, Flyway và Spring Security.
+- [x] Tạo REST endpoint kiểm tra kết nối, cấu hình Problem Details và dependency validation.
+- [ ] Áp dụng validation/xử lý lỗi cho API nghiệp vụ khi được xây dựng.
+- [ ] Build và kiểm tra Dockerfile đã tạo; đo RAM trên Render Free (máy local chưa có Docker).
+- [x] Thêm `.gitignore`, `.env.example` không chứa secrets và README hướng dẫn chạy.
+
+- [x] Frontend build production và chạy unit test local.
+- [x] Backend build JAR bằng Maven Wrapper và chạy smoke test local.
+- [x] Kiểm tra Angular gọi Spring Boot qua dev proxy.
+- [x] Chuẩn bị workflow GitHub Actions build/test (chưa xác minh trên GitHub).
+- [ ] Commit/push khung mã nguồn và xác minh workflow trên GitHub.
 
 ### 3. Website giới thiệu và tra cứu
 
