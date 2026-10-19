@@ -105,10 +105,12 @@ Cập nhật: 2026-10-19 (Asia/Saigon).
 - [ ] Tạo PostgreSQL Free trên Aiven và cấu hình TLS xác minh chứng chỉ.
 - [ ] Viết migration và seed từ dữ liệu nguồn đã xác nhận.
 - [ ] Xây API đọc nội dung và nhận phản hồi.
-- [ ] Chốt phương án đăng nhập ứng dụng với người dùng.
-- [ ] Triển khai đăng nhập, đăng xuất và kiểm tra phiên.
-- [ ] Xác định vai trò và quyền sửa/xuất bản nội dung.
-- [ ] Kiểm tra backend từ chối truy cập thiếu quyền.
+- [x] Chốt đăng nhập email/mật khẩu và Google OAuth2 với người dùng.
+- [x] Triển khai API đăng nhập mật khẩu/Google, logout, /me và phiên JDBC; kiểm tra local.
+- [ ] Xây giao diện đăng nhập và tích hợp Turnstile/Google thật.
+- [x] Định nghĩa vai trò ADMIN/CUSTOMER và bảo vệ đường dẫn API admin.
+- [ ] Chốt quyền EDITOR và quyền sửa/xuất bản nội dung khi xây quản trị.
+- [x] Kiểm tra backend từ chối truy cập thiếu quyền, thiếu CSRF hoặc origin secret khi guard bật.
 - [ ] Xây layout và điều hướng trang quản trị.
 - [ ] Quản trị nhân vật và bộ thẻ.
 - [ ] Quản trị nội dung thẻ.
@@ -116,6 +118,22 @@ Cập nhật: 2026-10-19 (Asia/Saigon).
 - [ ] Quản trị nhật ký phát triển và phiên bản nội dung.
 - [ ] Xem và xử lý phản hồi người chơi.
 - [ ] Thiết lập quy trình xuất bản nội dung và build lại trang tĩnh.
+
+### 4A. Cloudflare gateway và bảo vệ đăng nhập
+
+- [x] Xây same-origin Worker proxy tới Pages và Render, secret chỉ nằm phía server.
+- [x] Backend production yêu cầu origin secret; chỉ miễn health check.
+- [x] Lọc Origin/Fetch Metadata; ghi rõ không thể bảo đảm nhận diện Postman giả header.
+- [x] Thêm rate limit API 120/phút/IP, login 5/phút/IP, password account 10/phút.
+- [x] Kiểm tra Turnstile phía server: token, hostname, action; lỗi thì từ chối.
+- [x] Thêm migration user/session, BCrypt, chống session fixation và CSRF login/logout.
+- [x] Thêm API client Angular cho auth; chưa có giao diện.
+- [x] Worker typecheck, 13 tests và Wrangler dry-run thành công.
+- [x] Kiểm tra Wrangler runtime local: direct backend 403, browser proxy 200, login lần 6 trả 429.
+- [x] Bổ sung job CI gateway (chưa xác minh lần chạy remote của phiên này).
+- [ ] Cấu hình Google Client ID/Secret và callback, kiểm tra Google login thật.
+- [ ] Tạo Turnstile widget, cấu hình sitekey/secret cho hostname thật.
+- [ ] Cấu hình origin/secrets thật, deploy gateway cùng Pages/Render/Aiven và kiểm tra end-to-end.
 
 ### 5. Triển khai và kiểm tra
 

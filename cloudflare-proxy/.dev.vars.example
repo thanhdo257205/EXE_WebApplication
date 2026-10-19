@@ -1,0 +1,7 @@
+# Copy to .dev.vars locally; never commit actual secrets.
+ORIGIN_PROXY_SECRET=REPLACE_WITH_RANDOM_32_OR_MORE_CHARACTERS
+TURNSTILE_SECRET_KEY=YOUR_REAL_TURNSTILE_SECRET
+# Match the browser origin used for local proxy tests.
+PUBLIC_ORIGIN=http://localhost:8787
+BACKEND_ORIGIN=http://localhost:8080
+FRONTEND_ORIGIN=http://localhost:4200

@@ -16,6 +16,25 @@ env:
   NG_CLI_ANALYTICS: 'false'
 
 jobs:
+  gateway:
+    name: Cloudflare gateway tests and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: cloudflare-proxy
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: cloudflare-proxy/package-lock.json
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+      - run: npm run build
+
   frontend:
     name: Angular tests and static build
     runs-on: ubuntu-latest

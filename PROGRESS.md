@@ -6,9 +6,9 @@
 
 - Ngày: 2026-10-19 (Asia/Saigon).
 - Trạng thái: Đã khởi tạo Angular và Spring Boot; build/test và kết nối local thành công; chưa deploy cloud.
-- Công việc vừa hoàn thành: Push mã nguồn tại `f8403dd` và xác minh GitHub Actions CI thành công cả 3 job Angular, Spring Boot và Docker.
-- Trạng thái GitHub: Mã nguồn/CI đã push tại `f8403dd`; bản cập nhật tài liệu kết quả được push trong commit riêng với `[skip ci]` vì không đổi mã nguồn.
-- Việc tiếp theo: Xác định dữ liệu nguồn chính thức, triển khai giao diện theo Figma và schema nghiệp vụ; triển khai thử lên cloud khi được yêu cầu.
+- Công việc vừa hoàn thành: Xây auth mật khẩu/Google, JDBC session, CSRF, role và Cloudflare gateway/rate limit/Turnstile; đang chuẩn bị push và xác minh CI phiên này.
+- Trạng thái GitHub: Bản scaffold trước đã đồng bộ; thay đổi auth/gateway của phiên hiện tại đang local, chờ commit/push và CI.
+- Việc tiếp theo: Cấu hình Google/Turnstile và origin triển khai thật, tạo UI đăng nhập; tiếp tục dữ liệu và giao diện game.
 - Trở ngại hiện tại: Máy chưa có Docker (đã kiểm tra image trên GitHub Actions); chưa tạo/kết nối database Aiven, chưa có API production URL và chưa deploy cloud.
 
 ## Bối cảnh và tài liệu
@@ -49,7 +49,7 @@
 - Render Free có giới hạn tài nguyên và cơ chế ngủ; cần đo RAM thực tế, tối ưu JVM, connection pool và thời gian khởi động.
 - Ảnh cố định ban đầu lưu cùng frontend; chưa chốt dịch vụ upload ảnh. R2 chỉ là phương án tương lai, chưa kích hoạt cho dự án.
 - Đã chọn Angular 22.2.3, Spring Boot 4.1.1, Java 25 và Node.js 24.15.0. Frontend có package-lock.json; backend có Maven Wrapper. Local dùng H2 trong bộ nhớ, production bắt buộc PostgreSQL qua biến môi trường.
-- Chưa chốt phương án đăng nhập của ứng dụng và nhà cung cấp thanh toán. Đăng nhập Google là đề xuất trước đó, chưa triển khai.
+- Người dùng đã chọn cả email/mật khẩu và Google. Backend đã triển khai hai luồng; chưa cấu hình Google/Turnstile thật và chưa có UI đăng nhập. Nhà cung cấp thanh toán chưa chốt.
 - Không lưu ảnh dạng nhị phân trong database; secrets phải nằm ngoài Git.
 
 ## Checklist công việc
@@ -96,14 +96,24 @@ Trạng thái xác thực có thể thay đổi; kiểm tra lại khi cần depl
 | 2026-10-19 | Push bộ tài liệu và ảnh prototype lên `origin/main` | Commit `bb3c322` đã push thành công; tick checklist và ghi nhận trạng thái trong commit tiếp theo |
 | 2026-10-19 | Khởi tạo Angular 22.2.3 + Spring Boot 4.1.1/Java 25; cấu hình H2/prod PostgreSQL, Security, Flyway, Tailwind, prerender, CI và README | Frontend 2 tests, backend 3 tests pass; 4 trang prerender; dev proxy trả thông tin backend; chưa push/deploy |
 | 2026-10-19 | Bổ sung CI cho push/PR/thủ công, test/build, artifacts và Docker smoke test 512 MB | Đã push `f8403dd`; CI #39275516379 thành công cả ba job, có artifacts |
+| 2026-10-19 | Xây backend auth và Cloudflare gateway; tài liệu tại `docs/AUTH_AND_GATEWAY.md` | 9 backend tests, 3 frontend tests và 13 proxy tests đã pass; kiểm tra runtime local 403/200/429; đang chờ CI remote |
 
 ## Kết quả kiểm tra ứng dụng
 
 - `frontend`: `npm run build` thành công, 4 route prerender; đã kiểm tra file HTML có nội dung.
-- `frontend`: `npm test -- --watch=false` — 2 tests pass (shell và API contract).
-- `backend`: `.\mvnw.cmd -B -ntp verify` — 3 tests pass, tạo executable JAR; kiểm tra health, info, endpoint bị chặn và CORS.
+- `frontend`: `npm test -- --watch=false` — 3 tests pass (shell, API và auth client contract).
+- `backend`: `.\mvnw.cmd -B -ntp verify` — 9 tests đã pass local trước kiểm tra bổ sung email dài; đã kiểm tra health/info, CORS, mật khẩu/Google, CSRF, phiên JDBC và proxy guard. CI sẽ kiểm tra phiên bản cuối với 10 tests.
 - Chạy thực tế: `/actuator/health` trả UP; gọi `/api/v1/info` qua dev proxy Angular trả `EXE_WebApplication`; route `/thu-vien` trả HTTP 200.
 - GitHub Actions: 3/3 job thành công; Docker image chạy health/API với H2 trong giới hạn 512 MB. Chưa kiểm tra PostgreSQL thật hoặc deployment cloud.
 - Kết quả CI: https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/39275516379
 - Giao diện chỉ là scaffold/placeholder; chưa tick hoàn thành các chức năng website.
 - File `docs/design/SHOP_CART_PROTOTYPE.md` đã có trước phiên khởi tạo; giữ nguyên nội dung và đã push cùng bộ dự án theo yêu cầu.
+
+### Phiên auth/gateway
+
+- Auth: BCrypt cost 12; bootstrap admin tùy chọn qua biến môi trường, không có mật khẩu mặc định. Session lưu JDBC, timeout idle 30 phút, cookie HttpOnly/SameSite=Lax, Secure ở prod; CSRF bắt buộc.
+- Google: OIDC kiểm tra email verified, cấp CUSTOMER, không tự ghép tài khoản trùng email. Callback state/nonce do Spring Security kiểm tra. Credentials thật chưa có; chưa thử Google thật.
+- Gateway: proxy cùng origin tới Pages/Render, limiter bindings và Turnstile, origin secret production. Không hứa chặn Postman giả header hoặc cô lập mạng Render.
+- Local `.dev.vars` được tạo với secret ngẫu nhiên để smoke test, đã gitignore. Không tái dùng secret thử cho production.
+- Đã chạy Wrangler local và dừng các process smoke test cổng 8081/8787 sau khi kiểm tra; Angular dev server cũ vẫn còn.
+- Hướng dẫn cấu hình và phần chưa hoàn thành: [AUTH_AND_GATEWAY.md](docs/AUTH_AND_GATEWAY.md).

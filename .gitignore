@@ -8,6 +8,10 @@
 *.pem
 *.key
 *.p12
+**/.dev.vars
+**/.dev.vars.*
+!**/.dev.vars.example
+**/.wrangler/
 # Build/cache output
 **/node_modules/
 **/dist/

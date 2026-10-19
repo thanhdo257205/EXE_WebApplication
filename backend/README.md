@@ -7,5 +7,6 @@ Xem [README gốc](../README.md) để chạy cả hệ thống và cấu hình 
 - Linux/macOS dùng `./mvnw`.
 - `local`: H2 trong bộ nhớ, mất dữ liệu khi dừng process.
 - `prod`: PostgreSQL, xem `.env.example`.
-- Flyway có migration kỹ thuật, chưa có schema nghiệp vụ.
-- Chỉ mở `GET /api/v1/info` và `GET /actuator/health`; chưa có đăng nhập.
+- Flyway có schema user và JDBC session, chưa có schema thẻ/đơn hàng.
+- Có đăng nhập mật khẩu/Google, CSRF, logout, /me, role và origin proxy guard production.
+- Xem [Auth và gateway](../docs/AUTH_AND_GATEWAY.md) để cấu hình và tích hợp; chưa có tài khoản mặc định hoặc public registration.
