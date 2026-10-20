@@ -1,12 +1,12 @@
 # Backend admin — quản trị nội dung đợt A
 
-Hợp đồng phiên bản 0.1.0, ngày 2026-10-20. Frontend do AI khác phụ trách. Đây là bản thiết kế kèm API đã triển khai trong source của đợt này; chưa xác nhận deploy. Đọc [OpenAPI](api/admin-content.openapi.json) để tạo type/client và [ADMIN_PLAN.md](ADMIN_PLAN.md) cho phạm vi dài hạn. Checklist là nguồn trạng thái nghiệm thu.
+Hợp đồng phiên bản 0.1.0, ngày 2026-10-20. Frontend do AI khác phụ trách. Đây là bản thiết kế kèm API đã triển khai trong source của đợt này; CD `39385059734` tại `30bb28c` đã thành công; chưa nghiệm thu chức năng production. Đọc [OpenAPI](api/admin-content.openapi.json) để tạo type/client và [ADMIN_PLAN.md](ADMIN_PLAN.md) cho phạm vi dài hạn. Checklist là nguồn trạng thái nghiệm thu.
 
 ## Phạm vi
 
 Đợt này có dashboard nội dung, release nháp, clone release, CRUD revision cho nhân vật/bộ thẻ/thẻ/wiki, tìm kiếm/phân trang, xem trước riêng tư, tra cứu ID cố định và đọc nhật ký thay đổi nội dung. Dashboard không trả doanh thu, số đơn hoặc số liệu minh họa.
 
-Import CSV/JSON, public content API, xuất bản/rollback lên Pages, moderation phản hồi, quản trị người dùng, upload ảnh, quản trị commerce và hệ thống đối soát/refund còn ở backlog. Không có API đánh dấu release PUBLISHED, chạy SQL tùy ý hoặc sửa trạng thái PAID. Việc tạo/xem trước nội dung không làm website public thay đổi.
+Import CSV/JSON, xuất bản/rollback lên Pages, quản trị người dùng, upload ảnh, quản trị commerce và hệ thống đối soát/refund còn ở backlog. Backend moderation phản hồi và API public/snapshot đã bổ sung local, hợp đồng riêng tại [FEEDBACK_API.md](FEEDBACK_API.md) và [PUBLIC_CONTENT_API.md](PUBLIC_CONTENT_API.md); chưa nghiệm thu UI/production và chưa nằm trong OpenAPI admin content 0.1.0. Không có API đánh dấu release PUBLISHED, chạy SQL tùy ý hoặc sửa trạng thái PAID. Việc tạo/xem trước nội dung không làm website public thay đổi.
 
 ## Cấu trúc và mô hình dữ liệu
 
@@ -34,7 +34,7 @@ DELETE chỉ bỏ revision ở draft, không xóa ID cố định hoặc dữ li
 
 Mọi endpoint yêu cầu JWT có role ADMIN. Anonymous nhận 401, CUSTOMER nhận 403. POST/PUT/DELETE cần CSRF cookie và header mới từ `/api/v1/auth/csrf`; production bắt buộc gateway và `X-Origin-Verify` do gateway tự gắn. Frontend không đọc JWT hoặc biết proxy secret, không đặt Authorization/localStorage token riêng.
 
-Trước mỗi mutation, service khóa và kiểm tra lại `app_users`: ADMIN, enabled và auth_version của principal còn đúng. Thứ tự khóa: actor trước, release sau. Dưới cùng transaction, khóa release, kiểm tra DRAFT + expectedVersion, kiểm tra ID/tham chiếu, thay nội dung, tăng version rồi ghi audit. Bất kỳ lỗi nào rollback cả nội dung, identity mới, version và audit; không có audit SUCCESS cho thao tác thất bại.
+Trước mỗi mutation, service đọc lại `app_users` để kiểm tra ADMIN, enabled và auth_version; SELECT này không khóa actor. Không dùng FOR UPDATE trên actor vì đã gây deadlock với foreign key created_by khi hai admin cập nhật release đồng thời. Dưới cùng transaction, khóa release, kiểm tra DRAFT + expectedVersion, kiểm tra ID/tham chiếu, thay nội dung, tăng version rồi ghi audit. Bất kỳ lỗi nào rollback cả nội dung, identity mới, version và audit; không có audit SUCCESS cho thao tác thất bại.
 
 `releaseVersion` áp dụng cho **toàn bộ draft**, không riêng một thẻ. Nếu hai admin cùng mở version 3, người lưu trước tăng lên 4; người còn lại nhận 409 VERSION_CONFLICT. Frontend cần tải lại dữ liệu và cho người dùng xem xét trước khi gửi lại; không tự nâng expectedVersion và ghi đè. Version này không phải HTTP ETag và không cần If-Match. Vòng đời JWT 30 phút/thu hồi hiện có không thay đổi.
 
@@ -160,6 +160,6 @@ Các endpoint tương lai chưa nằm trong OpenAPI 0.1.0 để tránh frontend 
 
 Chạy backend bằng Maven Wrapper trong `backend/`, profile mặc định local/H2; Flyway tự áp V1–V8. Không có tài khoản mặc định. Muốn thử UI tích hợp local, người vận hành tự đặt BOOTSTRAP_ADMIN_EMAIL/BOOTSTRAP_ADMIN_PASSWORD bằng tài khoản thử (password ít nhất 12 ký tự, tối đa 72 byte UTF-8) trước startup; BootstrapAdmin chỉ tạo nếu email chưa tồn tại. Không sử dụng mật khẩu hoặc database production để thử. H2 mất dữ liệu khi process dừng. Angular dev proxy `/api` tới 8080; backend và frontend cần chạy cùng cấu hình dev đã có.
 
-Kết quả 2026-10-20: `mvnw verify` thành công, đóng gói JAR; 95 tests tổng, 66 chạy qua và 29 PostgreSQL skipped do chưa có SCHEMA_TEST_JDBC_URL. 13 tests admin đã qua trên H2; PostgresAdminContentFlowTests tái sử dụng toàn bộ 13 kịch bản trong schema disposable khi CI/môi trường thử cấp biến kết nối. Gateway typecheck và 23 tests qua. Không chạy lại frontend đang được AI khác sửa, không nghiệm thu browser frontend hoặc production trong đợt này.
+Kết quả mới nhất: CI `39384838912` tại `30bb28c` có 104 Maven tests qua, không skipped; 13 admin H2 và 13 admin PostgreSQL disposable qua. Gateway 23 tests qua. Local frontend 40 tests/build qua nhưng còn lệch response contract; xem [báo cáo rà soát](CODEBASE_REVIEW_2026-10-20.md).
 
-OpenAPI đã qua `@redocly/cli lint`: hợp lệ, còn một cảnh báo metadata info.license chưa được khai báo; không tự gán giấy phép cho dự án. API mới và migration V8 còn local, chưa commit/push/deploy trong phiên này. Kiểm tra `git diff --check` không có lỗi whitespace.
+OpenAPI đã lint hợp lệ, còn cảnh báo metadata info.license; không tự gán giấy phép. API/V8 đã nằm trong SHA có CD `39385059734` thành công; không còn là source chưa push. Chưa nghiệm thu browser admin production. Phiên rà soát không chạy test ghi trên production.

@@ -1,6 +1,6 @@
 import { inject, Injectable, signal } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { catchError, of, switchMap, tap } from 'rxjs';
+import { catchError, defer, finalize, Observable, of, retry, shareReplay, switchMap, tap, throwError, timeout, timer } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
 export interface CurrentUser {
@@ -28,6 +28,8 @@ export class AuthService {
   readonly currentUser = signal<CurrentUser | null>(null);
   readonly authConfig = signal<AuthConfig | null>(null);
   readonly checkingSession = signal<boolean>(false);
+  private loginPreparation?: Observable<AuthConfig>;
+  private preparedLogin?: { config: AuthConfig; expiresAt: number };
 
   private get base() {
     if (!environment.apiBaseUrl) throw new Error('API URL chưa được cấu hình.');
@@ -39,6 +41,31 @@ export class AuthService {
       tap(cfg => this.authConfig.set(cfg)),
       catchError(() => of({ password: true, google: false, googleLoginUrl: null }))
     );
+  }
+
+  // Start on the login page, before OAuth navigation. Only this read may retry;
+  // OAuth authorization/callback and password submissions must never be replayed.
+  prepareLogin(): Observable<AuthConfig> {
+    return defer(() => {
+      if (this.preparedLogin && this.preparedLogin.expiresAt > Date.now()) {
+        return of(this.preparedLogin.config);
+      }
+      if (!this.loginPreparation) {
+        this.loginPreparation = this.http.get<AuthConfig>(`${this.base}/config`, { withCredentials: true }).pipe(
+          timeout(65_000),
+          retry({ count: 2, delay: (error, attempt) =>
+            error.name === 'TimeoutError' || [0, 408, 502, 503, 504].includes(error.status)
+              ? timer(attempt * 1_000) : throwError(() => error) }),
+          tap(config => {
+            this.authConfig.set(config);
+            this.preparedLogin = { config, expiresAt: Date.now() + 30_000 };
+          }),
+          finalize(() => { this.loginPreparation = undefined; }),
+          shareReplay({ bufferSize: 1, refCount: true })
+        );
+      }
+      return this.loginPreparation;
+    });
   }
 
   me() {

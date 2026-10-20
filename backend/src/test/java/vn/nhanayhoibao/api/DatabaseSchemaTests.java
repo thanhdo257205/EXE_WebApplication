@@ -40,7 +40,7 @@ class DatabaseSchemaTests {
             }
             var flyway = Flyway.configure().dataSource(db.url, db.user, db.password)
                     .schemas(db.schema).defaultSchema(db.schema).createSchemas(true).load();
-            assertThat(flyway.migrate().migrationsExecuted).isEqualTo(6);
+            assertThat(flyway.migrate().migrationsExecuted).isEqualTo(8);
             try (var c = db.connect()) {
                 assertThat(scalar(c, "SELECT password_hash FROM app_users WHERE id=?", legacyUser)).isEqualTo("legacy-hash-preserved");
             }

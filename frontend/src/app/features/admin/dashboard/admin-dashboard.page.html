@@ -34,6 +34,26 @@
     </div>
   </div>
 
+  <!-- Session Expired Alert -->
+  @if (isSessionExpired()) {
+    <div class="session-expired-card" role="alert">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <app-morph-icon name="shield" [size]="22" color="#f87171" class="shrink-0"></app-morph-icon>
+          <div>
+            <h2 class="text-sm font-bold text-rose-300">Phiên làm việc quản trị viên đã hết hạn (30 phút)</h2>
+            <p class="text-xs text-slate-300 mt-0.5">
+              Token JWT bảo mật đã hết hạn hoặc bị thu hồi. Vui lòng đăng nhập lại để tiếp tục quản lý dữ liệu.
+            </p>
+          </div>
+        </div>
+        <a routerLink="/dang-nhap" [queryParams]="{ returnUrl: '/admin' }" class="relogin-btn shrink-0">
+          Đăng nhập lại →
+        </a>
+      </div>
+    </div>
+  }
+
   <!-- Live API Connection Status Notice -->
   <div class="mock-notice-card" role="note">
     <app-morph-icon name="shield" [size]="20" color="#38bdf8" class="shrink-0"></app-morph-icon>
@@ -90,31 +110,31 @@
     <!-- Card 2: Orders & Cart Status -->
     <div class="metric-card">
       <div class="metric-top">
-        <span class="metric-label">ĐƠN HÀNG MỚI</span>
+        <span class="metric-label">VẬN HÀNH ĐƠN HÀNG</span>
         <div class="metric-icon-box bg-amber-950/50 border border-amber-800/40 text-amber-400">
           <app-morph-icon name="store" [size]="18" color="currentColor"></app-morph-icon>
         </div>
       </div>
-      <div class="metric-value">1 <span class="metric-unit">chờ thanh toán</span></div>
+      <div class="metric-value">Đợt B <span class="metric-unit">Commerce</span></div>
       <div class="metric-meta text-slate-400">
-        <span>Chờ PayOS xác nhận</span> · <span>0 đơn trễ hạn</span>
+        <span>PayOS Webhook</span> · <span>Đối soát 30 phút</span>
       </div>
-      <a routerLink="/admin/orders" class="metric-link">Quản lý danh sách đơn →</a>
+      <a routerLink="/admin/orders" class="metric-link">Xem phân hệ đơn hàng →</a>
     </div>
 
-    <!-- Card 3: Inventory SKU -->
+    <!-- Card 3: Content Scale -->
     <div class="metric-card">
       <div class="metric-top">
-        <span class="metric-label">TỒN KHO KHẢ DỤNG</span>
+        <span class="metric-label">QUY MÔ NỘI DUNG V2</span>
         <div class="metric-icon-box bg-purple-950/50 border border-purple-800/40 text-purple-400">
           <app-morph-icon name="package" [size]="18" color="currentColor"></app-morph-icon>
         </div>
       </div>
-      <div class="metric-value">500 <span class="metric-unit">hộp sẵn sàng</span></div>
+      <div class="metric-value">148 <span class="metric-unit">thẻ bài</span></div>
       <div class="metric-meta text-slate-400">
-        <span class="text-emerald-400">Đủ hàng</span> · <span>2 SKU chính thức</span>
+        <span class="text-emerald-400">8 cư dân</span> · <span>11 bộ mở rộng</span>
       </div>
-      <a routerLink="/admin/inventory" class="metric-link">Kiểm tra sổ kho →</a>
+      <a routerLink="/admin/inventory" class="metric-link">Kế hoạch tồn kho SKU →</a>
     </div>
 
     <!-- Card 4: Database & Gateway -->

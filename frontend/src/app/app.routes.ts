@@ -56,14 +56,26 @@ export const routes: Routes = [
   {
     path: 'thu-vien',
     title: 'Thư viện thẻ bài — Nhà Này Hơi Báo!',
-    data: { heading: 'Thư viện thẻ bài (148 thẻ V2)', description: 'Khu vực tra cứu thẻ, phân loại theo 11 bộ mở rộng và tìm kiếm hiệu ứng minh họa.' },
-    loadComponent: () => import('./shared/placeholder.page').then(m => m.PlaceholderPage),
+    data: { kind: 'cards', heading: 'Tủ thẻ trong nhà', description: 'Tìm thẻ theo tên hoặc mã, xem hiệu ứng và ghi chú luật của bản đã phát hành.' },
+    loadComponent: () => import('./features/public-content/public-content.page').then(m => m.PublicContentPage),
+  },
+  {
+    path: 'thu-vien/:slug',
+    title: 'Chi tiết thẻ — Nhà Này Hơi Báo!',
+    data: { kind: 'cards', heading: 'Chi tiết thẻ' },
+    loadComponent: () => import('./features/public-content/public-content.page').then(m => m.PublicContentPage),
   },
   {
     path: 'cu-dan',
     title: 'Hồ sơ cư dân — Nhà Này Hơi Báo!',
-    data: { heading: 'Hồ sơ 8 cư dân', description: 'Chi tiết tính cách, sở thích, kỹ năng đặc biệt và thói quen sinh hoạt của 8 thành viên trong nhà.' },
-    loadComponent: () => import('./shared/placeholder.page').then(m => m.PlaceholderPage),
+    data: { kind: 'characters', heading: 'Những người chung nhà', description: 'Gặp gỡ các cư dân và xem câu chuyện, kỹ năng trong bản nội dung đã phát hành.' },
+    loadComponent: () => import('./features/public-content/public-content.page').then(m => m.PublicContentPage),
+  },
+  {
+    path: 'cu-dan/:slug',
+    title: 'Hồ sơ cư dân — Nhà Này Hơi Báo!',
+    data: { kind: 'characters', heading: 'Hồ sơ cư dân' },
+    loadComponent: () => import('./features/public-content/public-content.page').then(m => m.PublicContentPage),
   },
   {
     path: 'cach-choi',
@@ -79,8 +91,14 @@ export const routes: Routes = [
   {
     path: 'wiki',
     title: 'Wiki luật chơi — Nhà Này Hơi Báo!',
-    data: { heading: 'Wiki luật chơi & Cơ chế', description: 'Quy tắc giải quyết tranh chấp thẻ, cơ chế Drama và các câu hỏi thường gặp (FAQ).' },
-    loadComponent: () => import('./shared/placeholder.page').then(m => m.PlaceholderPage),
+    data: { kind: 'wiki-pages', heading: 'Sổ tay chung của căn nhà', description: 'Tra cứu hướng dẫn, câu hỏi thường gặp, câu chuyện và những quy tắc đã phát hành.' },
+    loadComponent: () => import('./features/public-content/public-content.page').then(m => m.PublicContentPage),
+  },
+  {
+    path: 'wiki/:slug',
+    title: 'Bài viết wiki — Nhà Này Hơi Báo!',
+    data: { kind: 'wiki-pages', heading: 'Bài viết wiki' },
+    loadComponent: () => import('./features/public-content/public-content.page').then(m => m.PublicContentPage),
   },
   {
     path: 'quy-nha',

@@ -1,3 +1,4 @@
+import { RiseHeadingDirective } from '../../../shared/motion/rise-heading.directive';
 import { Component, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import {
@@ -14,7 +15,7 @@ import { bcryptPasswordValidator, matchingPasswordsValidator } from '../../../co
 @Component({
   selector: 'app-register-page',
   standalone: true,
-  imports: [RouterLink, FormsModule, ReactiveFormsModule, MorphIconComponent, WikiCanvasComponent],
+  imports: [RiseHeadingDirective, RouterLink, FormsModule, ReactiveFormsModule, MorphIconComponent, WikiCanvasComponent],
   templateUrl: './register.page.html',
   styleUrl: './register.page.css',
 })

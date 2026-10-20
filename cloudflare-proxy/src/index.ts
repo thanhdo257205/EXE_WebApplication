@@ -86,6 +86,7 @@ export async function handle(request: Request, env: Env, fetcher: typeof fetch =
     const site = request.headers.get('Sec-Fetch-Site');
     const mode = request.headers.get('Sec-Fetch-Mode');
     const oauthNavigation = request.method === 'GET' && [OAUTH_START, OAUTH_CALLBACK].includes(url.pathname);
+    const notificationStream = request.method === 'GET' && url.pathname === '/api/v1/admin/notifications/stream';
     const paymentNavigation = request.method === 'GET' && /^\/api\/v1\/payments\/return\/[a-f0-9-]{36}$/.test(url.pathname);
     const webhook = request.method === 'POST' && url.pathname === PAYOS_WEBHOOK;
     if (url.pathname === PAYOS_WEBHOOK && !webhook) return problem(405, 'Method not allowed');
@@ -150,11 +151,15 @@ export async function handle(request: Request, env: Env, fetcher: typeof fetch =
     headers.set('X-Forwarded-Host', publicUrl.host);
     headers.set('X-Forwarded-Port', publicUrl.port || (publicUrl.protocol === 'https:' ? '443' : '80'));
     const target = new URL(backend.origin); target.pathname = url.pathname; target.search = url.search;
+    const upstreamTimeout = AbortSignal.timeout(oauthNavigation || notificationStream ? 180000 : 60000);
     const upstream = await fetcher(target, {
-      method: request.method, headers, body, redirect: 'manual', signal: AbortSignal.timeout(60000),
+      // OAuth browser navigation can arrive at a sleeping origin (~147s observed).
+      // Wait for the original exchange; never replay a state/code-bearing request.
+      method: request.method, headers, body, redirect: 'manual',
+      signal: notificationStream ? AbortSignal.any([request.signal, upstreamTimeout]) : upstreamTimeout,
     });
     const response = new Response(upstream.body, upstream);
-    response.headers.set('Cache-Control', 'no-store');
+    response.headers.set('Cache-Control', notificationStream ? 'no-store, no-transform' : 'no-store');
     response.headers.set('X-Content-Type-Options', 'nosniff');
     response.headers.delete('X-Origin-Verify');
     response.headers.delete('Server');

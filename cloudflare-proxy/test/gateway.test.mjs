@@ -28,6 +28,43 @@ function login(overrides = {}) {
 }
 const noUpstream = async () => { assert.fail('Request must not reach upstream'); };
 
+test('admin SSE passes chunks immediately with cookies, private headers and cancellation', async () => {
+  let controller, cancelled=false;
+  const body=new ReadableStream({ start(value) { controller=value; }, cancel() { cancelled=true; } });
+  const request=browser('/api/v1/admin/notifications/stream', {headers:{Accept:'text/event-stream',Cookie:'AUTH_TOKEN=test-jwt'}});
+  const response=await handle(request,environment(),async (input,init)=>{
+    assert.equal(init.headers.get('Cookie'),'AUTH_TOKEN=test-jwt');
+    assert.equal(init.headers.get('Accept'),'text/event-stream');
+    assert.equal(init.headers.get('X-Origin-Verify'),SECRET);
+    return new Response(body,{headers:{'Content-Type':'text/event-stream','X-Accel-Buffering':'no'}});
+  });
+  assert.equal(response.headers.get('Cache-Control'),'no-store, no-transform');
+  assert.equal(response.headers.get('Content-Type'),'text/event-stream');
+  const reader=response.body.getReader();
+  controller.enqueue(new TextEncoder().encode('event:summary\ndata:{"unreadCount":1}\n\n'));
+  assert.match(new TextDecoder().decode((await reader.read()).value),/unreadCount/);
+  controller.enqueue(new TextEncoder().encode(':heartbeat\n\n'));
+  assert.match(new TextDecoder().decode((await reader.read()).value),/heartbeat/);
+  await reader.cancel();assert.equal(cancelled,true);
+  assert.equal((await handle(browser('/api/v1/admin/notifications/stream'),environment(),async()=>new Response(null,{status:403}))).status,403);
+});
+
+test('OAuth navigation gets a cold-start budget and never replays authorization or callbacks', async () => {
+  const original = AbortSignal.timeout;
+  const budgets = [];
+  AbortSignal.timeout = ms => { budgets.push(ms); return new AbortController().signal; };
+  try {
+    for (const path of ['/api/v1/auth/oauth2/authorization/google', '/api/v1/auth/oauth2/callback/google?code=one-use&state=state']) {
+      let calls = 0;
+      const response = await handle(browser(path), environment(), async () => { calls++; throw new Error('Origin not ready'); });
+      assert.equal(response.status, 503);
+      assert.equal(calls, 1);
+    }
+    await handle(browser('/api/v1/auth/config'), environment(), async () => Response.json({ google: true }));
+    assert.deepEqual(budgets, [180000, 180000, 60000]);
+  } finally { AbortSignal.timeout = original; }
+});
+
 function recovery(path, payload, headers = {}) {
   return browser(`/api/v1/auth/${path}`, { method: 'POST', body: JSON.stringify(payload),
     headers: { Origin: ORIGIN, 'Content-Type': 'application/json', ...headers } });

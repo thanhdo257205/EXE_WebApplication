@@ -1,163 +1,31 @@
-<div class="home-container">
-  <!-- Title & Subtitle Block -->
-  <div class="header-block">
-    <div>
-      <p class="brand-prefix">NHÀ NÀY</p>
-      <h1 class="main-title">HƠI BÁO! WIKI</h1>
-      <p class="subtitle">Sổ tay trò chơi / Chưa Giàu Đã Lớn</p>
-    </div>
-
-    <!-- 148 Thẻ bài badge -->
-    <div class="card-badge">
-      <span class="badge-number">148</span>
-      <span class="badge-label">THẺ BÀI · V2</span>
-    </div>
+<div class="home-world" [style.--world-accent]="themes[selectedTheme()].color">
+<section class="hero" appDotGridWarp [style.--hero-color]="themes[selectedTheme()].color" [style.--hero-ink]="themes[selectedTheme()].ink" aria-labelledby="hero-title">
+  <div class="hero-topline"><span>CHƯA GIÀU ĐÃ LỚN</span><span>BOARD GAME · CHUYỆN CÙNG NHÀ</span></div>
+  <h1 id="hero-title">Nhà này<br><em>hơi báo!</em></h1>
+  <div class="product-scene" aria-label="Thiết kế hộp và mặt thẻ minh họa">
+    <img class="floating-card card-left" src="/assets/cards/card-02.svg" alt="Mặt thẻ Chuyện cùng nhà minh họa" width="512" height="512" />
+    <div class="game-box"><div class="box-spine">CHƯA GIÀU ĐÃ LỚN</div><div class="box-face">
+      <span class="box-edition">CHƯA GIÀU ĐÃ LỚN</span><strong>NHÀ NÀY<br>HƠI BÁO!</strong>
+      <img src="/assets/images/can-nha-ban-dem.png" alt="Căn nhà trong trò chơi" width="440" height="240" fetchpriority="high" />
+      <span class="box-caption">MỘT NHÀ. NHIỀU CHUYỆN.</span><span class="box-label">THIẾT KẾ MINH HỌA</span>
+    </div></div>
+    <img class="floating-card card-right" src="/assets/cards/card-01.svg" [src]="themes[selectedTheme()].card" alt="Mặt thẻ trang trí minh họa theo chủ đề đang chọn" width="512" height="512" />
   </div>
+  <div class="hero-bottom">
+    <div class="hero-intro"><p>Một board game về sống chung,<br>những hóa đơn và cả đống chuyện bất ngờ.</p><a routerLink="/cach-choi" class="primary-cta" appLiquidGlass>Khám phá cách chơi <app-morph-icon name="arrow-right" [size]="20" color="currentColor" /></a></div>
+    <div class="theme-picker" role="group" aria-label="Đổi chủ đề trưng bày"><p aria-live="polite">{{ themes[selectedTheme()].line }}</p><div class="theme-options">@for (theme of themes; track theme.name; let i = $index) {<button appLiquidGlass type="button" [class.selected]="selectedTheme() === i" [attr.aria-pressed]="selectedTheme() === i" (click)="selectedTheme.set(i)"><img [src]="theme.card" alt="" width="512" height="512" /><span class="theme-name">{{ theme.name }}</span></button>}</div></div>
+  </div>
+  <a href="#the-bai" class="scroll-link">Lật tiếp câu chuyện <span aria-hidden="true">↓</span></a>
+</section>
+<section id="the-bai" class="card-section" aria-labelledby="cards-title">
+  <div class="section-heading"><h2 id="cards-title">Một thẻ bài.<br><em>Cả nhà có chuyện.</em></h2><div><p>Chuyện tiền nhà, chuyện chia việc, chuyện chẳng ai ngờ. Mỗi lượt rút mở ra một tình huống mới.</p><a routerLink="/thu-vien" class="text-link">Đến thư viện thẻ <app-morph-icon name="arrow-right" [size]="20" color="currentColor" /></a></div></div>
+  <app-column-spread />
+  <p class="artwork-note">Bộ mặt thẻ trang trí minh họa · Nội dung và hình ảnh thẻ chính thức đang được cập nhật.</p>
+</section>
+<section class="discover-section" aria-labelledby="discover-title">
+  <div class="discover-title"><h2 id="discover-title">Ở chung thì dễ.<br><em>Hợp cạ mới vui.</em></h2><p>Tìm hiểu căn nhà trước khi bước vào cuộc chơi.</p></div>
+  <div class="discover-links">@for (item of shortcuts; track item.link) {<a [routerLink]="item.link"><app-morph-icon [name]="item.icon" [size]="28" color="currentColor" /><div><h3>{{ item.title }}</h3><p>{{ item.text }}</p></div><app-morph-icon name="arrow-right" [size]="24" color="currentColor" /></a>}</div>
+</section>
+<section class="closing"><h2>Đủ bạn rồi.<br><em>Về nhà thôi!</em></h2><a routerLink="/cau-chuyen" class="primary-cta" appLiquidGlass>Câu chuyện căn nhà <app-morph-icon name="arrow-right" [size]="20" color="currentColor" /></a></section>
 
-  <!-- Shared Community Navigation Component -->
-  <app-community-nav></app-community-nav>
-
-  <!-- Main Shared Wiki Canvas Component -->
-  <app-wiki-canvas [versionTag]="'TRANG WIKI / PHIÊN BẢN V2'" [subtitleTag]="'TRA CỨU · NỘI DUNG DEMO'">
-    <!-- 2-Column Grid Layout -->
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-      <!-- Left Column (5 cols) -->
-      <div class="lg:col-span-5 flex flex-col gap-6">
-        <!-- Box Bìa trò chơi -->
-        <div class="game-cover-box">
-          <div class="cover-artwork"></div>
-          <div class="cover-gradient"></div>
-          <div class="cover-content">
-            <span class="game-tag">Chưa Giàu Đã Lớn</span>
-            <h2 class="cover-title">NHÀ NÀY HƠI BÁO!</h2>
-          </div>
-        </div>
-
-        <!-- Welcome text block -->
-        <div class="welcome-box">
-          <h3 class="welcome-heading">Chào mừng đến với Wiki Nhà Này Hơi Báo!</h3>
-          <div class="divider"></div>
-          <h4 class="welcome-subheading">Nơi tra cứu của những người cùng nhà.</h4>
-          <p class="welcome-desc">
-            Khám phá cư dân, thẻ bài và các cơ chế của trò chơi Chưa Giàu Đã Lớn. Toàn bộ luật chơi, thư viện 148 thẻ và mô phỏng Quỹ nhà chung đều được hệ thống hóa tại đây.
-          </p>
-        </div>
-
-        <!-- Về trò chơi Box -->
-        <div class="wiki-box">
-          <h4 class="box-title">Về trò chơi</h4>
-          <div class="divider"></div>
-          <p class="box-text">
-            Một board game sinh tồn gia đình / bạn bè nơi 4-8 người chơi tập sống chung một nhà, đối mặt với bão hóa đơn, sự kiện bất ngờ và giữ vững Quỹ nhà chung.
-          </p>
-          <a routerLink="/cau-chuyen" class="link-btn inline-flex items-center gap-2">
-            <span>Đọc câu chuyện của căn nhà</span>
-            <app-morph-icon name="arrow-right" [size]="14" color="currentColor"></app-morph-icon>
-          </a>
-        </div>
-
-        <!-- Trang tra cứu nhanh Box -->
-        <div class="wiki-box">
-          <h4 class="box-title">Trang tra cứu nhanh</h4>
-          <div class="divider"></div>
-          <ul class="quick-links">
-            <li><a routerLink="/cach-choi" class="quick-link"><span>•</span> Hướng dẫn cho người mới</a></li>
-            <li><a routerLink="/wiki" class="quick-link"><span>•</span> Luật Quỹ Nhà Chung</a></li>
-            <li><a routerLink="/thu-vien" class="quick-link"><span>•</span> Thư viện 148 thẻ bài V2</a></li>
-            <li><a routerLink="/wiki" class="quick-link"><span>•</span> Nhật ký phiên bản & FAQ</a></li>
-          </ul>
-        </div>
-      </div>
-
-      <!-- Right Column (7 cols) -->
-      <div class="lg:col-span-7 flex flex-col gap-6">
-        <!-- Nội dung Box -->
-        <div class="wiki-box">
-          <h4 class="box-title">Nội dung</h4>
-          <div class="divider"></div>
-          <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
-            <a routerLink="/thu-vien" class="content-chip flex items-center gap-2">
-              <app-morph-icon name="cards" [size]="16" color="#38bdf8"></app-morph-icon>
-              <span>Thẻ bài (148 thẻ)</span>
-            </a>
-            <a routerLink="/cu-dan" class="content-chip flex items-center gap-2">
-              <app-morph-icon name="residents" [size]="16" color="#38bdf8"></app-morph-icon>
-              <span>Cư dân (8 nhân vật)</span>
-            </a>
-            <a routerLink="/cach-choi" class="content-chip flex items-center gap-2">
-              <app-morph-icon name="gameplay" [size]="16" color="#38bdf8"></app-morph-icon>
-              <span>Cách chơi & Lượt</span>
-            </a>
-            <a routerLink="/quy-nha" class="content-chip flex items-center gap-2">
-              <app-morph-icon name="fund" [size]="16" color="#38bdf8"></app-morph-icon>
-              <span>Quỹ Nhà Chung</span>
-            </a>
-            <a routerLink="/wiki" class="content-chip flex items-center gap-2">
-              <app-morph-icon name="rules" [size]="16" color="#38bdf8"></app-morph-icon>
-              <span>Wiki luật V2</span>
-            </a>
-            <a routerLink="/cau-chuyen" class="content-chip flex items-center gap-2">
-              <app-morph-icon name="story" hoverName="story-open" [size]="16" color="#38bdf8"></app-morph-icon>
-              <span>Câu chuyện căn nhà</span>
-            </a>
-          </div>
-
-          <p class="metadata-footer">
-            V2 · 148 thẻ · 11 bộ thẻ · 8 cư dân chính thức
-          </p>
-        </div>
-
-        <!-- Cư dân Grid Box (8 nhân vật) -->
-        <div class="wiki-box">
-          <h4 class="box-title">Cư dân</h4>
-          <div class="divider"></div>
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs text-center">
-            @for (c of residents; track c.name) {
-              <div class="resident-card">
-                <div class="resident-avatar">
-                  {{ c.avatar }}
-                </div>
-                <span class="resident-name">{{ c.name }}</span>
-                <span class="resident-role">{{ c.role }}</span>
-              </div>
-            }
-          </div>
-        </div>
-
-        <!-- Công cụ tại bàn chơi Box -->
-        <div class="wiki-box">
-          <h4 class="box-title">Công cụ tại bàn chơi</h4>
-          <div class="divider"></div>
-          <h5 class="tool-subtitle">Nhà có đủ tiền trả hóa đơn không?</h5>
-          <p class="tool-desc">
-            Thử ba tình huống đóng Quỹ: thiếu (dưới 8 Tiền), đủ (đúng 8 Tiền) và có dư.
-          </p>
-          <a routerLink="/quy-nha" class="tool-btn inline-flex items-center gap-2">
-            <app-morph-icon name="fund" hoverName="store" [size]="16" color="#f59e0b"></app-morph-icon>
-            <span>Thử đóng Quỹ Nhà Chung</span>
-          </a>
-        </div>
-
-        <!-- Trạng thái kết nối backend Box -->
-        <div class="wiki-box">
-          <h4 class="box-title">Trạng thái hệ thống</h4>
-          <div class="divider"></div>
-          <p class="api-desc">
-            {{ api.configured ? 'Kiểm tra kết nối trực tiếp tới backend Spring Boot.' : 'Chưa cấu hình API cho bản production.' }}
-          </p>
-          <div class="flex items-center gap-3">
-            <button type="button"
-                    class="api-check-btn"
-                    [disabled]="loading() || !api.configured"
-                    (click)="checkApi()">
-              {{ loading() ? 'Đang kiểm tra…' : 'Kiểm tra kết nối API' }}
-            </button>
-            @if (status()) {
-              <span class="text-xs text-slate-300">{{ status() }}</span>
-            }
-          </div>
-        </div>
-      </div>
-    </div>
-  </app-wiki-canvas>
 </div>

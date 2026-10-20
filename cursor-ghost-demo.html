@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cursor Ghost Effect Demo</title>
+  <style>
+    /* ══════════════════════════════════════════════════════
+       HOST PAGE & BACKDROP STYLING (Theo đúng Reference Frame)
+       ══════════════════════════════════════════════════════ */
+    :root {
+      --bg-color: #0d0d0d;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      background-image: radial-gradient(
+        120% 90% at 50% 0%,
+        color-mix(in srgb, #f5f5f5 5%, var(--bg-color)),
+        var(--bg-color) 70%
+      );
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: #e6e6e6;
+      padding: 24px;
+      overflow-x: hidden;
+    }
+
+    /* ══════════════════════════════════════════════════════
+       REFERENCE FRAME CONTAINER (803 × 722 px landscape)
+       ══════════════════════════════════════════════════════ */
+    .preview-stage {
+      position: relative;
+      width: 100%;
+      max-width: 803px;
+      height: 722px;
+      background-color: #121417;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 40px;
+    }
+
+    /* ══════════════════════════════════════════════════════
+       ACCESSIBLE ADDITIVE OVERLAY CANVAS
+       ══════════════════════════════════════════════════════ */
+    .cursor-ghost-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none; /* Cực kỳ quan trọng: Không chặn tương tác chuột */
+      z-index: 9999;
+    }
+
+    /* Nội dung demo bên trong khung để tương tác */
+    .stage-header {
+      z-index: 10;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 999px;
+      font-size: 12px;
+      color: #94a3b8;
+      margin-bottom: 16px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .badge-dot {
+      width: 6px;
+      height: 6px;
+      background: #22c55e;
+      border-radius: 50%;
+    }
+
+    h1 {
+      font-size: 32px;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 10px;
+      letter-spacing: -0.02em;
+    }
+
+    p.desc {
+      font-size: 15px;
+      color: #94a3b8;
+      max-width: 520px;
+      line-height: 1.6;
+    }
+
+    /* Khu vực tương tác: a, button, input để test interactive hover */
+    .interactive-playground {
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      align-items: center;
+    }
+
+    .btn {
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn:hover {
+      background: rgba(255, 255, 255, 0.18);
+      border-color: rgba(255, 255, 255, 0.4);
+      transform: translateY(-1px);
+    }
+
+    .btn-primary {
+      background: #3b82f6;
+      border-color: #60a5fa;
+    }
+
+    .btn-primary:hover {
+      background: #2563eb;
+    }
+
+    .input-field {
+      padding: 10px 16px;
+      font-size: 14px;
+      color: #ffffff;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      outline: none;
+      width: 260px;
+      transition: border-color 0.2s;
+    }
+
+    .input-field:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+    }
+
+    .specs-card {
+      z-index: 10;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 16px 20px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+      gap: 12px;
+    }
+
+    .spec-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .spec-label {
+      font-size: 11px;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .spec-value {
+      font-size: 14px;
+      font-weight: 600;
+      color: #e2e8f0;
+      font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Khung Reference Frame 803×722 CSS px -->
+  <div class="preview-stage" id="stage">
+
+    <!-- Header thông tin -->
+    <div class="stage-header">
+      <div class="badge">
+        <span class="badge-dot"></span>
+        Motion Smear · Trail Class
+      </div>
+      <h1>Cursor Ghost Effect</h1>
+      <p class="desc">
+        6 bản sao con trỏ chuột trôi theo thời gian thực (lerp lag), tăng dần độ mờ nhòe (smear blur) và tự động triệt tiêu hoàn toàn khi con trỏ đứng yên.
+      </p>
+    </div>
+
+    <!-- Khu vực kiểm tra tương tác (a, button, input) -->
+    <div class="interactive-playground">
+      <div class="row">
+        <button type="button" class="btn btn-primary">Nút bấm chính</button>
+        <button type="button" class="btn">Thứ cấp</button>
+        <a href="#test" class="btn">Liên kết mẫu (a)</a>
+      </div>
+      <div class="row">
+        <input type="text" class="input-field" placeholder="Gõ thử vào ô input..." />
+        <span style="font-size: 13px; color: #64748b;">Con trỏ hệ thống gốc luôn hiển thị 100% chuẩn Accessibility</span>
+      </div>
+    </div>
+
+    <!-- Bảng thông số kỹ thuật (Parameters) -->
+    <div class="specs-card">
+      <div class="spec-item">
+        <span class="spec-label">Ghosts</span>
+        <span class="spec-value">6 bản sao</span>
+      </div>
+      <div class="spec-item">
+        <span class="spec-label">Size</span>
+        <span class="spec-value">26px</span>
+      </div>
+      <div class="spec-item">
+        <span class="spec-label">Head Follow</span>
+        <span class="spec-value">0.26 lerp</span>
+      </div>
+      <div class="spec-item">
+        <span class="spec-label">Smear</span>
+        <span class="spec-value">5px blur</span>
+      </div>
+      <div class="spec-item">
+        <span class="spec-label">Colour</span>
+        <span class="spec-value">#FFFFFF</span>
+      </div>
+      <div class="spec-item">
+        <span class="spec-label">Rest Behavior</span>
+        <span class="spec-value">Vanish (Opacity 0)</span>
+      </div>
+    </div>
+
+    <!-- CANVAS OVERLAY SẼ ĐƯỢC CURSORGHOST TỰ ĐỘNG KHỞI TẠO VÀ CHÈN VÀO ĐÂY -->
+  </div>
+
+  <script>
+    /**
+     * CursorGhost - Custom "Cursor Ghost" Trail Effect
+     * Vanilla JS + CSS, No Libraries.
+     *
+     * Features:
+     * - N copies of the cursor arrow lagging harder and blurring more than the previous one.
+     * - Motion-scaled opacity: ghosts vanish completely at rest (dist / (size * 0.5)).
+     * - Zero interference: never hides native cursor, overlay has pointer-events: none & aria-hidden.
+     * - Full accessibility: skips on prefers-reduced-motion: reduce and coarse pointers.
+     * - Single rAF loop, responsive DPI-capped canvas, clean teardown.
+     */
+    class CursorGhost {
+      constructor(container = document.body, options = {}) {
+        this.container = container;
+        this.isBody = container === document.body || container === document.documentElement;
+
+        // Cấu hình Parameters theo đặc tả
+        this.options = Object.assign({
+          ghosts: 6,           // Số lượng ghost
+          size: 26,            // Kích thước chuẩn 26px
+          headFollow: 0.26,    // Tốc độ lerp đầu đàn
+          smear: 5,            // Blur tối đa 5px
+          color: '#FFFFFF',    // Màu sắc #FFFFFF
+          interactiveTint: '#60a5fa' // Điểm nhấn nhẹ khi hover vào a/button/input (tùy chọn)
+        }, options);
+
+        // Trạng thái tọa độ & hiển thị
+        this.target = { x: 0, y: 0 };
+        this.pointer = { x: 0, y: 0 };
+        this.isInside = false;
+        this.visibilityFade = 0;
+        this.isHoveringInteractive = false;
+        this.hasMoved = false;
+
+        // Khởi tạo mảng ghosts
+        this.ghosts = [];
+        for (let i = 0; i < this.options.ghosts; i++) {
+          this.ghosts.push({
+            x: 0,
+            y: 0,
+            // Mỗi ghost tiếp theo sẽ có hệ số bám đuổi (lerp) chậm hơn ghost trước
+            followRate: this.options.headFollow * Math.pow(0.78, i)
+          });
+        }
+
+        // Bắt đầu kiểm tra điều kiện thiết bị & mount
+        this.initAccessibilityGuards();
+      }
+
+      initAccessibilityGuards() {
+        // 1. Kiểm tra prefers-reduced-motion
+        this.motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+        // 2. Kiểm tra thiết bị có hỗ trợ chuột chính xác (hover: hover và pointer: fine)
+        this.pointerQuery = window.matchMedia('(hover: hover) and (pointer: fine)');
+
+        this.onMediaChange = () => {
+          if (this.canRun()) {
+            if (!this.canvas) this.mount();
+          } else {
+            if (this.canvas) this.unmount();
+          }
+        };
+
+        this.motionQuery.addEventListener('change', this.onMediaChange);
+        this.pointerQuery.addEventListener('change', this.onMediaChange);
+
+        if (this.canRun()) {
+          this.mount();
+        }
+      }
+
+      canRun() {
+        return !this.motionQuery.matches && this.pointerQuery.matches;
+      }
+
+      mount() {
+        // Tạo Canvas Overlay
+        this.canvas = document.createElement('canvas');
+        this.canvas.className = 'cursor-ghost-canvas';
+        this.canvas.setAttribute('aria-hidden', 'true');
+
+        // CSS an toàn: position fixed (nếu body) hoặc absolute (nếu trong container)
+        if (this.isBody) {
+          this.canvas.style.position = 'fixed';
+          this.canvas.style.top = '0';
+          this.canvas.style.left = '0';
+          this.canvas.style.width = '100vw';
+          this.canvas.style.height = '100vh';
+        } else {
+          this.canvas.style.position = 'absolute';
+          this.canvas.style.inset = '0';
+          this.canvas.style.width = '100%';
+          this.canvas.style.height = '100%';
+        }
+        this.canvas.style.pointerEvents = 'none';
+        this.canvas.style.zIndex = '99999';
+
+        this.container.appendChild(this.canvas);
+        this.ctx = this.canvas.getContext('2d');
+
+        // Định hình vector con trỏ dạng Path2D chuẩn OS (tỷ lệ chuẩn tip (0,0))
+        this.initCursorPath();
+
+        // Bind sự kiện
+        this.onPointerMove = this.handlePointerMove.bind(this);
+        this.onPointerEnter = this.handlePointerEnter.bind(this);
+        this.onPointerLeave = this.handlePointerLeave.bind(this);
+        this.onResize = this.handleResize.bind(this);
+
+        const targetEventEl = this.isBody ? window : this.container;
+        targetEventEl.addEventListener('pointermove', this.onPointerMove, { passive: true });
+        targetEventEl.addEventListener('pointerenter', this.onPointerEnter, { passive: true });
+        targetEventEl.addEventListener('pointerleave', this.onPointerLeave, { passive: true });
+        window.addEventListener('resize', this.onResize, { passive: true });
+
+        // Cập nhật kích thước canvas
+        this.handleResize();
+
+        // Bắt đầu vòng lặp render trên 1 rAF duy nhất
+        this.isRunning = true;
+        this.rafId = requestAnimationFrame(this.render.bind(this));
+      }
+
+      initCursorPath() {
+        // Vector mũi tên con trỏ chuẩn hệ điều hành
+        // Chiều cao gốc ~24 đơn vị, khi vẽ sẽ scale theo this.options.size
+        this.arrowPath = new Path2D(
+          'M 0,0 ' +
+          'L 0,19.2 ' +
+          'L 4.6,14.8 ' +
+          'L 8.2,22.8 ' +
+          'L 11.4,21.4 ' +
+          'L 7.8,13.8 ' +
+          'L 14.2,13.8 ' +
+          'Z'
+        );
+      }
+
+      handleResize() {
+        if (!this.canvas) return;
+        const rect = this.container.getBoundingClientRect();
+        this.width = rect.width;
+        this.height = rect.height;
+
+        // Giới hạn devicePixelRatio ở mức tối đa là 2 để tối ưu hiệu năng
+        this.dpr = Math.min(window.devicePixelRatio || 1, 2);
+        this.canvas.width = Math.round(this.width * this.dpr);
+        this.canvas.height = Math.round(this.height * this.dpr);
+      }
+
+      handlePointerEnter(e) {
+        const rect = this.container.getBoundingClientRect();
+        const clientX = e.clientX;
+        const clientY = e.clientY;
+        const x = this.isBody ? clientX : clientX - rect.left;
+        const y = this.isBody ? clientY : clientY - rect.top;
+
+        this.target.x = x;
+        this.target.y = y;
+        this.pointer.x = x;
+        this.pointer.y = y;
+
+        // Đồng bộ toàn bộ ghosts về đúng điểm chạm vào, triệt tiêu vệt cũ
+        this.ghosts.forEach(g => {
+          g.x = x;
+          g.y = y;
+        });
+
+        this.isInside = true;
+        this.hasMoved = true;
+        this.visibilityFade = 1;
+      }
+
+      handlePointerMove(e) {
+        const rect = this.container.getBoundingClientRect();
+        const clientX = e.clientX;
+        const clientY = e.clientY;
+
+        // Nếu container không phải toàn trang, kiểm tra tọa độ xem có đang ở ngoài biên không
+        if (!this.isBody) {
+          const isOutside = (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom);
+          if (isOutside) {
+            this.handlePointerLeave();
+            return;
+          }
+        }
+
+        const x = this.isBody ? clientX : clientX - rect.left;
+        const y = this.isBody ? clientY : clientY - rect.top;
+
+        if (!this.isInside || !this.hasMoved) {
+          this.handlePointerEnter(e);
+          return;
+        }
+
+        this.target.x = x;
+        this.target.y = y;
+        this.isInside = true;
+
+        // Kiểm tra tương tác: phần tử dưới con trỏ có khớp closest('a, button, input') không
+        const elemUnder = document.elementFromPoint(clientX, clientY);
+        this.isHoveringInteractive = !!(elemUnder && elemUnder.closest('a, button, input'));
+      }
+
+      handlePointerLeave() {
+        // KHÔNG BAO GIỜ gán target về (-100, -100) vì sẽ làm bóng bay chéo về góc trái trên cùng!
+        // Giữ nguyên tọa độ tại mép biên và đặt cờ ra ngoài để bóng tự mờ dần biến mất tại chỗ.
+        this.isInside = false;
+        this.isHoveringInteractive = false;
+      }
+
+      render() {
+        if (!this.isRunning) return;
+
+        const ctx = this.ctx;
+        const { ghosts, size, smear, color, interactiveTint } = this.options;
+        const scale = size / 24; // Scale từ kích thước vector gốc 24px sang size
+
+        // Chuyển đổi trạng thái mượt mà khi ra / vào khung
+        if (this.isInside) {
+          this.visibilityFade = Math.min(1, this.visibilityFade + 0.2);
+        } else {
+          this.visibilityFade = Math.max(0, this.visibilityFade - 0.2);
+        }
+
+        // Xóa frame trước
+        ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        // Nếu đã ra ngoài và mờ hẳn, không cần tính toán vẽ tiếp
+        if (this.visibilityFade <= 0.001) {
+          this.rafId = requestAnimationFrame(this.render.bind(this));
+          return;
+        }
+
+        // Lưu state và áp dụng tỉ lệ DPR
+        ctx.save();
+        ctx.scale(this.dpr, this.dpr);
+
+        // Cập nhật vị trí con trỏ thực
+        this.pointer.x = this.target.x;
+        this.pointer.y = this.target.y;
+
+        let prevX = this.pointer.x;
+        let prevY = this.pointer.y;
+
+        // Duyệt lerp các ghost
+        for (let i = 0; i < ghosts; i++) {
+          const g = this.ghosts[i];
+          g.x += (prevX - g.x) * g.followRate;
+          g.y += (prevY - g.y) * g.followRate;
+          prevX = g.x;
+          prevY = g.y;
+        }
+
+        // Vẽ các ghost từ xa đến gần
+        for (let i = ghosts - 1; i >= 0; i--) {
+          const g = this.ghosts[i];
+          const dist = Math.hypot(g.x - this.pointer.x, g.y - this.pointer.y);
+
+          // Công thức biến mất khi đứng yên theo yêu cầu:
+          // min(1, distance / (size * 0.5))
+          const motionFade = Math.min(1, dist / (size * 0.5));
+          if (motionFade <= 0.001) continue;
+
+          // Độ mờ cơ sở nhân thêm với visibilityFade (đảm bảo biến mất ngay khi chuột ra ngoài khung)
+          const baseAlpha = (1 - (i / ghosts) * 0.65) * 0.45;
+          const finalAlpha = baseAlpha * motionFade * this.visibilityFade;
+          if (finalAlpha <= 0.001) continue;
+
+          // Mức độ nhòe (smear blur): tăng dần từ 0px đến 5px
+          const blurAmount = ((i + 1) / ghosts) * smear;
+
+          ctx.save();
+          ctx.translate(g.x, g.y);
+          ctx.scale(scale, scale);
+
+          // Áp dụng blur filter cho hiệu ứng smear
+          ctx.filter = `blur(${blurAmount.toFixed(1)}px)`;
+          ctx.globalAlpha = finalAlpha;
+
+          // Màu sắc của ghost (chuyển nhẹ sang interactive tint khi rê vào a/button/input)
+          ctx.fillStyle = this.isHoveringInteractive ? interactiveTint : color;
+          ctx.fill(this.arrowPath);
+
+          // Viền nhẹ để giữ nét định hình con trỏ
+          ctx.strokeStyle = 'rgba(0, 0, 0, 0.25)';
+          ctx.lineWidth = 1 / scale;
+          ctx.stroke(this.arrowPath);
+
+          ctx.restore();
+        }
+
+        ctx.restore();
+
+        // Tiếp tục rAF
+        this.rafId = requestAnimationFrame(this.render.bind(this));
+      }
+
+      unmount() {
+        this.isRunning = false;
+        if (this.rafId) {
+          cancelAnimationFrame(this.rafId);
+          this.rafId = null;
+        }
+
+        const targetEventEl = this.isBody ? window : this.container;
+        if (this.onPointerMove) targetEventEl.removeEventListener('pointermove', this.onPointerMove);
+        if (this.onPointerEnter) targetEventEl.removeEventListener('pointerenter', this.onPointerEnter);
+        if (this.onPointerLeave) targetEventEl.removeEventListener('pointerleave', this.onPointerLeave);
+        if (this.onResize) window.removeEventListener('resize', this.onResize);
+
+        if (this.canvas && this.canvas.parentNode) {
+          this.canvas.parentNode.removeChild(this.canvas);
+        }
+        this.canvas = null;
+        this.ctx = null;
+      }
+        this.canvas = null;
+        this.ctx = null;
+      }
+
+      destroy() {
+        this.unmount();
+        if (this.motionQuery && this.onMediaChange) {
+          this.motionQuery.removeEventListener('change', this.onMediaChange);
+        }
+        if (this.pointerQuery && this.onMediaChange) {
+          this.pointerQuery.removeEventListener('change', this.onMediaChange);
+        }
+      }
+    }
+
+    // ══════════════════════════════════════════════════════
+    // KHỞI CHẠY CURSORGHOST TRÊN KHUNG PREVIEW (STAGE)
+    // ══════════════════════════════════════════════════════
+    const stageEl = document.getElementById('stage');
+    const ghostEffect = new CursorGhost(stageEl, {
+      ghosts: 6,
+      size: 26,
+      headFollow: 0.26,
+      smear: 5,
+      color: '#FFFFFF'
+    });
+  </script>
+</body>
+</html>

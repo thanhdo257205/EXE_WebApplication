@@ -1,15 +1,21 @@
+import { RiseHeadingDirective } from '../../../shared/motion/rise-heading.directive';
 import { Component, inject, computed, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { SlicePipe } from '@angular/common';
+import { HttpClient } from '@angular/common/http';
+import { AuthService } from '../../../core/auth/auth.service';
 import { MorphIconComponent } from '../../../shared/components/morph-icon/morph-icon.component';
 import { MorphIconName } from '../../../shared/components/morph-icon/icons';
 import {
   AdminContentService,
   AdminRelease,
   AdminCard,
+  AdminCardSet,
   AdminAuditEvent,
   AdminCharacter,
   AdminWikiPage,
+  AdminProblemDetail,
 } from '../../../core/admin/admin-content.service';
 
 export interface SectionMeta {
@@ -23,28 +29,51 @@ export interface SectionMeta {
 @Component({
   selector: 'app-admin-section',
   standalone: true,
-  imports: [RouterLink, FormsModule, MorphIconComponent],
+  imports: [RiseHeadingDirective, RouterLink, FormsModule, SlicePipe, MorphIconComponent],
   templateUrl: './admin-section.page.html',
   styleUrl: './admin-section.page.css',
 })
 export class AdminSectionPage implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly adminApi = inject(AdminContentService);
+  private readonly http = inject(HttpClient);
+  readonly auth = inject(AuthService);
 
   readonly loading = signal(false);
   readonly errorMsg = signal<string | null>(null);
+  readonly isSessionExpired = signal(false);
 
   readonly releases = signal<AdminRelease[]>([]);
   readonly activeRelease = signal<AdminRelease | null>(null);
+
   readonly cards = signal<AdminCard[]>([]);
+  readonly cardSets = signal<AdminCardSet[]>([]);
+  readonly totalCardsCount = signal<number>(0);
+
   readonly characters = signal<AdminCharacter[]>([]);
+  readonly totalCharactersCount = signal<number>(0);
+
   readonly wikiPages = signal<AdminWikiPage[]>([]);
+  readonly totalWikiCount = signal<number>(0);
+  readonly activeWikiTab = signal<'ALL' | 'STORY' | 'RULE' | 'GUIDE' | 'FAQ' | 'DEVLOG'>('ALL');
+
   readonly auditEvents = signal<AdminAuditEvent[]>([]);
+  readonly totalAuditCount = signal<number>(0);
+
+  readonly paymentConfig = signal<{ provider: string; enabled: boolean } | null>(null);
+  readonly ordersList = signal<any[]>([]);
 
   readonly searchQuery = signal('');
 
   readonly sectionKey = computed(() => {
     return this.route.snapshot.data['section'] || 'cards';
+  });
+
+  readonly filteredWikiPages = computed(() => {
+    const tab = this.activeWikiTab();
+    const list = this.wikiPages();
+    if (tab === 'ALL') return list;
+    return list.filter(p => p.pageType === tab);
   });
 
   readonly meta = computed<SectionMeta>(() => {
@@ -125,6 +154,7 @@ export class AdminSectionPage implements OnInit {
     const key = this.sectionKey();
     this.loading.set(true);
     this.errorMsg.set(null);
+    this.isSessionExpired.set(false);
 
     if (key === 'cards' || key === 'characters' || key === 'articles') {
       this.adminApi.getReleases().subscribe({
@@ -139,20 +169,38 @@ export class AdminSectionPage implements OnInit {
             this.loading.set(false);
           }
         },
-        error: (err) => {
-          this.errorMsg.set(err?.detail || 'Chưa thể tải danh sách bản phát hành (Backend đang ngoại tuyến).');
+        error: (err) => this.handleApiError(err),
+      });
+    } else if (key === 'system') {
+      this.adminApi.getAuditEvents(0, 20).subscribe({
+        next: (page) => {
+          this.auditEvents.set(page.items);
+          this.totalAuditCount.set(page.totalElements);
+          this.loading.set(false);
+        },
+        error: (err) => this.handleApiError(err),
+      });
+    } else if (key === 'payments') {
+      this.http.get<{ provider: string; enabled: boolean }>('/api/v1/payments/config').subscribe({
+        next: (cfg) => {
+          this.paymentConfig.set(cfg);
+          this.loading.set(false);
+        },
+        error: () => {
+          this.paymentConfig.set({ provider: 'PAYOS', enabled: false });
           this.loading.set(false);
         },
       });
-    } else if (key === 'system') {
-      this.adminApi.getAuditEvents(0, 10).subscribe({
-        next: (page) => {
-          this.auditEvents.set(page.items);
+    } else if (key === 'orders') {
+      this.http.get<any[]>('/api/v1/orders', { withCredentials: true }).subscribe({
+        next: (orders) => {
+          this.ordersList.set(Array.isArray(orders) ? orders : []);
           this.loading.set(false);
         },
         error: (err) => {
-          this.errorMsg.set(err?.detail || 'Chưa thể tải nhật ký audit (Backend đang ngoại tuyến).');
-          this.loading.set(false);
+          // If orders API fails, keep empty array
+          this.ordersList.set([]);
+          this.handleApiError(err);
         },
       });
     } else {
@@ -164,26 +212,39 @@ export class AdminSectionPage implements OnInit {
     if (key === 'cards') {
       this.adminApi.getRevisions<AdminCard>(releaseId, 'cards', 0, 50, this.searchQuery()).subscribe({
         next: (res) => {
-          this.cards.set(res.items);
+          // Fix: Read res.result.items and res.result.totalElements from RevisionPage
+          this.cards.set(res.result.items);
+          this.totalCardsCount.set(res.result.totalElements);
           this.loading.set(false);
         },
-        error: () => this.loading.set(false),
+        error: (err) => this.handleApiError(err),
+      });
+
+      this.adminApi.getRevisions<AdminCardSet>(releaseId, 'card-sets', 0, 50).subscribe({
+        next: (res) => {
+          this.cardSets.set(res.result.items);
+        },
+        error: (err) => this.handleApiError(err),
       });
     } else if (key === 'characters') {
-      this.adminApi.getRevisions<AdminCharacter>(releaseId, 'characters', 0, 20).subscribe({
+      this.adminApi.getRevisions<AdminCharacter>(releaseId, 'characters', 0, 50).subscribe({
         next: (res) => {
-          this.characters.set(res.items);
+          // Fix: Read res.result.items and res.result.totalElements from RevisionPage
+          this.characters.set(res.result.items);
+          this.totalCharactersCount.set(res.result.totalElements);
           this.loading.set(false);
         },
-        error: () => this.loading.set(false),
+        error: (err) => this.handleApiError(err),
       });
     } else if (key === 'articles') {
-      this.adminApi.getRevisions<AdminWikiPage>(releaseId, 'wiki-pages', 0, 20).subscribe({
+      this.adminApi.getRevisions<AdminWikiPage>(releaseId, 'wiki-pages', 0, 50).subscribe({
         next: (res) => {
-          this.wikiPages.set(res.items);
+          // Fix: Read res.result.items and res.result.totalElements from RevisionPage
+          this.wikiPages.set(res.result.items);
+          this.totalWikiCount.set(res.result.totalElements);
           this.loading.set(false);
         },
-        error: () => this.loading.set(false),
+        error: (err) => this.handleApiError(err),
       });
     }
   }
@@ -191,5 +252,23 @@ export class AdminSectionPage implements OnInit {
   selectRelease(release: AdminRelease): void {
     this.activeRelease.set(release);
     this.loadReleaseContent(release.id, this.sectionKey());
+  }
+
+  setWikiTab(tab: 'ALL' | 'STORY' | 'RULE' | 'GUIDE' | 'FAQ' | 'DEVLOG'): void {
+    this.activeWikiTab.set(tab);
+  }
+
+  private handleApiError(err: AdminProblemDetail | any): void {
+    this.loading.set(false);
+    if (err?.code === 'SESSION_EXPIRED' || err?.status === 401) {
+      this.isSessionExpired.set(true);
+      this.errorMsg.set('Phiên làm việc quản trị viên của bạn đã hết hạn (30 phút). Vui lòng đăng nhập lại.');
+    } else if (err?.status === 403) {
+      this.errorMsg.set('Từ chối quyền truy cập: Bạn không có quyền ADMIN hoặc thiếu chữ ký bảo mật CSRF.');
+    } else if (err?.code === 'VERSION_CONFLICT' || err?.status === 409) {
+      this.errorMsg.set('Xung đột phiên bản: Bản phát hành đã được chỉnh sửa bởi quản trị viên khác. Vui lòng tải lại dữ liệu.');
+    } else {
+      this.errorMsg.set(err?.detail || 'Không thể kết nối đến máy chủ quản trị viên (Backend ngoại tuyến).');
+    }
   }
 }

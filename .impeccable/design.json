@@ -1,0 +1,448 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-20T14:14:26.226610+00:00",
+  "title": "Design System: Nhà Này Hơi Báo!",
+  "extensions": {
+    "colorMeta": {
+      "cream": {
+        "role": "neutral",
+        "displayName": "Warm Cream",
+        "tonalRamp": [
+          "oklch(15.00% 0.01801 89.36)",
+          "oklch(26.43% 0.01801 89.36)",
+          "oklch(37.86% 0.01801 89.36)",
+          "oklch(49.29% 0.01801 89.36)",
+          "oklch(60.71% 0.01801 89.36)",
+          "oklch(72.14% 0.01801 89.36)",
+          "oklch(83.57% 0.01801 89.36)",
+          "oklch(95.00% 0.01801 89.36)"
+        ]
+      },
+      "ink": {
+        "role": "primary",
+        "displayName": "Deep Green Ink",
+        "tonalRamp": [
+          "oklch(15.00% 0.05199 160.94)",
+          "oklch(26.43% 0.05199 160.94)",
+          "oklch(37.86% 0.05199 160.94)",
+          "oklch(49.29% 0.05199 160.94)",
+          "oklch(60.71% 0.05199 160.94)",
+          "oklch(72.14% 0.05199 160.94)",
+          "oklch(83.57% 0.05199 160.94)",
+          "oklch(95.00% 0.05199 160.94)"
+        ]
+      },
+      "lime": {
+        "role": "primary",
+        "displayName": "Lime",
+        "tonalRamp": [
+          "oklch(15.00% 0.16194 120.94)",
+          "oklch(26.43% 0.16194 120.94)",
+          "oklch(37.86% 0.16194 120.94)",
+          "oklch(49.29% 0.16194 120.94)",
+          "oklch(60.71% 0.16194 120.94)",
+          "oklch(72.14% 0.16194 120.94)",
+          "oklch(83.57% 0.16194 120.94)",
+          "oklch(95.00% 0.16194 120.94)"
+        ]
+      },
+      "pink": {
+        "role": "secondary",
+        "displayName": "Candy Pink",
+        "tonalRamp": [
+          "oklch(15.00% 0.10317 356.99)",
+          "oklch(26.43% 0.10317 356.99)",
+          "oklch(37.86% 0.10317 356.99)",
+          "oklch(49.29% 0.10317 356.99)",
+          "oklch(60.71% 0.10317 356.99)",
+          "oklch(72.14% 0.10317 356.99)",
+          "oklch(83.57% 0.10317 356.99)",
+          "oklch(95.00% 0.10317 356.99)"
+        ]
+      },
+      "blue": {
+        "role": "secondary",
+        "displayName": "Soft Blue",
+        "tonalRamp": [
+          "oklch(15.00% 0.07215 264.08)",
+          "oklch(26.43% 0.07215 264.08)",
+          "oklch(37.86% 0.07215 264.08)",
+          "oklch(49.29% 0.07215 264.08)",
+          "oklch(60.71% 0.07215 264.08)",
+          "oklch(72.14% 0.07215 264.08)",
+          "oklch(83.57% 0.07215 264.08)",
+          "oklch(95.00% 0.07215 264.08)"
+        ]
+      },
+      "pink-ink": {
+        "role": "secondary",
+        "displayName": "Pink Ink",
+        "tonalRamp": [
+          "oklch(15.00% 0.08005 345.77)",
+          "oklch(26.43% 0.08005 345.77)",
+          "oklch(37.86% 0.08005 345.77)",
+          "oklch(49.29% 0.08005 345.77)",
+          "oklch(60.71% 0.08005 345.77)",
+          "oklch(72.14% 0.08005 345.77)",
+          "oklch(83.57% 0.08005 345.77)",
+          "oklch(95.00% 0.08005 345.77)"
+        ]
+      },
+      "blue-ink": {
+        "role": "secondary",
+        "displayName": "Blue Ink",
+        "tonalRamp": [
+          "oklch(15.00% 0.07924 259.17)",
+          "oklch(26.43% 0.07924 259.17)",
+          "oklch(37.86% 0.07924 259.17)",
+          "oklch(49.29% 0.07924 259.17)",
+          "oklch(60.71% 0.07924 259.17)",
+          "oklch(72.14% 0.07924 259.17)",
+          "oklch(83.57% 0.07924 259.17)",
+          "oklch(95.00% 0.07924 259.17)"
+        ]
+      },
+      "showcase": {
+        "role": "neutral",
+        "displayName": "Showcase",
+        "tonalRamp": [
+          "oklch(15.00% 0.01069 294.27)",
+          "oklch(26.43% 0.01069 294.27)",
+          "oklch(37.86% 0.01069 294.27)",
+          "oklch(49.29% 0.01069 294.27)",
+          "oklch(60.71% 0.01069 294.27)",
+          "oklch(72.14% 0.01069 294.27)",
+          "oklch(83.57% 0.01069 294.27)",
+          "oklch(95.00% 0.01069 294.27)"
+        ]
+      },
+      "showcase-text": {
+        "role": "neutral",
+        "displayName": "Showcase Text",
+        "tonalRamp": [
+          "oklch(15.00% 0.01362 92.98)",
+          "oklch(26.43% 0.01362 92.98)",
+          "oklch(37.86% 0.01362 92.98)",
+          "oklch(49.29% 0.01362 92.98)",
+          "oklch(60.71% 0.01362 92.98)",
+          "oklch(72.14% 0.01362 92.98)",
+          "oklch(83.57% 0.01362 92.98)",
+          "oklch(95.00% 0.01362 92.98)"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Paper Surface",
+        "tonalRamp": [
+          "oklch(15.00% 0.01101 89.72)",
+          "oklch(26.43% 0.01101 89.72)",
+          "oklch(37.86% 0.01101 89.72)",
+          "oklch(49.29% 0.01101 89.72)",
+          "oklch(60.71% 0.01101 89.72)",
+          "oklch(72.14% 0.01101 89.72)",
+          "oklch(83.57% 0.01101 89.72)",
+          "oklch(95.00% 0.01101 89.72)"
+        ]
+      },
+      "muted-ink": {
+        "role": "neutral",
+        "displayName": "Muted Green Ink",
+        "tonalRamp": [
+          "oklch(15.00% 0.05079 158.93)",
+          "oklch(26.43% 0.05079 158.93)",
+          "oklch(37.86% 0.05079 158.93)",
+          "oklch(49.29% 0.05079 158.93)",
+          "oklch(60.71% 0.05079 158.93)",
+          "oklch(72.14% 0.05079 158.93)",
+          "oklch(83.57% 0.05079 158.93)",
+          "oklch(95.00% 0.05079 158.93)"
+        ]
+      },
+      "nav-surface": {
+        "role": "neutral",
+        "displayName": "Navigation Surface",
+        "tonalRamp": [
+          "oklch(15.00% 0.01878 100.14)",
+          "oklch(26.43% 0.01878 100.14)",
+          "oklch(37.86% 0.01878 100.14)",
+          "oklch(49.29% 0.01878 100.14)",
+          "oklch(60.71% 0.01878 100.14)",
+          "oklch(72.14% 0.01878 100.14)",
+          "oklch(83.57% 0.01878 100.14)",
+          "oklch(95.00% 0.01878 100.14)"
+        ]
+      },
+      "cta-text": {
+        "role": "neutral",
+        "displayName": "CTA Text",
+        "tonalRamp": [
+          "oklch(15.00% 0.07737 118.70)",
+          "oklch(26.43% 0.07737 118.70)",
+          "oklch(37.86% 0.07737 118.70)",
+          "oklch(49.29% 0.07737 118.70)",
+          "oklch(60.71% 0.07737 118.70)",
+          "oklch(72.14% 0.07737 118.70)",
+          "oklch(83.57% 0.07737 118.70)",
+          "oklch(95.00% 0.07737 118.70)"
+        ]
+      },
+      "focus": {
+        "role": "secondary",
+        "displayName": "Public Focus",
+        "tonalRamp": [
+          "oklch(15.00% 0.14074 358.45)",
+          "oklch(26.43% 0.14074 358.45)",
+          "oklch(37.86% 0.14074 358.45)",
+          "oklch(49.29% 0.14074 358.45)",
+          "oklch(60.71% 0.14074 358.45)",
+          "oklch(72.14% 0.14074 358.45)",
+          "oklch(83.57% 0.14074 358.45)",
+          "oklch(95.00% 0.14074 358.45)"
+        ]
+      },
+      "field-border": {
+        "role": "neutral",
+        "displayName": "Field Border",
+        "tonalRamp": [
+          "oklch(15.00% 0.03749 137.50)",
+          "oklch(26.43% 0.03749 137.50)",
+          "oklch(37.86% 0.03749 137.50)",
+          "oklch(49.29% 0.03749 137.50)",
+          "oklch(60.71% 0.03749 137.50)",
+          "oklch(72.14% 0.03749 137.50)",
+          "oklch(83.57% 0.03749 137.50)",
+          "oklch(95.00% 0.03749 137.50)"
+        ]
+      },
+      "error": {
+        "role": "secondary",
+        "displayName": "Error",
+        "tonalRamp": [
+          "oklch(15.00% 0.14809 13.17)",
+          "oklch(26.43% 0.14809 13.17)",
+          "oklch(37.86% 0.14809 13.17)",
+          "oklch(49.29% 0.14809 13.17)",
+          "oklch(60.71% 0.14809 13.17)",
+          "oklch(72.14% 0.14809 13.17)",
+          "oklch(83.57% 0.14809 13.17)",
+          "oklch(95.00% 0.14809 13.17)"
+        ]
+      },
+      "error-surface": {
+        "role": "neutral",
+        "displayName": "Error Surface",
+        "tonalRamp": [
+          "oklch(15.00% 0.02519 14.59)",
+          "oklch(26.43% 0.02519 14.59)",
+          "oklch(37.86% 0.02519 14.59)",
+          "oklch(49.29% 0.02519 14.59)",
+          "oklch(60.71% 0.02519 14.59)",
+          "oklch(72.14% 0.02519 14.59)",
+          "oklch(83.57% 0.02519 14.59)",
+          "oklch(95.00% 0.02519 14.59)"
+        ]
+      },
+      "success-surface": {
+        "role": "neutral",
+        "displayName": "Success Surface",
+        "tonalRamp": [
+          "oklch(15.00% 0.06101 122.55)",
+          "oklch(26.43% 0.06101 122.55)",
+          "oklch(37.86% 0.06101 122.55)",
+          "oklch(49.29% 0.06101 122.55)",
+          "oklch(60.71% 0.06101 122.55)",
+          "oklch(72.14% 0.06101 122.55)",
+          "oklch(83.57% 0.06101 122.55)",
+          "oklch(95.00% 0.06101 122.55)"
+        ]
+      },
+      "admin-bg": {
+        "role": "neutral",
+        "displayName": "Admin Background",
+        "tonalRamp": [
+          "oklch(15.00% 0.01488 256.69)",
+          "oklch(26.43% 0.01488 256.69)",
+          "oklch(37.86% 0.01488 256.69)",
+          "oklch(49.29% 0.01488 256.69)",
+          "oklch(60.71% 0.01488 256.69)",
+          "oklch(72.14% 0.01488 256.69)",
+          "oklch(83.57% 0.01488 256.69)",
+          "oklch(95.00% 0.01488 256.69)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Product Display",
+        "purpose": "Home product name; responsive overrides are in DESIGN.md."
+      },
+      "display-emphasis": {
+        "displayName": "Italic Emphasis",
+        "purpose": "Contrasting italic words, theme prompts and footer brand."
+      },
+      "headline": {
+        "displayName": "Section Headline",
+        "purpose": "Home section headings."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Static public introduction copy; smaller supporting sizes vary by surface."
+      },
+      "nav-label": {
+        "displayName": "Navigation Label",
+        "purpose": "Desktop header labels."
+      }
+    },
+    "shadows": [
+      {
+        "name": "product-box",
+        "value": "18px 28px 16px #163c2b38",
+        "purpose": "Product illustration drop-shadow filter."
+      },
+      {
+        "name": "floating-card",
+        "value": "10px 20px 25px #183c2b25",
+        "purpose": "Floating decorative cards."
+      }
+    ],
+    "motion": [
+      {
+        "name": "rise-heading",
+        "value": "mode once; overflow true; opacity 0,y 24 → opacity 1,y 0; tension 220; friction 22; stagger 30ms",
+        "purpose": "All semantic headings; reduced motion keeps original static headings."
+      },
+      {
+        "name": "column-spread",
+        "value": "8s loop; initial and reduced-motion phase 0.12; DPR cap 2",
+        "purpose": "Exact supplied canvas engine; retain parameters, image order and math."
+      },
+      {
+        "name": "primary-hover",
+        "value": "transform .2s, background .2s; translateY(-3px)",
+        "purpose": "Home CTA; removed for reduced motion."
+      },
+      {
+        "name": "dot-grid-warp",
+        "value": "gap26px; reach150px; push26px; diameter1px; #FFFFFF; DPRcap2; single rAF",
+        "purpose": "Fine-hover hero field with retained idle bitmap, cached lattice, atomic rAF repaint and idempotent media gates; native cursor untouched."
+      },
+      {
+        "name": "liquid-glass",
+        "value": "Header single16px/150% backdrop; rail/cart no nested blur; bright rims + transform reflection; nav lens300ms; other controls22px/160%; product hover500ms/blur4px",
+        "purpose": "Limited to public navigation and controls; reduced motion uses immediate lens placement and no product blur/tilt."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "narrow-header",
+        "value": "380px"
+      },
+      {
+        "name": "compact-panels",
+        "value": "600px"
+      },
+      {
+        "name": "tablet-title-min",
+        "value": "701px"
+      },
+      {
+        "name": "account-form-first-max",
+        "value": "767px"
+      },
+      {
+        "name": "public-mobile-max",
+        "value": "1000px"
+      },
+      {
+        "name": "wide-hero-min",
+        "value": "1600px"
+      }
+    ],
+    "tonalRampNote": "Preview ramps are synthesized in OKLCH for the panel; they are not additional implementation palette tokens. High-chroma samples may be gamut mapped by the renderer."
+  },
+  "components": [
+    {
+      "name": "Primary action",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Home guide action.",
+      "html": "<button class=\"ds-primary\">Xem cách chơi →</button>",
+      "css": ".ds-primary{font-family:'Be Vietnam Pro',sans-serif;display:inline-flex;gap:28px;background:#183c2b;color:#f1ffc4;padding:18px 26px;border:0;border-radius:40px;font-size:14px;font-weight:700;cursor:pointer;transition:transform .2s,background .2s}.ds-primary:hover{transform:translateY(-3px);background:#27563d}.ds-primary:focus-visible{outline:3px solid #a13b64;outline-offset:4px;}@media(prefers-reduced-motion:reduce){.ds-primary{transition:none}.ds-primary:hover{transform:none}}"
+    },
+    {
+      "name": "Secondary account action",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Secondary login action.",
+      "html": "<button class=\"ds-secondary\">Tiếp tục với Google</button>",
+      "css": ".ds-secondary{font-family:'Be Vietnam Pro',sans-serif;background:#fffcf4;color:#183c2b;border:1px solid #a2b39c;border-radius:32px;padding:14px;font-size:14px;cursor:pointer}.ds-secondary:hover{background:#f7f2e5}.ds-secondary:focus-visible{outline:3px solid #a13b64;outline-offset:4px;}"
+    },
+    {
+      "name": "Account field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Labeled public form field.",
+      "html": "<label class=\"ds-label\">Email<input class=\"ds-field\" type=\"email\" placeholder=\"Email của bạn\"></label>",
+      "css": ".ds-label{font-family:'Be Vietnam Pro',sans-serif;display:grid;gap:8px;color:#183c2b;font-size:13px}.ds-field{font-family:'Be Vietnam Pro',sans-serif;min-height:48px;background:#f7f2e5;color:#183c2b;border:1px solid #a2b39c;border-radius:10px;padding:0 14px;font-size:14px;caret-color:#a13b64}.ds-field::placeholder{color:#56705b}.ds-field:focus{border-color:#183c2b}.ds-field:focus-visible{outline:3px solid #a13b64;outline-offset:4px;}"
+    },
+    {
+      "name": "Public navigation",
+      "kind": "nav",
+      "refersTo": "navigation",
+      "description": "Bright-rimmed glass rail over a single-blur header with hover/button child disclosures; the pink lens follows the open or active group, with a transform-driven reflection strip. Primary links remain direct; keyboard/touch and mobile legal links are supported.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Điều hướng\"><a href=\"#home\" aria-current=\"page\">Trang chủ</a><a href=\"#guide\">Cách chơi</a></nav>",
+      "css": ".ds-nav{font-family:'Be Vietnam Pro',sans-serif;display:flex;gap:4px;padding:5px;background:linear-gradient(135deg,#ffffff19,#ffffff04),#162426cc;backdrop-filter:blur(16px) saturate(150%);border:1px solid #e7f6ff5c;box-shadow:inset 0 1px 0 #fff5,0 10px 28px #0004;border-radius:32px;width:fit-content}.ds-nav a{padding:11px 19px;color:#e6eeee;font-size:12px;font-weight:600;border-radius:25px;text-decoration:none}.ds-nav a[aria-current]{background:linear-gradient(165deg,#fff4faed,#ffc5dfd9 45%,#f59fc9d9);color:#371b2e}.ds-nav a:focus-visible{outline:3px solid #ffacc9;outline-offset:4px;}"
+    },
+    {
+      "name": "Theme selector",
+      "kind": "chip",
+      "refersTo": "theme-chip",
+      "description": "Selected glass product-preview button; image lift and scene blur are fine-pointer enhancements.",
+      "html": "<button class=\"ds-theme\" aria-pressed=\"true\"><span class=\"ds-thumb\" aria-hidden=\"true\">01</span>Quỹ nhà chung</button>",
+      "css": ".ds-theme{font-family:'Be Vietnam Pro',sans-serif;display:flex;flex-direction:column;align-items:center;gap:13px;min-height:145px;width:122px;padding:18px 10px 16px;background:linear-gradient(135deg,#ffffff19,#ffffff04),#162426cc;color:#f5f5f5;border:1px solid #dafa76;border-radius:22px;font-size:11px;font-weight:700;backdrop-filter:blur(22px) saturate(160%);cursor:pointer;box-shadow:inset 0 1px 0 #fff5,0 10px 28px #0004}.ds-thumb{display:grid;place-items:center;width:76px;height:76px;background:#dafa76;color:#183c2b;border-radius:10px;transform:translateY(-12px) rotate(-7deg);font-size:30px}.ds-theme:focus-visible{outline:3px solid #ffacc9;outline-offset:5px;}"
+    },
+    {
+      "name": "Reading surface",
+      "kind": "card",
+      "refersTo": "surface-card",
+      "description": "Flat paper panel for account or legal copy.",
+      "html": "<article class=\"ds-surface\"><p>Nội dung đang được hoàn thiện.</p></article>",
+      "css": ".ds-surface{font-family:'Be Vietnam Pro',sans-serif;background:#fffcf4;color:#183c2b;padding:32px;border:0;border-radius:16px;font-size:14px;line-height:1.8}.ds-surface p{margin:0}@media(max-width:600px){.ds-surface{padding:22px 18px}}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Diet Soda-inspired board-game showcase",
+    "overview": "A Diet Soda-inspired public identity for the Vietnamese board game Nhà Này Hơi Báo!: oversized product typography, italic emphasis, a near-black interactive hero and bright supporting surfaces and tangible box-and-card illustration. Dark liquid-glass navigation connects the ambient homepage; account and legal panels retain light reading surfaces. The exact Column Spread engine remains unchanged.\n\nPublic content, account and legal screens share this palette. The existing dark admin workspace remains an Operate surface; it shares the requested heading entrance without adopting the public layout. The card library, character directory and wiki read published content; the fund simulator and shop remain unfinished. Decorative cards are illustrations, not official game content.",
+    "keyCharacteristics": [
+      "Oversized Vietnamese headings with contrasting italic emphasis.",
+      "Dark liquid-glass navigation and one continuous homepage ground with shared theme accents.",
+      "Physical product illustration above a dark canvas showcase.",
+      "Static body copy, spring headings and accessible reduced-motion states."
+    ],
+    "rules": [
+      {
+        "name": "The Static Reading Rule",
+        "body": "Body paragraphs stay static; the requested Rise & Settle treatment belongs to semantic headings.",
+        "section": "typography"
+      },
+      {
+        "name": "The Illustration Rule",
+        "body": "Decorative card faces and the box mockup must remain visibly identified as illustrations.",
+        "section": "components"
+      }
+    ],
+    "dos": [
+      "Do preserve Vietnamese product names and explicit illustration labels.",
+      "Do import RiseHeadingDirective into new components containing headings.",
+      "Do keep body paragraphs static and reduced-motion headings readable.",
+      "Do retain clear unfinished-content notices on placeholder destinations.",
+      "Do keep the admin workspace visually scoped to its existing dark theme."
+    ],
+    "donts": [
+      "Don’t present decorative cards as official rules or product artwork.",
+      "Don’t alter the supplied Column Spread mathematics, parameters, image order or draw order.",
+      "Don’t replace the requested heading springs with CSS keyframes or another motion engine.",
+      "Don’t imply that local visual verification proves deployment or real authentication."
+    ]
+  }
+}

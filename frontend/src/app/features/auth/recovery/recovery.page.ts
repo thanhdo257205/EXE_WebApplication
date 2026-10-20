@@ -1,3 +1,4 @@
+import { RiseHeadingDirective } from '../../../shared/motion/rise-heading.directive';
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -9,7 +10,7 @@ import { WikiCanvasComponent } from '../../../shared/components/wiki-canvas/wiki
 
 @Component({
   selector: 'app-recovery-page',
-  imports: [RouterLink, ReactiveFormsModule, WikiCanvasComponent],
+  imports: [RiseHeadingDirective, RouterLink, ReactiveFormsModule, WikiCanvasComponent],
   templateUrl: './recovery.page.html',
   styleUrls: ['../login/login.page.css', './recovery.page.css'],
 })

@@ -1,24 +1,28 @@
-import { Component, inject, signal } from '@angular/core';
+import { afterNextRender, Component, inject, NgZone, OnDestroy, signal } from '@angular/core';
 import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
 import { AuthService } from './core/auth/auth.service';
-import { WikiRailComponent } from './shared/components/wiki-rail/wiki-rail.component';
 import { GlobalBarComponent } from './shared/components/global-bar/global-bar.component';
 import { MorphIconComponent } from './shared/components/morph-icon/morph-icon.component';
+import { CursorGhost } from './shared/utils/cursor-ghost';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterLink, RouterOutlet, WikiRailComponent, GlobalBarComponent, MorphIconComponent],
+  imports: [RouterLink, RouterOutlet, GlobalBarComponent, MorphIconComponent],
   templateUrl: './app.html',
   styleUrl: './app.css',
+  host: { '(document:keydown.escape)': 'closeMobileMenu()' },
 })
-export class App {
+export class App implements OnDestroy {
   readonly auth = inject(AuthService);
   private readonly router = inject(Router);
 
   readonly mobileMenuOpen = signal(false);
   readonly isAdminRoute = signal(false);
+
+  private ghostEffect?: CursorGhost;
+  private readonly zone = inject(NgZone);
 
   constructor() {
     this.updateAdminRoute(this.router.url);
@@ -26,11 +30,33 @@ export class App {
       filter(event => event instanceof NavigationEnd)
     ).subscribe((event: NavigationEnd) => {
       this.updateAdminRoute(event.urlAfterRedirects || event.url);
+      this.mobileMenuOpen.set(false);
     });
+
+    // Kích hoạt hiệu ứng Cursor Ghost toàn trang trên Client (SSR-safe qua afterNextRender)
+    afterNextRender(() => {
+      this.zone.runOutsideAngular(() => {
+        this.ghostEffect = new CursorGhost(document.body, {
+          ghosts: 6,
+          size: 22,
+          headFollow: 0.42,
+          smear: 5,
+          color: '#FFFFFF'
+        });
+      });
+    });
+  }
+
+  ngOnDestroy() {
+    this.ghostEffect?.destroy();
   }
 
   toggleMobileMenu() {
     this.mobileMenuOpen.update(v => !v);
+  }
+
+  closeMobileMenu() {
+    this.mobileMenuOpen.set(false);
   }
 
   private updateAdminRoute(url: string | null | undefined) {

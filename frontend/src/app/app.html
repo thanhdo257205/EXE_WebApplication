@@ -2,12 +2,6 @@
 
 <div class="app-container" [class.admin-mode]="isAdminRoute()">
   @if (!isAdminRoute()) {
-    <!-- Background Vector Artwork -->
-    <div class="artwork-bg"></div>
-
-    <!-- Shared Left Compact Wiki Rail (Sidebar) -->
-    <app-wiki-rail></app-wiki-rail>
-
     <!-- Shared Top Global Wiki Bar -->
     <app-global-bar
       [isMobileMenuOpen]="mobileMenuOpen()"
@@ -17,8 +11,8 @@
 
   <!-- Mobile Drawer Menu (Public) -->
   @if (!isAdminRoute() && mobileMenuOpen()) {
-    <div class="mobile-overlay md:hidden" (click)="toggleMobileMenu()"></div>
-    <nav class="mobile-drawer md:hidden" aria-label="Menu di động">
+    <div class="mobile-overlay" (click)="toggleMobileMenu()"></div>
+    <nav id="public-mobile-menu" class="mobile-drawer" aria-label="Menu di động">
       <!-- User Profile or Login CTA in mobile drawer -->
       @if (auth.currentUser(); as user) {
         <div class="p-3 bg-[#111d2e] rounded-md mb-3 border border-[#1e2e3e]">
@@ -75,6 +69,8 @@
         <app-morph-icon name="cart" [size]="18" color="#38bdf8"></app-morph-icon>
         <span>Giỏ hàng & Thanh toán</span>
       </a>
+      <a routerLink="/chinh-sach-quyen-rieng-tu" (click)="toggleMobileMenu()" class="drawer-link">Quyền riêng tư</a>
+      <a routerLink="/dieu-khoan-su-dung" (click)="toggleMobileMenu()" class="drawer-link">Điều khoản sử dụng</a>
     </nav>
   }
 
@@ -82,4 +78,7 @@
   <main id="main" tabindex="-1" class="main-content" [class.admin-main]="isAdminRoute()">
     <router-outlet />
   </main>
+  @if (!isAdminRoute()) {
+    <footer class="public-footer"><a routerLink="/" class="footer-brand">Nhà này hơi báo!</a><span>Chưa Giàu Đã Lớn · Cùng nhà, cùng chơi.</span><div><a routerLink="/chinh-sach-quyen-rieng-tu">Quyền riêng tư</a><a routerLink="/dieu-khoan-su-dung">Điều khoản</a></div></footer>
+  }
 </div>

@@ -21,3 +21,9 @@
 **/test-results/
 .idea/
 .DS_Store
+
+# Local browser/design review evidence
+frontend/.playwright-cli/
+frontend/output/
+.impeccable/review/
+.impeccable/questions/

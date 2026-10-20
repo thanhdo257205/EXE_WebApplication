@@ -1,7 +1,8 @@
+import { RiseHeadingDirective } from '../../../shared/motion/rise-heading.directive';
 import { Component, inject, OnInit, signal, computed } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/auth/auth.service';
-import { AdminContentService, AdminDashboardData } from '../../../core/admin/admin-content.service';
+import { AdminContentService, AdminDashboardData, AdminProblemDetail } from '../../../core/admin/admin-content.service';
 import { MorphIconComponent } from '../../../shared/components/morph-icon/morph-icon.component';
 
 export interface ActionQueueItem {
@@ -17,7 +18,7 @@ export interface ActionQueueItem {
 @Component({
   selector: 'app-admin-dashboard',
   standalone: true,
-  imports: [RouterLink, MorphIconComponent],
+  imports: [RiseHeadingDirective, RouterLink, MorphIconComponent],
   templateUrl: './admin-dashboard.page.html',
   styleUrl: './admin-dashboard.page.css',
 })
@@ -31,6 +32,7 @@ export class AdminDashboardPage implements OnInit {
   readonly dashboardData = signal<AdminDashboardData | null>(null);
   readonly backendStatus = signal<'CONNECTED' | 'LOADING' | 'OFFLINE'>('LOADING');
   readonly errorMessage = signal<string | null>(null);
+  readonly isSessionExpired = signal(false);
 
   readonly formattedAsOf = computed(() => {
     const raw = this.dashboardData()?.asOf;
@@ -103,6 +105,7 @@ export class AdminDashboardPage implements OnInit {
   loadDashboardData(): void {
     this.backendStatus.set('LOADING');
     this.errorMessage.set(null);
+    this.isSessionExpired.set(false);
 
     this.adminApi.getDashboard().subscribe({
       next: (data) => {
@@ -110,9 +113,14 @@ export class AdminDashboardPage implements OnInit {
         this.backendStatus.set('CONNECTED');
         this.refreshing.set(false);
       },
-      error: (err) => {
+      error: (err: AdminProblemDetail | any) => {
         this.backendStatus.set('OFFLINE');
-        this.errorMessage.set(err?.detail || 'Không thể kết nối đến API Quản trị viên');
+        if (err?.code === 'SESSION_EXPIRED' || err?.status === 401) {
+          this.isSessionExpired.set(true);
+          this.errorMessage.set('Phiên làm việc quản trị viên của bạn đã hết hạn (30 phút). Vui lòng đăng nhập lại.');
+        } else {
+          this.errorMessage.set(err?.detail || 'Không thể kết nối đến API Quản trị viên');
+        }
         this.refreshing.set(false);
       },
     });

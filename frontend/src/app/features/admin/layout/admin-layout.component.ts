@@ -3,6 +3,7 @@ import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/rou
 import { AuthService } from '../../../core/auth/auth.service';
 import { MorphIconComponent } from '../../../shared/components/morph-icon/morph-icon.component';
 import { MorphIconName } from '../../../shared/components/morph-icon/icons';
+import { AdminNotificationBellComponent } from './admin-notification-bell.component';
 
 export interface AdminNavItem {
   label: string;
@@ -15,7 +16,7 @@ export interface AdminNavItem {
 @Component({
   selector: 'app-admin-layout',
   standalone: true,
-  imports: [RouterLink, RouterLinkActive, RouterOutlet, MorphIconComponent],
+  imports: [RouterLink, RouterLinkActive, RouterOutlet, MorphIconComponent, AdminNotificationBellComponent],
   templateUrl: './admin-layout.component.html',
   styleUrl: './admin-layout.component.css',
 })

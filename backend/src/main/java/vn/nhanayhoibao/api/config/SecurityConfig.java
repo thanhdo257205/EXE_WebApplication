@@ -80,11 +80,14 @@ public class SecurityConfig {
             .formLogin(form -> form.disable())
             .httpBasic(basic -> basic.disable())
             .authorizeHttpRequests(auth -> auth
+                .requestMatchers(request -> request.getDispatcherType()==jakarta.servlet.DispatcherType.ASYNC
+                    && request.getRequestURI().equals("/api/v1/admin/notifications/stream")).permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/info", "/actuator/health",
                     "/api/v1/auth/csrf", "/api/v1/auth/config", "/api/v1/payments/config").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/payments/payos/webhook", "/api/v1/internal/payments/reconcile").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/payments/return/*").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/v1/checkout", "/api/v1/orders/*/refresh-payment").authenticated()
+                .requestMatchers(HttpMethod.GET, "/api/v1/content/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/checkout", "/api/v1/orders/*/refresh-payment", "/api/v1/feedback").authenticated()
                 .requestMatchers(HttpMethod.GET, "/api/v1/orders", "/api/v1/orders/*").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/login", "/api/v1/auth/register",
                     "/api/v1/auth/forgot-password", "/api/v1/auth/reset-password").permitAll()

@@ -70,5 +70,13 @@ describe('AdminDashboardPage', () => {
     component.loadDashboardData();
     expect(component.backendStatus()).toBe('OFFLINE');
     expect(component.errorMessage()).toBe('Backend sleeping');
+    expect(component.isSessionExpired()).toBe(false);
+  });
+
+  it('flags session expired and presents re-login action on 401 error', () => {
+    adminApiSpy.getDashboard = () => throwError(() => ({ status: 401, code: 'SESSION_EXPIRED', detail: 'Expired' }));
+    component.loadDashboardData();
+    expect(component.isSessionExpired()).toBe(true);
+    expect(component.errorMessage()).toContain('hết hạn');
   });
 });

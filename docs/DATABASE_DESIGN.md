@@ -1,6 +1,8 @@
 # Thiết kế database — Nhà Này Hơi Báo!
 
-Bản thiết kế nền ngày 19/10/2026; cập nhật auth/admin content local 20/10/2026. PostgreSQL 18 trên Aiven; Spring Boot, Flyway và JDBC transaction. H2 chỉ phục vụ local/test. Hiện có API checkout/orders, PayOS và API admin nội dung trong source; public content/catalog/cart và các phân hệ admin ngoài nội dung còn thiếu. Admin content V8 chưa deploy trong đợt này.
+Bản thiết kế nền ngày 19/10/2026; cập nhật source local tới V10 ngày 20/10/2026. PostgreSQL trên Aiven; Spring Boot, Flyway và JDBC transaction. H2 chỉ phục vụ local/test. Source hiện có checkout/orders/PayOS, admin content, public content, feedback và thông báo SSE admin. Catalog/cart API và các phân hệ admin commerce/user/publishing vẫn còn thiếu. Các migration/feature mới còn local trong đợt này; không suy ra database production đã ở V10. Xem PROGRESS.md cho trạng thái deploy thực tế.
+
+V10 bổ sung `admin_notifications` (BIGINT identity, feedback_id unique/FK, created_at) và `admin_notification_reads` (PK notification_id/user_id, read_at; xóa user thì xóa read state). Feedback và notification ghi cùng transaction. Read state riêng từng admin, không có PII trong notification và không giữ connection database trong suốt SSE; chi tiết tại [ADMIN_NOTIFICATIONS.md](ADMIN_NOTIFICATIONS.md). Đây là phần bổ sung sau thiết kế 34 bảng ban đầu.
 
 ## Phạm vi và quyết định
 
@@ -200,8 +202,11 @@ Schema hiện dành cho **một PayOS merchant channel**. Nếu thêm nhiều k�
 | `V3__customer_profiles_and_game_content.sql` | User profile/address và nội dung game versioned/feedback |
 | `V4__catalog_checkout_and_inventory.sql` | Catalog, SKU, inventory, cart, order snapshot, shipment và timeline |
 | `V5__payos_payment_ledger_and_audit.sql` | PayOS attempts, verified inbox, tiền nhận, refunds và audit |
+| V6/V7 | Password reset digest và auth_version thu hồi JWT |
+| V8/V9 | Version release nháp, version/ghi chú moderation phản hồi |
+| `V10__admin_notifications.sql` | Notification admin theo feedback và read state riêng mỗi tài khoản |
 
-`DatabaseSchemaTests` chạy nâng V2 → V5 giữ dữ liệu user cũ, Flyway validate/idempotence, constraints, dedup, snapshots và hai buyer đồng thời. Luôn test H2; nếu có biến `SCHEMA_TEST_JDBC_URL/USERNAME/PASSWORD`, test thêm PostgreSQL trong schema ngẫu nhiên `exe_schema_test_<12 hex>` và xóa đúng schema đó khi xong. Không gọi Flyway clean, không migrate public schema Aiven khi chạy contract test.
+`DatabaseSchemaTests` chạy nâng V2 → V10 giữ dữ liệu user cũ, Flyway validate/idempotence, constraints, dedup, snapshots và hai buyer đồng thời. Luôn test H2; nếu có biến `SCHEMA_TEST_JDBC_URL/USERNAME/PASSWORD`, test thêm PostgreSQL trong schema ngẫu nhiên `exe_schema_test_<12 hex>` và xóa đúng schema đó khi xong. Không gọi Flyway clean, không migrate public schema Aiven khi chạy contract test.
 
 CI backend có PostgreSQL 18 disposable để kiểm tra thật, không dùng secret database production. Chạy local: `.\mvnw.cmd -B -ntp test` hoặc `-Dtest=DatabaseSchemaTests test`. Session/credentials cũ vẫn phải qua các test auth hiện có.
 

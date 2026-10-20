@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
-import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { LoginPage } from './login.page';
 import { AuthService } from '../../../core/auth/auth.service';
 import { throwError } from 'rxjs';
@@ -19,6 +19,62 @@ describe('LoginPage', () => {
     fixture = TestBed.createComponent(LoginPage);
     component = fixture.componentInstance;
     fixture.detectChanges();
+  });
+
+  afterEach(() => {
+    fixture.destroy();
+    TestBed.inject(HttpTestingController).verify({ ignoreCancelled: true });
+  });
+
+  it('warms the service on entry and waits for readiness before a single Google navigation', () => {
+    const redirect = vi.spyOn(component, 'redirectToGoogle').mockImplementation(() => {});
+    const event = new MouseEvent('click', { button: 0, cancelable: true });
+    component.onGoogleLogin(event);
+    component.onGoogleLogin(event);
+    expect(event.defaultPrevented).toBe(true);
+    expect(component.googleLoading()).toBe(true);
+    expect(redirect).not.toHaveBeenCalled();
+    TestBed.inject(HttpTestingController).expectOne('/api/v1/auth/config').flush({
+      password: true, google: true, googleLoginUrl: '/api/v1/auth/oauth2/authorization/google',
+    });
+    expect(redirect).toHaveBeenCalledExactlyOnceWith('/api/v1/auth/oauth2/authorization/google');
+    expect(component.connectionMessage()).toContain('chuyển đến Google');
+  });
+
+  it('keeps the user on the page when preparation is denied and allows another attempt', () => {
+    const redirect = vi.spyOn(component, 'redirectToGoogle').mockImplementation(() => {});
+    component.onGoogleLogin(new MouseEvent('click'));
+    TestBed.inject(HttpTestingController).expectOne('/api/v1/auth/config').flush({}, { status: 403, statusText: 'Forbidden' });
+    expect(component.googleLoading()).toBe(false);
+    expect(component.errorMessage()).toContain('Chưa kết nối');
+    expect(redirect).not.toHaveBeenCalled();
+    component.onGoogleLogin(new MouseEvent('click'));
+    TestBed.inject(HttpTestingController).expectOne('/api/v1/auth/config').flush({ password: true, google: true, googleLoginUrl: '/api/v1/auth/oauth2/authorization/google' });
+    expect(redirect).toHaveBeenCalledOnce();
+  });
+
+  it('rejects disabled Google configuration or an unexpected redirect URL', () => {
+    const redirect = vi.spyOn(component, 'redirectToGoogle').mockImplementation(() => {});
+    component.onGoogleLogin(new MouseEvent('click'));
+    TestBed.inject(HttpTestingController).expectOne('/api/v1/auth/config').flush({ password: true, google: true, googleLoginUrl: 'https://unexpected.example' });
+    expect(redirect).not.toHaveBeenCalled();
+    expect(component.googleLoading()).toBe(false);
+    expect(component.errorMessage()).toContain('chưa sẵn sàng');
+  });
+
+  it('preserves modified link clicks instead of forcing same-tab navigation', () => {
+    const event = new MouseEvent('click', { ctrlKey: true, cancelable: true });
+    component.onGoogleLogin(event);
+    expect(event.defaultPrevented).toBe(false);
+    expect(component.googleLoading()).toBe(false);
+  });
+
+  it('unlocks Google login when the browser restores the page after going back', () => {
+    component.googleLoading.set(true);
+    component.connectionMessage.set('Đang chuyển đến Google…');
+    component.restoreAfterBackNavigation({ persisted: true } as PageTransitionEvent);
+    expect(component.googleLoading()).toBe(false);
+    expect(component.connectionMessage()).toBeNull();
   });
 
   it('should create login component', () => {

@@ -13,7 +13,7 @@ import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 
 @Order(Ordered.HIGHEST_PRECEDENCE)
-@RestControllerAdvice(assignableTypes=AdminContentController.class)
+@RestControllerAdvice(assignableTypes={AdminContentController.class,FeedbackController.class,vn.nhanayhoibao.api.notifications.AdminNotificationController.class})
 public class AdminContentAdvice {
     private ResponseEntity<ProblemDetail> problem(HttpStatus status,String code,String detail,Object errors) {
         var body=ProblemDetail.forStatusAndDetail(status,detail);body.setTitle(status.getReasonPhrase());body.setProperty("code",code);

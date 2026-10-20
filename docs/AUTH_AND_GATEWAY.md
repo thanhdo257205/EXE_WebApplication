@@ -4,11 +4,22 @@
 
 ## Phạm vi
 
-Code local hỗ trợ đăng nhập/đăng ký mật khẩu, Google OIDC, JWT HttpOnly, CSRF, phân quyền và khôi phục mật khẩu qua email HTTPS. Có UI login/register/recovery, proxy guard và rate limit. Chưa có xác minh email hoặc liên kết hai phương thức vào cùng tài khoản. JWT và recovery chưa deploy; xem [PASSWORD_RECOVERY.md](PASSWORD_RECOVERY.md).
+Code local hỗ trợ đăng nhập/đăng ký mật khẩu, Google OIDC, JWT HttpOnly, CSRF, phân quyền và khôi phục mật khẩu qua email HTTPS. Có UI login/register/recovery, proxy guard và rate limit. Chưa có xác minh email hoặc liên kết hai phương thức vào cùng tài khoản. JWT/recovery đã có trong SHA `30bb28c` với CD thành công; chưa nghiệm thu lại chức năng production; xem [PASSWORD_RECOVERY.md](PASSWORD_RECOVERY.md).
 
-Đã deploy Pages/Worker, Render và Aiven; Turnstile và Google credentials thật đã cấu hình. Ngày 2026-10-20 đã kiểm tra Google consent/callback thành công và xác nhận CUSTOMER cùng phiên JDBC trên Aiven. Google OAuth hiện External/In production; đây là kết quả production trước chuyển đổi JWT. UI auth và JWT mới vẫn local; chưa nghiệm thu lại Google thật sau chuyển đổi. Xem PROGRESS.md để biết commit và kết quả CI/CD gần nhất.
+Đã deploy Pages/Worker, Render và Aiven; Turnstile và Google credentials thật đã cấu hình. Ngày 2026-10-20 đã kiểm tra Google consent/callback thành công và xác nhận CUSTOMER cùng phiên JDBC trên Aiven. Google OAuth hiện External/In production; đây là kết quả production trước chuyển đổi JWT. UI auth và JWT đã có trong SHA triển khai; chưa nghiệm thu lại Google thật sau chuyển đổi. Turnstile hiện chỉ được gửi bởi form login; form đăng ký chưa gửi challenge. AUTH-04/05 còn thiếu xử lý hết phiên và đồng bộ role; xem [rà soát source](CODEBASE_REVIEW_2026-10-20.md). Xem PROGRESS.md để biết commit và kết quả CI/CD gần nhất.
 
 ## Kiến trúc cùng origin
+
+### Giảm chờ khi mở đăng nhập Google — source local 2026-10-20
+
+Người dùng báo Google login chậm ở lần đầu sau một thời gian không mở web. Triệu chứng phù hợp cold start; chưa có trace trình duyệt hoặc phép đo login thật để khẳng định toàn bộ thời gian đến từ Render. [Render Free](https://render.com/docs/free) ngủ sau 15 phút không có truy cập và khởi động lại khi có request; tài liệu ghi khoảng một phút, log startup dự án trước đây từng khoảng 147 giây. Khi đo lại trong phiên này, health Render đang thức trả 200 khoảng 0,89 và 0,75 giây. Probe config qua gateway từ công cụ CLI bị 403, không được dùng làm số đo login browser.
+
+- Trang `/dang-nhap` chỉ trên browser gọi `AuthService.prepareLogin()` ngay khi mở: GET `/api/v1/auth/config`, không khởi tạo OAuth/session hoặc gửi mật khẩu. Prerender không thực hiện yêu cầu chuẩn bị này.
+- Background preparation và nút Google dùng chung một request đang chạy. Kết quả sẵn sàng giữ trong bộ nhớ tối đa 30 giây; không lưu token/cookie vào storage. Khi click bình thường, giữ người dùng trên trang, báo đang kết nối; sau 8 giây có thông báo chờ. Chỉ chuyển đến đường dẫn Google cố định khi config xác nhận google=true. Click nhiều lần không tạo nhiều lần chuyển hướng; Ctrl/Cmd-click vẫn giữ hành vi link của browser. Khi Back khôi phục từ bfcache, nút được mở khóa.
+- Chỉ GET config thử lại tối đa 2 lần, cách 1 và 2 giây, khi lỗi mạng/timeout/408/502/503/504; mỗi lần timeout 65 giây. Không retry 401/403/429. Rời trang hủy request và timer khi hết subscriber. Không có lịch ping nền định kỳ.
+- Gateway chờ OAuth authorization/callback tối đa 180 giây thay vì 60, giữ nguyên request gốc; API khác vẫn 60 giây. Không replay OAuth code/state hoặc POST login. Thử lại readiness không đi qua LOGIN_LIMITER, vẫn chịu API_LIMITER hiện có. CSRF/Turnstile/state/nonce/PKCE/JWT không thay đổi.
+
+Đây là giảm phần chờ sau khi bấm và xử lý timeout/feedback khi origin ngủ, không bảo đảm hết cold start hoặc là benchmark tăng tốc. Muốn tránh cơ chế ngủ cần phương án hosting luôn hoạt động; không tự đổi gói/cấu hình cloud trong đợt này. Thay đổi mới local, cần deploy frontend + gateway và nghiệm thu Google thật sau khi origin đã idle; không chạy kiểm thử với tài khoản thật trong phiên.
 
 ```text
 Browser → PUBLIC_ORIGIN (Cloudflare Pages)
@@ -62,7 +73,7 @@ Trình tự mật khẩu:
 - BCrypt cost 12; backend không trả password hash.
 - Google chỉ chấp nhận email đã xác minh; xác định tài khoản bằng Google `sub` ổn định. Tài khoản mới được quyền CUSTOMER.
 - Trùng email với tài khoản mật khẩu sẽ bị từ chối liên kết tự động, không tự nâng quyền. Chưa có luồng liên kết tài khoản.
-- `/api/v1/admin/**` yêu cầu ADMIN; `/me` yêu cầu đăng nhập; endpoint chưa được khai báo bị từ chối. Đã có API admin nội dung trong source theo [ADMIN_BACKEND.md](ADMIN_BACKEND.md); các phân hệ commerce/user/publish còn thiếu, chưa deploy API mới trong đợt này.
+- `/api/v1/admin/**` yêu cầu ADMIN; `/me` yêu cầu đăng nhập; endpoint chưa được khai báo bị từ chối. Đã có API admin nội dung trong source theo [ADMIN_BACKEND.md](ADMIN_BACKEND.md); các phân hệ commerce/user/publish còn thiếu, CD mới đã thành công; chưa nghiệm thu admin production bằng browser.
 - Tài khoản mật khẩu ban đầu tạo bằng `BOOTSTRAP_ADMIN_EMAIL` và `BOOTSTRAP_ADMIN_PASSWORD` (ít nhất 12 ký tự, tối đa 72 byte UTF-8). Chỉ tạo nếu chưa có email; không cập nhật mật khẩu/quyền tài khoản đã tồn tại. Xóa hai biến bootstrap sau lần khởi tạo production đầu tiên.
 - Chưa bật giới hạn đăng nhập ở local Spring chạy độc lập. Production phải bật proxy guard; rate limit nằm ở Worker.
 

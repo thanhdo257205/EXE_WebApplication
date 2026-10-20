@@ -59,6 +59,9 @@
               <span>{{ errorMessage() }}</span>
             </div>
           }
+          @if (connectionMessage()) {
+            <p class="connection-status" role="status" aria-live="polite">{{ connectionMessage() }}</p>
+          }
 
           <!-- Email Input -->
           <div class="form-group">
@@ -126,7 +129,7 @@
           <!-- Submit Button -->
           <button
             type="submit"
-            [disabled]="loading() || (turnstileSiteKey() !== null && !challengeToken())"
+            [disabled]="loading() || googleLoading() || (turnstileSiteKey() !== null && !challengeToken())"
             class="submit-btn"
           >
             @if (loading()) {
@@ -148,6 +151,9 @@
           <!-- Social Login: Google -->
           <a
             href="/api/v1/auth/oauth2/authorization/google"
+            (click)="onGoogleLogin($event)"
+            [attr.aria-disabled]="googleLoading() || loading() ? 'true' : null"
+            [attr.aria-busy]="googleLoading() ? 'true' : null"
             class="google-btn"
           >
             <svg class="w-4 h-4" viewBox="0 0 24 24">
@@ -156,7 +162,7 @@
               <path fill="#FBBC05" d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.3 0-.8.2-1.6.4-2.3L1.9 7.3C.7 9.7 0 12.3 0 15.2c0 2.8.7 5.5 1.9 7.8l3.7-2.9z"/>
               <path fill="#34A853" d="M12 23.5c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2-6.4-4.8L1.9 16.9C3.7 20.6 7.5 23.5 12 23.5z"/>
             </svg>
-            <span>Đăng nhập bằng tài khoản Google</span>
+            <span>{{ googleLoading() ? 'Đang kết nối với Google…' : 'Đăng nhập bằng tài khoản Google' }}</span>
           </a>
 
           <!-- Mobile switch to register -->

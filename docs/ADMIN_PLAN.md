@@ -4,7 +4,7 @@ Cập nhật: 2026-10-20 (Asia/Saigon). Đây là kế hoạch tổng thể; đ�
 
 ## Phân công và trạng thái đã đối chiếu code
 
-Đã hoàn thành thiết kế và triển khai toàn bộ giao diện Admin Portal (`/admin/**`) theo `ADMIN-FE-01` với `adminGuard` (kiểm tra quyền `ADMIN`), `AdminLayoutComponent` (sidebar điều hướng 8 phân hệ), `AdminDashboardPage` (hàng chờ Action Queue, 4 thẻ chỉ số nhanh) và 8 panel quản trị chuyên biệt (thẻ bài, nhân vật, bài viết wiki/hướng dẫn, kho thẻ, đơn hàng, PayOS, tài khoản cư dân và hạ tầng hệ thống). Toàn bộ 33 frontend tests (Vitest) và build production prerender pass 100%.
+Frontend có layout/guard/dashboard và các panel `/admin/**`, cùng một số lệnh đọc API. Local 40 tests và production build qua, nhưng ADMIN-FE-02 chưa hoàn thành do DTO revision/phân trang/audit lệch backend và chưa có UI CRUD/version đầy đủ. Chi tiết bàn giao AI frontend tại [báo cáo rà soát](CODEBASE_REVIEW_2026-10-20.md).
 
 Phía Backend: Đã hoàn thành đợt đầu API quản trị nội dung theo release (`ADMIN-BE-01..04`) gồm draft/clone/preview/identity lookup/dashboard/audit với hợp đồng OpenAPI 3.1 29 operations tại [OpenAPI](api/admin-content.openapi.json) và [ADMIN_BACKEND.md](ADMIN_BACKEND.md). Đã giải quyết triệt để lỗi concurrency deadlock trên PostgreSQL khi cập nhật release đồng thời; 13 kịch bản kiểm thử trên H2 và disposable PostgreSQL schema (`ADMIN-BE-13`) đã qua 100% trên CI run `39375896826`.
 
@@ -20,7 +20,7 @@ Trang `/admin` phục vụ quản lý nội dung board game và vận hành bán
 
 ## Cơ sở hiện có và khoảng trống
 
-- Backend có `ADMIN`/`CUSTOMER`, CSRF và bảo vệ `/api/v1/admin/**`. Auth hiện có JWT HttpOnly, kiểm tra enabled/quyền/auth_version mỗi request; JDBC chỉ còn OAuth handshake tạm. API nội dung mới chưa deploy trong đợt này. Đã cấp một tài khoản ADMIN theo chỉ định riêng; thông tin xác thực không thuộc tài liệu này.
+- Backend có `ADMIN`/`CUSTOMER`, CSRF và bảo vệ `/api/v1/admin/**`. Auth hiện có JWT HttpOnly, kiểm tra enabled/quyền/auth_version mỗi request; JDBC chỉ còn OAuth handshake tạm. CD `39385059734` tại `30bb28c` đã thành công; còn nghiệm thu chức năng bằng browser/tài khoản thử. Đã cấp một tài khoản ADMIN theo chỉ định riêng; thông tin xác thực không thuộc tài liệu này.
 - V3 có schema release/revision của nội dung và phản hồi; V4 có sản phẩm, kho, đơn và shipment; V5 có payment attempt, webhook inbox, ledger, refund và audit.
 - `PaymentController` hiện phục vụ checkout/đơn của người dùng, webhook và đối soát nội bộ; không phải API admin để xem/sửa mọi đơn.
 - Backend mới có CRUD nội dung theo release, clone/preview, identity lookup, dashboard và audit nội dung, kèm migration V8. Chưa có import, public content/publish pipeline, moderation, quản trị user, commerce/refund hoặc API system status. Frontend đang được làm riêng; có layout/guard không đồng nghĩa đã tích hợp API. Auth/JWT dùng chung được giữ nguyên, CORS bổ sung PUT/DELETE cho endpoint mới.

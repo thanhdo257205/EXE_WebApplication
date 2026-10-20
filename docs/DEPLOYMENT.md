@@ -46,6 +46,10 @@ Xem [Render deploy hooks](https://render.com/docs/deploy-hooks) và [GitHub work
 
 ## Phần còn lại
 
+- Bản thông báo SSE đang local: deploy backend V10 + gateway streaming + frontend chuông admin cùng hợp đồng [ADMIN_NOTIFICATIONS.md](ADMIN_NOTIFICATIONS.md). Stream chạy qua Pages binding hiện có, không thêm dịch vụ trả phí; chưa nghiệm thu end-to-end cloud, giới hạn tài nguyên hoặc tải đồng thời. Các API/SSE chỉ phục vụ ADMIN; nguồn hiện tại là phản hồi mới.
+
+- Bản sửa cold start Google login đang local: frontend chuẩn bị GET auth/config khi vào trang, chia sẻ request và báo trạng thái trước khi điều hướng; gateway OAuth navigation chờ tối đa 180 giây, API khác 60 giây. Xem [chi tiết luồng](AUTH_AND_GATEWAY.md). Chưa deploy hoặc đo cold/warm login thật; không đổi hosting, giá gói hoặc database trong đợt này. Sau deploy cần thử Google lần đầu sau idle và lần tiếp theo, ghi riêng thời gian chờ readiness/consent/callback.
+
 - Đã hoàn thành giao diện đăng nhập, đăng ký, khôi phục mật khẩu tích hợp Cloudflare Turnstile token và Google OAuth2.
 - Google OAuth đã hoạt động ở chế độ External/In production; credentials đã được cấu hình trên Render (`GOOGLE_ENABLED=true`).
 - Đã cấu hình và cấp quyền ADMIN production trực tiếp trong database theo yêu cầu chủ dự án; giao diện Admin Portal (`/admin/**`) đã hoàn thành và được bảo vệ bởi `adminGuard`.
@@ -82,8 +86,8 @@ Mail mặc định tắt. Chỉ bật `PASSWORD_RESET_ENABLED=true` sau khi đ�
 Sau deploy kiểm tra login/Google cấp AUTH_TOKEN HttpOnly/Secure/Lax/Path=/api, CSRF, `/me`, logout/replay trả 401 và recovery thật bằng tài khoản thử được chỉ định. Bản rà soát UI đã thêm Turnstile trên form production với sitekey công khai cho exe-webapp.pages.dev; gateway vẫn bắt buộc xác minh hostname/action/challenge. Thay public domain phải cập nhật widget domains và sitekey environment tương ứng, không đưa secret vào frontend. Chưa nghiệm thu challenge browser thật. 96d2b01 đã có trên GitHub và qua CI, CD đang chạy tại lần kiểm tra; theo dõi commit rà soát UI tiếp theo trên Actions, không suy ra deploy đã thành công chỉ từ push.
 
 
-## Backend admin content V8 — source mới, chưa deploy trong đợt này
+## Backend admin content V8 — đã có workflow triển khai thành công
 
-Deploy backend mới sẽ tự áp Flyway V8 thêm release.version/index; không sửa checksum migration cũ hoặc seed nội dung. Không cần credential hoặc dịch vụ cloud mới. Các endpoint /api/v1/admin vẫn cần JWT ADMIN/CSRF/proxy; frontend do AI khác làm, hợp đồng tại docs/api/admin-content.openapi.json. API chỉ quản lý draft/preview/clone và không kích hoạt Pages publish.
+Backend tự áp Flyway V8 thêm release.version/index; không sửa checksum migration cũ hoặc seed nội dung. Không cần credential hoặc dịch vụ cloud mới. Các endpoint /api/v1/admin vẫn cần JWT ADMIN/CSRF/proxy; frontend do AI khác làm, hợp đồng tại docs/api/admin-content.openapi.json. API chỉ quản lý draft/preview/clone và không kích hoạt Pages publish.
 
-Trước deploy cần Maven verify với H2 và PostgreSQL disposable; sau deploy nghiệm thu 401/403/ADMIN, CSRF, stale version 409, dữ liệu/audit atomic, clone giữ ID và preview không public. Không chạy test ghi trên production; dùng dữ liệu/môi trường thử phù hợp. Trong phiên phát triển này không áp V8 lên Aiven hoặc gọi deploy cloud.
+Trước deploy cần Maven verify với H2 và PostgreSQL disposable; sau deploy nghiệm thu 401/403/ADMIN, CSRF, stale version 409, dữ liệu/audit atomic, clone giữ ID và preview không public. Không chạy test ghi trên production; dùng dữ liệu/môi trường thử phù hợp. CI `39384838912` tại `30bb28c` qua 104 Maven tests, gồm admin H2/PostgreSQL; CD `39385059734` cùng SHA thành công. Phiên rà soát chỉ kiểm tra workflow, không đọc DB production hoặc chạy test ghi. Chưa nghiệm thu browser admin; frontend còn lệch contract theo [báo cáo rà soát](CODEBASE_REVIEW_2026-10-20.md).

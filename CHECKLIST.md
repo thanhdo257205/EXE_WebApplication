@@ -2,6 +2,47 @@
 
 Cập nhật: 2026-10-20 (Asia/Saigon).
 
+## Phát hành GitHub bản hiện tại (2026-10-20)
+
+- [x] RELEASE-LOCAL-CHECKS — Frontend96 tests/build, backend83 tests chạy qua/46 PostgreSQL skipped/JAR, gateway25 tests/typecheck/dry-run và5 script tests qua; kiểm tra diff trước commit.
+- [ ] RELEASE-GITHUB-20261020 — Commit/push bản hiện tại lên origin/main và xác minh remote.
+- [ ] RELEASE-CI-CD-20261020 — Xác minh GitHub CI gồm PostgreSQL/Docker và CD/smoke production cho bản mới.
+
+## Frontend redesign và motion (2026-10-20)
+
+- [x] FE-NAV-SUBMENUS — Hover/disclosure5 nhóm với route con hiện có, pháp lý trong Khám phá và mobile drawer; giữ link cha/lens, hỗ trợ keyboard/touch/Escape/outside/route cleanup.96 tests/build và browser desktop/mobile/touch qua; local, chưa deploy.
+
+- [x] FE-CURSOR-SIZE — Thu bóng26→22px, rim1,25px/blur tối đa0,4px để giảm cảm giác lớn hơn chuột thật;6 focused tests và dev rebuild qua. Local, chờ cảm nhận người dùng.
+
+- [x] FE-CURSOR-CONTRAST — Rim xanh đen sắc hơn + lõi trắng/tint để thấy trên lime/paper/dark; cache và idle/reduced giữ nguyên.92 tests/build/prerender, ảnh browser và pixel idle sạch qua; local, chưa deploy.
+
+- [x] FE-GLASS-HEADER-02 — Header/rail/cart có viền và phản sáng rõ hơn, blur một lớp; cache geometry/lens writes, keyboard/reduced/route/mobile/cleanup.92 tests/build và browser320–1896px qua; local, chưa deploy/benchmark FPS.
+
+- [x] FE-TEXT-DOT-PERF — Heading giữ spring và unmount engine sau hội tụ, bảo toàn chữ/binding/reduced; dot grid chỉ restore/vẽ patch quanh chuột.88 tests/build/prerender qua; browser idle rAF0, pixel restore chính xác, scroll/resize/mobile/reduced/route qua. Chưa deploy/benchmark thiết bị thật.
+
+- [x] FE-CURSOR-RASTER — Cache blur sprite và clear vùng đã vẽ; invalidation DPR/media;82 tests/build qua, browser local xác minh idle sạch/reduced restore, không pageerror. Chưa benchmark FPS/CPU hoặc deploy.
+
+- [x] FE-CURSOR-SPEED — Tăng tốc bám đầu/đuôi con trỏ (0,42/0,84);4 focused tests qua, dev server rebuild/reload thành công; chờ phản hồi cảm nhận người dùng.
+
+- [x] FE-PERF-01 — CursorGhost dừng khi idle/hidden, viewport bitmap, bỏ layout/hit-test thừa, ngoài Angular zone; heading khởi tạo gần viewport và tránh tải engine khi reduced motion. 80 tests/build/prerender qua, gồm4 regression scheduler/canvas.
+- [ ] FE-PERF-02 — Đo trace FPS/LCP/INP và cold/warm API trên thiết bị thật/production sau deploy; đánh giá font, glass và snapshot-first khi có snapshot chính thức.
+
+- [x] FE-CONTENT-01 — Nối thư viện thẻ/cư dân/wiki với API public, snapshot fallback, tìm/lọc/phân trang, chi tiết theo slug và trạng thái chưa có release; 5 service/Markdown tests, browser fixture và build qua. Chưa nghiệm thu nội dung chính thức hoặc production.
+
+- [x] FE-MOTION-03-STABLE — Dot grid giữ ảnh khi idle, không reset buffer cùng cỡ, cache/gom draw, media idempotent và scroll/focus restore;4 regression tests + pixel browser stress qua, tổng71 tests; chưa deploy.
+
+- [x] FE-DESIGN-GLASS — Nav/CTA/product preview liquid glass theo tham chiếu; hover nâng thẻ/làm mờ sản phẩm, bố cục homepage cùng nền/màu nhấn; mobile/reduced/fallback/keyboard contrast và route lens đã kiểm tra. Review finding resolved, 67 tests/build qua; chưa deploy.
+
+- [x] FE-MOTION-03 — Dot Grid Warp JavaScript/Canvas thuần trên nền hero tối; đúng thông số26/150/26/1/#FFFFFF, native cursor, fixed overlay không chặn tương tác, fine-pointer/reduced gates, DPR/resize/cleanup; browser và build/tests qua.
+
+- [x] FE-DESIGN-01 — Public shell/trang chủ theo tham chiếu Diet Soda: typography lớn, hộp game minh họa, ba theme màu, điều hướng responsive/footer; kiểm tra desktop/mobile.
+- [x] FE-DESIGN-02 — Đồng bộ public placeholder/auth/recovery/legal; giữ admin layout và luồng auth; placeholder vẫn công khai trạng thái chưa hoàn thiện.
+- [x] FE-MOTION-01 — Port Column Spread giữ toán học/constants/draw order, 12 slot, 8 giây, responsive/DPR2, reduced motion t=.12 và pause/cleanup.
+- [x] FE-MOTION-02 — Rise & Settle h1–h6 bằng spring-text-engine 0.1.5, spring220/22/stagger30, once/overflow; body static; giữ accessibility/binding và reduced motion.
+- [x] FE-DESIGN-QA — 67 frontend tests; production build/prerender; browser desktop/mobile, menu/theme/canvas/reduced/validation, review độc lập disposition ship.
+- [ ] FE-DESIGN-ASSETS — Thay mặt thẻ trang trí minh họa bằng 12 ảnh thẻ chính thức được cung cấp.
+- [ ] FE-DESIGN-PROD — Commit/push/deploy và nghiệm thu thiết bị thật/login thật, dữ liệu public API cùng tải production. Chưa bao gồm trong bản local này.
+
 Đây là danh sách công việc chính thức để theo dõi hoàn thành. Bối cảnh, quyết định kỹ thuật, nhật ký và điểm tiếp tục được lưu trong [PROGRESS.md](PROGRESS.md).
 
 ## Quy tắc cập nhật
@@ -116,7 +157,7 @@ Các mục quản trị dưới đây được chi tiết hóa tại nhóm 12 v�
 - [ ] Xây API đọc nội dung và nhận phản hồi.
 - [x] Chốt đăng nhập email/mật khẩu và Google OAuth2 với người dùng.
 - [x] Triển khai API đăng nhập mật khẩu/Google, logout, /me và phiên JDBC; kiểm tra local.
-- [x] Xây giao diện đăng nhập, đăng ký, khôi phục mật khẩu và tích hợp Turnstile/Google.
+- [x] Có source UI login/register/recovery, Google login và Turnstile trên login; nghiệm thu đầy đủ còn theo AUTH-02/04/05.
 - [x] Định nghĩa vai trò ADMIN/CUSTOMER, bảo vệ đường dẫn API admin và frontend adminGuard.
 - [ ] Chốt quyền EDITOR và quyền sửa/xuất bản nội dung khi xây quản trị.
 - [x] Kiểm tra backend từ chối truy cập thiếu quyền, thiếu CSRF hoặc origin secret khi guard bật.
@@ -205,11 +246,11 @@ Các mục quản trị dưới đây được chi tiết hóa tại nhóm 12 v�
 
 ### 7. Tài khoản khách hàng và hồ sơ — P0 trước mở bán
 
-- [x] AUTH-01: Đã xây API đăng ký POST /api/v1/auth/register chỉ cấp CUSTOMER, mã hóa BCrypt, kiểm tra trùng email, tự động cấp JWT HttpOnly; có form đăng ký tại /dang-ky với passwordMatchValidator và unit tests (2026-10-20).
+- [x] AUTH-01: Có API đăng ký chỉ cấp CUSTOMER, BCrypt, kiểm tra trùng email, JWT HttpOnly và form /dang-ky với matchingPasswordsValidator; unit tests qua. Chưa nghiệm thu đăng ký production hoặc chống spam riêng cho đăng ký.
 - [ ] AUTH-02: Local đã có recovery UI/API Resend, TTL 15 phút, digest, one-use/cooldown; chưa có xác minh email hoặc gửi mail thật. Phần còn lại: Chốt kênh gửi email; xác minh email và khôi phục mật khẩu bằng token dùng một lần, có hạn dùng, không lộ tài khoản; giới hạn gửi lại.
 - [ ] AUTH-03: Đổi mật khẩu có xác minh người dùng, thu hồi phiên phù hợp và kiểm tra giới hạn UTF-8 của BCrypt.
-- [x] AUTH-04: Đã nối AuthService vào UI login/logout/Google + Turnstile; khôi phục trạng thái từ /me, hiển thị thông tin cư dân/admin trên topbar và mobile drawer, xử lý hết phiên và điều hướng returnUrl an toàn (2026-10-20).
-- [x] AUTH-05: Đã thêm frontend adminGuard cho /admin/**, kiểm tra role ADMIN, chặn CUSTOMER/anonymous và chuyển hướng có thông báo; đồng bộ role contract với backend (2026-10-20).
+- [ ] AUTH-04: Có login/logout/Google, Turnstile login, /me và thông tin tài khoản trên header. Còn xử lý 401/hết phiên xuyên suốt, lỗi Google callback và nghiệm thu production.
+- [ ] AUTH-05: Có adminGuard chặn anonymous/CUSTOMER, cho ADMIN và returnUrl. Còn bỏ EDITOR khỏi CurrentUser.role khi backend chưa hỗ trợ, xử lý user cache sau khi JWT hết hạn và nghiệm thu quyền thật.
 - [ ] AUTH-06: Xây API/UI cập nhật profile và sổ địa chỉ, địa chỉ mặc định; kiểm tra ownership, validation và giữ nguyên snapshot đơn cũ.
 - [ ] AUTH-07: Tạo admin production qua quy trình an toàn, kiểm thử đăng nhập/quyền thật; không dùng tài khoản bootstrap làm đăng ký khách hàng. Đã cấp ADMIN trực tiếp trong DB theo yêu cầu chủ dự án (2026-10-20); còn nghiệm thu đăng nhập/quyền qua ứng dụng.
 - [x] Cấp ADMIN cho tài khoản được chủ dự án chỉ định trong production; BCrypt cost 12, giữ Google link, xác minh lại DB; không commit thông tin xác thực.
@@ -234,6 +275,10 @@ Các mục quản trị dưới đây được chi tiết hóa tại nhóm 12 v�
 - [ ] CONTENT-01: Chốt schema nguồn/import 8 nhân vật, 148 thẻ, 11 bộ; kiểm tra ID trùng, thiếu trường/ảnh, tham chiếu và version trước khi xuất bản.
 - [ ] CONTENT-02: Xuất bản release snapshot được duyệt để prerender/search dùng được khi Render ngủ; nội dung nháp không xuất hiện công khai, có rollback release.
 - [ ] CONTENT-03: API content chỉ đọc bản đã xuất bản; admin preview/import có báo cáo lỗi và thao tác xuất bản có quyền/audit.
+- [x] CONTENT-03-API: API public chỉ đọc current release hoặc ID từng xuất bản; list/detail UUID/slug cho thẻ/bộ/nhân vật/wiki, tìm tiếng Việt không dấu, lọc/phân trang và snapshot JSON; 7 HTTP/service tests H2 qua local (2026-10-20). [Hợp đồng/OpenAPI](docs/PUBLIC_CONTENT_API.md).
+- [x] CONTENT-03-EXPORT: Công cụ export public snapshot có giới hạn/schema/kiểm tra release và giữ nguyên file cũ khi lỗi; 4 Node tests qua local (2026-10-20).
+- [ ] CONTENT-03-DEPLOY: Chạy PostgreSQL disposable, deploy public API, nhập/xuất bản nguồn được duyệt và nghiệm thu API production.
+- [ ] CONTENT-02-STATIC: Nối export snapshot vào build/deploy Pages và Angular đọc file tĩnh; kiểm tra khi Render ngủ, rollback theo release. Có endpoint/script export chưa đồng nghĩa pipeline xuất bản hoàn chỉnh.
 - [ ] CONTENT-04: Form phản hồi gắn với thẻ/luật và phiên bản đang xem, có mã tiếp nhận và trạng thái xử lý; chống spam, admin duyệt và không công khai thông tin liên hệ người gửi.
 - [ ] UX-01: Nối search header vào tìm kiếm thật; mở/tắt bằng bàn phím, có trạng thái rỗng, loading và lỗi; giữ query/filter/page trong URL để chia sẻ hoặc quay lại.
 - [ ] UX-02: Bỏ badge giỏ cố định (2), nội dung “chính thức” chưa kiểm chứng và dấu hiệu dropdown chưa có chức năng; thay bằng dữ liệu/nhãn trạng thái đúng.
@@ -283,10 +328,12 @@ Backend — trạng thái theo source và kiểm thử từng phần:
 - [x] ADMIN-BE-01: Hợp đồng API nội dung 0.1.0 có OpenAPI 3.1 (29 operations) và ADMIN_BACKEND.md: DTO, mã lỗi, phân trang, version/xung đột, JWT/CSRF và ví dụ bàn giao. OpenAPI đã lint hợp lệ; endpoint tương lai tách khỏi hợp đồng hiện tại.
 - [x] ADMIN-BE-02: Dashboard nội dung dùng số liệu thật/asOf; đã kiểm thử anonymous 401, CUSTOMER 403, ADMIN 200 trên endpoint thực, CSRF và proxy guard. Chưa có dashboard commerce hoặc nghiệm thu production.
 - [x] ADMIN-BE-03: API thẻ/bộ thẻ/nhân vật có list/detail/create/update/remove revision, draft/clone/preview, ID/code/slug cố định, FK cùng release và expectedVersion chống ghi đè. Ảnh chỉ nhận HTTPS hoặc /assets/; chưa có upload và chưa chọn dịch vụ upload mới.
-- [x] ADMIN-BE-04: API wiki STORY/RULE/GUIDE/FAQ/DEVLOG theo release có validation, draft/clone/preview, trả Markdown dưới dạng dữ liệu; frontend phải sanitize khi render. Draft chỉ ADMIN đọc được qua API này; chưa có public content API.
+- [x] ADMIN-BE-04: API wiki STORY/RULE/GUIDE/FAQ/DEVLOG theo release có validation, draft/clone/preview, trả Markdown dưới dạng dữ liệu; frontend phải sanitize khi render. Draft chỉ ADMIN đọc được; API public local bổ sung riêng theo CONTENT-03-API.
 - [ ] ADMIN-BE-05: Import JSON/CSV có mẫu, dry-run, báo lỗi theo dòng/trường, kiểm tra trùng ID/tham chiếu và commit import có transaction; không tự tạo dữ liệu minh họa thay nội dung chính thức (ADMIN-07).
-- [ ] ADMIN-BE-06: API release snapshot/xuất bản, trạng thái build/deploy và rollback; nội dung public dùng được khi Render ngủ, chỉ báo đã xuất bản sau kết quả triển khai thực tế (ADMIN-08). Đã có private preview/clone, còn public snapshot/build/deploy/rollback; chưa được coi đã xuất bản.
-- [ ] ADMIN-BE-07: API tiếp nhận và quản trị phản hồi gắn thẻ/luật/version, lọc trạng thái, ghi chú xử lý và bảo vệ thông tin người gửi (ADMIN-09).
+- [ ] ADMIN-BE-06: API release snapshot/xuất bản, trạng thái build/deploy và rollback; nội dung public dùng được khi Render ngủ, chỉ báo đã xuất bản sau kết quả triển khai thực tế (ADMIN-08). Đã có private preview/clone và public snapshot/export local; còn duyệt/xuất bản/build/deploy/rollback và UI đọc file tĩnh; chưa được coi đã xuất bản.
+- [x] ADMIN-BE-07: Backend tiếp nhận phản hồi từ người đăng nhập, gắn thẻ/wiki/release đã xuất bản; admin lọc/phân trang/xem riêng tư/ghi chú/chuyển trạng thái, version chống ghi đè và audit đã kiểm tra local H2/HTTP (2026-10-20). Hợp đồng: [FEEDBACK_API.md](docs/FEEDBACK_API.md); chưa nghiệm thu UI/PostgreSQL/production.
+- [ ] ADMIN-BE-07-PG: Chạy lại 5 tình huống feedback trên PostgreSQL disposable (test đã được kế thừa trong PostgresAdminContentFlowTests); local chưa có database thử nghiệm.
+- [ ] ADMIN-BE-07-DEPLOY: Deploy migration V9 và feedback API, nghiệm thu ADMIN/CUSTOMER/CSRF/throttle trên môi trường đích; nối UI theo ADMIN-09/CONTENT-04.
 - [ ] ADMIN-BE-08: API quản lý người dùng, khóa/mở và đổi quyền; xác thực lại khi cần, tăng auth_version thu hồi JWT, không khóa/hạ quyền admin cuối cùng; không trả password hash/token (ADMIN-14).
 - [ ] ADMIN-BE-09: Ghi và đọc audit có phân trang/lọc; API trạng thái hệ thống đã lọc, lần đối soát gần nhất và release public; không lộ credentials hoặc cho sửa/xóa audit (ADMIN-15/16). Đã có audit CONTENT_* thành công trong cùng transaction và API đọc/phân trang/lọc release; audit tổng thể và system status còn thiếu.
 - [ ] ADMIN-BE-10: API sản phẩm/SKU/giá/ảnh, tồn kho và điều chỉnh có lý do; inventory movement, version và chống thực hiện trùng (ADMIN-10).
@@ -297,8 +344,10 @@ Backend — trạng thái theo source và kiểm thử từng phần:
 
 Frontend — **AI khác phụ trách**, chưa nghiệm thu:
 
-- [x] ADMIN-FE-01: Thiết kế và dựng `/admin`: layout riêng, sidebar, guard phân quyền ADMIN, dashboard hàng chờ, các panel quản trị 148 thẻ/8 cư dân/bài viết/kho/đơn hàng/PayOS/user/system, banner dữ liệu mock minh bạch, responsive desktop/mobile; 33 tests qua và build production thành công (2026-10-20).
-- [x] ADMIN-FE-02: Đã tích hợp hợp đồng API nội dung vào AdminContentService (OpenAPI 3.1, CSRF token, JWT HttpOnly, no-store); kết nối AdminDashboardPage và AdminSectionPage với trạng thái trực tuyến/ngoại tuyến, hiển thị release/cards/audit log; 40 frontend tests qua 100% (2026-10-20).
+- [x] ADMIN-FE-01: Đã dựng layout /admin, sidebar, guard và các panel/dashboard. Local 40 frontend tests và production build qua; chỉ xác nhận source/layout, chưa nghiệm thu responsive/accessibility hoặc nghiệp vụ thật.
+- [ ] ADMIN-FE-02: Có AdminContentService và các lệnh đọc API, nhưng RevisionPage sai wrapper result, tổng phân trang sai totalElements và audit sai tên trường. Chưa nghiệm thu tích hợp/CRUD/version/browser dù 40 tests qua. Chi tiết: [rà soát source](docs/CODEBASE_REVIEW_2026-10-20.md).
+- [ ] ADMIN-FE-03: Regression test dùng response đúng OpenAPI/backend; xử lý lỗi tải nội dung, dữ liệu cũ/đổi release nhanh, 401/403/409; browser E2E bằng tài khoản thử.
+- [ ] AUTH-11: Chốt chống spam đăng ký; nếu dùng Turnstile thì bổ sung form token và xác minh phía gateway/server, kiểm thử token thiếu/sai/đã dùng.
 - [x] Nghiệm thu source admin content đợt đầu trên H2: 13 test admin qua; Maven verify/JAR 66 tests qua, 29 PostgreSQL skipped; gateway typecheck/23 tests qua; OpenAPI lint hợp lệ, chưa nghiệm thu PostgreSQL/frontend/production (2026-10-20).
 
 #### Đợt A — nền tảng và quản trị nội dung
@@ -333,10 +382,19 @@ Frontend — **AI khác phụ trách**, chưa nghiệm thu:
 
 ### JWT và khôi phục mật khẩu — 2026-10-20, local
 
+- [x] NOTIFY-01: Backend thông báo phản hồi mới, lưu bền vững cùng transaction, REST ADMIN phân trang/chưa đọc/read idempotent riêng từng người; V10 và rollback/quyền/CSRF được kiểm tra local.
+- [x] NOTIFY-02: SSE ADMIN summary/heartbeat, kiểm tra lại JWT/quyền/expiry, giới hạn 20 stream toàn instance/2 mỗi tài khoản, dọn kết nối và renew; gateway truyền chunk/cancel/no-cache, timeout riêng. HTTP SSE H2 và gateway tests qua local.
+- [x] NOTIFY-03: Chuông thông báo trong layout admin, badge/danh sách/phân trang/đã đọc, reconnect/bắt kịp từ DB, tab ẩn/ngắt kết nối/rời layout/hết quyền; frontend tests và production build qua local. [Hợp đồng](docs/ADMIN_NOTIFICATIONS.md).
+- [ ] NOTIFY-04: Chạy PostgreSQL disposable, deploy V10/backend/gateway/frontend và browser E2E SSE qua Pages, expiry/reconnect/restart/cancellation; đo RAM/CPU/database/băng thông dưới tải thực tế.
+- [ ] NOTIFY-05: Chốt retention và mở rộng sự kiện thanh toán/đơn hàng, thông báo CUSTOMER/email khi có yêu cầu; chưa thuộc pilot admin feedback.
+
+- [x] AUTH-PERF-01: Chuẩn bị kết nối khi mở trang login trên browser; chia sẻ GET config và cache readiness 30 giây, chờ/hiển thị trạng thái trước Google navigation, retry đọc có giới hạn, không replay OAuth/POST; mở khóa khi Back/bfcache. Frontend tests/build và gateway typecheck/24 tests/dry-run qua local (2026-10-20).
+- [ ] AUTH-PERF-02: Deploy frontend/gateway, đo Google login thật cold/warm và phân biệt readiness/Google consent/callback/database; chưa có benchmark hoặc nghiệm thu production cho bản sửa.
+
 - [x] AUTH-08: JWT cookie HttpOnly/Secure/Lax/Path=/api, chữ ký/issuer/audience/expiry/version, logout/reset thu hồi và không ghi session đăng nhập; đã qua tests local (2026-10-20); production chưa nghiệm thu.
 - [x] AUTH-09: UI/API forgot/reset, CSRF/rate limit, mail adapter HTTPS, one-use/expiry/resend/concurrency và UTF-8 BCrypt; đã qua tests local (2026-10-20); production chưa nghiệm thu.
 - [ ] AUTH-10: JWT_SECRET đã được tạo và đọc lại xác minh trên Render (2026-10-20); còn deploy V6/V7 và kiểm tra password/Google login thật, CSRF, logout/replay, token hết hạn. Live vẫn 3c66908 tại lần kiểm tra.
-- [ ] AUTH-11: Render đã có Resend API key, sender thử, recovery bật và public origin đúng; còn domain/sender đã xác minh và kiểm tra gửi/nhận/reset thật với người nhận được chỉ định. Không coi đúng định dạng key hoặc gửi thử trên dashboard là nghiệm thu backend.
+- [ ] AUTH-11: Chốt chống spam đăng ký; nếu dùng Turnstile thì bổ sung form token và xác minh phía gateway/server, kiểm thử token thiếu/sai/đã dùng.
 - [x] Tạo JWT_SECRET trên Render bằng 48 byte ngẫu nhiên mật mã, Base64; đọc lại API khớp giá trị, không ghi secret ra log/docs/file (2026-10-20).
 - [x] Rà soát UI login/register: tích hợp Turnstile production, token một lần/reset/expiry/cleanup, sửa xác nhận mật khẩu khi sửa trường gốc, giới hạn UTF-8 và bỏ ghi nhớ chưa có tác dụng; 26 frontend tests + production build qua (2026-10-20).
 - [ ] Nghiệm thu widget/challenge và password login bằng browser production sau deploy bản rà soát; chưa coi test fixture là challenge thật.

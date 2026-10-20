@@ -1,8 +1,16 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
-import { AdminContentService, AdminDashboardData, AdminReleasePage } from './admin-content.service';
+import {
+  AdminContentService,
+  AdminDashboardData,
+  AdminReleasePage,
+  AdminRevisionPage,
+  AdminCard,
+  AdminAuditPage,
+} from './admin-content.service';
 import { AuthService } from '../auth/auth.service';
 
 describe('AdminContentService', () => {
@@ -12,11 +20,13 @@ describe('AdminContentService', () => {
 
   beforeEach(() => {
     authServiceSpy = {
+      currentUser: { set: vi.fn() },
       getCsrf: () => of({ headerName: 'X-XSRF-TOKEN', token: 'mock-csrf-token' }),
     };
 
     TestBed.configureTestingModule({
       providers: [
+        provideRouter([]),
         provideHttpClient(),
         provideHttpClientTesting(),
         { provide: AuthService, useValue: authServiceSpy },
@@ -72,7 +82,7 @@ describe('AdminContentService', () => {
           version: 1,
         },
       ],
-      totalItems: 1,
+      totalElements: 1,
       page: 0,
       size: 20,
       totalPages: 1,
@@ -80,12 +90,101 @@ describe('AdminContentService', () => {
 
     service.getReleases('DRAFT', 0, 10).subscribe(data => {
       expect(data.items.length).toBe(1);
+      expect(data.totalElements).toBe(1);
       expect(data.items[0].versionLabel).toBe('v2.0-draft');
     });
 
     const req = httpMock.expectOne('/api/v1/admin/content/releases?page=0&size=10&status=DRAFT');
     expect(req.request.method).toBe('GET');
     req.flush(mockPage);
+  });
+
+  it('fetches revisions wrapped inside RevisionPage result object', () => {
+    const mockRevisionPage: AdminRevisionPage<AdminCard> = {
+      releaseVersion: 2,
+      result: {
+        items: [
+          {
+            id: 'card-1',
+            revisionId: 'rev-1',
+            releaseId: 'rel-1',
+            code: 'BASE-01',
+            slug: 'an-mi-goi',
+            cardSetId: 'set-1',
+            characterId: null,
+            name: 'Ăn mì gói',
+            effectText: 'Hồi phục năng lượng',
+            rulingNotes: null,
+            ruleStatus: 'CONFIRMED',
+            copiesInDeck: 2,
+            artworkUrl: null,
+            sortOrder: 0,
+          },
+        ],
+        totalElements: 148,
+        page: 0,
+        size: 50,
+        totalPages: 3,
+      },
+    };
+
+    service.getRevisions<AdminCard>('rel-1', 'cards', 0, 50, '').subscribe(data => {
+      expect(data.releaseVersion).toBe(2);
+      expect(data.result.items.length).toBe(1);
+      expect(data.result.totalElements).toBe(148);
+      expect(data.result.items[0].code).toBe('BASE-01');
+    });
+
+    const req = httpMock.expectOne('/api/v1/admin/content/releases/rel-1/cards?page=0&size=50');
+    expect(req.request.method).toBe('GET');
+    req.flush(mockRevisionPage);
+  });
+
+  it('fetches audit events with totalElements pagination', () => {
+    const mockAuditPage: AdminAuditPage = {
+      items: [
+        {
+          id: 'aud-1',
+          actorId: 'admin-1',
+          action: 'CONTENT_REVISION_UPSERT',
+          entityType: 'CARD',
+          entityId: 'card-1',
+          outcome: 'SUCCESS',
+          detailsRedacted: 'releaseId=rel-1;version=2',
+          createdAt: '2026-10-20T12:00:00Z',
+        },
+      ],
+      totalElements: 1,
+      page: 0,
+      size: 20,
+      totalPages: 1,
+    };
+
+    service.getAuditEvents(0, 20).subscribe(data => {
+      expect(data.items.length).toBe(1);
+      expect(data.items[0].entityType).toBe('CARD');
+      expect(data.totalElements).toBe(1);
+    });
+
+    const req = httpMock.expectOne('/api/v1/admin/content/audit-events?page=0&size=20');
+    expect(req.request.method).toBe('GET');
+    req.flush(mockAuditPage);
+  });
+
+  it('handles 401 unauthorized by clearing currentUser and reporting SESSION_EXPIRED', () => {
+    service.getDashboard().subscribe({
+      next: () => {
+        throw new Error('should not succeed');
+      },
+      error: (problem) => {
+        expect(problem.status).toBe(401);
+        expect(problem.code).toBe('SESSION_EXPIRED');
+        expect(authServiceSpy.currentUser.set).toHaveBeenCalledWith(null);
+      },
+    });
+
+    const req = httpMock.expectOne('/api/v1/admin/dashboard');
+    req.flush({ detail: 'Token expired' }, { status: 401, statusText: 'Unauthorized' });
   });
 
   it('creates a new draft release with CSRF token attached', () => {

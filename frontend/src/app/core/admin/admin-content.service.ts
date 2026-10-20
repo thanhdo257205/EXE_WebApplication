@@ -1,5 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
+import { Router } from '@angular/router';
 import { catchError, map, Observable, switchMap, throwError } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../auth/auth.service';
@@ -30,12 +31,19 @@ export interface AdminRelease {
   version: number;
 }
 
-export interface AdminReleasePage {
-  items: AdminRelease[];
-  totalItems: number;
+export interface AdminPage<T> {
+  items: T[];
   page: number;
   size: number;
+  totalElements: number;
   totalPages: number;
+}
+
+export type AdminReleasePage = AdminPage<AdminRelease>;
+
+export interface AdminRevisionPage<T> {
+  releaseVersion: number;
+  result: AdminPage<T>;
 }
 
 export interface AdminCard {
@@ -95,31 +103,25 @@ export interface AdminWikiPage {
 export interface AdminAuditEvent {
   id: string;
   actorId: string | null;
-  actorDisplayName: string | null;
+  actorDisplayName?: string | null;
   action: string;
-  targetType: string;
-  targetId: string | null;
-  releaseId: string | null;
-  releaseVersion: number | null;
+  entityType: string;
+  entityId: string | null;
+  outcome: string;
+  detailsRedacted: string | null;
   createdAt: string;
 }
 
-export interface AdminAuditPage {
-  items: AdminAuditEvent[];
-  totalItems: number;
-  page: number;
-  size: number;
-  totalPages: number;
+export type AdminAuditPage = AdminPage<AdminAuditEvent>;
+
+export interface AdminIdentity {
+  id: string;
+  slug: string;
+  code?: string;
+  pageType?: string;
 }
 
-export interface AdminRevisionPage<T> {
-  items: T[];
-  totalItems: number;
-  page: number;
-  size: number;
-  totalPages: number;
-  releaseVersion: number;
-}
+export type AdminIdentityPage = AdminPage<AdminIdentity>;
 
 export interface CreateReleasePayload {
   versionLabel: string;
@@ -139,6 +141,7 @@ export interface AdminProblemDetail {
 export class AdminContentService {
   private readonly http = inject(HttpClient);
   private readonly auth = inject(AuthService);
+  private readonly router = inject(Router);
 
   private get base() {
     if (!environment.apiBaseUrl) throw new Error('API URL chưa được cấu hình.');
@@ -206,6 +209,7 @@ export class AdminContentService {
 
   /**
    * GET /api/v1/admin/content/releases/{release}/{kind}
+   * Backend returns RevisionPage: { releaseVersion: number, result: Page<T> }
    */
   getRevisions<T>(
     releaseId: string,
@@ -229,6 +233,7 @@ export class AdminContentService {
 
   /**
    * GET /api/v1/admin/content/audit-events
+   * Backend returns Page<Map<String,Object>>
    */
   getAuditEvents(page = 0, size = 20, releaseId?: string): Observable<AdminAuditPage> {
     let params = new HttpParams().set('page', page.toString()).set('size', size.toString());
@@ -244,12 +249,54 @@ export class AdminContentService {
     );
   }
 
+  /**
+   * GET /api/v1/admin/content/identities/{kind}
+   */
+  getIdentities(
+    kind: 'cards' | 'characters' | 'card-sets' | 'wiki-pages',
+    page = 0,
+    size = 20,
+    q = ''
+  ): Observable<AdminIdentityPage> {
+    let params = new HttpParams().set('page', page.toString()).set('size', size.toString());
+    if (q) {
+      params = params.set('q', q);
+    }
+    return this.http.get<AdminIdentityPage>(`${this.base}/content/identities/${kind}`, {
+      withCredentials: true,
+      params,
+      headers: new HttpHeaders({ 'Cache-Control': 'no-store' }),
+    }).pipe(
+      catchError(err => this.handleError(err))
+    );
+  }
+
   private handleError(error: any): Observable<never> {
+    const is401 = error?.status === 401;
+    const is403 = error?.status === 403;
+    const is409 = error?.status === 409;
+
+    if (is401) {
+      this.auth.currentUser.set(null);
+    }
+
     const problem: AdminProblemDetail = {
       status: error?.status || 500,
-      title: error?.error?.title || error?.statusText || 'Lỗi hệ thống',
-      detail: error?.error?.detail || error?.message || 'Không thể kết nối đến máy chủ quản trị.',
-      code: error?.error?.code,
+      title: is401
+        ? 'Phiên đăng nhập hết hạn'
+        : is403
+        ? 'Từ chối quyền truy cập'
+        : is409
+        ? 'Xung đột phiên bản'
+        : (error?.error?.title || error?.statusText || 'Lỗi kết nối máy chủ'),
+      detail: is401
+        ? 'Phiên làm việc quản trị viên của bạn đã hết hạn (30 phút) hoặc đã bị thu hồi. Vui lòng đăng nhập lại.'
+        : is403
+        ? 'Tài khoản không có quyền ADMIN hoặc thiếu chữ ký bảo mật CSRF.'
+        : is409
+        ? (error?.error?.detail || 'Bản phát hành đã bị thay đổi bởi quản trị viên khác. Vui lòng tải lại dữ liệu.')
+        : (error?.error?.detail || error?.message || 'Không thể kết nối đến máy chủ quản trị.'),
+      code: is401 ? 'SESSION_EXPIRED' : (error?.error?.code || 'UNKNOWN_ERROR'),
       errors: error?.error?.errors,
     };
     return throwError(() => problem);

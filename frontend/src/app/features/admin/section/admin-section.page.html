@@ -20,6 +20,41 @@
     </div>
   </div>
 
+  <!-- Session Expired Alert -->
+  @if (isSessionExpired()) {
+    <div class="session-expired-card" role="alert">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <app-morph-icon name="shield" [size]="22" color="#f87171" class="shrink-0"></app-morph-icon>
+          <div>
+            <h2 class="text-sm font-bold text-rose-300">Phiên làm việc quản trị viên đã hết hạn (30 phút)</h2>
+            <p class="text-xs text-slate-300 mt-0.5">
+              Token JWT bảo mật đã hết hạn hoặc bị thu hồi. Vui lòng đăng nhập lại để tiếp tục quản lý dữ liệu.
+            </p>
+          </div>
+        </div>
+        <a routerLink="/dang-nhap" [queryParams]="{ returnUrl: '/admin/' + sectionKey() }" class="relogin-btn shrink-0">
+          Đăng nhập lại →
+        </a>
+      </div>
+    </div>
+  }
+
+  <!-- Error Alert (If Any) -->
+  @if (!isSessionExpired() && errorMsg()) {
+    <div class="error-banner-card" role="alert">
+      <div class="flex items-center justify-between gap-3">
+        <div class="flex items-center gap-2 text-xs text-amber-300">
+          <app-morph-icon name="shield" [size]="18" color="#fbbf24" class="shrink-0"></app-morph-icon>
+          <span>{{ errorMsg() }}</span>
+        </div>
+        <button type="button" (click)="loadSectionData()" class="text-xs font-bold text-amber-400 hover:underline">
+          Thử lại
+        </button>
+      </div>
+    </div>
+  }
+
   <!-- Section Disclaimer -->
   <div class="admin-notice-bar">
     <app-morph-icon name="shield" [size]="18" color="#38bdf8"></app-morph-icon>
@@ -33,30 +68,12 @@
     @case ('cards') {
       <div class="panel-box">
         <div class="panel-header">
-          <h2 class="panel-title">Danh sách 148 thẻ bài V2 & 11 bộ mở rộng</h2>
+          <h2 class="panel-title">Danh sách Thẻ bài & Bộ thẻ (148 thẻ V2)</h2>
           <div class="flex items-center gap-2">
             <span class="status-pill-green">Đã xác minh schema</span>
             <button type="button" class="action-btn-primary">Xuất bản Snapshot</button>
           </div>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 my-3">
-          <div class="stat-mini">
-            <span class="stat-label">Tổng thẻ bài</span>
-            <span class="stat-val text-sky-400">148</span>
-          </div>
-          <div class="stat-mini">
-            <span class="stat-label">Số bộ thẻ mở rộng</span>
-            <span class="stat-val text-emerald-400">11 bộ</span>
-          </div>
-          <div class="stat-mini">
-            <span class="stat-label">Trạng thái phát hành</span>
-            <span class="stat-val text-amber-400">Sẵn sàng xuất bản</span>
-          </div>
-        </div>
-        <p class="text-xs text-slate-400 leading-relaxed">
-          Bao gồm: Thẻ Cơ bản, Thẻ Cư dân, Thẻ Hóa đơn, Thẻ Sự kiện, Thẻ Drama, Thẻ Quỹ nhà và các bộ mở rộng.
-          Mỗi thẻ bài có mã định danh QR duy nhất và không bị thay đổi ID khi xuất bản.
-        </p>
 
         @if (releases().length > 0) {
           <div class="flex flex-wrap items-center justify-between gap-3 p-3 my-3 bg-slate-900/60 rounded-xl border border-slate-800">
@@ -80,8 +97,25 @@
           </div>
         }
 
+        @if (cardSets().length > 0) {
+          <div class="my-3">
+            <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Bộ thẻ mở rộng ({{ cardSets().length }} bộ):</div>
+            <div class="flex flex-wrap gap-2">
+              @for (set of cardSets(); track set.id) {
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-900 border border-slate-800 text-xs font-medium text-slate-200">
+                  <span class="font-mono text-sky-400 font-bold">{{ set.code }}</span>
+                  <span>{{ set.name }}</span>
+                </span>
+              }
+            </div>
+          </div>
+        }
+
         @if (cards().length > 0) {
           <div class="table-responsive my-3">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Danh sách thẻ bài ({{ totalCardsCount() }} thẻ):</span>
+            </div>
             <table class="admin-table">
               <thead>
                 <tr>
@@ -110,6 +144,15 @@
               </tbody>
             </table>
           </div>
+        } @else if (loading()) {
+          <div class="py-8 text-center text-xs text-slate-400">
+            <p>Đang tải danh sách thẻ bài từ API...</p>
+          </div>
+        } @else {
+          <div class="p-6 bg-slate-900/40 rounded-lg border border-slate-800 text-center my-3">
+            <p class="text-xs text-slate-400">Bản phát hành đang ở trạng thái chuẩn bị nội dung hoặc máy chủ đang ngoại tuyến.</p>
+            <p class="text-[11px] text-slate-500 mt-1">Đầy đủ 148 thẻ V2 và 11 bộ mở rộng sẽ được đồng bộ khi xuất bản snapshot.</p>
+          </div>
         }
       </div>
     }
@@ -118,90 +161,167 @@
       <div class="panel-box">
         <div class="panel-header">
           <h2 class="panel-title">8 Cư dân chính thức của Chưa Giàu Đã Lớn</h2>
-          <span class="status-pill-green">8/8 Đầy đủ hồ sơ</span>
+          <span class="status-pill-green">{{ characters().length > 0 ? (totalCharactersCount() + ' cư dân từ API') : '8/8 Hồ sơ chuẩn' }}</span>
         </div>
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 my-3">
-          <div class="resident-item">
-            <span class="resident-avatar">🧐</span>
-            <span class="resident-name">An</span>
-            <span class="resident-desc">Thủ quỹ cầu toàn</span>
+
+        @if (characters().length > 0) {
+          <div class="table-responsive my-3">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th class="text-center">Thứ tự</th>
+                  <th>Mã</th>
+                  <th>Tên cư dân</th>
+                  <th>Kỹ năng giải quyết drama</th>
+                  <th>Tiểu sử tóm tắt</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (c of characters(); track c.id) {
+                  <tr>
+                    <td class="text-center font-mono text-xs text-slate-400">{{ c.sortOrder }}</td>
+                    <td class="font-mono text-sky-400 font-bold text-xs">{{ c.code }}</td>
+                    <td class="font-bold text-slate-100 text-sm">{{ c.name }}</td>
+                    <td class="text-xs text-amber-300">{{ c.abilityText || 'Chưa cập nhật' }}</td>
+                    <td class="text-xs text-slate-400 max-w-xs truncate">{{ c.biography }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
           </div>
-          <div class="resident-item">
-            <span class="resident-avatar">🍳</span>
-            <span class="resident-name">Bình</span>
-            <span class="resident-desc">Nấu ăn tiết kiệm</span>
+        } @else {
+          <!-- Canonical 8 Residents Reference View -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 my-3">
+            <div class="resident-item">
+              <span class="resident-avatar">🧐</span>
+              <span class="resident-name">An</span>
+              <span class="resident-desc">Thủ quỹ cầu toàn</span>
+            </div>
+            <div class="resident-item">
+              <span class="resident-avatar">🍳</span>
+              <span class="resident-name">Bình</span>
+              <span class="resident-desc">Nấu ăn tiết kiệm</span>
+            </div>
+            <div class="resident-item">
+              <span class="resident-avatar">📱</span>
+              <span class="resident-name">Chi</span>
+              <span class="resident-desc">Săn sale công nghệ</span>
+            </div>
+            <div class="resident-item">
+              <span class="resident-avatar">🎮</span>
+              <span class="resident-name">Dũng</span>
+              <span class="resident-desc">Cú đêm bừa bộn</span>
+            </div>
+            <div class="resident-item">
+              <span class="resident-avatar">💅</span>
+              <span class="resident-name">Hà</span>
+              <span class="resident-desc">Trưởng phòng drama</span>
+            </div>
+            <div class="resident-item">
+              <span class="resident-avatar">🐱</span>
+              <span class="resident-name">Linh</span>
+              <span class="resident-desc">Nuôi mèo quậy phá</span>
+            </div>
+            <div class="resident-item">
+              <span class="resident-avatar">💻</span>
+              <span class="resident-name">Minh</span>
+              <span class="resident-desc">Cày cuốc deadline</span>
+            </div>
+            <div class="resident-item">
+              <span class="resident-avatar">🔮</span>
+              <span class="resident-name">Phúc</span>
+              <span class="resident-desc">Tâm linh hướng ngoại</span>
+            </div>
           </div>
-          <div class="resident-item">
-            <span class="resident-avatar">📱</span>
-            <span class="resident-name">Chi</span>
-            <span class="resident-desc">Săn sale công nghệ</span>
-          </div>
-          <div class="resident-item">
-            <span class="resident-avatar">🎮</span>
-            <span class="resident-name">Dũng</span>
-            <span class="resident-desc">Cú đêm bừa bộn</span>
-          </div>
-          <div class="resident-item">
-            <span class="resident-avatar">💅</span>
-            <span class="resident-name">Hà</span>
-            <span class="resident-desc">Trưởng phòng drama</span>
-          </div>
-          <div class="resident-item">
-            <span class="resident-avatar">🐱</span>
-            <span class="resident-name">Linh</span>
-            <span class="resident-desc">Nuôi mèo quậy phá</span>
-          </div>
-          <div class="resident-item">
-            <span class="resident-avatar">💻</span>
-            <span class="resident-name">Minh</span>
-            <span class="resident-desc">Cày cuốc deadline</span>
-          </div>
-          <div class="resident-item">
-            <span class="resident-avatar">🔮</span>
-            <span class="resident-name">Phúc</span>
-            <span class="resident-desc">Tâm linh hướng ngoại</span>
-          </div>
+          <p class="text-xs text-slate-500 text-center mt-2">Dữ liệu tham chiếu nguồn 8 nhân vật chính thức của dự án.</p>
+        }
+      </div>
+    }
+
+    @case ('articles') {
+      <div class="panel-box">
+        <div class="panel-header">
+          <h2 class="panel-title">Wiki luật, FAQ & Câu chuyện căn nhà</h2>
+          <span class="status-pill-blue">{{ totalWikiCount() }} bài viết</span>
         </div>
+
+        <div class="flex flex-wrap gap-1 p-1 bg-slate-950/60 rounded-lg border border-slate-800 mb-4">
+          <button type="button" class="wiki-tab-btn" [class.active]="activeWikiTab() === 'ALL'" (click)="setWikiTab('ALL')">Tất cả ({{ wikiPages().length }})</button>
+          <button type="button" class="wiki-tab-btn" [class.active]="activeWikiTab() === 'STORY'" (click)="setWikiTab('STORY')">Cốt truyện</button>
+          <button type="button" class="wiki-tab-btn" [class.active]="activeWikiTab() === 'RULE'" (click)="setWikiTab('RULE')">Luật chơi</button>
+          <button type="button" class="wiki-tab-btn" [class.active]="activeWikiTab() === 'GUIDE'" (click)="setWikiTab('GUIDE')">Hướng dẫn</button>
+          <button type="button" class="wiki-tab-btn" [class.active]="activeWikiTab() === 'FAQ'" (click)="setWikiTab('FAQ')">FAQ</button>
+          <button type="button" class="wiki-tab-btn" [class.active]="activeWikiTab() === 'DEVLOG'" (click)="setWikiTab('DEVLOG')">Devlog</button>
+        </div>
+
+        @if (filteredWikiPages().length > 0) {
+          <div class="table-responsive">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Loại</th>
+                  <th>Tiêu đề bài viết</th>
+                  <th>Đường dẫn (Slug)</th>
+                  <th class="text-center">Trạng thái</th>
+                  <th>Tóm tắt nội dung</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (wiki of filteredWikiPages(); track wiki.id) {
+                  <tr>
+                    <td><span class="status-pill-blue text-[10px] font-mono">{{ wiki.pageType }}</span></td>
+                    <td class="font-bold text-slate-100 text-sm">{{ wiki.title }}</td>
+                    <td class="font-mono text-xs text-sky-400">{{ wiki.slug }}</td>
+                    <td class="text-center">
+                      <span [class.status-pill-green]="wiki.ruleStatus === 'CONFIRMED'"
+                            [class.status-pill-amber]="wiki.ruleStatus === 'NEEDS_REVIEW'">
+                        {{ wiki.ruleStatus === 'CONFIRMED' ? 'XÁC NHẬN' : 'CẦN DUYỆT' }}
+                      </span>
+                    </td>
+                    <td class="text-xs text-slate-400 max-w-xs truncate">{{ wiki.summary || (wiki.bodyMarkdown | slice:0:80) }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else if (loading()) {
+          <div class="py-8 text-center text-xs text-slate-400">Đang tải bài viết wiki từ API...</div>
+        } @else {
+          <div class="p-6 bg-slate-900/40 rounded-lg border border-slate-800 text-center my-3">
+            <p class="text-xs text-slate-400">Chưa có bài viết nào trong bản thảo phát hành này hoặc đang ở chế độ ngoại tuyến.</p>
+          </div>
+        }
       </div>
     }
 
     @case ('inventory') {
       <div class="panel-box">
         <div class="panel-header">
-          <h2 class="panel-title">Sổ cái tồn kho & Biến thể SKU</h2>
-          <button type="button" class="action-btn-primary">Nhập / Điều chỉnh kho</button>
+          <h2 class="panel-title">Sổ cái Tồn kho & Quản lý SKU</h2>
+          <span class="status-pill-amber">Phân hệ Đợt B (Commerce)</span>
         </div>
-        <div class="table-responsive">
-          <table class="admin-table">
-            <thead>
-              <tr>
-                <th>Mã SKU</th>
-                <th>Tên sản phẩm</th>
-                <th class="text-right">Tồn thực tế (On-hand)</th>
-                <th class="text-right">Đã giữ đơn (Reserved)</th>
-                <th class="text-right">Khả dụng</th>
-                <th class="text-center">Trạng thái bán</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td class="font-mono text-sky-400 font-bold">NNHB-BASE-V2</td>
-                <td>Board game Chưa Giàu Đã Lớn — Bản chuẩn V2</td>
-                <td class="text-right font-bold">500</td>
-                <td class="text-right text-amber-400 font-bold">0</td>
-                <td class="text-right text-emerald-400 font-bold">500</td>
-                <td class="text-center"><span class="status-pill-green">ĐANG BÁN</span></td>
-              </tr>
-              <tr>
-                <td class="font-mono text-sky-400 font-bold">NNHB-EXP-01</td>
-                <td>Gói mở rộng: Bão Hóa Đơn & Đột Xuất</td>
-                <td class="text-right font-bold">200</td>
-                <td class="text-right text-amber-400 font-bold">0</td>
-                <td class="text-right text-emerald-400 font-bold">200</td>
-                <td class="text-center"><span class="status-pill-green">ĐANG BÁN</span></td>
-              </tr>
-            </tbody>
-          </table>
+        <div class="p-4 bg-amber-950/20 border border-amber-800/40 rounded-lg my-3">
+          <div class="flex items-start gap-3">
+            <app-morph-icon name="package" [size]="20" color="#fbbf24" class="shrink-0 mt-0.5"></app-morph-icon>
+            <div class="text-xs text-slate-300 leading-relaxed">
+              <strong class="text-amber-300">Thông báo lộ trình kỹ thuật:</strong>
+              Theo kế hoạch dự án tại <code>docs/ADMIN_PLAN.md</code>, phân hệ quản lý kho thực tế và SKU sẽ được kích hoạt tại Đợt B (sau khi hoàn tất khâu kiểm thử website giới thiệu và dữ liệu 148 thẻ bài). Không hiển thị số liệu tồn giả định làm thống kê thực tế.
+            </div>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 my-3">
+          <div class="stat-mini">
+            <span class="stat-label">Sản phẩm dự kiến</span>
+            <span class="stat-val text-sky-400">Board game Chưa Giàu Đã Lớn</span>
+          </div>
+          <div class="stat-mini">
+            <span class="stat-label">Quy cách đóng gói</span>
+            <span class="stat-val text-emerald-400">148 thẻ V2 + Sách luật</span>
+          </div>
+          <div class="stat-mini">
+            <span class="stat-label">Cơ chế quản lý kho</span>
+            <span class="stat-val text-purple-400">PostgreSQL V4 Ledger</span>
+          </div>
         </div>
       </div>
     }
@@ -210,60 +330,72 @@
       <div class="panel-box">
         <div class="panel-header">
           <h2 class="panel-title">Danh sách Đơn hàng & Tiến độ Vận chuyển</h2>
-          <div class="flex items-center gap-2">
-            <span class="text-xs text-slate-400">Lọc:</span>
-            <span class="status-pill-blue">Tất cả đơn</span>
+          <span class="status-pill-amber">Phân hệ Đợt B (Commerce)</span>
+        </div>
+        @if (ordersList().length > 0) {
+          <div class="table-responsive my-3">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Mã đơn</th>
+                  <th class="text-right">Tổng tiền</th>
+                  <th class="text-center">Trạng thái</th>
+                  <th class="text-right">Ngày tạo</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (o of ordersList(); track o.id) {
+                  <tr>
+                    <td class="font-mono text-sky-400 font-bold text-xs">{{ o.orderCode || o.id }}</td>
+                    <td class="text-right font-bold text-slate-100">{{ o.totalAmount }} đ</td>
+                    <td class="text-center"><span class="status-pill-blue">{{ o.status }}</span></td>
+                    <td class="text-right text-xs text-slate-400">{{ o.createdAt }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
           </div>
-        </div>
-        <div class="table-responsive">
-          <table class="admin-table">
-            <thead>
-              <tr>
-                <th>Mã đơn</th>
-                <th>Khách hàng</th>
-                <th class="text-right">Tổng tiền</th>
-                <th class="text-center">Thanh toán PayOS</th>
-                <th class="text-center">Vận chuyển</th>
-                <th class="text-right">Thời gian</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td class="font-mono text-sky-400 font-bold">DH-202610-001</td>
-                <td>Thành Đô (thanhdo&#64;fsoft.com)</td>
-                <td class="text-right font-bold text-slate-100">450.000 đ</td>
-                <td class="text-center"><span class="status-pill-amber">CHỜ THANH TOÁN</span></td>
-                <td class="text-center"><span class="status-pill-slate">CHƯA GIAO</span></td>
-                <td class="text-right text-xs text-slate-400">20/10/2026 10:15</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        } @else {
+          <div class="p-6 bg-slate-900/40 rounded-lg border border-slate-800 text-center my-3">
+            <app-morph-icon name="store" [size]="28" color="#64748b" class="inline-block mb-2"></app-morph-icon>
+            <p class="text-sm font-bold text-slate-300">Chưa có đơn hàng nào phát sinh</p>
+            <p class="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+              Hệ thống chưa ghi nhận đơn mua hàng thực tế từ người dùng. Các đơn hàng mới sẽ tự động hiển thị tại đây khi khách hàng hoàn tất thanh toán qua PayOS.
+            </p>
+          </div>
+        }
       </div>
     }
 
     @case ('payments') {
       <div class="panel-box">
         <div class="panel-header">
-          <h2 class="panel-title">Sổ cái Thanh toán PayOS & Hàng chờ Webhook</h2>
-          <button type="button" class="action-btn-primary">Chạy đối soát thủ công</button>
+          <h2 class="panel-title">Cổng Thanh toán PayOS & Đối soát Giao dịch</h2>
+          @if (paymentConfig()?.enabled) {
+            <span class="status-pill-green">PayOS ĐÃ BẬT</span>
+          } @else {
+            <span class="status-pill-amber">PayOS CHƯA KÍCH HOẠT</span>
+          }
         </div>
-        <p class="text-xs text-slate-400 mb-3">
-          Tích hợp cổng PayOS với chữ ký HMAC_SHA256, kiểm tra chống trùng webhook và lưu trữ audit log minh bạch.
-        </p>
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 my-2">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 my-3">
           <div class="stat-mini">
             <span class="stat-label">Cổng kết nối</span>
-            <span class="stat-val text-emerald-400">PayOS Production Live</span>
+            <span class="stat-val text-sky-400">{{ paymentConfig()?.provider || 'PAYOS' }}</span>
           </div>
           <div class="stat-mini">
-            <span class="stat-label">Hàng chờ UNKNOWN</span>
-            <span class="stat-val text-sky-400">0 giao dịch</span>
+            <span class="stat-label">Trạng thái SDK</span>
+            <span class="stat-val" [class.text-emerald-400]="paymentConfig()?.enabled" [class.text-amber-400]="!paymentConfig()?.enabled">
+              {{ paymentConfig()?.enabled ? 'Sẵn sàng giao dịch' : 'Chờ cấu hình keys' }}
+            </span>
           </div>
           <div class="stat-mini">
-            <span class="stat-label">Đối soát định kỳ</span>
-            <span class="stat-val text-purple-400">Mỗi 30 phút</span>
+            <span class="stat-label">Hàng chờ UNKNOWN / REVIEW</span>
+            <span class="stat-val text-purple-400">0 giao dịch</span>
           </div>
+        </div>
+        <div class="p-3 bg-slate-900/60 rounded border border-slate-800 text-xs text-slate-400">
+          Webhook endpoint: <code class="text-sky-300 font-mono">/api/v1/payments/payos/webhook</code>.
+          Tất cả giao dịch được ghi nhận trong sổ cái idempotent với đối soát định kỳ tự động mỗi 30 phút.
         </div>
       </div>
     }
@@ -271,44 +403,46 @@
     @case ('users') {
       <div class="panel-box">
         <div class="panel-header">
-          <h2 class="panel-title">Tài khoản Cư dân & Phân quyền Hệ thống</h2>
-          <span class="status-pill-blue">Bảo vệ ADMIN cuối cùng</span>
+          <h2 class="panel-title">Tài khoản Quản trị & Xác thực Phiên</h2>
+          <span class="status-pill-amber">ADMIN ACTIVE</span>
         </div>
-        <div class="table-responsive">
-          <table class="admin-table">
-            <thead>
-              <tr>
-                <th>Email</th>
-                <th>Tên cư dân</th>
-                <th class="text-center">Vai trò</th>
-                <th class="text-center">Trạng thái</th>
-                <th class="text-center">Phương thức</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td class="font-mono text-slate-200">admin&#64;nhanayhoibao.vn</td>
-                <td class="font-bold text-slate-100">Quản trị viên Hệ thống</td>
-                <td class="text-center"><span class="status-pill-amber">ADMIN</span></td>
-                <td class="text-center"><span class="status-pill-green">HOẠT ĐỘNG</span></td>
-                <td class="text-center text-xs text-slate-400">Mật khẩu + Google</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        @if (auth.currentUser(); as u) {
+          <div class="table-responsive my-3">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Tên quản trị viên</th>
+                  <th>Email</th>
+                  <th class="text-center">Vai trò</th>
+                  <th class="text-center">Cơ chế xác thực</th>
+                  <th class="text-center">Trạng thái</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="font-bold text-slate-100">{{ u.displayName }}</td>
+                  <td class="font-mono text-sky-400 text-xs">{{ u.email }}</td>
+                  <td class="text-center"><span class="status-pill-amber">{{ u.role }}</span></td>
+                  <td class="text-center text-xs text-slate-300">JWT HttpOnly (30m) + CSRF</td>
+                  <td class="text-center"><span class="status-pill-green">ĐANG HOẠT ĐỘNG</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        }
       </div>
     }
 
     @case ('system') {
       <div class="panel-box">
         <div class="panel-header">
-          <h2 class="panel-title">Hạ tầng Cloud & Sổ ghi thao tác (Audit Logs)</h2>
-          <span class="status-pill-green">Kết nối ổn định</span>
+          <h2 class="panel-title">Hạ tầng Cloud & Sổ ghi Kiểm toán ({{ totalAuditCount() }} sự kiện)</h2>
+          <span class="status-pill-green">PostgreSQL Aiven Connected</span>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 my-3">
           <div class="stat-mini">
             <span class="stat-label">Cơ sở dữ liệu</span>
-            <span class="stat-val text-sky-400">PostgreSQL 18 Aiven</span>
+            <span class="stat-val text-sky-400">PostgreSQL Aiven</span>
           </div>
           <div class="stat-mini">
             <span class="stat-label">API Gateway</span>
@@ -329,8 +463,9 @@
                   <tr>
                     <th>Thời gian</th>
                     <th>Hành động</th>
-                    <th>Đối tượng</th>
-                    <th>Người thực hiện</th>
+                    <th>Thực thể</th>
+                    <th>Kết quả</th>
+                    <th>Chi tiết</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -338,13 +473,18 @@
                     <tr>
                       <td class="text-xs text-slate-400 font-mono">{{ ev.createdAt }}</td>
                       <td><span class="status-pill-blue font-mono text-[10px]">{{ ev.action }}</span></td>
-                      <td class="text-xs text-slate-300">{{ ev.targetType }}</td>
-                      <td class="text-xs text-slate-400 font-mono">{{ ev.actorDisplayName || ev.actorId || 'Hệ thống' }}</td>
+                      <td class="text-xs text-slate-200 font-mono">{{ ev.entityType }}</td>
+                      <td><span class="status-pill-green text-[10px]">{{ ev.outcome }}</span></td>
+                      <td class="text-xs text-slate-400 font-mono truncate max-w-xs">{{ ev.detailsRedacted }}</td>
                     </tr>
                   }
                 </tbody>
               </table>
             </div>
+          </div>
+        } @else {
+          <div class="p-4 bg-slate-900/40 rounded-lg border border-slate-800 text-center my-3">
+            <p class="text-xs text-slate-400">Chưa ghi nhận sự kiện kiểm toán nội dung nào gần đây.</p>
           </div>
         }
       </div>
