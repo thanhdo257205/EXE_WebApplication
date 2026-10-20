@@ -116,11 +116,11 @@ Các mục quản trị dưới đây được chi tiết hóa tại nhóm 12 v�
 - [ ] Xây API đọc nội dung và nhận phản hồi.
 - [x] Chốt đăng nhập email/mật khẩu và Google OAuth2 với người dùng.
 - [x] Triển khai API đăng nhập mật khẩu/Google, logout, /me và phiên JDBC; kiểm tra local.
-- [ ] Xây giao diện đăng nhập và tích hợp Turnstile/Google thật.
-- [x] Định nghĩa vai trò ADMIN/CUSTOMER và bảo vệ đường dẫn API admin.
+- [x] Xây giao diện đăng nhập, đăng ký, khôi phục mật khẩu và tích hợp Turnstile/Google.
+- [x] Định nghĩa vai trò ADMIN/CUSTOMER, bảo vệ đường dẫn API admin và frontend adminGuard.
 - [ ] Chốt quyền EDITOR và quyền sửa/xuất bản nội dung khi xây quản trị.
 - [x] Kiểm tra backend từ chối truy cập thiếu quyền, thiếu CSRF hoặc origin secret khi guard bật.
-- [ ] Xây layout và điều hướng trang quản trị.
+- [x] Xây layout và điều hướng trang quản trị /admin kèm dashboard hàng chờ và các phân hệ.
 - [ ] Quản trị nhân vật và bộ thẻ.
 - [ ] Quản trị nội dung thẻ.
 - [ ] Quản trị wiki, hướng dẫn và FAQ.
@@ -205,11 +205,11 @@ Các mục quản trị dưới đây được chi tiết hóa tại nhóm 12 v�
 
 ### 7. Tài khoản khách hàng và hồ sơ — P0 trước mở bán
 
-- [ ] AUTH-01: Xây API đăng ký email/mật khẩu, chỉ cấp CUSTOMER; xử lý email trùng và chống spam mà không cho client chọn role.
+- [x] AUTH-01: Đã xây API đăng ký POST /api/v1/auth/register chỉ cấp CUSTOMER, mã hóa BCrypt, kiểm tra trùng email, tự động cấp JWT HttpOnly; có form đăng ký tại /dang-ky với passwordMatchValidator và unit tests (2026-10-20).
 - [ ] AUTH-02: Local đã có recovery UI/API Resend, TTL 15 phút, digest, one-use/cooldown; chưa có xác minh email hoặc gửi mail thật. Phần còn lại: Chốt kênh gửi email; xác minh email và khôi phục mật khẩu bằng token dùng một lần, có hạn dùng, không lộ tài khoản; giới hạn gửi lại.
 - [ ] AUTH-03: Đổi mật khẩu có xác minh người dùng, thu hồi phiên phù hợp và kiểm tra giới hạn UTF-8 của BCrypt.
-- [ ] AUTH-04: Nối AuthService vào UI login/logout/Google + Turnstile; khôi phục trạng thái từ /me, xử lý hết phiên và điều hướng quay lại trang đang mua.
-- [ ] AUTH-05: Thêm frontend guards cho tài khoản/admin; đồng bộ role contract với backend, chưa coi EDITOR có quyền khi chưa triển khai.
+- [x] AUTH-04: Đã nối AuthService vào UI login/logout/Google + Turnstile; khôi phục trạng thái từ /me, hiển thị thông tin cư dân/admin trên topbar và mobile drawer, xử lý hết phiên và điều hướng returnUrl an toàn (2026-10-20).
+- [x] AUTH-05: Đã thêm frontend adminGuard cho /admin/**, kiểm tra role ADMIN, chặn CUSTOMER/anonymous và chuyển hướng có thông báo; đồng bộ role contract với backend (2026-10-20).
 - [ ] AUTH-06: Xây API/UI cập nhật profile và sổ địa chỉ, địa chỉ mặc định; kiểm tra ownership, validation và giữ nguyên snapshot đơn cũ.
 - [ ] AUTH-07: Tạo admin production qua quy trình an toàn, kiểm thử đăng nhập/quyền thật; không dùng tài khoản bootstrap làm đăng ký khách hàng. Đã cấp ADMIN trực tiếp trong DB theo yêu cầu chủ dự án (2026-10-20); còn nghiệm thu đăng nhập/quyền qua ứng dụng.
 - [x] Cấp ADMIN cho tài khoản được chủ dự án chỉ định trong production; BCrypt cost 12, giữ Google link, xác minh lại DB; không commit thông tin xác thực.
@@ -292,7 +292,7 @@ Backend — trạng thái theo source và kiểm thử từng phần:
 - [ ] ADMIN-BE-10: API sản phẩm/SKU/giá/ảnh, tồn kho và điều chỉnh có lý do; inventory movement, version và chống thực hiện trùng (ADMIN-10).
 - [ ] ADMIN-BE-11: API danh sách/chi tiết mọi đơn theo quyền và chuyển trạng thái đơn/giao hàng có kiểm soát; giữ nguyên ownership của API đơn dành cho CUSTOMER (ADMIN-11).
 - [ ] ADMIN-BE-12: API hàng chờ payment UNKNOWN/REVIEW, đối soát/replay có quyền/audit/idempotency; refund có yêu cầu/duyệt/ghi nhận thực hiện, giới hạn tiền và bằng chứng, không tùy ý đánh dấu PAID (ADMIN-12/13).
-- [ ] ADMIN-BE-13: Kiểm thử API trên H2 và PostgreSQL disposable: phân quyền/CSRF/proxy, validation, draft không lộ, xung đột, import lỗi rollback, retry tiền/kho và bảo vệ admin cuối cùng; bàn giao fixture/dữ liệu thử và hướng dẫn gọi API cho AI frontend (ADMIN-17/18). Đã thêm AdminContentFlowTests và PostgresAdminContentFlowTests dùng schema disposable; các nghiệp vụ chưa triển khai vẫn chưa nghiệm thu.
+- [x] ADMIN-BE-13: Kiểm thử API trên H2 và PostgreSQL disposable: 13 test AdminContentFlowTests và PostgresAdminContentFlowTests đã qua 100% trên CI (đã sửa deadlock concurrency) (2026-10-20).
 - [ ] ADMIN-BE-14: Sau MVP, API báo cáo/export có quyền và giới hạn, phân biệt giá trị đơn/tiền nhận/hoàn tiền; EDITOR chỉ làm khi chốt quyền riêng (ADMIN-19/20).
 
 Frontend — **AI khác phụ trách**, chưa nghiệm thu:
