@@ -1,6 +1,6 @@
 # Thư viện thẻ 2D và xem 3D
 
-Cập nhật 2026-10-21. Đợt này đang local, chưa commit/push/deploy.
+Cập nhật 2026-10-21. Commit tính năng [b0ff8d2](https://github.com/thanhdo257205/EXE_WebApplication/commit/b0ff8d2898f472f026972ca2af78556c67b76c40) đã push origin/main và xác minh SHA remote. Chưa xác nhận CI/CD/deploy hoặc GPU/touch trên thiết bị thật.
 
 ## Trải nghiệm
 
