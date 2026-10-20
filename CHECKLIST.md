@@ -5,7 +5,7 @@ Cập nhật: 2026-10-20 (Asia/Saigon).
 ## Phát hành GitHub bản hiện tại (2026-10-20)
 
 - [x] RELEASE-LOCAL-CHECKS — Frontend96 tests/build, backend83 tests chạy qua/46 PostgreSQL skipped/JAR, gateway25 tests/typecheck/dry-run và5 script tests qua; kiểm tra diff trước commit.
-- [ ] RELEASE-GITHUB-20261020 — Commit/push bản hiện tại lên origin/main và xác minh remote.
+- [x] RELEASE-GITHUB-20261020 — Mã ứng dụng6e73213 đã commit/push origin/main và xác minh SHA remote khớp; bổ sung commit docs trạng thái cùng đợt.
 - [ ] RELEASE-CI-CD-20261020 — Xác minh GitHub CI gồm PostgreSQL/Docker và CD/smoke production cho bản mới.
 
 ## Frontend redesign và motion (2026-10-20)

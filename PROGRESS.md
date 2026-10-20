@@ -8,7 +8,7 @@
 
 - Người dùng yêu cầu push toàn bộ bản hiện tại. Base main/origin/main là256b52c; bản này gộp nội dung public/snapshot export, feedback V9, thông báo admin SSE V10, tích hợp admin, auth readiness, public redesign/motion/performance/glass/menu con và docs đang có trong working tree. Không đưa build output, logs, browser artifacts hoặc cấu hình bí mật vào Git.
 - Xác minh trước push: frontend96/96 tests/21 files, production build/prerender6 routes qua; backend Maven verify/JAR BUILD SUCCESS với129 tổng/83 chạy qua/46 PostgreSQL skipped (local chưa có PostgreSQL disposable); gateway typecheck/25 tests,5 script tests và Wrangler dry-run qua. git diff --check qua. CI sẽ chạy lại PostgreSQL và Docker512MB trên GitHub; không coi local H2 là nghiệm thu production.
-- Trạng thái tại lúc chuẩn bị commit: chưa push đợt mới, chưa xác nhận CI/CD hoặc deploy. Pipeline main hiện tự chạy CI rồi CD khi đủ điều kiện; không thay workflow trong đợt này. Các ghi chú local/chưa commit ở dưới là nhật ký các lần làm trước bản phát hành này.
+- GitHub: commit mã ứng dụng6e732136823e1743fed5656e5d9caa9bbdffc633 đã push lên origin/main thành công ngày2026-10-20 và xác minh SHA remote khớp. Bản ghi trạng thái này được bổ sung bằng commit docs trong cùng đợt. Chưa xác nhận GitHub CI/CD hoặc deploy hoàn tất; pipeline main tự chạy CI rồi CD khi đủ điều kiện, không thay workflow. Các ghi chú local/chưa commit ở dưới là nhật ký trước bản phát hành này, không phải trạng thái GitHub hiện tại.
 
 ### Nhật ký tính năng trước phát hành
 
