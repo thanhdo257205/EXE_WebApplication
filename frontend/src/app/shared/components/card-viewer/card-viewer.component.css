@@ -1,0 +1,122 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+.viewer-panel {
+  border: 1px solid #ffffff30;
+  border-radius: 24px;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 42%, #3e5355, #18282c 65%);
+  color: #f7f2e5;
+}
+.viewer-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 22px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+.viewer-state {
+  color: #dafa76;
+  letter-spacing: 0;
+}
+.viewer-stage {
+  height: clamp(360px, 48vw, 520px);
+  position: relative;
+  isolation: isolate;
+}
+.viewer-stage:focus-visible {
+  outline: 2px solid #ffb7d2;
+  outline-offset: -4px;
+}
+.viewer-poster {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  max-height: 80%;
+  max-width: 75%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  filter: drop-shadow(10px 14px 14px #0004);
+  z-index: 1;
+}
+.viewer-message {
+  position: absolute;
+  z-index: 2;
+  bottom: 16px;
+  left: 16px;
+  right: 16px;
+  padding: 12px;
+  border-radius: 12px;
+  background: #0c181fe8;
+  color: #f5f5f5;
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.viewer-message button {
+  display: block;
+  margin: 8px auto 0;
+  color: #dafa76;
+  text-decoration: underline;
+}
+.viewer-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 16px;
+}
+.viewer-controls button {
+  min-height: 38px;
+  min-width: 38px;
+  padding: 8px 12px;
+  border: 1px solid #ffffff38;
+  border-radius: 24px;
+  color: #f7f2e5;
+  font-size: 11px;
+  background: #ffffff0d;
+}
+.viewer-controls button:hover:not(:disabled) {
+  background: #dafa76;
+  color: #183c2b;
+}
+.viewer-controls button:focus-visible {
+  outline: 2px solid #ffb7d2;
+  outline-offset: 2px;
+}
+.viewer-controls button:disabled {
+  opacity: 0.4;
+}
+.viewer-help {
+  text-align: center;
+  margin: 12px 18px 20px;
+  color: #c1d1d0;
+  font-size: 11px;
+  line-height: 1.8;
+}
+.model-credit {
+  font-size: 10px;
+  line-height: 1.8;
+  color: #526c5a;
+  margin: 15px 4px 0;
+}
+.model-credit a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+@media (max-width: 680px) {
+  .viewer-top {
+    padding: 16px;
+    font-size: 9px;
+  }
+  .viewer-stage {
+    height: 380px;
+  }
+  .viewer-panel {
+    border-radius: 18px;
+  }
+}

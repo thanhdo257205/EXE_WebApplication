@@ -1,0 +1,33 @@
+{
+  "sourceFile": "pokemon_card_3d.glb",
+  "sourceSha256": "be1d2db02ffbcc9af05615ed36ad8a1d130b547f6aa821c9a56c19c340d18097",
+  "sourceBytes": 797764,
+  "optimizedBytes": 383984,
+  "trianglesBefore": 12,
+  "trianglesAfter": 12,
+  "textures": [
+    {
+      "image": 0,
+      "sourceBytes": 283465,
+      "outputBytes": 140867
+    },
+    {
+      "image": 1,
+      "sourceBytes": 37804,
+      "outputBytes": 37804
+    },
+    {
+      "image": 2,
+      "sourceBytes": 471682,
+      "outputBytes": 200359
+    }
+  ],
+  "source": {
+    "author": "Johana-PS (https://sketchfab.com/Johana-PS)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/pokemon-card-3d-bf8b809b801248e7a316d4ad7727345a",
+    "title": "Pokemon Card 3D",
+    "modifications": "Opaque color textures re-encoded as JPEG quality 90; geometry, UVs, materials and transforms unchanged."
+  },
+  "posterBytes": 71272
+}

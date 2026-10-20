@@ -4,6 +4,16 @@
 
 ## Cập nhật gần nhất
 
+
+### Thư viện thẻ 2D và xem thẻ 3D (2026-10-21, local)
+
+- Trang `/thu-vien` liệt kê bộ thẻ từ API public, tải thêm các trang bộ thẻ và lọc `cardSetId`; grid chỉ dùng ảnh 2D lazy/decode async. Chi tiết thẻ có viewer xoay 360°, lật mặt trước/sau, zoom chuột/chạm, nút và bàn phím. Model mặc định từ file người dùng cung cấp; nội dung luật vẫn lấy release public. Route riêng `/thu-vien/mau/pokemon-card-3d` luôn mở bản minh họa, không gọi API nội dung.
+- Blender MCP đã kết nối và kiểm tra cả GLB gốc/tối ưu trong các scene review riêng, giữ scene ban đầu. Model chỉ có12 triangles/2 meshes nên không decimate. Nén2 texture màu PNG thành JPEG quality90, giữ geometry/UV/material/texture dữ liệu:797764→383984bytes (giảm51,9%). Poster WebP dựng từ texture theo chiều UV; ghi metadata và attribution CC BY4.0/Johana-PS.
+- Three0.186.1 chỉ dynamic-import khi viewer vào viewport; không tải GLB ở catalog. Render theo thao tác/resize, DPR tối đa1,5, nghỉ khi idle/ngoài viewport/tab hidden; abort request và dispose geometry/material/texture/ImageBitmap/controls/WebGL khi rời route. Có poster + retry khi lỗi tải model hoặc mất context. Search/filter cùng switchMap tránh kết quả cũ ghi đè; snapshot từ chối release khác release đang ghim.
+- Nếu API và snapshot đều lỗi trước khi có release, chỉ catalog thẻ hiển thị bộ/thẻ mẫu với thông báo rõ và nút tải lại; không giả dữ liệu chính thức. Slug thật404 vẫn báo lỗi, không chuyển thành thẻ mẫu. Chưa có danh sách148 thẻ/artwork chính thức; test bộ thật dùng fixture theo schema, không seed backend.
+- Xác minh:104/104 frontend tests/23 files qua, production build/prerender6 routes qua. Initial428,79kB raw/118,47kB estimated transfer; chunk3D lazy639,93kB raw/132,83kB estimated transfer. Giữ cảnh báo CSS home/dashboard và React CommonJS cũ. Browser Edge headless: catalog0 GLB request, detail1; mặt trước/sau/drag/zoom/phím đều đổi hình; idle700ms0 WebGL draw; mobile390px không tràn; route cleanup0 canvas. Fixture kiểm tra2 bộ/thẻ, filter ghim release, poster tải thành công, context-loss/retry, unknownslug404 và model503 fallback;0 pageerror. Đây không phải benchmark FPS/CPU thiết bị thật.
+- Local đang chạy http://127.0.0.1:4200/thu-vien và route mẫu ở trên. Code/docs đợt này chưa commit/push/deploy. Không thay backend/gateway nên không chạy lại suite của hai phần đó. Chi tiết [CARD_LIBRARY_3D.md](docs/CARD_LIBRARY_3D.md).
+
 ### Đợt đưa bản hiện tại lên GitHub (2026-10-20)
 
 - Người dùng yêu cầu push toàn bộ bản hiện tại. Base main/origin/main là256b52c; bản này gộp nội dung public/snapshot export, feedback V9, thông báo admin SSE V10, tích hợp admin, auth readiness, public redesign/motion/performance/glass/menu con và docs đang có trong working tree. Không đưa build output, logs, browser artifacts hoặc cấu hình bí mật vào Git.

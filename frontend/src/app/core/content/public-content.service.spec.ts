@@ -1,3 +1,4 @@
+import { SAMPLE_CARD } from './default-card';
 import { TestBed } from '@angular/core/testing';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideHttpClient } from '@angular/common/http';
@@ -74,6 +75,26 @@ describe('PublicContentService', () => {
     service.list('cards', '', 0).subscribe({ error: error => status = error.status });
     http.expectOne(request => request.url === '/api/v1/content/cards').flush({}, { status: 503, statusText: 'Unavailable' });
     http.expectOne('/content/snapshot.json').flush({}, { status: 404, statusText: 'Not Found' });
+    expect(status).toBe(503);
+  });
+
+  it('sends card-set filters and applies the same filter to snapshot cards', () => {
+    let ids: string[] = [];
+    service.list('cards', '', 0, 'release-1', undefined, 'set-a').subscribe(result => ids = result.items.map(item => item.id));
+    const request = http.expectOne(request => request.url === '/api/v1/content/cards');
+    expect(request.request.params.get('cardSetId')).toBe('set-a');
+    request.flush({}, { status: 503, statusText: 'Unavailable' });
+    const data = snapshot();
+    data.content.cards = [{ ...SAMPLE_CARD, id: 'a', cardSetId: 'set-a' }, { ...SAMPLE_CARD, id: 'b', cardSetId: 'set-b' }];
+    http.expectOne('/content/snapshot.json').flush(data);
+    expect(ids).toEqual(['a']);
+  });
+
+  it('does not mix a pinned release with a newer snapshot', () => {
+    let status = 0;
+    service.list('cards', '', 0, 'older-release').subscribe({ error: error => status = error.status });
+    http.expectOne(request => request.url === '/api/v1/content/cards').flush({}, { status: 503, statusText: 'Unavailable' });
+    http.expectOne('/content/snapshot.json').flush(snapshot());
     expect(status).toBe(503);
   });
 

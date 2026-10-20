@@ -1,0 +1,94 @@
+<div class="viewer-panel">
+  <div class="viewer-top">
+    <span>KHÁM PHÁ THẺ 3D</span
+    ><span class="viewer-state">{{
+      status() === 'ready'
+        ? 'Tương tác trực tiếp'
+        : status() === 'error'
+          ? 'Bản xem 2D'
+          : 'Đang chuẩn bị'
+    }}</span>
+  </div>
+  <div
+    #stage
+    class="viewer-stage"
+    role="group"
+    tabindex="0"
+    [attr.aria-label]="
+      'Xem 3D ' + cardName() + '. Dùng phím mũi tên để xoay, cộng trừ để zoom, Home để đặt lại.'
+    "
+    (keydown)="onKey($event)"
+    [attr.aria-busy]="status() === 'loading'"
+  >
+    @if (status() !== 'ready') {
+      <img
+        class="viewer-poster"
+        [src]="poster"
+        [alt]="'Mặt trước thẻ mẫu ' + cardName()"
+        width="500"
+        height="700"
+      />
+    }
+    @if (status() === 'loading') {
+      <span class="viewer-message" role="status">Đang mở không gian 3D…</span>
+    }
+    @if (status() === 'error') {
+      <div class="viewer-message" role="status">
+        Chưa mở được 3D. Bạn vẫn có thể xem ảnh thẻ.<button type="button" (click)="start()">
+          Thử lại 3D
+        </button>
+      </div>
+    }
+  </div>
+  <div class="viewer-controls" aria-label="Điều khiển thẻ 3D">
+    <button type="button" [disabled]="status() !== 'ready'" (click)="side(false)">Mặt trước</button
+    ><button type="button" [disabled]="status() !== 'ready'" (click)="side(true)">Mặt sau</button>
+    <button
+      type="button"
+      [disabled]="status() !== 'ready'"
+      (click)="rotate(-1)"
+      aria-label="Xoay thẻ sang trái"
+    >
+      ↶</button
+    ><button
+      type="button"
+      [disabled]="status() !== 'ready'"
+      (click)="rotate(1)"
+      aria-label="Xoay thẻ sang phải"
+    >
+      ↷
+    </button>
+    <button
+      type="button"
+      [disabled]="status() !== 'ready'"
+      (click)="zoom(true)"
+      aria-label="Phóng to thẻ"
+    >
+      ＋</button
+    ><button
+      type="button"
+      [disabled]="status() !== 'ready'"
+      (click)="zoom(false)"
+      aria-label="Thu nhỏ thẻ"
+    >
+      −</button
+    ><button type="button" [disabled]="status() !== 'ready'" (click)="reset()">Đặt lại</button>
+  </div>
+  <p class="viewer-help">
+    Kéo để xoay toàn cảnh · Cuộn hoặc chụm hai ngón để zoom.<br />Dùng phím mũi tên khi khung thẻ
+    đang được chọn.
+  </p>
+</div>
+<p class="model-credit">
+  Model mặc định minh họa:
+  <a
+    href="https://sketchfab.com/3d-models/pokemon-card-3d-bf8b809b801248e7a316d4ad7727345a"
+    target="_blank"
+    rel="noopener noreferrer"
+    >Pokemon Card 3D — Johana-PS</a
+  >
+  ·
+  <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer"
+    >CC BY 4.0</a
+  >. Đã nén texture; không phải artwork chính thức của game.
+</p>

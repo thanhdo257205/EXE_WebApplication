@@ -79,3 +79,10 @@ Menu con chỉ render panel đang mở từ cấu hình route cục bộ. Không
 2. Đo riêng API/auth khi backend vừa thức và sau idle để phân biệt thời gian server với giật khi render.
 3. Khi có snapshot xuất bản: nối export vào build và đánh giá phục vụ nội dung tĩnh trước, ghim release cho list/detail, giới hạn cache và hành vi cập nhật rõ ràng.
 4. Nếu trace vẫn nặng: cân nhắc thay spring React bằng hiệu ứng chữ native Angular/CSS, tự host/subset font và giảm blur theo thiết bị. Các bước này cần kiểm tra tương đương hình ảnh trước khi áp dụng.
+
+
+## Thẻ3D theo nhu cầu — 2026-10-21
+
+Danh sách dùng poster WebP lazy; viewer chỉ import Three/OrbitControls/GLTFLoader khi vào viewport chi tiết. Runtime3D lazy639,93kB raw/132,83kB estimated transfer; initial428,79kB/118,47kB (build, không phải mạng đo thực). GLB797764→383984bytes, giữ12 triangles vì geometry đã rất nhẹ. Chỉ nén hai ảnh màu, giữ texture dữ liệu không mất mát; không thêm HDRI/shadow/auto-rotate/damping loop. DPR cap1,5; render một rAF theo input/resize/visibility; abort/dispose khi unmount và poster dự phòng khi lỗi.
+
+Edge QA local: catalog0 requestGLB, detail1; idle700ms không có WebGL draw mới; desktop/mobile390px hoạt động và không overflow. Đo qua instrument drawElements/drawArrays trên canvas viewer, không phải bằng chứng tăng FPS/giảm CPU tổng website. Kịch bản và ảnh trong frontend/output/check-cards-3d.cjs và check-cards-fixture.cjs (ignored).104 tests/build qua; chưa benchmark GPU/touch thiết bị thật. [Thiết kế và asset](CARD_LIBRARY_3D.md).

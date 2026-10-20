@@ -82,3 +82,10 @@ Tìm kiếm chuẩn hóa chạy Java để dùng chung H2/PostgreSQL, chưa cầ
 `PublicContentFlowTests` có 7 tình huống: chống lộ draft/archived chưa xuất bản, anonymous và allowlist, tìm tiếng Việt/phân trang, filter/validation, ghim release khi đổi bản công khai, snapshot/ngân sách và proxy/write protection. `PostgresPublicContentFlowTests` kế thừa cùng bộ kiểm thử, chỉ chạy khi cấu hình database disposable. Bốn test Node kiểm tra xuất file và giữ nguyên artifact khi lỗi; đã được CI hiện có chọn qua `.github/scripts/*.test.mjs`.
 
 Chạy backend `backend/mvnw.cmd -B -ntp verify`, exporter `node --test .github/scripts/export-public-content.test.mjs`. Kết quả thực tế và phần PostgreSQL/deploy chưa xác minh được ghi tại PROGRESS.md/CHECKLIST.md.
+
+
+## Catalog và viewer3D frontend — 2026-10-21
+
+`/thu-vien` hiển thị card-sets có phân trang tải thêm, lọc cards bằng `cardSetId`, tìm kiếm và phân trang24 thẻ; ảnh danh sách chỉ2D. Snapshot áp cùng bộ lọc cardSetId và không được dùng nếu release khác ID đang ghim (cả list và detail). Không thay endpoint/schema backend.
+
+Chi tiết thẻ public dùng model3D mặc định minh họa; effect/ruling vẫn từ API. Route riêng `/thu-vien/mau/pokemon-card-3d` là bản demo không gọi API. Nếu API và snapshot đều lỗi khi catalog chưa ghim release, UI hiển thị một bộ/thẻ minh họa có thông báo rõ, không giả thành release chính thức. Detail slug không tồn tại và lỗi sau khi đã ghim release giữ trạng thái lỗi. Đây là thay đổi của frontend so với nhật ký UI cũ chưa có demo. Xem [CARD_LIBRARY_3D.md](CARD_LIBRARY_3D.md).

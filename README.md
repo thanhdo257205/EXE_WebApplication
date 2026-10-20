@@ -4,6 +4,8 @@ Website board game **Chưa Giàu Đã Lớn — Nhà Này Hơi Báo!**
 
 ## Công nghệ và trạng thái
 
+Bản bổ sung local ngày2026-10-21: [thư viện thẻ2D và viewer3D](docs/CARD_LIBRARY_3D.md), dùng model mặc định do người dùng cung cấp, bộ thẻ/lọc từ API public và bản mẫu được gắn nhãn khi chưa có release.104 frontend tests/build qua; đợt3D chưa commit/push/deploy. Thử local: http://127.0.0.1:4200/thu-vien/mau/pokemon-card-3d.
+
 Mã ứng dụng [`6e73213`](https://github.com/thanhdo257205/EXE_WebApplication/commit/6e732136823e1743fed5656e5d9caa9bbdffc633) đã được push lên `main` ngày2026-10-20. Kiểm tra local qua; [CI/CD](https://github.com/thanhdo257205/EXE_WebApplication/actions) cần xác minh riêng trước khi coi website production đã cập nhật.
 
 - Angular 22.2.3, TypeScript, Tailwind CSS; các trang công khai xuất tĩnh.

@@ -1,76 +1,216 @@
 <section class="reader-shell">
   <header class="reader-heading">
     @if (selected()) {
-      <a class="back-link" [routerLink]="[kind() === 'wiki-pages' ? '/wiki' : kind() === 'characters' ? '/cu-dan' : '/thu-vien']">← Quay lại danh sách</a>
+      <a
+        class="back-link"
+        [routerLink]="[
+          kind() === 'wiki-pages' ? '/wiki' : kind() === 'characters' ? '/cu-dan' : '/thu-vien',
+        ]"
+        >← Quay lại danh sách</a
+      >
     } @else {
       <a class="back-link" routerLink="/">← Về căn nhà</a>
     }
     @if (selected(); as item) {
       <h1 riseHeading>{{ itemName(item) }}</h1>
-      <p>{{ isCard(item) ? item.code : isWiki(item) ? item.summary : isCharacter(item) ? item.code : '' }}</p>
+      <p>
+        {{
+          isCard(item)
+            ? item.code
+            : isWiki(item)
+              ? item.summary
+              : isCharacter(item)
+                ? item.code
+                : ''
+        }}
+      </p>
     } @else {
       <h1 riseHeading>{{ heading() }}</h1>
       <p>{{ description() }}</p>
     }
     @if (releaseLabel()) {
-      <p class="release-note">Đang xem {{ releaseLabel() }}@if (source() === 'snapshot') { <span> · bản lưu tĩnh</span> }</p>
+      <p class="release-note">
+        Đang xem {{ releaseLabel() }}
+        @if (source() === 'snapshot') {
+          <span> · bản lưu tĩnh</span>
+        }
+      </p>
     }
   </header>
 
   @if (selected(); as item) {
-    <article class="detail-sheet">
+    <article class="detail-sheet" [class.card-detail]="isCard(item)">
       @if (isCard(item)) {
-        <p class="detail-code">{{ item.code }} <span>{{ item.copiesInDeck }} lá trong bộ</span></p>
-        <h2>Hiệu ứng</h2>
-        <p class="detail-copy">{{ item.effectText }}</p>
-        @if (item.rulingNotes) { <h2>Ghi chú luật</h2><p class="detail-copy">{{ item.rulingNotes }}</p> }
-        <p class="rule-status" [class.review-needed]="item.ruleStatus === 'NEEDS_REVIEW'">{{ item.ruleStatus === 'CONFIRMED' ? 'Luật đã xác nhận' : 'Luật đang được rà soát' }}</p>
+        <app-card-viewer [cardName]="item.name" />
+        <div class="card-description">
+          <p class="detail-code">{{ demo() ? 'THẺ MINH HỌA' : item.code }}</p>
+          <h2>{{ demo() ? 'Cầm thử một lá thẻ' : 'Hiệu ứng' }}</h2>
+          <p class="detail-copy">{{ item.effectText }}</p>
+          @if (!demo()) {
+            <p>{{ item.copiesInDeck }} lá trong bộ</p>
+            @if (item.rulingNotes) {
+              <h2>Ghi chú luật</h2>
+              <p class="detail-copy">{{ item.rulingNotes }}</p>
+            }
+            <p class="rule-status" [class.review-needed]="item.ruleStatus === 'NEEDS_REVIEW'">
+              {{ item.ruleStatus === 'CONFIRMED' ? 'Luật đã xác nhận' : 'Luật đang được rà soát' }}
+            </p>
+          }
+          <p class="model-note">
+            Model Pokémon mặc định dùng để trải nghiệm 3D. Artwork của thẻ trong game sẽ được thay
+            khi có bản chính thức.
+          </p>
+          <a class="back-link" routerLink="/thu-vien">Khám phá bộ thẻ →</a>
+        </div>
       } @else if (isWiki(item)) {
-        <p class="detail-code">{{ wikiLabel(item.pageType) }} <span [class.review-needed]="item.ruleStatus === 'NEEDS_REVIEW'">{{ item.ruleStatus === 'CONFIRMED' ? 'Đã xác nhận' : 'Đang rà soát' }}</span></p>
+        <p class="detail-code">
+          {{ wikiLabel(item.pageType) }}
+          <span [class.review-needed]="item.ruleStatus === 'NEEDS_REVIEW'">{{
+            item.ruleStatus === 'CONFIRMED' ? 'Đã xác nhận' : 'Đang rà soát'
+          }}</span>
+        </p>
         <div class="markdown-content" [innerHTML]="renderMarkdown(item.bodyMarkdown)"></div>
       } @else if (isCharacter(item)) {
         <p class="detail-code">{{ item.code }}</p>
         <p class="detail-copy">{{ item.biography }}</p>
-        @if (item.abilityText) { <h2>Kỹ năng</h2><p class="detail-copy">{{ item.abilityText }}</p> }
+        @if (item.abilityText) {
+          <h2>Kỹ năng</h2>
+          <p class="detail-copy">{{ item.abilityText }}</p>
+        }
       }
     </article>
   } @else {
+    @if (kind() === 'cards') {
+      <section class="sets-section" aria-label="Bộ thẻ">
+        <div class="catalog-heading">
+          <h2>Các bộ thẻ</h2>
+          <a routerLink="/thu-vien/mau/pokemon-card-3d">Trải nghiệm thẻ mẫu 3D ↗</a>
+        </div>
+        @if (demo()) {
+          <p class="sample-notice" role="status">
+            Chưa tải được bộ thẻ đã xuất bản. Bạn có thể trải nghiệm bộ minh họa bên dưới; đây không
+            phải nội dung hoặc luật chính thức.
+            <button type="button" class="retry-button" (click)="retry()">Tải lại bộ thẻ</button>
+          </p>
+        }
+        <div class="set-grid">
+          @for (set of cardSets(); track set.id) {
+            <button
+              type="button"
+              class="set-tile"
+              [class.active]="selectedSet() === set.id"
+              [attr.aria-pressed]="selectedSet() === set.id"
+              (click)="setCardSet(set.id)"
+            >
+              <small>{{ set.code }}</small
+              ><strong>{{ set.name }}</strong
+              ><span>{{ set.description || 'Khám phá các lá thẻ trong bộ' }}</span>
+            </button>
+          }
+        </div>
+        @if (setsLoading()) {
+          <p role="status">Đang tải bộ thẻ…</p>
+        }
+        @if (setsError()) {
+          <p>
+            Chưa tải được danh sách bộ thẻ.
+            <button type="button" (click)="loadMoreSets()">Thử lại</button>
+          </p>
+        }
+        @if (setsPage() + 1 < setsPages()) {
+          <button type="button" [disabled]="setsLoading()" (click)="loadMoreSets()">
+            Xem thêm bộ thẻ
+          </button>
+        }
+        @if (selectedSet()) {
+          <button type="button" class="all-cards" (click)="setCardSet('')">← Xem tất cả thẻ</button>
+        }
+      </section>
+      <h2 class="catalog-title">Những lá thẻ trong nhà</h2>
+    }
     <section class="browse-tools" aria-label="Tìm trong nội dung">
-      <label class="search-field"><span class="search-mark" aria-hidden="true"></span><span class="visually-hidden">Tìm kiếm</span><input type="search" maxlength="100" [value]="query()" (input)="onSearch($event)" placeholder="Tìm theo tên hoặc mã" autocomplete="off"></label>
+      <label class="search-field"
+        ><span class="search-mark" aria-hidden="true"></span
+        ><span class="visually-hidden">Tìm kiếm</span
+        ><input
+          type="search"
+          maxlength="100"
+          [value]="query()"
+          (input)="onSearch($event)"
+          placeholder="Tìm theo tên hoặc mã"
+          autocomplete="off"
+      /></label>
       <span class="result-count">{{ total() }} mục</span>
     </section>
 
     @if (kind() === 'wiki-pages') {
       <nav class="filter-row" aria-label="Lọc loại bài viết">
         @for (type of wikiTypes; track type.value) {
-          <button type="button" [class.active]="filter() === type.value" [attr.aria-pressed]="filter() === type.value" (click)="setFilter(type.value)">{{ type.label }}</button>
+          <button
+            type="button"
+            [class.active]="filter() === type.value"
+            [attr.aria-pressed]="filter() === type.value"
+            (click)="setFilter(type.value)"
+          >
+            {{ type.label }}
+          </button>
         }
       </nav>
     }
 
     @if (loading()) {
-      <div class="state-panel" role="status"><span class="loading-pip"></span><p>Đang mở tủ nội dung…</p></div>
+      <div class="state-panel" role="status">
+        <span class="loading-pip"></span>
+        <p>Đang mở tủ nội dung…</p>
+      </div>
     } @else if (error()) {
       <div class="state-panel" role="alert">
-        <h2>{{ unavailable() ? 'Chưa có bản nội dung đã xuất bản' : 'Tạm thời chưa tải được nội dung' }}</h2>
-        <p>{{ unavailable() ? 'Thư viện sẽ hiện tại đây khi có bản chính thức. Trang không dùng dữ liệu minh họa thay cho luật thật.' : 'Bạn có thể thử tải lại. Nếu đang có bản lưu tĩnh, trang sẽ tự dùng bản đó khi máy chủ chưa sẵn sàng.' }}</p>
+        <h2>
+          {{
+            unavailable() ? 'Chưa có bản nội dung đã xuất bản' : 'Tạm thời chưa tải được nội dung'
+          }}
+        </h2>
+        <p>
+          {{
+            unavailable()
+              ? 'Thư viện sẽ hiện tại đây khi có bản chính thức. Trang không dùng dữ liệu minh họa thay cho luật thật.'
+              : 'Bạn có thể thử tải lại. Nếu đang có bản lưu tĩnh, trang sẽ tự dùng bản đó khi máy chủ chưa sẵn sàng.'
+          }}
+        </p>
         <button type="button" class="retry-button" (click)="retry()">Thử lại</button>
       </div>
     } @else if (items().length === 0) {
       <div class="state-panel empty-state">
-        <h2>{{ query() || filter() ? 'Chưa tìm thấy mục phù hợp' : 'Tủ này đang chờ bản đầu tiên' }}</h2>
-        <p>{{ query() || filter() ? 'Thử từ khóa khác hoặc bỏ bộ lọc để xem lại.' : 'Nội dung sẽ được đưa lên sau khi nhóm phát hành bản chính thức.' }}</p>
+        <h2>
+          {{ query() || filter() ? 'Chưa tìm thấy mục phù hợp' : 'Tủ này đang chờ bản đầu tiên' }}
+        </h2>
+        <p>
+          {{
+            query() || filter()
+              ? 'Thử từ khóa khác hoặc bỏ bộ lọc để xem lại.'
+              : 'Nội dung sẽ được đưa lên sau khi nhóm phát hành bản chính thức.'
+          }}
+        </p>
       </div>
     } @else if (kind() === 'cards') {
-      <div class="card-grid">
+      <div class="card-grid card-catalog">
         @for (item of items(); track item.id; let i = $index) {
           @if (isCard(item)) {
-            <a class="game-card" [class.tone-pink]="i % 3 === 1" [class.tone-blue]="i % 3 === 2" [routerLink]="itemLink(item)">
-              <span class="game-card-top"><span>{{ item.code }}</span><span>{{ item.copiesInDeck }}×</span></span>
-              <span class="card-stamp" aria-hidden="true"><span></span><span></span></span>
-              <strong>{{ item.name }}</strong>
-              <span class="card-effect">{{ item.effectText }}</span>
-              <span class="card-bottom">{{ item.ruleStatus === 'CONFIRMED' ? 'LUẬT ĐÃ CHỐT' : 'ĐANG RÀ SOÁT' }}<span aria-hidden="true">↗</span></span>
+            <a class="catalog-card" [routerLink]="itemLink(item)">
+              <span class="catalog-art"
+                ><img
+                  [src]="item.artworkUrl || poster"
+                  [alt]="item.name"
+                  width="500"
+                  height="700"
+                  loading="lazy"
+                  decoding="async"
+                  (error)="imageFallback($event)"
+                /><span class="view-3d">Xem thẻ 3D ↗</span></span
+              >
+              <span class="catalog-code">{{ item.code }}</span
+              ><strong>{{ item.name }}</strong>
+              <span class="catalog-summary">{{ item.effectText }}</span>
             </a>
           }
         }
@@ -81,7 +221,10 @@
           @if (isWiki(item)) {
             <a class="wiki-row" [routerLink]="itemLink(item)">
               <span class="wiki-type">{{ wikiLabel(item.pageType) }}</span>
-              <span class="wiki-main"><strong>{{ item.title }}</strong><span>{{ item.summary || 'Mở bài viết để xem nội dung.' }}</span></span>
+              <span class="wiki-main"
+                ><strong>{{ item.title }}</strong
+                ><span>{{ item.summary || 'Mở bài viết để xem nội dung.' }}</span></span
+              >
               <span class="wiki-arrow" aria-hidden="true">↗</span>
             </a>
           }
@@ -91,8 +234,18 @@
       <div class="character-list">
         @for (item of items(); track item.id; let i = $index) {
           @if (isCharacter(item)) {
-            <a class="character-row" [class.tone-pink]="i % 3 === 1" [class.tone-blue]="i % 3 === 2" [routerLink]="itemLink(item)">
-              <span class="character-monogram">{{ item.name.slice(0, 1) }}</span><span><small>{{ item.code }}</small><strong>{{ item.name }}</strong><span>{{ item.biography }}</span></span><span aria-hidden="true">↗</span>
+            <a
+              class="character-row"
+              [class.tone-pink]="i % 3 === 1"
+              [class.tone-blue]="i % 3 === 2"
+              [routerLink]="itemLink(item)"
+            >
+              <span class="character-monogram">{{ item.name.slice(0, 1) }}</span
+              ><span
+                ><small>{{ item.code }}</small
+                ><strong>{{ item.name }}</strong
+                ><span>{{ item.biography }}</span></span
+              ><span aria-hidden="true">↗</span>
             </a>
           }
         }
@@ -103,7 +256,9 @@
       <nav class="pagination" aria-label="Trang kết quả">
         <button type="button" [disabled]="page() === 0" (click)="changePage(-1)">← Trước</button>
         <span>Trang {{ page() + 1 }} / {{ totalPages() }}</span>
-        <button type="button" [disabled]="page() + 1 >= totalPages()" (click)="changePage(1)">Sau →</button>
+        <button type="button" [disabled]="page() + 1 >= totalPages()" (click)="changePage(1)">
+          Sau →
+        </button>
       </nav>
     }
   }

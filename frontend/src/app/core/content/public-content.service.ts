@@ -65,10 +65,11 @@ export class PublicContentService {
   private readonly http = inject(HttpClient);
   private readonly apiRoot = `${environment.apiBaseUrl ?? '/api'}/v1/content`;
 
-  list(kind: ContentKind, query: string, page: number, releaseId?: string, pageType?: WikiType): Observable<PublicContentResult> {
+  list(kind: ContentKind, query: string, page: number, releaseId?: string, pageType?: WikiType, cardSetId?: string): Observable<PublicContentResult> {
     let params = new HttpParams().set('q', query).set('page', page).set('size', PAGE_SIZE);
     if (releaseId) params = params.set('releaseId', releaseId);
     if (pageType) params = params.set('pageType', pageType);
+    if (cardSetId) params = params.set('cardSetId', cardSetId);
 
     return this.http.get<PublicListing>(`${this.apiRoot}/${kind}`, { params }).pipe(
       timeout(8000),
@@ -80,7 +81,7 @@ export class PublicContentService {
         totalPages: response.result.totalPages,
         source: 'api' as const,
       })),
-      catchError(apiError => this.fromSnapshot(kind, query, page, pageType).pipe(
+      catchError(apiError => this.fromSnapshot(kind, query, page, pageType, cardSetId, releaseId).pipe(
         catchError(() => throwError(() => apiError)),
       )),
     );
@@ -94,6 +95,7 @@ export class PublicContentService {
       map(response => ({ ...response, source: 'api' as const })),
       catchError(apiError => this.snapshot().pipe(
         map(snapshot => {
+          if (releaseId && snapshot.release.id !== releaseId) throw new Error('Bản lưu không khớp bản phát hành đang xem.');
           const collection = snapshot.content[kind === 'wiki-pages' ? 'wiki-pages' : kind];
           const item = collection.find(entry => entry.slug === slug);
           if (!item) throw new Error('Không tìm thấy nội dung đã xuất bản.');
@@ -118,12 +120,14 @@ export class PublicContentService {
     );
   }
 
-  private fromSnapshot(kind: ContentKind, query: string, page: number, pageType?: WikiType): Observable<PublicContentResult> {
+  private fromSnapshot(kind: ContentKind, query: string, page: number, pageType?: WikiType, cardSetId?: string, releaseId?: string): Observable<PublicContentResult> {
     return this.snapshot().pipe(
       map(snapshot => {
+        if (releaseId && snapshot.release.id !== releaseId) throw new Error('Bản lưu không khớp bản phát hành đang xem.');
         const collection = snapshot.content[kind === 'wiki-pages' ? 'wiki-pages' : kind];
         const normalized = normalizeSearch(query);
         const filtered = collection.filter(item => {
+          if (kind === 'cards' && cardSetId && (item as PublicCard).cardSetId !== cardSetId) return false;
           if (kind === 'wiki-pages' && pageType && (item as PublicWikiPage).pageType !== pageType) return false;
           const candidate = 'title' in item ? item.title : item.name;
           return !normalized || normalizeSearch(`${candidate} ${item.slug} ${'code' in item ? item.code : ''}`).includes(normalized);

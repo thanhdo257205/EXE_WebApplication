@@ -1,6 +1,14 @@
 # EXE_WebApplication — Checklist triển khai
 
-Cập nhật: 2026-10-20 (Asia/Saigon).
+Cập nhật: 2026-10-21 (Asia/Saigon).
+
+## Thư viện thẻ 3D (2026-10-21)
+
+- [x] FE-CARD-CATALOG — Danh sách2D, bộ thẻ public/phân trang bộ/lọc cardSetId, tìm kiếm/phân trang thẻ; fallback mẫu được gắn nhãn và slug thật404 giữ nguyên. Unit/browser fixture qua.
+- [x] FE-CARD-VIEWER — Viewer mặt trước/sau, drag/zoom, touch controls, bàn phím, resize/mobile, poster lỗi/retry, context-loss và cleanup.104 frontend tests/build và Edge QA qua; touch gesture chưa nghiệm thu thiết bị thật.
+- [x] FE-CARD-ASSET — Blender MCP xác minh12 triangles; nén texture797764→383984bytes, poster WebP đúng chiều, metadata/attribution. Engine/model chỉ tải khi detail vào viewport, idle0 draw trong kịch bản đo.
+- [ ] FE-CARD-OFFICIAL-ASSETS — Nhập bộ148 thẻ/artwork chính thức và đối chiếu nội dung release; hiện dùng model minh họa được cung cấp.
+- [ ] FE-CARD-RELEASE — Commit/push/deploy đợt3D và kiểm tra GPU/touch trên thiết bị thật.
 
 ## Phát hành GitHub bản hiện tại (2026-10-20)
 
