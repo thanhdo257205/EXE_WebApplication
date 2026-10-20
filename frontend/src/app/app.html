@@ -1,20 +1,22 @@
 <a class="skip-link" href="#main">Chuyển đến nội dung</a>
 
-<div class="app-container">
-  <!-- Background Vector Artwork -->
-  <div class="artwork-bg"></div>
+<div class="app-container" [class.admin-mode]="isAdminRoute()">
+  @if (!isAdminRoute()) {
+    <!-- Background Vector Artwork -->
+    <div class="artwork-bg"></div>
 
-  <!-- Shared Left Compact Wiki Rail (Sidebar) -->
-  <app-wiki-rail></app-wiki-rail>
+    <!-- Shared Left Compact Wiki Rail (Sidebar) -->
+    <app-wiki-rail></app-wiki-rail>
 
-  <!-- Shared Top Global Wiki Bar -->
-  <app-global-bar
-    [isMobileMenuOpen]="mobileMenuOpen()"
-    (menuToggle)="toggleMobileMenu()"
-  ></app-global-bar>
+    <!-- Shared Top Global Wiki Bar -->
+    <app-global-bar
+      [isMobileMenuOpen]="mobileMenuOpen()"
+      (menuToggle)="toggleMobileMenu()"
+    ></app-global-bar>
+  }
 
-  <!-- Mobile Drawer Menu -->
-  @if (mobileMenuOpen()) {
+  <!-- Mobile Drawer Menu (Public) -->
+  @if (!isAdminRoute() && mobileMenuOpen()) {
     <div class="mobile-overlay md:hidden" (click)="toggleMobileMenu()"></div>
     <nav class="mobile-drawer md:hidden" aria-label="Menu di động">
       <!-- User Profile or Login CTA in mobile drawer -->
@@ -77,7 +79,7 @@
   }
 
   <!-- Main Content View Area -->
-  <main id="main" tabindex="-1" class="main-content">
+  <main id="main" tabindex="-1" class="main-content" [class.admin-main]="isAdminRoute()">
     <router-outlet />
   </main>
 </div>

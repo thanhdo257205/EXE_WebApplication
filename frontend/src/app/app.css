@@ -18,6 +18,10 @@
   font-family: 'Rubik', sans-serif;
 }
 
+.app-container.admin-mode {
+  background-color: #070b11;
+}
+
 .artwork-bg {
   pointer-events: none;
   position: absolute;
@@ -52,6 +56,14 @@
   .main-content {
     margin-left: 4rem;
   }
+}
+
+.main-content.admin-main {
+  margin-left: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  min-height: 100vh;
+  z-index: 1;
 }
 
 .mobile-overlay {
