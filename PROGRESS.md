@@ -6,14 +6,14 @@
 
 - Ngày: 2026-10-20 (Asia/Saigon).
 - Rà soát mới nhất: Đã đối chiếu checklist, mô tả sản phẩm và mã nguồn ở `8196312`; kết quả chi tiết tại [IMPLEMENTATION_REVIEW.md](docs/IMPLEMENTATION_REVIEW.md). Đây là rà soát tài liệu/code, không phải triển khai thêm tính năng.
-- Trạng thái đã xác minh: Home/shell Angular và backend auth/PayOS đã lên Cloudflare Pages + Render; database Aiven ở Flyway V5 với 34 bảng ứng dụng theo lần kiểm tra trước. Các trang nội dung/shop ngoài Home hiện dùng PlaceholderPage.
-- GitHub/deploy: Runtime `58069ed` có CI #39354106621 success. CD thủ công #39355633402 success; đã kiểm tra riêng Render deploy `dep-dbbci07avr4c73dcbph0` live và Google bật sau khi container mới khởi động. Cấu hình Google là thay đổi Environment, không cần sửa runtime/commit rỗng.
+- Trạng thái đã xác minh: Home/shell Angular và backend auth/PayOS đã lên Cloudflare Pages + Render; database Aiven ở Flyway V5 với 34 bảng ứng dụng theo lần kiểm tra trước. Hai trang privacy/terms đã có nội dung chính thức; các trang nội dung trò chơi/shop ngoài Home hiện dùng PlaceholderPage.
+- GitHub/deploy: `3c66908` đã push; CI #39358823062 và CD #39359007604 success, gồm job deploy thật. Hai trang privacy/terms và footer đã lên Pages; Google login vẫn bật sau deploy.
 - PayOS: SDK/keys/webhook thật đã xác minh; create/query/cancel probe có amountPaid=0, không chuyển tiền. Có checkout/orders, chống trùng, ledger và đối soát cron 30 phút; 63 backend tests đã qua CI. Chưa có giao dịch ngân hàng thật hoặc luồng mua hàng Angular hoàn chỉnh.
-- Google thật: OAuth client EXE_WebApplication Production trong project exewebapplication; credentials chỉ lưu Render, GOOGLE_ENABLED=true. Callback https://exe-webapp.pages.dev/api/v1/auth/oauth2/callback/google. External/Testing; đã thêm Gmail của chủ dự án làm test user. Đăng nhập thật đã thành công, CUSTOMER và phiên JDBC đã xác minh.
+- Google thật: OAuth client EXE_WebApplication Production trong project exewebapplication; credentials chỉ lưu Render, GOOGLE_ENABLED=true. Callback https://exe-webapp.pages.dev/api/v1/auth/oauth2/callback/google. External/In production từ 2026-10-20; hai URL privacy/terms đã công bố và khai báo Google. Gmail chủ dự án đã được dùng để thử đăng nhập. Đăng nhập thật đã thành công, CUSTOMER và phiên JDBC đã xác minh.
 - Các thiếu sót chính từ code: chưa có đăng ký/khôi phục mật khẩu, UI login, API content/catalog/cart/profile/address, admin và dữ liệu chính thức. Ô search chưa xử lý; header giỏ hàng đang ghi cố định (2).
 - Việc tiếp theo cho website giới thiệu: xác định dữ liệu nguồn, xây thư viện/chi tiết/wiki và mô phỏng Quỹ; public content phải dùng được khi Render ngủ.
 - Việc tiếp theo trước mở bán: tài khoản khách → catalog/tồn kho → cart/địa chỉ/phí giao → checkout/orders UI → xử lý UNKNOWN/REVIEW/refund/vận chuyển → E2E và kiểm thử chuyển tiền thật. Nhóm 7–11 trong CHECKLIST.md bổ sung các việc chi tiết và mức ưu tiên; không coi đây là tính năng đã xây.
-- Tích hợp Morphicons: Đã cài `morphicons@^2.0.0` (giấy phép MIT), đăng ký global web component `<morph-icon>`, xây dựng wrapper `MorphIconComponent` (`<app-morph-icon>`) với hiệu ứng morph physics spring (`bouncy`), hover morph và chuyển đổi menu/close/cart/navigation. Tất cả 5 unit tests và `npm run build` (prerender 4 routes) đều pass 100%.
+- Tích hợp Morphicons: Đã cài `morphicons@^2.0.0` (giấy phép MIT), đăng ký global web component `<morph-icon>`, xây dựng wrapper `MorphIconComponent` (`<app-morph-icon>`) với hiệu ứng morph physics spring (`bouncy`), hover morph và chuyển đổi menu/close/cart/navigation. Tất cả 5 unit tests và `npm run build` (hiện prerender 6 routes, gồm privacy/terms) đều pass 100%.
 
 ## Bối cảnh và tài liệu
 
@@ -209,4 +209,12 @@ Các ghi chú theo phiên bên dưới là lịch sử tại thời điểm th�
 
 - Chủ dự án đã duyệt nội dung quyền riêng tư và điều khoản trong docs/OAUTH_PUBLIC_POLICIES_DRAFT.md cùng việc công bố/deploy. Hai route /chinh-sach-quyen-rieng-tu và /dieu-khoan-su-dung dùng nội dung đã duyệt, prerender HTML; footer toàn site có liên kết và email hỗ trợ.
 - Local: npm run build thành công, prerender 6 routes; 5 frontend tests pass. Browser đã kiểm tra nội dung và chuyển qua lại giữa hai tài liệu.
-- Google Branding đã lưu homepage https://exe-webapp.pages.dev/. Cần chờ hai trang lên production, khai báo URL privacy/terms rồi kiểm tra lại Publish. Chưa đánh dấu OAuth In production trước khi Google xác nhận.
+- Đã push 3c66908; CI #39358823062 và CD #39359007604 success. Hai URL privacy/terms HTTP 200, có HTML tĩnh đúng nội dung và footer link; kiểm tra browser thật cả hai trang. /api/v1/auth/config vẫn google=true.
+- Google Branding đã lưu homepage cùng https://exe-webapp.pages.dev/chinh-sach-quyen-rieng-tu và https://exe-webapp.pages.dev/dieu-khoan-su-dung. Đã Publish và Confirm; Audience hiện In production, External. Không thay client/secret/callback hoặc mở thêm scopes.
+- Ảnh bằng chứng ngoài repo: C:/Users/dotha/.codex/tmp/exe-deploy/google-oauth-production.jpg. Phần cập nhật nghiệm thu được đồng bộ cùng đợt docs-only bổ sung AGENTS.md theo yêu cầu chủ dự án.
+
+### Quy tắc tài liệu lâu dài — 2026-10-20
+
+- Chủ dự án yêu cầu mọi lần sửa/thêm tính năng phải cập nhật docs. Đã thêm AGENTS.md ở root để các phiên sau đọc và tuân theo; README liên kết quy trình.
+- Đồng bộ nghiệm thu Google In production và privacy/terms đã deploy vào checklist, progress, báo cáo rà soát và AUTH_AND_GATEWAY.md; sửa nhận định cũ chưa deploy/chưa thử Google trong hướng dẫn auth.
+- Đợt này chỉ thay tài liệu, không thay runtime; dùng commit docs-only với [skip ci] để không deploy lại ứng dụng. Bản runtime đã xác minh vẫn là 3c66908, CI #39358823062 và CD #39359007604 success.

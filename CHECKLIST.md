@@ -261,5 +261,5 @@ Chi tiết bằng chứng: [IMPLEMENTATION_REVIEW.md](docs/IMPLEMENTATION_REVIEW
 - [ ] OPS-07: CD cần xác minh deployment Render mới đã live khi redeploy cùng SHA; kiểm tra SHA từ /info một mình có thể khớp container cũ.
 
 - [x] Xây hai trang privacy/terms prerender và footer với nội dung đã được chủ dự án duyệt; local build + 5 frontend tests pass.
-- [ ] Xác minh hai URL privacy/terms đã được deploy công khai.
-- [ ] Chuyển Google OAuth từ Testing sang In production sau khi khai báo URL policy và terms hoạt động.
+- [x] Xác minh hai URL privacy/terms đã được deploy công khai: HTTP 200, HTML và browser đúng nội dung (2026-10-20).
+- [x] Chuyển Google OAuth từ Testing sang In production sau khi khai báo URL policy và terms hoạt động (Google Audience xác nhận 2026-10-20).

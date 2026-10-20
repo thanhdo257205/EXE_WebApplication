@@ -8,7 +8,13 @@ Website board game **Chưa Giàu Đã Lớn — Nhà Này Hơi Báo!**
 - Spring Boot 4.1.1, Java 25, Maven Wrapper, Spring Security, JPA, Flyway.
 - Local dùng H2 trong bộ nhớ; production dùng PostgreSQL trên Aiven qua TLS.
 - Có giao diện Home/shell theo prototype và điều hướng; các khu vực nội dung/shop còn dùng placeholder. Backend có auth, CSRF, session JDBC, checkout/inventory và tích hợp PayOS. Chưa có UI login, dữ liệu 148 thẻ chính thức, catalog/cart API, admin hoặc luồng mua hàng Angular hoàn chỉnh.
-- Đã deploy trên Cloudflare Pages Free, Render Free và Aiven Free. CI/CD của `8196312` đã thành công, gồm kiểm tra container 512 MB và smoke production; máy local chưa có Docker theo lần kiểm tra trước.
+- Đã deploy trên Cloudflare Pages Free, Render Free và Aiven Free. CI/CD của `3c66908` đã thành công, gồm kiểm tra container 512 MB và smoke production; máy local chưa có Docker theo lần kiểm tra trước.
+
+- Google OAuth đã ở External/In production; đăng nhập thật đã kiểm tra. Hai trang [quyền riêng tư](https://exe-webapp.pages.dev/chinh-sach-quyen-rieng-tu) và [điều khoản](https://exe-webapp.pages.dev/dieu-khoan-su-dung) đã công bố.
+
+## Quy tắc cập nhật tài liệu
+
+Mỗi lần sửa hoặc thêm tính năng/cấu hình phải cập nhật `PROGRESS.md`, `CHECKLIST.md` và tài liệu liên quan trong `docs/`. Xem [AGENTS.md](AGENTS.md) để các phiên làm việc tiếp tục cùng quy trình.
 
 ## Cấu trúc
 

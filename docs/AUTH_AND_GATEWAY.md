@@ -6,7 +6,7 @@
 
 Backend hỗ trợ email/mật khẩu và Google OIDC qua Spring Security. Có migration user/session, CSRF, phân quyền, proxy guard, gateway Cloudflare Workers, rate limit và kiểm tra Turnstile. Chưa có giao diện đăng nhập, đăng ký mật khẩu công khai, reset mật khẩu hoặc liên kết hai phương thức vào cùng một tài khoản.
 
-Đây là mã triển khai đã kiểm tra local. Chưa tạo dịch vụ Render/Aiven/Pages, chưa deploy Worker và chưa đăng nhập Google thật. Google Client ID/Secret, Turnstile sitekey/secret và các URL production phải được cấu hình trước khi bật ngoài Internet.
+Đã deploy Pages/Worker, Render và Aiven; Turnstile và Google credentials thật đã cấu hình. Ngày 2026-10-20 đã kiểm tra Google consent/callback thành công và xác nhận CUSTOMER cùng phiên JDBC trên Aiven. Google OAuth hiện External/In production; website chưa có UI đăng nhập. Xem PROGRESS.md để biết commit và kết quả CI/CD gần nhất.
 
 ## Kiến trúc cùng origin
 
@@ -105,3 +105,13 @@ frontend:         npm test -- --watch=false; npm run build
 `npm run build` ở proxy chỉ dry-run bundle, không deploy. Workflow CI đã thêm job gateway: typecheck, tests và dry-run, không cần cloud secrets.
 
 Tham khảo: [Spring Security CSRF](https://docs.spring.io/spring-security/reference/servlet/exploits/csrf.html), [OAuth2 login](https://docs.spring.io/spring-security/reference/servlet/oauth2/login/advanced.html).
+
+## Google OAuth production hiện tại — 2026-10-20
+
+- Google Cloud project: `exewebapplication`; OAuth client kiểu Web: `EXE_WebApplication Production`.
+- Audience: External, publishing status In production. Phạm vi đăng nhập chỉ `openid`, `email`, `profile`; chưa yêu cầu quyền Gmail/Drive.
+- Bắt đầu đăng nhập: `https://exe-webapp.pages.dev/api/v1/auth/oauth2/authorization/google`.
+- Callback đăng ký: `https://exe-webapp.pages.dev/api/v1/auth/oauth2/callback/google`.
+- Homepage: `https://exe-webapp.pages.dev/`; privacy: `/chinh-sach-quyen-rieng-tu`; terms: `/dieu-khoan-su-dung`. Hai trang prerender cùng domain, có link ở footer; nội dung được chủ dự án duyệt trước công bố.
+- Render lưu `GOOGLE_ENABLED=true`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`. Không đưa Client Secret vào Angular hoặc repo. Thay biến cần deploy/restart để backend dùng cấu hình mới; thay OAuth client/domain phải cập nhật callback tương ứng trong Google Cloud.
+- In production là trạng thái xuất bản OAuth; không tự xác nhận thương hiệu đã được Google duyệt hoặc website đã hoàn thiện mọi tính năng.
