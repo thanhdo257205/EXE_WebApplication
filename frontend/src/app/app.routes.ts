@@ -2,6 +2,10 @@ import { Routes } from '@angular/router';
 
 export const routes: Routes = [
   {
+    path: 'admin',
+    loadChildren: () => import('./features/admin/admin.routes').then(m => m.ADMIN_ROUTES),
+  },
+  {
     path: 'quen-mat-khau',
     title: 'Quên mật khẩu — Nhà Này Hơi Báo!',
     loadComponent: () => import('./features/auth/recovery/recovery.page').then(m => m.RecoveryPage),

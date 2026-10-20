@@ -80,3 +80,10 @@ Flyway áp V6/V7 cộng thêm; session đăng nhập cũ phải login lại vì 
 Mail mặc định tắt. Chỉ bật `PASSWORD_RESET_ENABLED=true` sau khi đặt `RESEND_API_KEY`, `MAIL_FROM` đã xác minh và `PASSWORD_RESET_PUBLIC_ORIGIN` đúng public website; xem [PASSWORD_RECOVERY.md](PASSWORD_RECOVERY.md). Không coi mock là bằng chứng giao thư thật. Render Free chặn SMTP 25/465/587 nên code dùng HTTPS.
 
 Sau deploy kiểm tra login/Google cấp AUTH_TOKEN HttpOnly/Secure/Lax/Path=/api, CSRF, `/me`, logout/replay trả 401 và recovery thật bằng tài khoản thử được chỉ định. Bản rà soát UI đã thêm Turnstile trên form production với sitekey công khai cho exe-webapp.pages.dev; gateway vẫn bắt buộc xác minh hostname/action/challenge. Thay public domain phải cập nhật widget domains và sitekey environment tương ứng, không đưa secret vào frontend. Chưa nghiệm thu challenge browser thật. 96d2b01 đã có trên GitHub và qua CI, CD đang chạy tại lần kiểm tra; theo dõi commit rà soát UI tiếp theo trên Actions, không suy ra deploy đã thành công chỉ từ push.
+
+
+## Backend admin content V8 — source mới, chưa deploy trong đợt này
+
+Deploy backend mới sẽ tự áp Flyway V8 thêm release.version/index; không sửa checksum migration cũ hoặc seed nội dung. Không cần credential hoặc dịch vụ cloud mới. Các endpoint /api/v1/admin vẫn cần JWT ADMIN/CSRF/proxy; frontend do AI khác làm, hợp đồng tại docs/api/admin-content.openapi.json. API chỉ quản lý draft/preview/clone và không kích hoạt Pages publish.
+
+Trước deploy cần Maven verify với H2 và PostgreSQL disposable; sau deploy nghiệm thu 401/403/ADMIN, CSRF, stale version 409, dữ liệu/audit atomic, clone giữ ID và preview không public. Không chạy test ghi trên production; dùng dữ liệu/môi trường thử phù hợp. Trong phiên phát triển này không áp V8 lên Aiven hoặc gọi deploy cloud.

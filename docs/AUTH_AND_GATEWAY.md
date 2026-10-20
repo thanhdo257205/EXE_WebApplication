@@ -62,7 +62,7 @@ Trình tự mật khẩu:
 - BCrypt cost 12; backend không trả password hash.
 - Google chỉ chấp nhận email đã xác minh; xác định tài khoản bằng Google `sub` ổn định. Tài khoản mới được quyền CUSTOMER.
 - Trùng email với tài khoản mật khẩu sẽ bị từ chối liên kết tự động, không tự nâng quyền. Chưa có luồng liên kết tài khoản.
-- `/api/v1/admin/**` yêu cầu ADMIN; `/me` yêu cầu đăng nhập; endpoint chưa được khai báo bị từ chối. Chưa có API quản trị thật.
+- `/api/v1/admin/**` yêu cầu ADMIN; `/me` yêu cầu đăng nhập; endpoint chưa được khai báo bị từ chối. Đã có API admin nội dung trong source theo [ADMIN_BACKEND.md](ADMIN_BACKEND.md); các phân hệ commerce/user/publish còn thiếu, chưa deploy API mới trong đợt này.
 - Tài khoản mật khẩu ban đầu tạo bằng `BOOTSTRAP_ADMIN_EMAIL` và `BOOTSTRAP_ADMIN_PASSWORD` (ít nhất 12 ký tự, tối đa 72 byte UTF-8). Chỉ tạo nếu chưa có email; không cập nhật mật khẩu/quyền tài khoản đã tồn tại. Xóa hai biến bootstrap sau lần khởi tạo production đầu tiên.
 - Chưa bật giới hạn đăng nhập ở local Spring chạy độc lập. Production phải bật proxy guard; rate limit nằm ở Worker.
 
@@ -124,3 +124,5 @@ Tham khảo: [Spring Security CSRF](https://docs.spring.io/spring-security/refer
 ### Cấp ADMIN trực tiếp — 2026-10-20 (ghi nhận local)
 
 Theo yêu cầu chủ dự án, một tài khoản hiện có đã được cấp ADMIN enabled và bổ sung password hash BCrypt cost 12, giữ liên kết Google. Kiểm tra DB sau transaction thành công; chưa nghiệm thu login/quyền ADMIN thật qua API/UI. JWT local mới đọc quyền/enabled từ DB mỗi request; production cũ vẫn dùng session tại thời điểm thao tác này. Không có thay đổi runtime/deploy; không commit hoặc push đợt này theo yêu cầu. Không ghi định danh hoặc mật khẩu/hash vào tài liệu.
+
+Admin content thêm PUT/DELETE ngoài GET/POST, CORS được cập nhật cho các method này; gateway đã hỗ trợ và giữ nguyên CSRF/cookie. Không nới rule ADMIN hoặc bỏ proxy/CSRF. OpenAPI 0.1.0 mô tả API đã có, không bao gồm endpoint dự kiến.

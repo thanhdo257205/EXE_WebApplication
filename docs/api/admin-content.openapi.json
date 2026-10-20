@@ -1,0 +1,5533 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Nhà Này Hơi Báo — Admin Content API",
+    "version": "0.1.0",
+    "description": "Phase A implemented source contract, not proof of production deployment. JWT is carried in HttpOnly AUTH_TOKEN cookie; browser cannot read it. Fetch a CSRF token with credentials from /api/v1/auth/csrf and send its header on POST/PUT/DELETE. All APIs require ADMIN and no-store responses. Public preview/import/publish/commerce/user administration are outside this version."
+  },
+  "servers": [
+    {
+      "url": "/api/v1/admin",
+      "description": "Same-origin gateway"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Admin content",
+      "description": "Private draft management, stable identities and release snapshots"
+    }
+  ],
+  "security": [
+    {
+      "cookieAuth": []
+    }
+  ],
+  "paths": {
+    "/dashboard": {
+      "get": {
+        "operationId": "adminDashboard",
+        "summary": "Content release and review queue counts",
+        "description": "",
+        "tags": [
+          "Admin content"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Dashboard"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Login required or JWT expired",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN, CSRF or proxy required",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, identity, reference or immutable release conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body or preview/clone too large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Backend or gateway unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/content/releases": {
+      "get": {
+        "operationId": "listContentReleases",
+        "summary": "List releases",
+        "description": "",
+        "tags": [
+          "Admin content"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReleasePage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Login required or JWT expired",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN, CSRF or proxy required",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, identity, reference or immutable release conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body or preview/clone too large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Backend or gateway unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10000,
+              "default": 0
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "DRAFT",
+                "PUBLISHED",
+                "ARCHIVED"
+              ]
+            }
+          }
+        ]
+      },
+      "post": {
+        "operationId": "createContentRelease",
+        "summary": "Create empty draft release",
+        "description": "",
+        "tags": [
+          "Admin content"
+        ],
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfHeader": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Release"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Login required or JWT expired",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN, CSRF or proxy required",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, identity, reference or immutable release conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body or preview/clone too large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Backend or gateway unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRelease"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/content/releases/{release}": {
+      "get": {
+        "operationId": "getContentRelease",
+        "summary": "Get release metadata",
+        "description": "",
+        "tags": [
+          "Admin content"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Release"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Login required or JWT expired",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN, CSRF or proxy required",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, identity, reference or immutable release conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body or preview/clone too large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Backend or gateway unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "release",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      },
+      "put": {
+        "operationId": "updateContentRelease",
+        "summary": "Update draft metadata",
+        "description": "",
+        "tags": [
+          "Admin content"
+        ],
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfHeader": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Release"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Login required or JWT expired",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN, CSRF or proxy required",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, identity, reference or immutable release conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body or preview/clone too large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Backend or gateway unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "release",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateRelease"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/content/releases/{release}/clone": {
+      "post": {
+        "operationId": "cloneContentRelease",
+        "summary": "Clone a consistent release into a new draft",
+        "description": "Keeps stable entity IDs. New revision IDs and new release version 0. Same size limits as preview. Does not publish anything.",
+        "tags": [
+          "Admin content"
+        ],
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfHeader": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Release"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Login required or JWT expired",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN, CSRF or proxy required",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, identity, reference or immutable release conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body or preview/clone too large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Backend or gateway unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "release",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CloneRelease"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/content/releases/{release}/preview": {
+      "get": {
+        "operationId": "previewContentRelease",
+        "summary": "Read private consistent content snapshot",
+        "description": "ADMIN only; never a public export. At most 2000 revisions and 500000 stored text characters. Use paginated endpoints if larger. No publish/deploy side effect.",
+        "tags": [
+          "Admin content"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Preview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Login required or JWT expired",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN, CSRF or proxy required",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, identity, reference or immutable release conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body or preview/clone too large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Backend or gateway unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "release",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
+    "/content/identities/{kind}": {
+      "get": {
+        "operationId": "listContentIdentities",
+        "summary": "Look up stable identities, including ones removed from drafts",
+        "description": "",
+        "tags": [
+          "Admin content"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentityPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Login required or JWT expired",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN, CSRF or proxy required",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, identity, reference or immutable release conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body or preview/clone too large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Backend or gateway unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "characters",
+                "card-sets",
+                "cards",
+                "wiki-pages"
+              ]
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10000,
+              "default": 0
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100,
+              "default": ""
+            }
+          }
+        ]
+      }
+    },
+    "/content/audit-events": {
+      "get": {
+        "operationId": "listContentAuditEvents",
+        "summary": "List redacted successful content changes",
+        "description": "Read-only. Only CONTENT_ actions; records exclude article/card text, request bodies, auth tokens and credentials. Does not constitute general security/failure audit.",
+        "tags": [
+          "Admin content"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Login required or JWT expired",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN, CSRF or proxy required",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, identity, reference or immutable release conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body or preview/clone too large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Backend or gateway unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10000,
+              "default": 0
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "releaseId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
+    "/content/releases/{release}/characters": {
+      "get": {
+        "operationId": "listCharacterRevisions",
+        "summary": "List characters revisions in a release",
+        "description": "Search is case-insensitive literal text in name/title, slug and code when available. Sorted by sortOrder, name/title, stable UUID. Snapshot includes releaseVersion.",
+        "tags": [
+          "Admin content"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CharacterPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Login required or JWT expired",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN, CSRF or proxy required",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, identity, reference or immutable release conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body or preview/clone too large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Backend or gateway unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "release",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10000,
+              "default": 0
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100,
+              "default": ""
+            }
+          }
+        ]
+      },
+      "post": {
+        "operationId": "createCharacterRevision",
+        "summary": "Add characters revision to draft",
+        "description": "Omit entityId for a new stable identity; supply an existing entityId with matching immutable code/slug/pageType to reuse it. expectedVersion covers the entire release.",
+        "tags": [
+          "Admin content"
+        ],
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfHeader": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CharacterMutation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Login required or JWT expired",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN, CSRF or proxy required",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, identity, reference or immutable release conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body or preview/clone too large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Backend or gateway unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "release",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CharacterWrite"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/content/releases/{release}/characters/{id}": {
+      "get": {
+        "operationId": "getCharacterRevision",
+        "summary": "Get characters revision",
+        "description": "",
+        "tags": [
+          "Admin content"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CharacterDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Login required or JWT expired",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN, CSRF or proxy required",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, identity, reference or immutable release conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body or preview/clone too large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Backend or gateway unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "release",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      },
+      "put": {
+        "operationId": "updateCharacterRevision",
+        "summary": "Replace characters draft revision",
+        "description": "Full replacement; omitted optional fields become null/default. Identity fields cannot change. No partial PATCH. 409 VERSION_CONFLICT requires refetch/review, not blind retry.",
+        "tags": [
+          "Admin content"
+        ],
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfHeader": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CharacterMutation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Login required or JWT expired",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN, CSRF or proxy required",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, identity, reference or immutable release conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body or preview/clone too large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Backend or gateway unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "release",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CharacterWrite"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "removeCharacterRevision",
+        "summary": "Remove characters revision from draft",
+        "description": "Removes only this draft revision, never its stable identity or another release. Referenced characters/sets cannot be removed until dependent cards are removed or edited.",
+        "tags": [
+          "Admin content"
+        ],
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfHeader": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Login required or JWT expired",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN, CSRF or proxy required",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, identity, reference or immutable release conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body or preview/clone too large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Backend or gateway unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "release",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "expectedVersion",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ]
+      }
+    },
+    "/content/releases/{release}/card-sets": {
+      "get": {
+        "operationId": "listCardSetRevisions",
+        "summary": "List card-sets revisions in a release",
+        "description": "Search is case-insensitive literal text in name/title, slug and code when available. Sorted by sortOrder, name/title, stable UUID. Snapshot includes releaseVersion.",
+        "tags": [
+          "Admin content"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardSetPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Login required or JWT expired",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN, CSRF or proxy required",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, identity, reference or immutable release conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body or preview/clone too large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Backend or gateway unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "release",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10000,
+              "default": 0
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100,
+              "default": ""
+            }
+          }
+        ]
+      },
+      "post": {
+        "operationId": "createCardSetRevision",
+        "summary": "Add card-sets revision to draft",
+        "description": "Omit entityId for a new stable identity; supply an existing entityId with matching immutable code/slug/pageType to reuse it. expectedVersion covers the entire release.",
+        "tags": [
+          "Admin content"
+        ],
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfHeader": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardSetMutation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Login required or JWT expired",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN, CSRF or proxy required",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, identity, reference or immutable release conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body or preview/clone too large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Backend or gateway unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "release",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CardSetWrite"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/content/releases/{release}/card-sets/{id}": {
+      "get": {
+        "operationId": "getCardSetRevision",
+        "summary": "Get card-sets revision",
+        "description": "",
+        "tags": [
+          "Admin content"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardSetDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Login required or JWT expired",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN, CSRF or proxy required",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, identity, reference or immutable release conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body or preview/clone too large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Backend or gateway unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "release",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      },
+      "put": {
+        "operationId": "updateCardSetRevision",
+        "summary": "Replace card-sets draft revision",
+        "description": "Full replacement; omitted optional fields become null/default. Identity fields cannot change. No partial PATCH. 409 VERSION_CONFLICT requires refetch/review, not blind retry.",
+        "tags": [
+          "Admin content"
+        ],
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfHeader": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardSetMutation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Login required or JWT expired",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN, CSRF or proxy required",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, identity, reference or immutable release conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body or preview/clone too large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Backend or gateway unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "release",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CardSetWrite"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "removeCardSetRevision",
+        "summary": "Remove card-sets revision from draft",
+        "description": "Removes only this draft revision, never its stable identity or another release. Referenced characters/sets cannot be removed until dependent cards are removed or edited.",
+        "tags": [
+          "Admin content"
+        ],
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfHeader": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Login required or JWT expired",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN, CSRF or proxy required",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, identity, reference or immutable release conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body or preview/clone too large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Backend or gateway unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "release",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "expectedVersion",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ]
+      }
+    },
+    "/content/releases/{release}/cards": {
+      "get": {
+        "operationId": "listCardRevisions",
+        "summary": "List cards revisions in a release",
+        "description": "Search is case-insensitive literal text in name/title, slug and code when available. Sorted by sortOrder, name/title, stable UUID. Snapshot includes releaseVersion.",
+        "tags": [
+          "Admin content"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Login required or JWT expired",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN, CSRF or proxy required",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, identity, reference or immutable release conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body or preview/clone too large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Backend or gateway unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "release",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10000,
+              "default": 0
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100,
+              "default": ""
+            }
+          }
+        ]
+      },
+      "post": {
+        "operationId": "createCardRevision",
+        "summary": "Add cards revision to draft",
+        "description": "Omit entityId for a new stable identity; supply an existing entityId with matching immutable code/slug/pageType to reuse it. expectedVersion covers the entire release.",
+        "tags": [
+          "Admin content"
+        ],
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfHeader": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardMutation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Login required or JWT expired",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN, CSRF or proxy required",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, identity, reference or immutable release conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body or preview/clone too large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Backend or gateway unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "release",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CardWrite"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/content/releases/{release}/cards/{id}": {
+      "get": {
+        "operationId": "getCardRevision",
+        "summary": "Get cards revision",
+        "description": "",
+        "tags": [
+          "Admin content"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Login required or JWT expired",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN, CSRF or proxy required",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, identity, reference or immutable release conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body or preview/clone too large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Backend or gateway unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "release",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      },
+      "put": {
+        "operationId": "updateCardRevision",
+        "summary": "Replace cards draft revision",
+        "description": "Full replacement; omitted optional fields become null/default. Identity fields cannot change. No partial PATCH. 409 VERSION_CONFLICT requires refetch/review, not blind retry.",
+        "tags": [
+          "Admin content"
+        ],
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfHeader": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardMutation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Login required or JWT expired",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN, CSRF or proxy required",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, identity, reference or immutable release conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body or preview/clone too large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Backend or gateway unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "release",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CardWrite"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "removeCardRevision",
+        "summary": "Remove cards revision from draft",
+        "description": "Removes only this draft revision, never its stable identity or another release. Referenced characters/sets cannot be removed until dependent cards are removed or edited.",
+        "tags": [
+          "Admin content"
+        ],
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfHeader": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Login required or JWT expired",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN, CSRF or proxy required",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, identity, reference or immutable release conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body or preview/clone too large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Backend or gateway unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "release",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "expectedVersion",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ]
+      }
+    },
+    "/content/releases/{release}/wiki-pages": {
+      "get": {
+        "operationId": "listWikiPageRevisions",
+        "summary": "List wiki-pages revisions in a release",
+        "description": "Search is case-insensitive literal text in name/title, slug and code when available. Sorted by sortOrder, name/title, stable UUID. Snapshot includes releaseVersion.",
+        "tags": [
+          "Admin content"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WikiPagePage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Login required or JWT expired",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN, CSRF or proxy required",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, identity, reference or immutable release conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body or preview/clone too large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Backend or gateway unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "release",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10000,
+              "default": 0
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100,
+              "default": ""
+            }
+          }
+        ]
+      },
+      "post": {
+        "operationId": "createWikiPageRevision",
+        "summary": "Add wiki-pages revision to draft",
+        "description": "Omit entityId for a new stable identity; supply an existing entityId with matching immutable code/slug/pageType to reuse it. expectedVersion covers the entire release.",
+        "tags": [
+          "Admin content"
+        ],
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfHeader": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WikiPageMutation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Login required or JWT expired",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN, CSRF or proxy required",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, identity, reference or immutable release conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body or preview/clone too large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Backend or gateway unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "release",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WikiPageWrite"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/content/releases/{release}/wiki-pages/{id}": {
+      "get": {
+        "operationId": "getWikiPageRevision",
+        "summary": "Get wiki-pages revision",
+        "description": "",
+        "tags": [
+          "Admin content"
+        ],
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WikiPageDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Login required or JWT expired",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN, CSRF or proxy required",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, identity, reference or immutable release conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body or preview/clone too large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Backend or gateway unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "release",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      },
+      "put": {
+        "operationId": "updateWikiPageRevision",
+        "summary": "Replace wiki-pages draft revision",
+        "description": "Full replacement; omitted optional fields become null/default. Identity fields cannot change. No partial PATCH. 409 VERSION_CONFLICT requires refetch/review, not blind retry.",
+        "tags": [
+          "Admin content"
+        ],
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfHeader": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WikiPageMutation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Login required or JWT expired",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN, CSRF or proxy required",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, identity, reference or immutable release conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body or preview/clone too large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Backend or gateway unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "release",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WikiPageWrite"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "removeWikiPageRevision",
+        "summary": "Remove wiki-pages revision from draft",
+        "description": "Removes only this draft revision, never its stable identity or another release. Referenced characters/sets cannot be removed until dependent cards are removed or edited.",
+        "tags": [
+          "Admin content"
+        ],
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfHeader": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Login required or JWT expired",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN, CSRF or proxy required",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, identity, reference or immutable release conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body or preview/clone too large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Backend or gateway unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "release",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "expectedVersion",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "cookieAuth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "AUTH_TOKEN",
+        "description": "Issued by password/register/Google auth; HttpOnly; expires in 30 minutes."
+      },
+      "csrfHeader": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-XSRF-TOKEN",
+        "description": "Get token and CSRF cookie from /api/v1/auth/csrf using credentials include. Never use an origin proxy secret in browser code."
+      }
+    },
+    "schemas": {
+      "Problem": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "detail": {
+            "type": "string"
+          },
+          "instance": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "field": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "field",
+                "message"
+              ]
+            }
+          }
+        },
+        "required": [
+          "title",
+          "status"
+        ]
+      },
+      "Release": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "versionLabel": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "releaseNotes": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 10000
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "PUBLISHED",
+              "ARCHIVED"
+            ]
+          },
+          "currentSlot": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "createdBy": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "publishedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "id",
+          "versionLabel",
+          "title",
+          "releaseNotes",
+          "status",
+          "currentSlot",
+          "createdBy",
+          "createdAt",
+          "publishedAt",
+          "version"
+        ]
+      },
+      "CreateRelease": {
+        "type": "object",
+        "properties": {
+          "versionLabel": {
+            "type": "string",
+            "pattern": "[A-Za-z0-9][A-Za-z0-9._-]*",
+            "maxLength": 40
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "releaseNotes": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 10000
+          }
+        },
+        "required": [
+          "versionLabel",
+          "title"
+        ]
+      },
+      "UpdateRelease": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "releaseNotes": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 10000
+          }
+        },
+        "required": [
+          "expectedVersion",
+          "title"
+        ]
+      },
+      "CloneRelease": {
+        "type": "object",
+        "properties": {
+          "sourceVersion": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "versionLabel": {
+            "type": "string",
+            "pattern": "[A-Za-z0-9][A-Za-z0-9._-]*",
+            "maxLength": 40
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "releaseNotes": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 10000
+          }
+        },
+        "required": [
+          "sourceVersion",
+          "versionLabel",
+          "title"
+        ]
+      },
+      "ReleasePage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Release"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "totalElements": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "totalPages": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "size",
+          "totalElements",
+          "totalPages"
+        ]
+      },
+      "RuleStatus": {
+        "type": "string",
+        "enum": [
+          "CONFIRMED",
+          "NEEDS_REVIEW"
+        ]
+      },
+      "PageType": {
+        "type": "string",
+        "enum": [
+          "STORY",
+          "RULE",
+          "GUIDE",
+          "FAQ",
+          "DEVLOG"
+        ]
+      },
+      "Character": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "revisionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "releaseId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "code": {
+            "type": "string",
+            "pattern": "[A-Z0-9][A-Z0-9_-]*",
+            "maxLength": 40
+          },
+          "slug": {
+            "type": "string",
+            "pattern": "[a-z0-9]+(?:-[a-z0-9]+)*",
+            "maxLength": 160
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "biography": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20000
+          },
+          "abilityText": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 10000
+          },
+          "portraitUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 2048
+          },
+          "sortOrder": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000,
+            "default": 0
+          }
+        },
+        "required": [
+          "id",
+          "revisionId",
+          "releaseId",
+          "code",
+          "slug",
+          "name",
+          "biography",
+          "abilityText",
+          "portraitUrl",
+          "sortOrder"
+        ]
+      },
+      "CharacterWrite": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "entityId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "code": {
+            "type": "string",
+            "pattern": "[A-Z0-9][A-Z0-9_-]*",
+            "maxLength": 40
+          },
+          "slug": {
+            "type": "string",
+            "pattern": "[a-z0-9]+(?:-[a-z0-9]+)*",
+            "maxLength": 160
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "biography": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20000
+          },
+          "abilityText": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 10000
+          },
+          "portraitUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 2048
+          },
+          "sortOrder": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 100000,
+            "default": 0
+          }
+        },
+        "required": [
+          "expectedVersion",
+          "code",
+          "slug",
+          "name",
+          "biography"
+        ]
+      },
+      "CharacterPage": {
+        "type": "object",
+        "properties": {
+          "releaseVersion": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "result": {
+            "type": "object",
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Character"
+                }
+              },
+              "page": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "size": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              },
+              "totalElements": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "totalPages": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "items",
+              "page",
+              "size",
+              "totalElements",
+              "totalPages"
+            ]
+          }
+        },
+        "required": [
+          "releaseVersion",
+          "result"
+        ]
+      },
+      "CharacterDetail": {
+        "type": "object",
+        "properties": {
+          "releaseVersion": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "item": {
+            "$ref": "#/components/schemas/Character"
+          }
+        },
+        "required": [
+          "releaseVersion",
+          "item"
+        ]
+      },
+      "CharacterMutation": {
+        "type": "object",
+        "properties": {
+          "entityId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "releaseVersion": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "item": {
+            "$ref": "#/components/schemas/Character"
+          }
+        },
+        "required": [
+          "entityId",
+          "releaseVersion",
+          "item"
+        ]
+      },
+      "CardSet": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "revisionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "releaseId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "code": {
+            "type": "string",
+            "pattern": "[A-Z0-9][A-Z0-9_-]*",
+            "maxLength": 40
+          },
+          "slug": {
+            "type": "string",
+            "pattern": "[a-z0-9]+(?:-[a-z0-9]+)*",
+            "maxLength": 160
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 10000
+          },
+          "sortOrder": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000,
+            "default": 0
+          }
+        },
+        "required": [
+          "id",
+          "revisionId",
+          "releaseId",
+          "code",
+          "slug",
+          "name",
+          "description",
+          "sortOrder"
+        ]
+      },
+      "CardSetWrite": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "entityId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "code": {
+            "type": "string",
+            "pattern": "[A-Z0-9][A-Z0-9_-]*",
+            "maxLength": 40
+          },
+          "slug": {
+            "type": "string",
+            "pattern": "[a-z0-9]+(?:-[a-z0-9]+)*",
+            "maxLength": 160
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 10000
+          },
+          "sortOrder": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 100000,
+            "default": 0
+          }
+        },
+        "required": [
+          "expectedVersion",
+          "code",
+          "slug",
+          "name"
+        ]
+      },
+      "CardSetPage": {
+        "type": "object",
+        "properties": {
+          "releaseVersion": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "result": {
+            "type": "object",
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CardSet"
+                }
+              },
+              "page": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "size": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              },
+              "totalElements": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "totalPages": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "items",
+              "page",
+              "size",
+              "totalElements",
+              "totalPages"
+            ]
+          }
+        },
+        "required": [
+          "releaseVersion",
+          "result"
+        ]
+      },
+      "CardSetDetail": {
+        "type": "object",
+        "properties": {
+          "releaseVersion": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "item": {
+            "$ref": "#/components/schemas/CardSet"
+          }
+        },
+        "required": [
+          "releaseVersion",
+          "item"
+        ]
+      },
+      "CardSetMutation": {
+        "type": "object",
+        "properties": {
+          "entityId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "releaseVersion": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "item": {
+            "$ref": "#/components/schemas/CardSet"
+          }
+        },
+        "required": [
+          "entityId",
+          "releaseVersion",
+          "item"
+        ]
+      },
+      "Card": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "revisionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "releaseId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "code": {
+            "type": "string",
+            "pattern": "[A-Z0-9][A-Z0-9_-]*",
+            "maxLength": 40
+          },
+          "slug": {
+            "type": "string",
+            "pattern": "[a-z0-9]+(?:-[a-z0-9]+)*",
+            "maxLength": 160
+          },
+          "cardSetId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "characterId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "effectText": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 10000
+          },
+          "rulingNotes": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 10000
+          },
+          "ruleStatus": {
+            "$ref": "#/components/schemas/RuleStatus"
+          },
+          "copiesInDeck": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000
+          },
+          "artworkUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 2048
+          },
+          "sortOrder": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000,
+            "default": 0
+          }
+        },
+        "required": [
+          "id",
+          "revisionId",
+          "releaseId",
+          "code",
+          "slug",
+          "cardSetId",
+          "characterId",
+          "name",
+          "effectText",
+          "rulingNotes",
+          "ruleStatus",
+          "copiesInDeck",
+          "artworkUrl",
+          "sortOrder"
+        ]
+      },
+      "CardWrite": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "entityId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "code": {
+            "type": "string",
+            "pattern": "[A-Z0-9][A-Z0-9_-]*",
+            "maxLength": 40
+          },
+          "slug": {
+            "type": "string",
+            "pattern": "[a-z0-9]+(?:-[a-z0-9]+)*",
+            "maxLength": 160
+          },
+          "cardSetId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "characterId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "effectText": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 10000
+          },
+          "rulingNotes": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 10000
+          },
+          "ruleStatus": {
+            "$ref": "#/components/schemas/RuleStatus"
+          },
+          "copiesInDeck": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000
+          },
+          "artworkUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 2048
+          },
+          "sortOrder": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 100000,
+            "default": 0
+          }
+        },
+        "required": [
+          "expectedVersion",
+          "code",
+          "slug",
+          "cardSetId",
+          "name",
+          "effectText",
+          "ruleStatus",
+          "copiesInDeck"
+        ]
+      },
+      "CardPage": {
+        "type": "object",
+        "properties": {
+          "releaseVersion": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "result": {
+            "type": "object",
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Card"
+                }
+              },
+              "page": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "size": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              },
+              "totalElements": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "totalPages": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "items",
+              "page",
+              "size",
+              "totalElements",
+              "totalPages"
+            ]
+          }
+        },
+        "required": [
+          "releaseVersion",
+          "result"
+        ]
+      },
+      "CardDetail": {
+        "type": "object",
+        "properties": {
+          "releaseVersion": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "item": {
+            "$ref": "#/components/schemas/Card"
+          }
+        },
+        "required": [
+          "releaseVersion",
+          "item"
+        ]
+      },
+      "CardMutation": {
+        "type": "object",
+        "properties": {
+          "entityId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "releaseVersion": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "item": {
+            "$ref": "#/components/schemas/Card"
+          }
+        },
+        "required": [
+          "entityId",
+          "releaseVersion",
+          "item"
+        ]
+      },
+      "WikiPage": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "revisionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "releaseId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "slug": {
+            "type": "string",
+            "pattern": "[a-z0-9]+(?:-[a-z0-9]+)*",
+            "maxLength": 160
+          },
+          "pageType": {
+            "$ref": "#/components/schemas/PageType"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "summary": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 1000
+          },
+          "bodyMarkdown": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20000
+          },
+          "ruleStatus": {
+            "$ref": "#/components/schemas/RuleStatus"
+          },
+          "sortOrder": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000,
+            "default": 0
+          }
+        },
+        "required": [
+          "id",
+          "revisionId",
+          "releaseId",
+          "slug",
+          "pageType",
+          "title",
+          "summary",
+          "bodyMarkdown",
+          "ruleStatus",
+          "sortOrder"
+        ]
+      },
+      "WikiPageWrite": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "entityId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "slug": {
+            "type": "string",
+            "pattern": "[a-z0-9]+(?:-[a-z0-9]+)*",
+            "maxLength": 160
+          },
+          "pageType": {
+            "$ref": "#/components/schemas/PageType"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "summary": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 1000
+          },
+          "bodyMarkdown": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20000
+          },
+          "ruleStatus": {
+            "$ref": "#/components/schemas/RuleStatus"
+          },
+          "sortOrder": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 100000,
+            "default": 0
+          }
+        },
+        "required": [
+          "expectedVersion",
+          "slug",
+          "pageType",
+          "title",
+          "bodyMarkdown",
+          "ruleStatus"
+        ]
+      },
+      "WikiPagePage": {
+        "type": "object",
+        "properties": {
+          "releaseVersion": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "result": {
+            "type": "object",
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/WikiPage"
+                }
+              },
+              "page": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "size": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              },
+              "totalElements": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "totalPages": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "items",
+              "page",
+              "size",
+              "totalElements",
+              "totalPages"
+            ]
+          }
+        },
+        "required": [
+          "releaseVersion",
+          "result"
+        ]
+      },
+      "WikiPageDetail": {
+        "type": "object",
+        "properties": {
+          "releaseVersion": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "item": {
+            "$ref": "#/components/schemas/WikiPage"
+          }
+        },
+        "required": [
+          "releaseVersion",
+          "item"
+        ]
+      },
+      "WikiPageMutation": {
+        "type": "object",
+        "properties": {
+          "entityId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "releaseVersion": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "item": {
+            "$ref": "#/components/schemas/WikiPage"
+          }
+        },
+        "required": [
+          "entityId",
+          "releaseVersion",
+          "item"
+        ]
+      },
+      "DeleteResult": {
+        "type": "object",
+        "properties": {
+          "entityId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "releaseVersion": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "entityId",
+          "releaseVersion"
+        ]
+      },
+      "Identity": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "pageType": {
+            "$ref": "#/components/schemas/PageType"
+          }
+        },
+        "required": [
+          "id",
+          "slug"
+        ]
+      },
+      "IdentityPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Identity"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "totalElements": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "totalPages": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "size",
+          "totalElements",
+          "totalPages"
+        ]
+      },
+      "AuditEvent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "actorId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "action": {
+            "type": "string"
+          },
+          "entityType": {
+            "type": "string"
+          },
+          "entityId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "SUCCESS",
+              "FAILURE"
+            ]
+          },
+          "detailsRedacted": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 2000
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "actorId",
+          "action",
+          "entityType",
+          "entityId",
+          "outcome",
+          "detailsRedacted",
+          "createdAt"
+        ]
+      },
+      "AuditPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuditEvent"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "totalElements": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "totalPages": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "size",
+          "totalElements",
+          "totalPages"
+        ]
+      },
+      "Dashboard": {
+        "type": "object",
+        "properties": {
+          "asOf": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "releases": {
+            "type": "object",
+            "properties": {
+              "draft": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "published": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "archived": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "draft",
+              "published",
+              "archived"
+            ]
+          },
+          "feedbackNew": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "cardsNeedingReview": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "asOf",
+          "releases",
+          "feedbackNew",
+          "cardsNeedingReview"
+        ]
+      },
+      "Preview": {
+        "type": "object",
+        "properties": {
+          "release": {
+            "$ref": "#/components/schemas/Release"
+          },
+          "content": {
+            "type": "object",
+            "properties": {
+              "characters": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Character"
+                }
+              },
+              "card-sets": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CardSet"
+                }
+              },
+              "cards": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Card"
+                }
+              },
+              "wiki-pages": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/WikiPage"
+                }
+              }
+            },
+            "required": [
+              "characters",
+              "card-sets",
+              "cards",
+              "wiki-pages"
+            ]
+          },
+          "previewOnly": {
+            "type": "boolean",
+            "const": true
+          }
+        },
+        "required": [
+          "release",
+          "content",
+          "previewOnly"
+        ]
+      }
+    }
+  }
+}

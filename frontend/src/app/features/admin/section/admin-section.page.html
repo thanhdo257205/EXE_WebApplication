@@ -1,0 +1,280 @@
+<div class="section-container">
+  <!-- Section Breadcrumb & Header -->
+  <div class="section-header">
+    <div>
+      <div class="flex items-center gap-2 mb-1">
+        <a routerLink="/admin" class="text-xs text-sky-400 hover:underline">Quản trị</a>
+        <span class="text-xs text-slate-500">/</span>
+        <span class="text-xs text-slate-400 uppercase">{{ meta().badge }}</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <app-morph-icon [name]="meta().icon" [size]="24" color="#38bdf8"></app-morph-icon>
+        <h1 class="section-title">{{ meta().title }}</h1>
+      </div>
+      <p class="section-subtitle">{{ meta().subtitle }}</p>
+    </div>
+
+    <div class="header-badge-box">
+      <span class="badge-tag">{{ meta().badge }}</span>
+      <span class="badge-sub">BẢN QUẢN TRỊ V2</span>
+    </div>
+  </div>
+
+  <!-- Section Disclaimer -->
+  <div class="admin-notice-bar">
+    <app-morph-icon name="shield" [size]="18" color="#38bdf8"></app-morph-icon>
+    <span class="text-xs text-slate-300">
+      Phân hệ quản trị tuân thủ quy chuẩn kiểm soát thay đổi: mọi sửa đổi cần quyền ADMIN, lưu audit log tự động và không cho phép can thiệp SQL thô.
+    </span>
+  </div>
+
+  <!-- Dynamic Section View -->
+  @switch (sectionKey()) {
+    @case ('cards') {
+      <div class="panel-box">
+        <div class="panel-header">
+          <h2 class="panel-title">Danh sách 148 thẻ bài V2 & 11 bộ mở rộng</h2>
+          <div class="flex items-center gap-2">
+            <span class="status-pill-green">Đã xác minh schema</span>
+            <button type="button" class="action-btn-primary">Xuất bản Snapshot</button>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 my-3">
+          <div class="stat-mini">
+            <span class="stat-label">Tổng thẻ bài</span>
+            <span class="stat-val text-sky-400">148</span>
+          </div>
+          <div class="stat-mini">
+            <span class="stat-label">Số bộ thẻ mở rộng</span>
+            <span class="stat-val text-emerald-400">11 bộ</span>
+          </div>
+          <div class="stat-mini">
+            <span class="stat-label">Trạng thái phát hành</span>
+            <span class="stat-val text-amber-400">Sẵn sàng xuất bản</span>
+          </div>
+        </div>
+        <p class="text-xs text-slate-400 leading-relaxed">
+          Bao gồm: Thẻ Cơ bản, Thẻ Cư dân, Thẻ Hóa đơn, Thẻ Sự kiện, Thẻ Drama, Thẻ Quỹ nhà và các bộ mở rộng.
+          Mỗi thẻ bài có mã định danh QR duy nhất và không bị thay đổi ID khi xuất bản.
+        </p>
+      </div>
+    }
+
+    @case ('characters') {
+      <div class="panel-box">
+        <div class="panel-header">
+          <h2 class="panel-title">8 Cư dân chính thức của Chưa Giàu Đã Lớn</h2>
+          <span class="status-pill-green">8/8 Đầy đủ hồ sơ</span>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 my-3">
+          <div class="resident-item">
+            <span class="resident-avatar">🧐</span>
+            <span class="resident-name">An</span>
+            <span class="resident-desc">Thủ quỹ cầu toàn</span>
+          </div>
+          <div class="resident-item">
+            <span class="resident-avatar">🍳</span>
+            <span class="resident-name">Bình</span>
+            <span class="resident-desc">Nấu ăn tiết kiệm</span>
+          </div>
+          <div class="resident-item">
+            <span class="resident-avatar">📱</span>
+            <span class="resident-name">Chi</span>
+            <span class="resident-desc">Săn sale công nghệ</span>
+          </div>
+          <div class="resident-item">
+            <span class="resident-avatar">🎮</span>
+            <span class="resident-name">Dũng</span>
+            <span class="resident-desc">Cú đêm bừa bộn</span>
+          </div>
+          <div class="resident-item">
+            <span class="resident-avatar">💅</span>
+            <span class="resident-name">Hà</span>
+            <span class="resident-desc">Trưởng phòng drama</span>
+          </div>
+          <div class="resident-item">
+            <span class="resident-avatar">🐱</span>
+            <span class="resident-name">Linh</span>
+            <span class="resident-desc">Nuôi mèo quậy phá</span>
+          </div>
+          <div class="resident-item">
+            <span class="resident-avatar">💻</span>
+            <span class="resident-name">Minh</span>
+            <span class="resident-desc">Cày cuốc deadline</span>
+          </div>
+          <div class="resident-item">
+            <span class="resident-avatar">🔮</span>
+            <span class="resident-name">Phúc</span>
+            <span class="resident-desc">Tâm linh hướng ngoại</span>
+          </div>
+        </div>
+      </div>
+    }
+
+    @case ('inventory') {
+      <div class="panel-box">
+        <div class="panel-header">
+          <h2 class="panel-title">Sổ cái tồn kho & Biến thể SKU</h2>
+          <button type="button" class="action-btn-primary">Nhập / Điều chỉnh kho</button>
+        </div>
+        <div class="table-responsive">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Mã SKU</th>
+                <th>Tên sản phẩm</th>
+                <th class="text-right">Tồn thực tế (On-hand)</th>
+                <th class="text-right">Đã giữ đơn (Reserved)</th>
+                <th class="text-right">Khả dụng</th>
+                <th class="text-center">Trạng thái bán</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="font-mono text-sky-400 font-bold">NNHB-BASE-V2</td>
+                <td>Board game Chưa Giàu Đã Lớn — Bản chuẩn V2</td>
+                <td class="text-right font-bold">500</td>
+                <td class="text-right text-amber-400 font-bold">0</td>
+                <td class="text-right text-emerald-400 font-bold">500</td>
+                <td class="text-center"><span class="status-pill-green">ĐANG BÁN</span></td>
+              </tr>
+              <tr>
+                <td class="font-mono text-sky-400 font-bold">NNHB-EXP-01</td>
+                <td>Gói mở rộng: Bão Hóa Đơn & Đột Xuất</td>
+                <td class="text-right font-bold">200</td>
+                <td class="text-right text-amber-400 font-bold">0</td>
+                <td class="text-right text-emerald-400 font-bold">200</td>
+                <td class="text-center"><span class="status-pill-green">ĐANG BÁN</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    }
+
+    @case ('orders') {
+      <div class="panel-box">
+        <div class="panel-header">
+          <h2 class="panel-title">Danh sách Đơn hàng & Tiến độ Vận chuyển</h2>
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-slate-400">Lọc:</span>
+            <span class="status-pill-blue">Tất cả đơn</span>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Mã đơn</th>
+                <th>Khách hàng</th>
+                <th class="text-right">Tổng tiền</th>
+                <th class="text-center">Thanh toán PayOS</th>
+                <th class="text-center">Vận chuyển</th>
+                <th class="text-right">Thời gian</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="font-mono text-sky-400 font-bold">DH-202610-001</td>
+                <td>Thành Đô (thanhdo&#64;fsoft.com)</td>
+                <td class="text-right font-bold text-slate-100">450.000 đ</td>
+                <td class="text-center"><span class="status-pill-amber">CHỜ THANH TOÁN</span></td>
+                <td class="text-center"><span class="status-pill-slate">CHƯA GIAO</span></td>
+                <td class="text-right text-xs text-slate-400">20/10/2026 10:15</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    }
+
+    @case ('payments') {
+      <div class="panel-box">
+        <div class="panel-header">
+          <h2 class="panel-title">Sổ cái Thanh toán PayOS & Hàng chờ Webhook</h2>
+          <button type="button" class="action-btn-primary">Chạy đối soát thủ công</button>
+        </div>
+        <p class="text-xs text-slate-400 mb-3">
+          Tích hợp cổng PayOS với chữ ký HMAC_SHA256, kiểm tra chống trùng webhook và lưu trữ audit log minh bạch.
+        </p>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 my-2">
+          <div class="stat-mini">
+            <span class="stat-label">Cổng kết nối</span>
+            <span class="stat-val text-emerald-400">PayOS Production Live</span>
+          </div>
+          <div class="stat-mini">
+            <span class="stat-label">Hàng chờ UNKNOWN</span>
+            <span class="stat-val text-sky-400">0 giao dịch</span>
+          </div>
+          <div class="stat-mini">
+            <span class="stat-label">Đối soát định kỳ</span>
+            <span class="stat-val text-purple-400">Mỗi 30 phút</span>
+          </div>
+        </div>
+      </div>
+    }
+
+    @case ('users') {
+      <div class="panel-box">
+        <div class="panel-header">
+          <h2 class="panel-title">Tài khoản Cư dân & Phân quyền Hệ thống</h2>
+          <span class="status-pill-blue">Bảo vệ ADMIN cuối cùng</span>
+        </div>
+        <div class="table-responsive">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Email</th>
+                <th>Tên cư dân</th>
+                <th class="text-center">Vai trò</th>
+                <th class="text-center">Trạng thái</th>
+                <th class="text-center">Phương thức</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="font-mono text-slate-200">admin&#64;nhanayhoibao.vn</td>
+                <td class="font-bold text-slate-100">Quản trị viên Hệ thống</td>
+                <td class="text-center"><span class="status-pill-amber">ADMIN</span></td>
+                <td class="text-center"><span class="status-pill-green">HOẠT ĐỘNG</span></td>
+                <td class="text-center text-xs text-slate-400">Mật khẩu + Google</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    }
+
+    @case ('system') {
+      <div class="panel-box">
+        <div class="panel-header">
+          <h2 class="panel-title">Hạ tầng Cloud & Sổ ghi thao tác (Audit Logs)</h2>
+          <span class="status-pill-green">Kết nối ổn định</span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 my-3">
+          <div class="stat-mini">
+            <span class="stat-label">Cơ sở dữ liệu</span>
+            <span class="stat-val text-sky-400">PostgreSQL 18 Aiven</span>
+          </div>
+          <div class="stat-mini">
+            <span class="stat-label">API Gateway</span>
+            <span class="stat-val text-emerald-400">Cloudflare Worker</span>
+          </div>
+          <div class="stat-mini">
+            <span class="stat-label">Backend Service</span>
+            <span class="stat-val text-purple-400">Render Free (Java 25)</span>
+          </div>
+        </div>
+      </div>
+    }
+
+    @default {
+      <div class="panel-box">
+        <div class="panel-header">
+          <h2 class="panel-title">{{ meta().title }}</h2>
+        </div>
+        <p class="text-xs text-slate-400">{{ meta().subtitle }}</p>
+      </div>
+    }
+  }
+</div>

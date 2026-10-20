@@ -1,0 +1,102 @@
+<div class="admin-app-root">
+  <!-- Top Admin Bar -->
+  <header class="admin-topbar">
+    <div class="flex items-center gap-3">
+      <button
+        type="button"
+        (click)="toggleSidebar()"
+        class="lg:hidden text-slate-300 hover:text-white p-1.5 focus:outline-none"
+        aria-label="Mở menu quản trị"
+      >
+        <app-morph-icon name="menu" [size]="20" color="currentColor"></app-morph-icon>
+      </button>
+
+      <a routerLink="/admin" class="flex items-center gap-2 text-slate-100 hover:text-sky-300 font-bold tracking-wider text-sm transition-colors">
+        <app-morph-icon name="shield" [size]="20" color="#38bdf8"></app-morph-icon>
+        <span>NNHB · QUẢN TRỊ VIÊN</span>
+      </a>
+
+      <span class="admin-badge">ADMIN CONSOLE</span>
+    </div>
+
+    <!-- Right Header Actions -->
+    <div class="flex items-center gap-3">
+      <!-- Return to Public Site -->
+      <a
+        routerLink="/"
+        class="back-to-site-btn"
+        title="Quay lại giao diện website wiki công khai"
+      >
+        <app-morph-icon name="home" [size]="14" color="currentColor"></app-morph-icon>
+        <span class="hidden sm:inline">Xem trang công khai</span>
+      </a>
+
+      <!-- Current Admin Profile -->
+      @if (auth.currentUser(); as user) {
+        <div class="admin-profile-pill">
+          <app-morph-icon name="user" [size]="15" color="#38bdf8"></app-morph-icon>
+          <span class="font-semibold text-xs text-slate-200 truncate max-w-[120px]">{{ user.displayName }}</span>
+          <span class="role-tag">{{ user.role }}</span>
+        </div>
+      }
+
+      <!-- Logout Button -->
+      <button
+        type="button"
+        (click)="logout()"
+        class="admin-logout-btn"
+        title="Đăng xuất khỏi bảng quản trị"
+      >
+        Thoát
+      </button>
+    </div>
+  </header>
+
+  <div class="admin-body-layout">
+    <!-- Sidebar Navigation -->
+    <aside class="admin-sidebar" [class.mobile-open]="sidebarOpen()">
+      <div class="sidebar-header">
+        <span class="sidebar-title">DANH MỤC QUẢN TRỊ</span>
+        <button type="button" (click)="toggleSidebar()" class="lg:hidden text-slate-400 hover:text-white p-1">
+          <app-morph-icon name="close" [size]="18" color="currentColor"></app-morph-icon>
+        </button>
+      </div>
+
+      <nav class="sidebar-nav">
+        @for (item of navItems; track item.link) {
+          <a
+            [routerLink]="item.link"
+            routerLinkActive="active-nav-item"
+            [routerLinkActiveOptions]="item.exact ? { exact: true } : { exact: false }"
+            (click)="sidebarOpen.set(false)"
+            class="nav-link-item group"
+          >
+            <app-morph-icon [name]="item.icon" [size]="18" color="currentColor" class="nav-icon"></app-morph-icon>
+            <span class="nav-label">{{ item.label }}</span>
+            @if (item.badge) {
+              <span class="nav-badge">{{ item.badge }}</span>
+            }
+          </a>
+        }
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="system-status-indicator">
+          <span class="status-dot"></span>
+          <span>Hệ thống: Bình thường</span>
+        </div>
+        <p class="build-info">Phiên bản: V2 · PostgreSQL Aiven</p>
+      </div>
+    </aside>
+
+    <!-- Mobile Overlay Backdrop -->
+    @if (sidebarOpen()) {
+      <div class="sidebar-backdrop lg:hidden" (click)="toggleSidebar()"></div>
+    }
+
+    <!-- Main Content Area -->
+    <main class="admin-main-viewport">
+      <router-outlet />
+    </main>
+  </div>
+</div>

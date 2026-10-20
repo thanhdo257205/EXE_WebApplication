@@ -1,6 +1,14 @@
 # Đề xuất trang quản trị
 
-Cập nhật: 2026-10-20 (Asia/Saigon). Đây là kế hoạch, chưa phải chức năng đã triển khai. Theo dõi nghiệm thu tại nhóm 12 trong [CHECKLIST.md](../CHECKLIST.md).
+Cập nhật: 2026-10-20 (Asia/Saigon). Đây là kế hoạch tổng thể; đợt đầu API quản trị nội dung đã có trong source theo [ADMIN_BACKEND.md](ADMIN_BACKEND.md), các phân hệ còn lại chưa triển khai. Theo dõi nghiệm thu tại nhóm 12 trong [CHECKLIST.md](../CHECKLIST.md).
+
+## Phân công và trạng thái đã đối chiếu code
+
+Theo yêu cầu chủ dự án 2026-10-20, **frontend admin giao AI khác thực hiện**. Backend có backlog độc lập ADMIN-BE-01–14 tại nhóm 12 của CHECKLIST.md; frontend theo ADMIN-FE-01/02. ADMIN-01–20 là tiêu chí nghiệm thu tổng thể, không được coi đã xong khi chỉ có UI hoặc schema. Theo lựa chọn tiếp theo của chủ dự án, đã thiết kế và triển khai API quản trị nội dung trước; frontend tiếp tục do AI khác thực hiện, không nằm trong nghiệm thu backend này.
+
+Rà soát nền tại `beaa7d7` trước đợt này: chưa có controller/service nghiệp vụ admin. Đợt hiện tại bổ sung AdminContentController/Service, DTO và error advice; hợp đồng 29 operations tại [OpenAPI](api/admin-content.openapi.json). Rule `hasRole("ADMIN")` trong SecurityConfig là nền tảng phân quyền; test CUSTOMER bị 403 ở `/api/v1/admin/private` chỉ xác minh rule, không chứng minh endpoint/module admin đã tồn tại. PaymentController kiểm tra tài khoản và ownership cho checkout/orders; endpoint `/api/v1/internal/payments/reconcile` dành cho Worker nội bộ, không bàn giao làm API thao tác admin từ browser.
+
+Ưu tiên backend: hợp đồng API và quyền → CRUD nội dung → import/preview/release → phản hồi/user/audit → commerce/kho/đơn/payment/refund. Trước tích hợp, bàn giao OpenAPI hoặc tài liệu request/response, phân trang, mã lỗi, version/xung đột, CSRF/JWT, fixture và trạng thái từng endpoint. Frontend có thể dựng giao diện trước nhưng không tự suy ra rằng endpoint dự kiến đã chạy; chưa tick tích hợp/E2E từ dữ liệu mock.
 
 ## Mục tiêu và thứ tự xây
 
@@ -12,10 +20,10 @@ Trang `/admin` phục vụ quản lý nội dung board game và vận hành bán
 
 ## Cơ sở hiện có và khoảng trống
 
-- Backend có `ADMIN`/`CUSTOMER`, CSRF và bảo vệ `/api/v1/admin/**`. Code local mới chuyển sang JWT HttpOnly, kiểm tra enabled/quyền/auth_version mỗi request; JDBC chỉ còn OAuth handshake tạm, chưa deploy. Đã cấp một tài khoản ADMIN theo chỉ định riêng; thông tin xác thực không thuộc tài liệu này.
+- Backend có `ADMIN`/`CUSTOMER`, CSRF và bảo vệ `/api/v1/admin/**`. Auth hiện có JWT HttpOnly, kiểm tra enabled/quyền/auth_version mỗi request; JDBC chỉ còn OAuth handshake tạm. API nội dung mới chưa deploy trong đợt này. Đã cấp một tài khoản ADMIN theo chỉ định riêng; thông tin xác thực không thuộc tài liệu này.
 - V3 có schema release/revision của nội dung và phản hồi; V4 có sản phẩm, kho, đơn và shipment; V5 có payment attempt, webhook inbox, ledger, refund và audit.
 - `PaymentController` hiện phục vụ checkout/đơn của người dùng, webhook và đối soát nội bộ; không phải API admin để xem/sửa mọi đơn.
-- Chưa có layout/routes admin, API quản trị CRUD hay luồng admin xuất bản/hoàn tiền hoàn chỉnh. Hai file auth/security đang có thay đổi local từ công việc khác; đề xuất này không nghiệm thu hoặc sửa các thay đổi đó.
+- Backend mới có CRUD nội dung theo release, clone/preview, identity lookup, dashboard và audit nội dung, kèm migration V8. Chưa có import, public content/publish pipeline, moderation, quản trị user, commerce/refund hoặc API system status. Frontend đang được làm riêng; có layout/guard không đồng nghĩa đã tích hợp API. Auth/JWT dùng chung được giữ nguyên, CORS bổ sung PUT/DELETE cho endpoint mới.
 
 ## Các màn hình đề xuất
 

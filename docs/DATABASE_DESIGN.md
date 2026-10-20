@@ -1,6 +1,6 @@
 # Thiết kế database — Nhà Này Hơi Báo!
 
-Bản thiết kế nền ngày 19/10/2026; cập nhật auth local 20/10/2026. PostgreSQL 18 trên Aiven; Spring Boot, Flyway và JDBC transaction. H2 chỉ phục vụ local/test. Đây là schema và hợp đồng triển khai; hiện có API checkout/orders và PayOS, các API content/catalog/cart/admin vẫn thiếu.
+Bản thiết kế nền ngày 19/10/2026; cập nhật auth/admin content local 20/10/2026. PostgreSQL 18 trên Aiven; Spring Boot, Flyway và JDBC transaction. H2 chỉ phục vụ local/test. Hiện có API checkout/orders, PayOS và API admin nội dung trong source; public content/catalog/cart và các phân hệ admin ngoài nội dung còn thiếu. Admin content V8 chưa deploy trong đợt này.
 
 ## Phạm vi và quyết định
 
@@ -237,3 +237,10 @@ Migration nằm trong backend nên sẽ được Flyway tự áp dụng khi bả
 - Đăng nhập không ghi session JDBC; giữ bảng Spring Session cho state OAuth ngắn hạn. Reset xóa cả session legacy/OAuth theo email/sub khi có principal.
 - Cấp và dùng reset link khóa `app_users FOR UPDATE` trong transaction. Hai lần reset đồng thời chỉ một thành công; gửi mail lỗi rollback replacement, link trước còn hợp lệ. Chỉ hỗ trợ enabled đã có password hash; không tự thêm mật khẩu cho Google-only.
 - V1–V5 giữ checksum. Production trước phiên này ghi nhận V5/34 bảng; local sau V6 có 35 bảng ngoài Flyway. Chưa áp V6/V7 lên Aiven trong phiên này.
+
+
+## V8 — phiên bản draft cho admin content (2026-10-20, chưa deploy)
+
+V8 thêm content_releases.version BIGINT NOT NULL DEFAULT 0 CHECK version >= 0 và index status/created_at. Không đổi checksum V1–V7, không tạo bảng mới hoặc seed dữ liệu. Mỗi mutation revision/metadata tăng version của toàn draft; expectedVersion bắt buộc để phát hiện xung đột. Khóa app_users của actor trước release, kiểm tra ADMIN/enabled/auth_version ngay trong transaction; dữ liệu và audit cùng commit/rollback. Các read bundle dùng REPEATABLE_READ.
+
+Identity/code/slug/pageType không đổi; bản đã PUBLISHED/ARCHIVED không sửa. Clone tạo release DRAFT version 0 và revision IDs mới, giữ identity IDs, copy characters/sets trước cards để giữ FK cùng release. DELETE chỉ bỏ draft revision; không xóa identity hoặc revision release khác. Chưa có thay đổi current_slot hoặc publish pipeline. Chi tiết [ADMIN_BACKEND.md](ADMIN_BACKEND.md).

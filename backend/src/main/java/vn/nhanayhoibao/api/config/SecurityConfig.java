@@ -128,7 +128,7 @@ public class SecurityConfig {
         var configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(Arrays.stream(allowedOrigins.split(","))
             .map(String::trim).filter(origin -> !origin.isEmpty()).toList());
-        configuration.setAllowedMethods(List.of("GET", "POST", "OPTIONS"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Content-Type", "X-XSRF-TOKEN", "X-Turnstile-Token"));
         configuration.setAllowCredentials(true);
         var source = new UrlBasedCorsConfigurationSource();

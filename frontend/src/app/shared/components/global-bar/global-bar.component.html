@@ -31,6 +31,12 @@
     <span class="text-[#5ab2e7] tracking-wider hidden lg:inline">V2 / DEMO</span>
 
     @if (auth.currentUser(); as user) {
+      @if (user.role === 'ADMIN') {
+        <a routerLink="/admin" class="flex items-center gap-1.5 text-sky-400 hover:text-sky-300 bg-sky-950/60 border border-sky-800/60 px-2 py-1 rounded transition-colors font-bold" title="Bảng quản trị viên">
+          <app-morph-icon name="shield" [size]="14" color="#38bdf8"></app-morph-icon>
+          <span class="hidden md:inline">Quản trị</span>
+        </a>
+      }
       <div class="flex items-center gap-2 bg-[#141f2d] border border-[#233547] rounded px-2.5 py-1 text-slate-200">
         <app-morph-icon name="user" [size]="14" color="#38bdf8"></app-morph-icon>
         <span class="font-medium max-w-[100px] truncate">{{ user.displayName }}</span>

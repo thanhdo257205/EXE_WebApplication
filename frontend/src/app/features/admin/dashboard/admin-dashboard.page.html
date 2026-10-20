@@ -1,0 +1,244 @@
+<div class="dashboard-container">
+  <!-- Page Header -->
+  <div class="dashboard-header">
+    <div>
+      <div class="flex items-center gap-2">
+        <span class="text-xs font-bold text-sky-400 tracking-wider">BẢNG QUẢN TRỊ VIÊN</span>
+        <span class="text-xs text-slate-500">/</span>
+        <span class="text-xs text-slate-400">TỔNG QUAN HÀNG CHỜ</span>
+      </div>
+      <h1 class="page-title">Hàng chờ & Tình trạng vận hành</h1>
+      <p class="page-subtitle">Theo dõi công việc cần xử lý, xuất bản nội dung 148 thẻ và quản lý đơn hàng board game.</p>
+    </div>
+
+    <div class="header-actions">
+      <button
+        type="button"
+        (click)="refreshDashboard()"
+        [disabled]="refreshing()"
+        class="refresh-btn"
+      >
+        <app-morph-icon
+          name="refresh"
+          [size]="16"
+          color="currentColor"
+          [class.animate-spin]="refreshing()"
+        ></app-morph-icon>
+        <span>{{ refreshing() ? 'Đang cập nhật...' : 'Làm mới' }}</span>
+      </button>
+
+      <a routerLink="/admin/cards" class="primary-action-btn">
+        <app-morph-icon name="cards" [size]="16" color="#ffffff"></app-morph-icon>
+        <span>Quản lý 148 thẻ bài</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- Disclaimer Alert Notice -->
+  <div class="mock-notice-card" role="note">
+    <app-morph-icon name="shield" [size]="20" color="#38bdf8" class="shrink-0"></app-morph-icon>
+    <div class="text-xs text-slate-300 leading-relaxed">
+      <strong class="text-sky-300">Chế độ giao diện quản trị viên:</strong>
+      Bảng điều khiển đang hiển thị theo thiết kế hợp đồng phân hệ quản trị.
+      Các thao tác nhạy cảm (xuất bản release, điều chỉnh kho, hoàn tiền) đều được kiểm soát với nhật ký thao tác audit log và cơ chế thu hồi phiên.
+    </div>
+  </div>
+
+  <!-- 4 Overview Metric Cards -->
+  <div class="metrics-grid">
+    <!-- Card 1: Content Status -->
+    <div class="metric-card">
+      <div class="metric-top">
+        <span class="metric-label">THẺ & BỘ MỞ RỘNG</span>
+        <div class="metric-icon-box bg-sky-950/50 border border-sky-800/40 text-sky-400">
+          <app-morph-icon name="cards" [size]="18" color="currentColor"></app-morph-icon>
+        </div>
+      </div>
+      <div class="metric-value">148 <span class="metric-unit">thẻ bài</span></div>
+      <div class="metric-meta text-slate-400">
+        <span>11 bộ thẻ</span> · <span class="text-emerald-400">8 cư dân hoàn chỉnh</span>
+      </div>
+      <a routerLink="/admin/cards" class="metric-link">Xem chi tiết thẻ bài →</a>
+    </div>
+
+    <!-- Card 2: Orders & Cart Status -->
+    <div class="metric-card">
+      <div class="metric-top">
+        <span class="metric-label">ĐƠN HÀNG MỚI</span>
+        <div class="metric-icon-box bg-amber-950/50 border border-amber-800/40 text-amber-400">
+          <app-morph-icon name="store" [size]="18" color="currentColor"></app-morph-icon>
+        </div>
+      </div>
+      <div class="metric-value">1 <span class="metric-unit">chờ thanh toán</span></div>
+      <div class="metric-meta text-slate-400">
+        <span>Chờ PayOS xác nhận</span> · <span>0 đơn trễ hạn</span>
+      </div>
+      <a routerLink="/admin/orders" class="metric-link">Quản lý danh sách đơn →</a>
+    </div>
+
+    <!-- Card 3: Inventory SKU -->
+    <div class="metric-card">
+      <div class="metric-top">
+        <span class="metric-label">TỒN KHO KHẢ DỤNG</span>
+        <div class="metric-icon-box bg-purple-950/50 border border-purple-800/40 text-purple-400">
+          <app-morph-icon name="package" [size]="18" color="currentColor"></app-morph-icon>
+        </div>
+      </div>
+      <div class="metric-value">500 <span class="metric-unit">hộp sẵn sàng</span></div>
+      <div class="metric-meta text-slate-400">
+        <span class="text-emerald-400">Đủ hàng</span> · <span>2 SKU chính thức</span>
+      </div>
+      <a routerLink="/admin/inventory" class="metric-link">Kiểm tra sổ kho →</a>
+    </div>
+
+    <!-- Card 4: Database & Gateway -->
+    <div class="metric-card">
+      <div class="metric-top">
+        <span class="metric-label">HẠ TẦNG & CƠ SỞ DỮ LIỆU</span>
+        <div class="metric-icon-box bg-emerald-950/50 border border-emerald-800/40 text-emerald-400">
+          <app-morph-icon name="database" [size]="18" color="currentColor"></app-morph-icon>
+        </div>
+      </div>
+      <div class="metric-value text-emerald-400">Sẵn sàng</div>
+      <div class="metric-meta text-slate-400">
+        <span>PostgreSQL 18</span> · <span>Aiven Free Cloud</span>
+      </div>
+      <a routerLink="/admin/system" class="metric-link">Xem trạng thái hệ thống →</a>
+    </div>
+  </div>
+
+  <!-- Priority Queue Section -->
+  <div class="queue-section">
+    <div class="queue-header">
+      <div>
+        <h2 class="queue-title">Hàng chờ cần giải quyết</h2>
+        <p class="queue-subtitle">Các đầu việc cần quản trị viên xem xét và thao tác</p>
+      </div>
+
+      <!-- Filter Buttons -->
+      <div class="filter-group">
+        <button
+          type="button"
+          (click)="setFilter('ALL')"
+          [class.active-filter]="activeFilter() === 'ALL'"
+          class="filter-btn"
+        >
+          Tất cả ({{ queueItems().length }})
+        </button>
+        <button
+          type="button"
+          (click)="setFilter('CONTENT')"
+          [class.active-filter]="activeFilter() === 'CONTENT'"
+          class="filter-btn"
+        >
+          Nội dung
+        </button>
+        <button
+          type="button"
+          (click)="setFilter('COMMERCE')"
+          [class.active-filter]="activeFilter() === 'COMMERCE'"
+          class="filter-btn"
+        >
+          Bán hàng & Kho
+        </button>
+        <button
+          type="button"
+          (click)="setFilter('PAYMENT')"
+          [class.active-filter]="activeFilter() === 'PAYMENT'"
+          class="filter-btn"
+        >
+          Thanh toán
+        </button>
+      </div>
+    </div>
+
+    <!-- Queue List Table -->
+    <div class="table-container">
+      <table class="queue-table">
+        <thead>
+          <tr>
+            <th class="w-20">Mã</th>
+            <th>Nội dung công việc</th>
+            <th class="w-28 text-center">Phân hệ</th>
+            <th class="w-28 text-center">Mức ưu tiên</th>
+            <th class="w-32 text-center">Trạng thái</th>
+            <th class="w-32 text-right">Cập nhật</th>
+            <th class="w-24 text-center">Thao tác</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of filteredItems; track item.id) {
+            <tr class="queue-row">
+              <td class="font-mono text-xs text-slate-400 font-bold">{{ item.id }}</td>
+              <td>
+                <span class="font-medium text-slate-200 text-sm block">{{ item.title }}</span>
+              </td>
+              <td class="text-center">
+                <span class="category-badge" [attr.data-cat]="item.category">
+                  {{ item.category }}
+                </span>
+              </td>
+              <td class="text-center">
+                <span
+                  class="priority-badge"
+                  [class.priority-p0]="item.priority === 'P0'"
+                  [class.priority-p1]="item.priority === 'P1'"
+                  [class.priority-p2]="item.priority === 'P2'"
+                >
+                  {{ item.priority }}
+                </span>
+              </td>
+              <td class="text-center">
+                <span class="status-badge" [class.status-review]="item.status === 'IN_REVIEW'">
+                  {{ item.status === 'IN_REVIEW' ? 'Đang duyệt' : 'Chờ xử lý' }}
+                </span>
+              </td>
+              <td class="text-right text-xs text-slate-400">{{ item.updatedAt }}</td>
+              <td class="text-center">
+                <a [routerLink]="item.actionUrl" class="action-btn">
+                  Mở →
+                </a>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Operational Shortcuts & Guides Grid -->
+  <div class="shortcuts-grid">
+    <div class="shortcut-card">
+      <div class="flex items-center gap-3 mb-2">
+        <app-morph-icon name="cards" [size]="20" color="#38bdf8"></app-morph-icon>
+        <h3 class="font-bold text-slate-200 text-sm">Xuất bản Bản phát hành (Release Snapshot)</h3>
+      </div>
+      <p class="text-xs text-slate-400 mb-3 leading-relaxed">
+        Khóa toàn bộ 148 thẻ bài và hồ sơ 8 cư dân thành snapshot cố định để phục vụ tra cứu tĩnh cho website công khai ngay cả khi backend nghỉ.
+      </p>
+      <a routerLink="/admin/cards" class="shortcut-link">Đến khu vực xuất bản snapshot →</a>
+    </div>
+
+    <div class="shortcut-card">
+      <div class="flex items-center gap-3 mb-2">
+        <app-morph-icon name="package" [size]="20" color="#34d399"></app-morph-icon>
+        <h3 class="font-bold text-slate-200 text-sm">Quản lý biến thể SKU & Điều chỉnh kho</h3>
+      </div>
+      <p class="text-xs text-slate-400 mb-3 leading-relaxed">
+        Thực hiện nhập kho hoặc điều chỉnh số lượng tồn kho có lý do rõ ràng. Hệ thống tự động ghi nhật ký vào sổ cái biến động (Inventory Movements).
+      </p>
+      <a routerLink="/admin/inventory" class="shortcut-link">Quản lý sổ cái kho hàng →</a>
+    </div>
+
+    <div class="shortcut-card">
+      <div class="flex items-center gap-3 mb-2">
+        <app-morph-icon name="fund" [size]="20" color="#fbbf24"></app-morph-icon>
+        <h3 class="font-bold text-slate-200 text-sm">Soát sổ thanh toán & Hoàn tiền</h3>
+      </div>
+      <p class="text-xs text-slate-400 mb-3 leading-relaxed">
+        Xử lý các giao dịch bất thường (UNKNOWN, REVIEW), đối chiếu mã giao dịch ngân hàng thực tế và thực hiện hoàn tiền an toàn.
+      </p>
+      <a routerLink="/admin/payments" class="shortcut-link">Khu vực đối soát PayOS →</a>
+    </div>
+  </div>
+</div>

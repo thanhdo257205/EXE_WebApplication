@@ -270,7 +270,36 @@ Các mục quản trị dưới đây được chi tiết hóa tại nhóm 12 v�
 
 ### 12. Trang quản trị — kế hoạch đề xuất 2026-10-20
 
-Phạm vi, màn hình và tiêu chí tại [ADMIN_PLAN.md](docs/ADMIN_PLAN.md). Đợt A ưu tiên quản lý nội dung để hoàn thiện website giới thiệu; đợt B hoàn thiện vận hành bán hàng trước mở bán; đợt C là mở rộng. Các mục dưới đều chưa triển khai, không tick theo việc đã có schema/tài khoản ADMIN.
+Phạm vi, màn hình và tiêu chí tại [ADMIN_PLAN.md](docs/ADMIN_PLAN.md). Đợt A ưu tiên quản lý nội dung để hoàn thiện website giới thiệu; đợt B hoàn thiện vận hành bán hàng trước mở bán; đợt C là mở rộng. ADMIN-01–20 là nghiệm thu tổng thể backend/frontend; backend nội dung đã có trong source nhưng chưa tick các mục tổng thể khi chưa tích hợp/nghiệm thu frontend.
+
+#### Phân công backend/frontend — chủ dự án chốt 2026-10-20
+
+Frontend admin do **AI khác do chủ dự án bố trí** thực hiện. Phần dưới là backlog backend để xây độc lập và bàn giao API; theo lựa chọn tiếp theo đã thiết kế và triển khai đợt đầu API quản trị nội dung; xem docs/ADMIN_BACKEND.md và docs/api/admin-content.openapi.json. ADMIN-01–20 bên dưới vẫn là tiêu chí nghiệm thu tổng thể, không tick chỉ vì một phía backend hoặc frontend đã hoàn tất.
+
+Đã đối chiếu code: có JWT, ADMIN/CUSTOMER, CSRF, proxy guard, rule ADMIN cho `/api/v1/admin/**` và schema nội dung/shop/payment/audit. **Đợt này đã thêm controller/service và API CRUD nội dung theo release, clone/preview, identity lookup, dashboard và audit; các API admin commerce/user/publish còn thiếu**. API orders hiện chỉ phục vụ đơn của tài khoản đang đăng nhập; endpoint đối soát nội bộ không phải API admin public.
+
+Backend — trạng thái theo source và kiểm thử từng phần:
+
+- [x] ADMIN-BE-01: Hợp đồng API nội dung 0.1.0 có OpenAPI 3.1 (29 operations) và ADMIN_BACKEND.md: DTO, mã lỗi, phân trang, version/xung đột, JWT/CSRF và ví dụ bàn giao. OpenAPI đã lint hợp lệ; endpoint tương lai tách khỏi hợp đồng hiện tại.
+- [x] ADMIN-BE-02: Dashboard nội dung dùng số liệu thật/asOf; đã kiểm thử anonymous 401, CUSTOMER 403, ADMIN 200 trên endpoint thực, CSRF và proxy guard. Chưa có dashboard commerce hoặc nghiệm thu production.
+- [x] ADMIN-BE-03: API thẻ/bộ thẻ/nhân vật có list/detail/create/update/remove revision, draft/clone/preview, ID/code/slug cố định, FK cùng release và expectedVersion chống ghi đè. Ảnh chỉ nhận HTTPS hoặc /assets/; chưa có upload và chưa chọn dịch vụ upload mới.
+- [x] ADMIN-BE-04: API wiki STORY/RULE/GUIDE/FAQ/DEVLOG theo release có validation, draft/clone/preview, trả Markdown dưới dạng dữ liệu; frontend phải sanitize khi render. Draft chỉ ADMIN đọc được qua API này; chưa có public content API.
+- [ ] ADMIN-BE-05: Import JSON/CSV có mẫu, dry-run, báo lỗi theo dòng/trường, kiểm tra trùng ID/tham chiếu và commit import có transaction; không tự tạo dữ liệu minh họa thay nội dung chính thức (ADMIN-07).
+- [ ] ADMIN-BE-06: API release snapshot/xuất bản, trạng thái build/deploy và rollback; nội dung public dùng được khi Render ngủ, chỉ báo đã xuất bản sau kết quả triển khai thực tế (ADMIN-08). Đã có private preview/clone, còn public snapshot/build/deploy/rollback; chưa được coi đã xuất bản.
+- [ ] ADMIN-BE-07: API tiếp nhận và quản trị phản hồi gắn thẻ/luật/version, lọc trạng thái, ghi chú xử lý và bảo vệ thông tin người gửi (ADMIN-09).
+- [ ] ADMIN-BE-08: API quản lý người dùng, khóa/mở và đổi quyền; xác thực lại khi cần, tăng auth_version thu hồi JWT, không khóa/hạ quyền admin cuối cùng; không trả password hash/token (ADMIN-14).
+- [ ] ADMIN-BE-09: Ghi và đọc audit có phân trang/lọc; API trạng thái hệ thống đã lọc, lần đối soát gần nhất và release public; không lộ credentials hoặc cho sửa/xóa audit (ADMIN-15/16). Đã có audit CONTENT_* thành công trong cùng transaction và API đọc/phân trang/lọc release; audit tổng thể và system status còn thiếu.
+- [ ] ADMIN-BE-10: API sản phẩm/SKU/giá/ảnh, tồn kho và điều chỉnh có lý do; inventory movement, version và chống thực hiện trùng (ADMIN-10).
+- [ ] ADMIN-BE-11: API danh sách/chi tiết mọi đơn theo quyền và chuyển trạng thái đơn/giao hàng có kiểm soát; giữ nguyên ownership của API đơn dành cho CUSTOMER (ADMIN-11).
+- [ ] ADMIN-BE-12: API hàng chờ payment UNKNOWN/REVIEW, đối soát/replay có quyền/audit/idempotency; refund có yêu cầu/duyệt/ghi nhận thực hiện, giới hạn tiền và bằng chứng, không tùy ý đánh dấu PAID (ADMIN-12/13).
+- [ ] ADMIN-BE-13: Kiểm thử API trên H2 và PostgreSQL disposable: phân quyền/CSRF/proxy, validation, draft không lộ, xung đột, import lỗi rollback, retry tiền/kho và bảo vệ admin cuối cùng; bàn giao fixture/dữ liệu thử và hướng dẫn gọi API cho AI frontend (ADMIN-17/18). Đã thêm AdminContentFlowTests và PostgresAdminContentFlowTests dùng schema disposable; các nghiệp vụ chưa triển khai vẫn chưa nghiệm thu.
+- [ ] ADMIN-BE-14: Sau MVP, API báo cáo/export có quyền và giới hạn, phân biệt giá trị đơn/tiền nhận/hoàn tiền; EDITOR chỉ làm khi chốt quyền riêng (ADMIN-19/20).
+
+Frontend — **AI khác phụ trách**, chưa nghiệm thu:
+
+- [x] ADMIN-FE-01: Thiết kế và dựng `/admin`: layout riêng, sidebar, guard phân quyền ADMIN, dashboard hàng chờ, các panel quản trị 148 thẻ/8 cư dân/bài viết/kho/đơn hàng/PayOS/user/system, banner dữ liệu mock minh bạch, responsive desktop/mobile; 33 tests qua và build production thành công (2026-10-20).
+- [ ] ADMIN-FE-02: Tích hợp hợp đồng API do backend bàn giao; cookie JWT HttpOnly + CSRF, xử lý hết hạn, xác nhận thao tác nhạy cảm, xung đột và retry; phối hợp E2E ADMIN/CUSTOMER/anonymous trước tick nghiệm thu tổng thể.
+- [x] Nghiệm thu source admin content đợt đầu trên H2: 13 test admin qua; Maven verify/JAR 66 tests qua, 29 PostgreSQL skipped; gateway typecheck/23 tests qua; OpenAPI lint hợp lệ, chưa nghiệm thu PostgreSQL/frontend/production (2026-10-20).
 
 #### Đợt A — nền tảng và quản trị nội dung
 

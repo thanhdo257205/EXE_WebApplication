@@ -1,0 +1,93 @@
+import { Component, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
+import { AuthService } from '../../../core/auth/auth.service';
+import { MorphIconComponent } from '../../../shared/components/morph-icon/morph-icon.component';
+
+export interface ActionQueueItem {
+  id: string;
+  title: string;
+  category: 'CONTENT' | 'COMMERCE' | 'PAYMENT' | 'USER';
+  priority: 'P0' | 'P1' | 'P2';
+  status: 'PENDING' | 'IN_REVIEW' | 'COMPLETED';
+  updatedAt: string;
+  actionUrl: string;
+}
+
+@Component({
+  selector: 'app-admin-dashboard',
+  standalone: true,
+  imports: [RouterLink, MorphIconComponent],
+  templateUrl: './admin-dashboard.page.html',
+  styleUrl: './admin-dashboard.page.css',
+})
+export class AdminDashboardPage {
+  readonly auth = inject(AuthService);
+
+  readonly refreshing = signal(false);
+  readonly activeFilter = signal<'ALL' | 'CONTENT' | 'COMMERCE' | 'PAYMENT'>('ALL');
+
+  readonly queueItems = signal<ActionQueueItem[]>([
+    {
+      id: 'Q-01',
+      title: 'Xác minh 148 thẻ bài V2 & đối chiếu 11 bộ mở rộng trước khi xuất bản',
+      category: 'CONTENT',
+      priority: 'P0',
+      status: 'IN_REVIEW',
+      updatedAt: '10 phút trước',
+      actionUrl: '/admin/cards',
+    },
+    {
+      id: 'Q-02',
+      title: 'Đơn hàng #DH-202610-001 đang chờ xác nhận thanh toán PayOS webhook',
+      category: 'PAYMENT',
+      priority: 'P0',
+      status: 'PENDING',
+      updatedAt: '25 phút trước',
+      actionUrl: '/admin/payments',
+    },
+    {
+      id: 'Q-03',
+      title: 'Cập nhật tồn kho SKU: Board game Chưa Giàu Đã Lớn (Bản chuẩn)',
+      category: 'COMMERCE',
+      priority: 'P1',
+      status: 'PENDING',
+      updatedAt: '1 giờ trước',
+      actionUrl: '/admin/inventory',
+    },
+    {
+      id: 'Q-04',
+      title: 'Duyệt bài viết wiki mới: "Hướng dẫn xử lý thẻ Sự Kiện Hóa Đơn"',
+      category: 'CONTENT',
+      priority: 'P1',
+      status: 'PENDING',
+      updatedAt: '2 giờ trước',
+      actionUrl: '/admin/articles',
+    },
+    {
+      id: 'Q-05',
+      title: 'Xử lý 2 phản hồi của người chơi về hiệu ứng thẻ "Bình Nấu Ăn"',
+      category: 'CONTENT',
+      priority: 'P2',
+      status: 'PENDING',
+      updatedAt: 'Hôm nay',
+      actionUrl: '/admin/cards',
+    },
+  ]);
+
+  get filteredItems(): ActionQueueItem[] {
+    const filter = this.activeFilter();
+    if (filter === 'ALL') return this.queueItems();
+    return this.queueItems().filter(item => item.category === filter);
+  }
+
+  setFilter(filter: 'ALL' | 'CONTENT' | 'COMMERCE' | 'PAYMENT'): void {
+    this.activeFilter.set(filter);
+  }
+
+  refreshDashboard(): void {
+    this.refreshing.set(true);
+    setTimeout(() => {
+      this.refreshing.set(false);
+    }, 600);
+  }
+}
