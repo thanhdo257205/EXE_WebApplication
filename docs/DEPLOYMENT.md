@@ -46,9 +46,9 @@ Xem [Render deploy hooks](https://render.com/docs/deploy-hooks) và [GitHub work
 
 ## Phần còn lại
 
-- Giao diện hiện là scaffold; chưa có màn hình đăng nhập/Turnstile.
-- Google OAuth cần Client ID/Secret thật và callback `https://exe-webapp.pages.dev/api/v1/auth/oauth2/callback/google`. Chưa cấu hình nên `GOOGLE_ENABLED=false`.
-- Chưa khởi tạo admin production, không có tài khoản/mật khẩu mặc định. Chỉ đặt bootstrap admin qua Render secrets khi cần.
+- Đã hoàn thành giao diện đăng nhập, đăng ký, khôi phục mật khẩu tích hợp Cloudflare Turnstile token và Google OAuth2.
+- Google OAuth đã hoạt động ở chế độ External/In production; credentials đã được cấu hình trên Render (`GOOGLE_ENABLED=true`).
+- Đã cấu hình và cấp quyền ADMIN production trực tiếp trong database theo yêu cầu chủ dự án; giao diện Admin Portal (`/admin/**`) đã hoàn thành và được bảo vệ bởi `adminGuard`.
 - Backend Free có thể ngủ và cần thời gian khởi động; nội dung tĩnh vẫn được phục vụ độc lập từ Cloudflare. Cần tiếp tục đo RAM/latency thực tế, đặc biệt kết nối Singapore–NYC.
 - Gateway lọc browser metadata và có rate limit; các header có thể bị giả. Không thể bảo đảm phân biệt Postman với trình duyệt chỉ từ HTTP headers.
 
