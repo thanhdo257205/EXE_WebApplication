@@ -7,8 +7,8 @@ Website board game **Chưa Giàu Đã Lớn — Nhà Này Hơi Báo!**
 - Angular 22.2.3, TypeScript, Tailwind CSS; các trang công khai xuất tĩnh.
 - Spring Boot 4.1.1, Java 25, Maven Wrapper, Spring Security, JPA, Flyway.
 - Local dùng H2 trong bộ nhớ; production dùng PostgreSQL trên Aiven qua TLS.
-- Có khung điều hướng, trang chủ tạm, trang placeholder và nút kiểm tra API. Backend đã có đăng nhập mật khẩu/Google, CSRF và phiên JDBC. Chưa có form đăng nhập, dữ liệu 148 thẻ, quản trị, bán hàng hoặc mô phỏng chơi thật.
-- Chưa deploy cloud. Có Dockerfile và GitHub Actions. CI đã build và kiểm tra container giới hạn 512 MB với H2 trên GitHub; máy local chưa có Docker.
+- Có giao diện Home/shell theo prototype và điều hướng; các khu vực nội dung/shop còn dùng placeholder. Backend có auth, CSRF, session JDBC, checkout/inventory và tích hợp PayOS. Chưa có UI login, dữ liệu 148 thẻ chính thức, catalog/cart API, admin hoặc luồng mua hàng Angular hoàn chỉnh.
+- Đã deploy trên Cloudflare Pages Free, Render Free và Aiven Free. CI/CD của `8196312` đã thành công, gồm kiểm tra container 512 MB và smoke production; máy local chưa có Docker theo lần kiểm tra trước.
 
 ## Cấu trúc
 
@@ -46,7 +46,7 @@ npm ci
 npm start
 ```
 
-Mở `http://localhost:4200`, bấm **Kiểm tra API**. Dev server chuyển `/api/**` tới backend cổng 8080.
+Mở `http://localhost:4200`, bấm **Kiểm tra kết nối API**. Dev server chuyển `/api/**` tới backend cổng 8080.
 
 | Endpoint | Mục đích |
 | --- | --- |
@@ -96,9 +96,9 @@ Spring Boot **không tự đọc `.env`**; đặt biến trong terminal hoặc d
 
 ## Quy trình làm việc
 
-Thiết kế PostgreSQL cho user, nội dung game, shop, đơn hàng và PayOS: [DATABASE_DESIGN.md](docs/DATABASE_DESIGN.md). Migration V3–V5 đã deploy lên Aiven production (Flyway V5, 34 bảng); API shop/PayOS chưa triển khai. Database contract tests chạy H2 và PostgreSQL 18 disposable trên CI.
+Thiết kế PostgreSQL cho user, nội dung game, shop, đơn hàng và PayOS: [DATABASE_DESIGN.md](docs/DATABASE_DESIGN.md). Migration V3–V5 đã deploy lên Aiven production (Flyway V5, 34 bảng); Đã có API checkout/orders/refresh, webhook PayOS và cron đối soát; catalog/cart/admin/refund execution còn thiếu. Xem [PAYOS.md](docs/PAYOS.md). Backend có 63 tests trong CI đã xác minh, gồm contract/payment trên H2 và PostgreSQL 18 disposable; chưa có kiểm thử chuyển tiền thật.
 
-Đọc [PROGRESS.md](PROGRESS.md) và [CHECKLIST.md](CHECKLIST.md) trước mỗi phiên. Chỉ tick khi hoàn thành và kiểm tra. Xem [tham chiếu Figma](docs/design/FIGMA_PROTOTYPE.md); khung hiện tại chưa triển khai đầy đủ prototype.
+Đọc [PROGRESS.md](PROGRESS.md) và [CHECKLIST.md](CHECKLIST.md) trước mỗi phiên. [Báo cáo rà soát mã nguồn](docs/IMPLEMENTATION_REVIEW.md) phân biệt phần đã có với các tính năng/luồng còn thiếu và thứ tự ưu tiên. Chỉ tick khi hoàn thành và kiểm tra. Xem [tham chiếu Figma](docs/design/FIGMA_PROTOTYPE.md); khung hiện tại chưa triển khai đầy đủ prototype.
 
 GitHub Actions chạy khi push, pull request hoặc chạy thủ công tại tab Actions:
 

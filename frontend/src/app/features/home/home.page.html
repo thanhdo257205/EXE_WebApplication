@@ -50,8 +50,9 @@
           <p class="box-text">
             Một board game sinh tồn gia đình / bạn bè nơi 4-8 người chơi tập sống chung một nhà, đối mặt với bão hóa đơn, sự kiện bất ngờ và giữ vững Quỹ nhà chung.
           </p>
-          <a routerLink="/cau-chuyen" class="link-btn">
-            Đọc câu chuyện của căn nhà →
+          <a routerLink="/cau-chuyen" class="link-btn inline-flex items-center gap-2">
+            <span>Đọc câu chuyện của căn nhà</span>
+            <app-morph-icon name="arrow-right" [size]="14" color="currentColor"></app-morph-icon>
           </a>
         </div>
 
@@ -75,23 +76,29 @@
           <h4 class="box-title">Nội dung</h4>
           <div class="divider"></div>
           <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
-            <a routerLink="/thu-vien" class="content-chip">
-              🃏 Thẻ bài (148 thẻ)
+            <a routerLink="/thu-vien" class="content-chip flex items-center gap-2">
+              <app-morph-icon name="cards" [size]="16" color="#38bdf8"></app-morph-icon>
+              <span>Thẻ bài (148 thẻ)</span>
             </a>
-            <a routerLink="/cu-dan" class="content-chip">
-              👥 Cư dân (8 nhân vật)
+            <a routerLink="/cu-dan" class="content-chip flex items-center gap-2">
+              <app-morph-icon name="residents" [size]="16" color="#38bdf8"></app-morph-icon>
+              <span>Cư dân (8 nhân vật)</span>
             </a>
-            <a routerLink="/cach-choi" class="content-chip">
-              🎲 Cách chơi & Lượt
+            <a routerLink="/cach-choi" class="content-chip flex items-center gap-2">
+              <app-morph-icon name="gameplay" [size]="16" color="#38bdf8"></app-morph-icon>
+              <span>Cách chơi & Lượt</span>
             </a>
-            <a routerLink="/quy-nha" class="content-chip">
-              💰 Quỹ Nhà Chung
+            <a routerLink="/quy-nha" class="content-chip flex items-center gap-2">
+              <app-morph-icon name="fund" [size]="16" color="#38bdf8"></app-morph-icon>
+              <span>Quỹ Nhà Chung</span>
             </a>
-            <a routerLink="/wiki" class="content-chip">
-              📜 Wiki luật V2
+            <a routerLink="/wiki" class="content-chip flex items-center gap-2">
+              <app-morph-icon name="rules" [size]="16" color="#38bdf8"></app-morph-icon>
+              <span>Wiki luật V2</span>
             </a>
-            <a routerLink="/cau-chuyen" class="content-chip">
-              📖 Câu chuyện căn nhà
+            <a routerLink="/cau-chuyen" class="content-chip flex items-center gap-2">
+              <app-morph-icon name="story" hoverName="story-open" [size]="16" color="#38bdf8"></app-morph-icon>
+              <span>Câu chuyện căn nhà</span>
             </a>
           </div>
 
@@ -125,8 +132,9 @@
           <p class="tool-desc">
             Thử ba tình huống đóng Quỹ: thiếu (dưới 8 Tiền), đủ (đúng 8 Tiền) và có dư.
           </p>
-          <a routerLink="/quy-nha" class="tool-btn">
-            <span>🧮</span> Thử đóng Quỹ Nhà Chung
+          <a routerLink="/quy-nha" class="tool-btn inline-flex items-center gap-2">
+            <app-morph-icon name="fund" hoverName="store" [size]="16" color="#f59e0b"></app-morph-icon>
+            <span>Thử đóng Quỹ Nhà Chung</span>
           </a>
         </div>
 

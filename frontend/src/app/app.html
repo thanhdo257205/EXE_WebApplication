@@ -8,21 +8,51 @@
   <app-wiki-rail></app-wiki-rail>
 
   <!-- Shared Top Global Wiki Bar -->
-  <app-global-bar (menuToggle)="toggleMobileMenu()"></app-global-bar>
+  <app-global-bar
+    [isMobileMenuOpen]="mobileMenuOpen()"
+    (menuToggle)="toggleMobileMenu()"
+  ></app-global-bar>
 
   <!-- Mobile Drawer Menu -->
   @if (mobileMenuOpen()) {
     <div class="mobile-overlay md:hidden" (click)="toggleMobileMenu()"></div>
     <nav class="mobile-drawer md:hidden" aria-label="Menu di động">
-      <a routerLink="/" (click)="toggleMobileMenu()" class="drawer-link">Trang chủ</a>
-      <a routerLink="/cau-chuyen" (click)="toggleMobileMenu()" class="drawer-link">Câu chuyện</a>
-      <a routerLink="/cu-dan" (click)="toggleMobileMenu()" class="drawer-link">Cư dân (8 người)</a>
-      <a routerLink="/cach-choi" (click)="toggleMobileMenu()" class="drawer-link">Cách chơi</a>
-      <a routerLink="/wiki" (click)="toggleMobileMenu()" class="drawer-link">Wiki luật</a>
-      <a routerLink="/thu-vien" (click)="toggleMobileMenu()" class="drawer-link">Thư viện thẻ (148 thẻ)</a>
-      <a routerLink="/quy-nha" (click)="toggleMobileMenu()" class="drawer-link">Mô phỏng Quỹ nhà</a>
-      <a routerLink="/cua-hang" (click)="toggleMobileMenu()" class="drawer-link">Cửa hàng board game</a>
-      <a routerLink="/gio-hang" (click)="toggleMobileMenu()" class="drawer-link">Giỏ hàng & Thanh toán</a>
+      <a routerLink="/" (click)="toggleMobileMenu()" class="drawer-link flex items-center gap-3">
+        <app-morph-icon name="home" [size]="18" color="#38bdf8"></app-morph-icon>
+        <span>Trang chủ</span>
+      </a>
+      <a routerLink="/cau-chuyen" (click)="toggleMobileMenu()" class="drawer-link flex items-center gap-3">
+        <app-morph-icon name="story" [size]="18" color="#38bdf8"></app-morph-icon>
+        <span>Câu chuyện</span>
+      </a>
+      <a routerLink="/cu-dan" (click)="toggleMobileMenu()" class="drawer-link flex items-center gap-3">
+        <app-morph-icon name="residents" [size]="18" color="#38bdf8"></app-morph-icon>
+        <span>Cư dân (8 người)</span>
+      </a>
+      <a routerLink="/cach-choi" (click)="toggleMobileMenu()" class="drawer-link flex items-center gap-3">
+        <app-morph-icon name="gameplay" [size]="18" color="#38bdf8"></app-morph-icon>
+        <span>Cách chơi</span>
+      </a>
+      <a routerLink="/wiki" (click)="toggleMobileMenu()" class="drawer-link flex items-center gap-3">
+        <app-morph-icon name="rules" [size]="18" color="#38bdf8"></app-morph-icon>
+        <span>Wiki luật</span>
+      </a>
+      <a routerLink="/thu-vien" (click)="toggleMobileMenu()" class="drawer-link flex items-center gap-3">
+        <app-morph-icon name="cards" [size]="18" color="#38bdf8"></app-morph-icon>
+        <span>Thư viện thẻ (148 thẻ)</span>
+      </a>
+      <a routerLink="/quy-nha" (click)="toggleMobileMenu()" class="drawer-link flex items-center gap-3">
+        <app-morph-icon name="fund" [size]="18" color="#38bdf8"></app-morph-icon>
+        <span>Mô phỏng Quỹ nhà</span>
+      </a>
+      <a routerLink="/cua-hang" (click)="toggleMobileMenu()" class="drawer-link flex items-center gap-3">
+        <app-morph-icon name="store" [size]="18" color="#38bdf8"></app-morph-icon>
+        <span>Cửa hàng board game</span>
+      </a>
+      <a routerLink="/gio-hang" (click)="toggleMobileMenu()" class="drawer-link flex items-center gap-3">
+        <app-morph-icon name="cart" [size]="18" color="#38bdf8"></app-morph-icon>
+        <span>Giỏ hàng & Thanh toán</span>
+      </a>
     </nav>
   }
 

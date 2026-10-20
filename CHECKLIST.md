@@ -15,6 +15,10 @@ Cập nhật: 2026-10-20 (Asia/Saigon).
 - Không tick chỉ vì đã viết mã: cần kiểm tra tính năng hoặc build/test phù hợp. Mục triển khai chỉ tick sau khi xác minh trên môi trường đích.
 - Không ghi secrets vào tài liệu hoặc repo public.
 
+## Thứ tự ưu tiên sau rà soát 2026-10-20
+
+Chi tiết bằng chứng: [IMPLEMENTATION_REVIEW.md](docs/IMPLEMENTATION_REVIEW.md). Nhóm 1–6 là chức năng gốc; nhóm 7–11 chi tiết hóa các khoảng trống chưa được mô tả đủ. `P0` phải hoàn tất trước khi mở bán nếu thuộc commerce; `P1` hoàn thiện website/vận hành; `P2` tùy chọn sau MVP. Website giới thiệu không bị buộc phải có tài khoản hay bán hàng mới được công bố. Mục có route, schema hoặc dependency vẫn để trống nếu nghiệp vụ chưa hoạt động.
+
 ## Điều kiện hoàn thành từng giai đoạn
 
 | Giai đoạn | Kết quả cần đạt |
@@ -63,20 +67,22 @@ Cập nhật: 2026-10-20 (Asia/Saigon).
 - [x] Cấu hình profile local/production và biến môi trường.
 - [x] Thêm JPA, PostgreSQL, Flyway và Spring Security.
 - [x] Tạo REST endpoint kiểm tra kết nối, cấu hình Problem Details và dependency validation.
-- [ ] Áp dụng validation/xử lý lỗi cho API nghiệp vụ khi được xây dựng.
+- [x] Validation payload checkout và kiểm tra giá/tồn kho/idempotency trong backend; đã có payment tests.
+- [ ] Chuẩn hóa mã lỗi/validation cho các API nghiệp vụ tiếp theo và cách Angular hiển thị lỗi.
 - [x] Build Docker image và kiểm tra health/API trong container 512 MB trên GitHub Actions.
-- [ ] Đo RAM, CPU và thời gian khởi động thực tế trên Render Free với Aiven.
+- [x] Ghi nhận log startup Render khoảng 147 giây trong phiên PayOS; cron đã có timeout/retry phù hợp.
+- [ ] Đo RAM/CPU và thời gian phản hồi theo tải trên Render Free với Aiven.
 - [x] Thêm `.gitignore`, `.env.example` không chứa secrets và README hướng dẫn chạy.
 
 - [x] Frontend build production và chạy unit test local.
 - [x] Backend build JAR bằng Maven Wrapper và chạy smoke test local.
 - [x] Kiểm tra Angular gọi Spring Boot qua dev proxy.
-- [x] Thiết lập CI Angular, Spring Boot, Docker và artifacts; đã xác minh cả ba job trên GitHub.
+- [x] Thiết lập CI Angular, Spring Boot, gateway và Docker; CI #39308780302 thành công cả 4 job.
 - [x] Commit/push khung mã nguồn và xác minh workflow trên GitHub.
 
 ### 3. Website giới thiệu và tra cứu
 
-- [x] Xây trang chủ.
+- [x] Xây giao diện Home và shell/component chung; dữ liệu chính thức và nghiệm thu toàn bộ nội dung còn ở các mục dưới.
 - [ ] Xây trang câu chuyện.
 - [ ] Xây trang giới thiệu game.
 - [ ] Hồ sơ 8 nhân vật.
@@ -194,3 +200,60 @@ Cập nhật: 2026-10-20 (Asia/Saigon).
 - [x] Đăng ký webhook thật và kiểm tra create/query/cancel trên kênh mới; số tiền đã nhận 0 đồng.
 - [ ] Kiểm thử chuyển tiền thật do chủ tài khoản thực hiện.
 - [ ] Nối Angular catalog/cart/checkout và hoàn thiện đăng nhập khách hàng.
+
+### 7. Tài khoản khách hàng và hồ sơ — P0 trước mở bán
+
+- [ ] AUTH-01: Xây API đăng ký email/mật khẩu, chỉ cấp CUSTOMER; xử lý email trùng và chống spam mà không cho client chọn role.
+- [ ] AUTH-02: Chốt kênh gửi email; xác minh email và khôi phục mật khẩu bằng token dùng một lần, có hạn dùng, không lộ tài khoản; giới hạn gửi lại.
+- [ ] AUTH-03: Đổi mật khẩu có xác minh người dùng, thu hồi phiên phù hợp và kiểm tra giới hạn UTF-8 của BCrypt.
+- [ ] AUTH-04: Nối AuthService vào UI login/logout/Google + Turnstile; khôi phục trạng thái từ /me, xử lý hết phiên và điều hướng quay lại trang đang mua.
+- [ ] AUTH-05: Thêm frontend guards cho tài khoản/admin; đồng bộ role contract với backend, chưa coi EDITOR có quyền khi chưa triển khai.
+- [ ] AUTH-06: Xây API/UI cập nhật profile và sổ địa chỉ, địa chỉ mặc định; kiểm tra ownership, validation và giữ nguyên snapshot đơn cũ.
+- [ ] AUTH-07: Tạo admin production qua quy trình an toàn, kiểm thử đăng nhập/quyền thật; không dùng tài khoản bootstrap làm đăng ký khách hàng.
+
+### 8. Hoàn thiện nghiệp vụ bán hàng và phục hồi — P0 trước mở bán
+
+- [ ] SHOP-01: API catalog danh sách/chi tiết SKU, giá và trạng thái bán; chỉ công khai sản phẩm ACTIVE/enabled, có phân trang và hết hàng.
+- [ ] SHOP-02: Admin tạo/sửa/ẩn sản phẩm, ảnh và SKU; nhập/điều chỉnh kho có lý do, version và inventory movement, không sửa số kho tùy ý từ client.
+- [ ] SHOP-03: API cart thêm/sửa/xóa/xem; tính lại giá/tồn kho ở server. Chốt giỏ khách vãng lai và cách gộp khi đăng nhập, cập nhật badge từ dữ liệu thật.
+- [ ] SHOP-04: Chốt chính sách giao hàng/chi phí/giảm giá và thời hạn đơn; tính tổng ở server, không mặc nhiên coi shipping=0 hiện tại là chính sách bán hàng.
+- [ ] SHOP-05: Checkout Angular lưu bền idempotency key + payload/đơn đang chờ theo tài khoản; bấm lại/reload/mất mạng không tạo đơn mới ngoài ý muốn.
+- [ ] SHOP-06: Trang đơn của tôi/chi tiết/trạng thái thanh toán, QR/link PayOS, đếm hạn và kiểm tra lại; không lấy returnUrl/status từ browser làm bằng chứng trả tiền.
+- [ ] SHOP-07: Phân trang API orders thay giới hạn 50 đơn cố định và giảm truy vấn lặp khi tải danh sách; kiểm tra tài khoản không xem/sửa được đơn người khác.
+- [ ] SHOP-08: Admin xem/xử lý UNKNOWN, REVIEW, partial/over/late payment và link không tồn tại; có quyền, bằng chứng provider, audit và thao tác phục hồi idempotent trước khi nhả kho/tạo attempt thay thế.
+- [ ] SHOP-09: Quản trị vòng đời đơn/shipments (xác nhận, đóng gói, giao hàng, hoàn tất/hủy), kiểm soát chuyển trạng thái và chống giao/trừ/nhả kho lặp.
+- [ ] SHOP-10: Hoàn tiền thủ công có yêu cầu/duyệt/thực hiện, tổng tiền không vượt giao dịch đã nhận, external reference và audit; hoàn tiền không tự động đồng nghĩa nhập lại hàng.
+- [ ] SHOP-11: Thông báo xác nhận đơn/thanh toán/trạng thái cho khách bằng kênh đã chọn, gửi lại an toàn khi lỗi; không gửi thông báo trước khi transaction commit.
+- [ ] SHOP-12: Công khai thông tin liên hệ, giao hàng, đổi trả/hoàn tiền và cách xử lý “đã chuyển tiền nhưng đang xác minh”; duyệt nội dung trước mở bán.
+
+### 9. Dữ liệu nội dung và hoàn thiện UX — P1
+
+- [ ] CONTENT-01: Chốt schema nguồn/import 8 nhân vật, 148 thẻ, 11 bộ; kiểm tra ID trùng, thiếu trường/ảnh, tham chiếu và version trước khi xuất bản.
+- [ ] CONTENT-02: Xuất bản release snapshot được duyệt để prerender/search dùng được khi Render ngủ; nội dung nháp không xuất hiện công khai, có rollback release.
+- [ ] CONTENT-03: API content chỉ đọc bản đã xuất bản; admin preview/import có báo cáo lỗi và thao tác xuất bản có quyền/audit.
+- [ ] CONTENT-04: Form phản hồi gắn với thẻ/luật và phiên bản đang xem, có mã tiếp nhận và trạng thái xử lý; chống spam, admin duyệt và không công khai thông tin liên hệ người gửi.
+- [ ] UX-01: Nối search header vào tìm kiếm thật; mở/tắt bằng bàn phím, có trạng thái rỗng, loading và lỗi; giữ query/filter/page trong URL để chia sẻ hoặc quay lại.
+- [ ] UX-02: Bỏ badge giỏ cố định (2), nội dung “chính thức” chưa kiểm chứng và dấu hiệu dropdown chưa có chức năng; thay bằng dữ liệu/nhãn trạng thái đúng.
+- [ ] UX-03: Hoàn thiện focus trap, Escape, focus restore, aria-expanded/controls và khóa cuộn cho mobile drawer; kiểm tra bàn phím, độ tương phản và cỡ chạm.
+- [ ] UX-04: Xử lý loading/empty/error/401/403/409/429/backend ngủ ở chức năng động; retry có kiểm soát và không phát lại thanh toán bằng idempotency key mới.
+- [ ] SEO-01: Đồng bộ routes prerender với /cach-choi và trang public mới; thêm canonical, metadata/ảnh chia sẻ theo trang, sitemap/robots và kiểm tra refresh/deep-link/404.
+- [ ] QR-01: Dùng ID/slug ổn định cho thẻ/cơ chế có phiên bản; tạo QR, giữ redirect khi đổi slug và kiểm tra mở trực tiếp trên điện thoại.
+
+### 10. Kiểm thử và vận hành — P0 cho bán hàng, P1 cho website
+
+- [ ] QA-01: Browser E2E login → cart → checkout → return → orders với provider giả lập; bao phủ reload, mất mạng, backend ngủ và hết phiên, không chỉ kiểm tra service.
+- [ ] QA-02: Kiểm thử một giao dịch ngân hàng thật do chủ tài khoản chủ động thực hiện, đối chiếu provider/webhook/ledger/order/kho và lưu bằng chứng đã che thông tin nhạy cảm.
+- [ ] QA-03: Kiểm thử mobile và liên kết chính của toàn bộ prototype; xác minh search, filter, Quỹ và tra cứu thẻ khi backend không hoạt động.
+- [ ] OPS-01: Theo dõi thời điểm cron/sweep thành công, webhook lỗi, độ trễ đối soát và lượng UNKNOWN/REVIEW; cảnh báo có nội dung xử lý được, không chứa keys/PII.
+- [ ] OPS-02: Cải tiến inbox retry/backoff, số lần thử và hàng chờ cần xử lý; admin replay an toàn. Bổ sung lịch sử lỗi thay vì chỉ bỏ qua exception để thử sau.
+- [ ] OPS-03: Đo backlog/batch 5 attempt, ưu tiên đơn chờ thanh toán và pagination/cursor khi tăng tải; kiểm tra giữ/nhả kho không bị kẹt vì cron chậm.
+- [ ] OPS-04: Chốt backup ngoài môi trường chạy và retention; diễn tập restore vào database riêng, kiểm tra schema/đơn/ledger/session, ghi thời gian và quy trình phục hồi.
+- [ ] OPS-05: Chốt lưu giữ/xóa/ẩn danh hồ sơ, địa chỉ, webhook và log; bổ sung audit cho thay đổi admin, kho, refund và xuất bản nội dung.
+- [ ] OPS-06: Theo dõi RAM/CPU/pool/latency/dung lượng và quota Free, diễn tập rollback app tương thích migration; có quy trình xoay keys và nhắc hạn token CD.
+- [ ] QA-04: Kiểm thử nội dung Markdown/URL/upload an toàn và quyền sửa/xuất bản khi xây admin; kiểm soát loại/kích thước file và chọn lưu trữ bền vững, không dùng filesystem Render tạm.
+
+### 11. Mở rộng tùy chọn — P2, chưa chặn MVP
+
+- [ ] EXTRA-01: Tích hợp Morphicons vào một vài nút đổi trạng thái (menu/đóng, mở rộng), bọc Angular an toàn với prerender, cleanup khi destroy, reduced motion và giữ thông báo giấy phép.
+- [ ] EXTRA-02: Hướng dẫn chơi theo bước với thẻ mẫu đã duyệt, tiến/lùi/reset và kết quả xác định theo phiên bản luật; chưa mở rộng thành game multiplayer.
+- [ ] EXTRA-03: Lưu thẻ/luật yêu thích hoặc lịch sử tra cứu trên thiết bị; có xóa dữ liệu, vẫn tra cứu công khai không cần đăng nhập.

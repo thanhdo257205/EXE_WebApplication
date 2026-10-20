@@ -3,6 +3,7 @@ import { RouterLink } from '@angular/router';
 import { ApiService } from '../../core/api/api.service';
 import { CommunityNavComponent } from '../../shared/components/community-nav/community-nav.component';
 import { WikiCanvasComponent } from '../../shared/components/wiki-canvas/wiki-canvas.component';
+import { MorphIconComponent } from '../../shared/components/morph-icon/morph-icon.component';
 
 export interface Resident {
   name: string;
@@ -12,7 +13,7 @@ export interface Resident {
 
 @Component({
   selector: 'app-home-page',
-  imports: [RouterLink, CommunityNavComponent, WikiCanvasComponent],
+  imports: [RouterLink, CommunityNavComponent, WikiCanvasComponent, MorphIconComponent],
   templateUrl: './home.page.html',
   styleUrl: './home.page.css',
 })

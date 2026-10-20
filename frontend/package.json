@@ -20,6 +20,7 @@
     "@angular/router": "22.2.3",
     "@angular/ssr": "22.2.3",
     "@tailwindcss/postcss": "4.3.3",
+    "morphicons": "^2.0.0",
     "postcss": "8.5.31",
     "rxjs": "~7.8.0",
     "tailwindcss": "4.3.3",

@@ -1,0 +1,10 @@
+<span class="morph-icon-wrapper" (mouseenter)="onMouseEnter()" (mouseleave)="onMouseLeave()">
+  <morph-icon
+    #morphEl
+    [attr.icon]="currentIconD() || resolveIcon(name())"
+    [attr.size]="size()"
+    [attr.color]="color()"
+    [attr.stroke-width]="strokeWidth()"
+    [attr.spring]="spring()"
+  ></morph-icon>
+</span>

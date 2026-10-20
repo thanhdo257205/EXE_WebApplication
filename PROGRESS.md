@@ -5,12 +5,14 @@
 ## Cập nhật gần nhất
 
 - Ngày: 2026-10-20 (Asia/Saigon).
-- Trạng thái: Website đã live trên Cloudflare, Spring Boot live trên Render Free, PostgreSQL Free Aiven đã kết nối TLS và chạy migration.
-- Công việc vừa hoàn thành: Tái cấu trúc và xây dựng hoàn chỉnh giao diện Trang chủ (Home) và Shell layout theo đúng chuẩn Figma prototype (Frame 01). Tổ chức mã nguồn Angular thành các standalone components chuyên biệt (WikiRailComponent, GlobalBarComponent, CommunityNavComponent, WikiCanvasComponent) với template HTML, stylesheet CSS và TypeScript riêng biệt. Build prerender và 3/3 unit tests pass.
-- Trạng thái deploy: Chuẩn bị kích hoạt CI/CD push commit giao diện lên main.
-- Trạng thái GitHub: Schema và cấu hình CI PostgreSQL đã push. Commit cập nhật bằng chứng triển khai trong tài liệu cũng chạy CI/CD như các push main khác; xem Actions để biết SHA triển khai mới nhất.
-- PayOS backend đã deploy ở 0cfb553: CI #39303973150 (63 tests) và CD #39304413119 đều pass; webhook thật đã confirm, SDK create/query/cancel probe thành công với amountPaid=0. Chi tiết docs/PAYOS.md.
-- Phần còn thiếu: Google credentials, UI login, Angular catalog/cart/checkout và quản trị bán hàng/refund. Chưa kiểm thử chuyển tiền thật. Merchant keys đã được người dùng lưu trên Render.
+- Rà soát mới nhất: Đã đối chiếu checklist, mô tả sản phẩm và mã nguồn ở `8196312`; kết quả chi tiết tại [IMPLEMENTATION_REVIEW.md](docs/IMPLEMENTATION_REVIEW.md). Đây là rà soát tài liệu/code, không phải triển khai thêm tính năng.
+- Trạng thái đã xác minh: Home/shell Angular và backend auth/PayOS đã lên Cloudflare Pages + Render; database Aiven ở Flyway V5 với 34 bảng ứng dụng theo lần kiểm tra trước. Các trang nội dung/shop ngoài Home hiện dùng PlaceholderPage.
+- GitHub/deploy: Commit `8196312` đã push; CI #39308780302 và CD #39309163153 đều success, gồm job deploy thật. Bản PayOS `ca7f329` trước đó cũng có CI #39305407158 và CD #39305661750 success. Không còn trạng thái “chuẩn bị deploy” cho các bản này.
+- PayOS: SDK/keys/webhook thật đã xác minh; create/query/cancel probe có amountPaid=0, không chuyển tiền. Có checkout/orders, chống trùng, ledger và đối soát cron 30 phút; 63 backend tests đã qua CI. Chưa có giao dịch ngân hàng thật hoặc luồng mua hàng Angular hoàn chỉnh.
+- Các thiếu sót chính từ code: chưa có đăng ký/khôi phục mật khẩu, UI login/Google thật, API content/catalog/cart/profile/address, admin và dữ liệu chính thức. Ô search chưa xử lý; header giỏ hàng đang ghi cố định (2).
+- Việc tiếp theo cho website giới thiệu: xác định dữ liệu nguồn, xây thư viện/chi tiết/wiki và mô phỏng Quỹ; public content phải dùng được khi Render ngủ.
+- Việc tiếp theo trước mở bán: tài khoản khách → catalog/tồn kho → cart/địa chỉ/phí giao → checkout/orders UI → xử lý UNKNOWN/REVIEW/refund/vận chuyển → E2E và kiểm thử chuyển tiền thật. Nhóm 7–11 trong CHECKLIST.md bổ sung các việc chi tiết và mức ưu tiên; không coi đây là tính năng đã xây.
+- Tích hợp Morphicons: Đã cài `morphicons@^2.0.0` (giấy phép MIT), đăng ký global web component `<morph-icon>`, xây dựng wrapper `MorphIconComponent` (`<app-morph-icon>`) với hiệu ứng morph physics spring (`bouncy`), hover morph và chuyển đổi menu/close/cart/navigation. Tất cả 5 unit tests và `npm run build` (prerender 4 routes) đều pass 100%.
 
 ## Bối cảnh và tài liệu
 
@@ -50,7 +52,7 @@
 - Render Free có giới hạn tài nguyên và cơ chế ngủ; cần đo RAM thực tế, tối ưu JVM, connection pool và thời gian khởi động.
 - Ảnh cố định ban đầu lưu cùng frontend; chưa chốt dịch vụ upload ảnh. R2 chỉ là phương án tương lai, chưa kích hoạt cho dự án.
 - Đã chọn Angular 22.2.3, Spring Boot 4.1.1, Java 25 và Node.js 24.15.0. Frontend có package-lock.json; backend có Maven Wrapper. Local dùng H2 trong bộ nhớ, production bắt buộc PostgreSQL qua biến môi trường.
-- Người dùng đã chọn cả email/mật khẩu và Google. Backend đã triển khai hai luồng; đã có Turnstile thật, chưa có Google credentials và UI đăng nhập. Nhà cung cấp thanh toán chưa chốt.
+- Người dùng đã chọn cả email/mật khẩu và Google. Backend đã triển khai hai luồng; đã có Turnstile thật, chưa có Google credentials và UI đăng nhập. Đã chọn và tích hợp PayOS, chưa có luồng mua hàng Angular hoàn chỉnh.
 - Không lưu ảnh dạng nhị phân trong database; secrets phải nằm ngoài Git.
 
 ## Checklist công việc
@@ -66,11 +68,11 @@ Theo dõi và tick các hạng mục tại [CHECKLIST.md](CHECKLIST.md). File đ
 | Render CLI | Backend exe-web-backend đã live trên Free |
 | Aiven CLI | Đã đăng nhập bằng token; project mặc định `dothanh2572005-a894` |
 | Lệnh Aiven local | `avn` chưa nằm trong PATH; executable tại `%APPDATA%/Python/Python314/Scripts/avn.exe` |
-| Database local | H2 trong bộ nhớ; Flyway V1 chạy thành công; chưa có schema nghiệp vụ |
-| Database Aiven | exe-web-pg Free đã RUNNING; backend kết nối TLS verify-full, Flyway chạy thành công |
+| Database local | H2 trong bộ nhớ; migration V1–V5 và các payment/schema tests đã chạy; dữ liệu mất khi dừng local |
+| Database Aiven | exe-web-pg Free; TLS verify-full, Flyway V5 / 34 bảng ứng dụng đã xác minh ở phiên deploy |
 | Docker | Chưa có local; GitHub Actions đã build và kiểm tra container 512 MB thành công |
 | App local | Angular cổng 4200 và Spring Boot cổng 8080 đã chạy kiểm tra |
-| URL frontend/backend | Xem docs/DEPLOYMENT.md; website qua gateway workers.dev |
+| URL frontend/backend | https://exe-webapp.pages.dev → Pages binding → Worker nội bộ → Render; Worker không mở workers.dev |
 | Tên miền riêng | Chưa chốt |
 
 Trạng thái xác thực có thể thay đổi; kiểm tra lại khi cần deploy, không suy ra rằng mọi phiên sau vẫn đăng nhập.
@@ -86,6 +88,8 @@ Trạng thái xác thực có thể thay đổi; kiểm tra lại khi cần depl
 
 ## Nhật ký công việc
 
+Các ghi chú theo phiên bên dưới là lịch sử tại thời điểm thực hiện; phần “Cập nhật gần nhất” và checklist phản ánh trạng thái hiện tại.
+
 | Ngày | Kết quả | Xác minh / việc còn lại |
 | --- | --- | --- |
 | 2026-10-19 | Kiểm tra CLI; đăng nhập Aiven bằng token | Cloudflare/Render đã đăng nhập; `avn user info` trả tài khoản active |
@@ -99,7 +103,7 @@ Trạng thái xác thực có thể thay đổi; kiểm tra lại khi cần depl
 | 2026-10-19 | Bổ sung CI cho push/PR/thủ công, test/build, artifacts và Docker smoke test 512 MB | Đã push `f8403dd`; CI #39275516379 thành công cả ba job, có artifacts |
 | 2026-10-19 | Xây backend auth và Cloudflare gateway; tài liệu tại `docs/AUTH_AND_GATEWAY.md` | 10 backend tests, 3 frontend tests và 13 proxy tests pass; runtime local 403/200/429; đã push `a92a952`, CI #39278743322 đã success |
 
-## Kết quả kiểm tra ứng dụng
+## Kết quả kiểm tra ứng dụng ban đầu (lịch sử)
 
 - `frontend`: `npm run build` thành công, 4 route prerender; đã kiểm tra file HTML có nội dung.
 - `frontend`: `npm test -- --watch=false` — 3 tests pass (shell, API và auth client contract).
@@ -181,3 +185,12 @@ Trạng thái xác thực có thể thay đổi; kiểm tra lại khi cần depl
 - Bản 0cfb553 đã xác minh deploy khớp SHA ở Pages/Render, webhook SDK confirm thành công, signed probe lưu inbox nhưng không tạo đơn/tiền. Internal reconciliation HTTP 200; lịch cron 30 phút có trên Cloudflare. Chưa có chuyển tiền thật hoặc hoàn tiền tự động.
 - CI backend 63 tests pass; 16 payment service tests chạy thêm trên Aiven schema riêng cũng pass và đã dọn schema. Public users/products/orders/transactions vẫn 0.
 - Theo log Render, startup khoảng 147 giây; bản điều chỉnh cuối cho cron chờ tối đa 300 giây/lần, retry một lần, yêu cầu JSON checked để không nhầm trang wake-up là đối soát thành công. Bản này cùng tài liệu sẽ chạy CI/CD tiếp; xem Actions cho SHA mới nhất.
+
+### Rà soát backlog và đồng bộ trạng thái — 2026-10-20
+
+- Đọc yêu cầu sản phẩm gốc, routes/components/services Angular, controllers/security/auth/payment backend, tài liệu schema/PayOS và CI/CD. Không coi tính năng của demo Next.js cũ là mã đã có trong repo mới.
+- Sửa trạng thái deploy cũ trong progress/README, phân biệt Home UI với nội dung thật và các route placeholder; bổ sung báo cáo docs/IMPLEMENTATION_REVIEW.md có bằng chứng theo file.
+- CHECKLIST.md bổ sung nhóm 7–11: tài khoản/profiles, kết nối commerce, xử lý ngoại lệ tiền/kho, xuất bản nội dung/UX, E2E/backup/quan sát và phần mở rộng tùy chọn. Mục mới giữ chưa tick đến khi có nghiệm thu.
+- Chú ý từ PaymentStore/PaymentService: UNKNOWN có thể giữ reservation lâu dài khi provider không tìm thấy link; chưa có thao tác admin phục hồi. Sweep batch 5 và inbox replay cần theo dõi lag/lỗi, ưu tiên/backoff và quy trình xử lý thủ công. Orders API hiện trả tối đa 50 đơn, chưa phân trang.
+- Kiểm tra phiên này chỉ đọc mã nguồn/trạng thái Actions và đối chiếu liên kết/tài liệu; không chạy lại build/test vì không sửa runtime. Hai file dependency Morphicons có trước phiên và component Morphicons xuất hiện đồng thời đều giữ nguyên; không coi thay đổi local đang diễn ra là bản đã nghiệm thu.
+- Kết quả lưu local trong tài liệu; chưa commit/push hay kích hoạt deploy mới cho phiên rà soát.
