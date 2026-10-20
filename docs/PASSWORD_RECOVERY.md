@@ -1,6 +1,6 @@
 # Khôi phục mật khẩu và JWT
 
-Cập nhật 2026-10-20. Code hiện tại mới local, chưa commit/push/deploy. Không có API key hoặc địa chỉ người gửi đã xác minh trong môi trường phiên này; chưa gửi email thật.
+Cập nhật 2026-10-20. Code hiện có trong commit local 96d2b01; live Render được kiểm tra vẫn 3c66908. Render đã có RESEND_API_KEY, sender thử, PASSWORD_RESET_ENABLED=true và public origin đúng; đã bổ sung JWT_SECRET ngẫu nhiên và đọc lại xác minh. Chưa gửi email từ backend thật hoặc xác minh domain gửi mail.
 
 ## Luồng người dùng
 
@@ -37,7 +37,7 @@ Tạo key JWT bằng password manager hoặc bộ sinh mật mã, nhập trực 
 
 Resend cần domain gửi mail mà chủ dự án kiểm soát và bản ghi DNS được xác minh. Domain thử nghiệm của provider có giới hạn người nhận; không dùng để mở chức năng cho mọi người. Nếu chưa có domain/sender hoặc API key, giữ recovery tắt: UI hiển thị dịch vụ tạm ngưng. Xem [Resend gửi email](https://resend.com/docs/api-reference/emails/send-email) và [xác minh domain](https://resend.com/docs/dashboard/domains/introduction). Code dùng HTTPS vì [Render Free chặn SMTP 25/465/587](https://render.com/docs/free).
 
-Spring không tự đọc `.env`; `.env.example` chỉ là mẫu. Đặt biến ở terminal/dashboard rồi restart/deploy. Không dùng URL từ Host/Origin header làm reset link. Chưa bật mail hoặc sửa secrets production trong phiên này.
+Spring không tự đọc `.env`; `.env.example` chỉ là mẫu. Đặt biến ở terminal/dashboard rồi restart/deploy. Không dùng URL từ Host/Origin header làm reset link. Theo yêu cầu chủ dự án, đã thêm JWT_SECRET trên Render bằng 48 byte ngẫu nhiên mật mã, Base64 và đọc lại API khớp. Chỉ thay biến này, không ghi giá trị vào file/log/docs; không chủ động kích hoạt deployment. Tại lúc kiểm tra có một lượt cập nhật 3c66908 đang chạy, live vẫn 3c66908. Mail đã bật trong cấu hình nhưng còn deploy code mới để dùng luồng recovery.
 
 ## JWT và chuyển đổi
 
@@ -47,10 +47,12 @@ Xác thực không đọc/ghi session JDBC. Mỗi request có JWT hợp lệ đ�
 
 Google dùng session tạm cho OAuth state/nonce/PKCE, callback cấp JWT rồi hủy session; không lưu access/refresh token của Google. Cookie CSRF cũng tách khỏi session. Session đăng nhập từ bản cũ không xác thực được sau nâng cấp. V6/V7 giữ nguyên V1–V5 và chưa chạy lên Aiven production; cần đặt JWT_SECRET trước deploy.
 
-UI login/register là thay đổi local có sẵn trước công việc này. Trong khi xây JWT/recovery có thêm thay đổi local ở header: hiển thị tài khoản/login/logout, gọi `/me` khi khởi tạo. Đã giữ nguyên các thay đổi đó. Form login chưa tích hợp Turnstile và chưa có route guards; AUTH-04/05 vẫn chưa nghiệm thu đầy đủ.
+UI login/register và header tài khoản/login/logout, gọi `/me` khi khởi tạo đã có trong 96d2b01. Đợt rà soát tiếp theo thêm Turnstile action login trên production, chuyển token qua header, reset sau lỗi và xử lý hết hạn/timeout/tải lại widget. Bỏ checkbox ghi nhớ chưa có tác dụng, giữ JWT 30 phút. Validation xác nhận mật khẩu không đặt lỗi trực tiếp lên control con, tránh kẹt lỗi khi sửa mật khẩu gốc; login/register kiểm tra tối đa 72 byte UTF-8. Chưa có route guards hoặc nghiệm thu challenge/browser production thật; AUTH-04/05 vẫn chưa hoàn tất toàn bộ.
 
 ## Xác minh
 
 Các kiểm thử mới bao phủ mail adapter bằng provider giả lập (không gửi thật), API recovery, CSRF, token expiry/reuse/resend/concurrency, Google-only/disabled, lỗi gửi rollback, UTF-8, JWT chữ ký/issuer/audience/expiry/version, logout replay và không ghi security context JDBC. Frontend kiểm tra request body/CSRF, validation và trạng thái 400/429/503. Kết quả chạy thực tế ghi tại PROGRESS.md; production mail/Google và PostgreSQL chưa được kiểm tra lại trong phiên này.
 
 Kết quả local 2026-10-20: Maven verify 53 tests qua, 16 PostgreSQL skipped; frontend 17 tests/build qua; gateway 23 tests/typecheck/dry-run qua. Có kiểm thử mail contract giả lập, chưa có bằng chứng gửi/nhận email thật.
+
+Rà soát UI tiếp theo 2026-10-20: frontend 26 tests qua và production build/prerender 6 routes qua. Bộ test thêm kiểm tra challenge/token hết hạn/reset/cleanup/lỗi tải, login không có challenge, xác nhận mật khẩu khi sửa trường gốc và UTF-8. Không thay backend/gateway trong đợt này; CI của 96d2b01 đã success, CD còn đang triển khai ở thời điểm chuẩn bị push bản rà soát.

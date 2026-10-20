@@ -130,7 +130,7 @@
               </button>
             </div>
             @if (registerForm.get('password')?.invalid && registerForm.get('password')?.touched) {
-              <span class="field-error">Mật khẩu phải từ 6 đến 72 ký tự.</span>
+              <span class="field-error">Mật khẩu cần ít nhất 6 ký tự và tối đa 72 byte UTF-8.</span>
             }
           </div>
 
@@ -140,7 +140,7 @@
               <span>Xác nhận lại mật khẩu</span>
               <span class="required-star">*</span>
             </label>
-            <div class="input-wrapper" [class.input-error]="registerForm.get('confirmPassword')?.invalid && registerForm.get('confirmPassword')?.touched">
+            <div class="input-wrapper" [class.input-error]="(registerForm.hasError('mismatch') || registerForm.get('confirmPassword')?.invalid) && registerForm.get('confirmPassword')?.touched">
               <app-morph-icon name="lock" [size]="18" color="#64748b" class="input-icon"></app-morph-icon>
               <input
                 id="confirmPassword"
@@ -151,7 +151,7 @@
                 class="form-input"
               />
             </div>
-            @if (registerForm.get('confirmPassword')?.hasError('mismatch') && registerForm.get('confirmPassword')?.touched) {
+            @if ((registerForm.hasError('mismatch') || registerForm.get('confirmPassword')?.invalid) && registerForm.get('confirmPassword')?.touched) {
               <span class="field-error">Mật khẩu xác nhận không trùng khớp.</span>
             }
           </div>

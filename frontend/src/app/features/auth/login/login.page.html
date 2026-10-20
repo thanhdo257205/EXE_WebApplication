@@ -110,23 +110,23 @@
               </button>
             </div>
             @if (loginForm.get('password')?.invalid && loginForm.get('password')?.touched) {
-              <span class="field-error">Mật khẩu phải từ 6 đến 72 ký tự.</span>
+              <span class="field-error">Vui lòng nhập mật khẩu, tối đa 72 byte UTF-8.</span>
             }
           </div>
 
-          <!-- Remember me & Forgot password row -->
+          <!-- Password recovery -->
           <div class="form-options">
-            <label class="remember-label">
-              <input type="checkbox" formControlName="remember" class="checkbox-input" />
-              <span>Ghi nhớ đăng nhập</span>
-            </label>
-              <a routerLink="/quen-mat-khau" class="switch-link">Quên mật khẩu?</a>
+            <a routerLink="/quen-mat-khau" class="switch-link">Quên mật khẩu?</a>
           </div>
+
+          @if (turnstileSiteKey(); as siteKey) {
+            <app-turnstile [siteKey]="siteKey" (tokenChange)="challengeToken.set($event)" />
+          }
 
           <!-- Submit Button -->
           <button
             type="submit"
-            [disabled]="loading()"
+            [disabled]="loading() || (turnstileSiteKey() !== null && !challengeToken())"
             class="submit-btn"
           >
             @if (loading()) {

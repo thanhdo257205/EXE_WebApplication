@@ -45,7 +45,7 @@ Render vẫn có địa chỉ công khai. `OriginProxyFilter` chặn request ứ
 | GET | `/api/v1/auth/oauth2/authorization/google` | Điều hướng trình duyệt để đăng nhập Google |
 | GET | `/api/v1/auth/oauth2/callback/google` | Callback cho Spring xử lý state, nonce, code và OIDC token |
 
-Angular có AuthService và UI `/dang-nhap`, `/dang-ky`, `/quen-mat-khau`, `/dat-lai-mat-khau`. UI login hiện chưa tích hợp Turnstile; password login qua gateway production vẫn bị từ chối khi không truyền challenge. Header local mới có tên tài khoản/login/logout và gọi `/me` khi khởi tạo; route guards còn thiếu. Phần header là thay đổi local đồng thời, được giữ nguyên trong phiên JWT/recovery.
+Angular có AuthService và UI `/dang-nhap`, `/dang-ky`, `/quen-mat-khau`, `/dat-lai-mat-khau`. Form login đã tích hợp Turnstile explicit render với action `login`, chuyển token một lần qua X-Turnstile-Token, xóa/reset token sau lỗi và chặn gửi khi chưa xác minh. Hỗ trợ challenge hết hạn, timeout, lỗi tải script và tháo widget khi rời trang. Sitekey công khai trong environment production thuộc widget dành cho exe-webapp.pages.dev; secret chỉ ở gateway. Development không render widget vì Spring local không qua gateway. Header có tên tài khoản/login/logout và gọi `/me` khi khởi tạo; route guards còn thiếu. Chưa nghiệm thu challenge/login production thật qua browser trong đợt rà soát này.
 
 Trình tự mật khẩu:
 

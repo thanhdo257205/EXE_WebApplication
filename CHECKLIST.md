@@ -306,5 +306,8 @@ Phạm vi, màn hình và tiêu chí tại [ADMIN_PLAN.md](docs/ADMIN_PLAN.md). 
 
 - [x] AUTH-08: JWT cookie HttpOnly/Secure/Lax/Path=/api, chữ ký/issuer/audience/expiry/version, logout/reset thu hồi và không ghi session đăng nhập; đã qua tests local (2026-10-20); production chưa nghiệm thu.
 - [x] AUTH-09: UI/API forgot/reset, CSRF/rate limit, mail adapter HTTPS, one-use/expiry/resend/concurrency và UTF-8 BCrypt; đã qua tests local (2026-10-20); production chưa nghiệm thu.
-- [ ] AUTH-10: Cấu hình JWT_SECRET trên Render và deploy V6/V7; kiểm tra password/Google login thật, CSRF, logout/replay và token hết hạn. Hiện chưa deploy.
-- [ ] AUTH-11: Cấu hình Resend + verified sender, bật recovery và kiểm tra gửi/nhận/reset thật với người nhận được chỉ định. Hiện chưa có credentials; không coi mock là email thật.
+- [ ] AUTH-10: JWT_SECRET đã được tạo và đọc lại xác minh trên Render (2026-10-20); còn deploy V6/V7 và kiểm tra password/Google login thật, CSRF, logout/replay, token hết hạn. Live vẫn 3c66908 tại lần kiểm tra.
+- [ ] AUTH-11: Render đã có Resend API key, sender thử, recovery bật và public origin đúng; còn domain/sender đã xác minh và kiểm tra gửi/nhận/reset thật với người nhận được chỉ định. Không coi đúng định dạng key hoặc gửi thử trên dashboard là nghiệm thu backend.
+- [x] Tạo JWT_SECRET trên Render bằng 48 byte ngẫu nhiên mật mã, Base64; đọc lại API khớp giá trị, không ghi secret ra log/docs/file (2026-10-20).
+- [x] Rà soát UI login/register: tích hợp Turnstile production, token một lần/reset/expiry/cleanup, sửa xác nhận mật khẩu khi sửa trường gốc, giới hạn UTF-8 và bỏ ghi nhớ chưa có tác dụng; 26 frontend tests + production build qua (2026-10-20).
+- [ ] Nghiệm thu widget/challenge và password login bằng browser production sau deploy bản rà soát; chưa coi test fixture là challenge thật.

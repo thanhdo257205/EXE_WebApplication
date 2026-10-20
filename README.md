@@ -7,7 +7,7 @@ Website board game **Chưa Giàu Đã Lớn — Nhà Này Hơi Báo!**
 - Angular 22.2.3, TypeScript, Tailwind CSS; các trang công khai xuất tĩnh.
 - Spring Boot 4.1.1, Java 25, Maven Wrapper, Spring Security, JPA, Flyway.
 - Local dùng H2 trong bộ nhớ; production dùng PostgreSQL trên Aiven qua TLS.
-- Có giao diện Home/shell theo prototype và điều hướng; các khu vực nội dung/shop còn dùng placeholder. Backend có auth, CSRF, checkout/inventory và PayOS. Local mới có JWT HttpOnly và UI/API khôi phục mật khẩu qua Resend HTTPS, chưa deploy; mail mặc định tắt khi chưa cấu hình. Đã có UI login/register local; form chưa tích hợp Turnstile. Chưa có dữ liệu 148 thẻ chính thức, catalog/cart API, admin hoặc luồng mua hàng Angular hoàn chỉnh.
+- Có giao diện Home/shell theo prototype và điều hướng; các khu vực nội dung/shop còn dùng placeholder. Backend có auth, CSRF, checkout/inventory, PayOS, JWT HttpOnly và khôi phục mật khẩu qua Resend HTTPS. UI login/register đã có, bản rà soát bổ sung Turnstile trên form production và sửa validation. Code auth ở 96d2b01 đã qua CI; CD đang triển khai tại lần kiểm tra. Render đã cấu hình JWT/mail với sender thử, chưa nghiệm thu gửi mail backend thật. Chưa có dữ liệu 148 thẻ chính thức, catalog/cart API, admin hoặc luồng mua hàng Angular hoàn chỉnh.
 - Đã deploy trên Cloudflare Pages Free, Render Free và Aiven Free. CI/CD của `3c66908` đã thành công, gồm kiểm tra container 512 MB và smoke production; máy local chưa có Docker theo lần kiểm tra trước.
 
 - Google OAuth đã ở External/In production; đăng nhập thật đã kiểm tra. Hai trang [quyền riêng tư](https://exe-webapp.pages.dev/chinh-sach-quyen-rieng-tu) và [điều khoản](https://exe-webapp.pages.dev/dieu-khoan-su-dung) đã công bố.

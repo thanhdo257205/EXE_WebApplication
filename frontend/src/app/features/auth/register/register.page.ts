@@ -5,22 +5,11 @@ import {
   ReactiveFormsModule,
   FormBuilder,
   Validators,
-  AbstractControl,
-  ValidationErrors,
 } from '@angular/forms';
 import { AuthService } from '../../../core/auth/auth.service';
 import { MorphIconComponent } from '../../../shared/components/morph-icon/morph-icon.component';
 import { WikiCanvasComponent } from '../../../shared/components/wiki-canvas/wiki-canvas.component';
-
-function passwordMatchValidator(control: AbstractControl): ValidationErrors | null {
-  const password = control.get('password');
-  const confirmPassword = control.get('confirmPassword');
-  if (password && confirmPassword && password.value !== confirmPassword.value) {
-    confirmPassword.setErrors({ mismatch: true });
-    return { mismatch: true };
-  }
-  return null;
-}
+import { bcryptPasswordValidator, matchingPasswordsValidator } from '../../../core/auth/auth-form.validators';
 
 @Component({
   selector: 'app-register-page',
@@ -38,11 +27,11 @@ export class RegisterPage {
     {
       displayName: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(120)]],
       email: ['', [Validators.required, Validators.email, Validators.maxLength(254)]],
-      password: ['', [Validators.required, Validators.minLength(6), Validators.maxLength(72)]],
+      password: ['', [Validators.required, Validators.minLength(6), Validators.maxLength(72), bcryptPasswordValidator]],
       confirmPassword: ['', [Validators.required]],
       agreeTerms: [false, [Validators.requiredTrue]],
     },
-    { validators: passwordMatchValidator }
+    { validators: matchingPasswordsValidator }
   );
 
   readonly showPassword = signal(false);
@@ -64,7 +53,7 @@ export class RegisterPage {
 
     const { displayName, email, password } = this.registerForm.getRawValue();
 
-    this.auth.register(displayName!, email!, password!).subscribe({
+    this.auth.register(displayName!.trim(), email!, password!).subscribe({
       next: () => {
         this.loading.set(false);
         this.router.navigateByUrl('/');

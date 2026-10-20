@@ -36,4 +36,22 @@ describe('RegisterPage', () => {
     component.registerForm.controls.confirmPassword.setValue('password123');
     expect(component.registerForm.valid).toBe(true);
   });
+
+  it('clears mismatch when the original password changes to match confirmation', () => {
+    component.registerForm.setValue({ displayName: 'Resident', email: 'resident@example.test',
+      password: 'password123', confirmPassword: 'different123', agreeTerms: true });
+    component.registerForm.controls.confirmPassword.markAsTouched();
+    component.registerForm.controls.password.setValue('different123');
+    expect(component.registerForm.valid).toBe(true);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).not.toContain('Mật khẩu xác nhận không trùng khớp.');
+  });
+
+  it('retains the required error for empty confirmation and enforces UTF-8 password length', () => {
+    component.registerForm.controls.password.setValue('界'.repeat(25));
+    expect(component.registerForm.controls.password.hasError('utf8Length')).toBe(true);
+    expect(component.registerForm.controls.confirmPassword.hasError('required')).toBe(true);
+    component.registerForm.controls.password.setValue('valid-password');
+    expect(component.registerForm.controls.password.valid).toBe(true);
+  });
 });
