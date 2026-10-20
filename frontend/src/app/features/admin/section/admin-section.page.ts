@@ -1,7 +1,16 @@
-import { Component, inject, computed } from '@angular/core';
+import { Component, inject, computed, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { FormsModule } from '@angular/forms';
 import { MorphIconComponent } from '../../../shared/components/morph-icon/morph-icon.component';
 import { MorphIconName } from '../../../shared/components/morph-icon/icons';
+import {
+  AdminContentService,
+  AdminRelease,
+  AdminCard,
+  AdminAuditEvent,
+  AdminCharacter,
+  AdminWikiPage,
+} from '../../../core/admin/admin-content.service';
 
 export interface SectionMeta {
   key: string;
@@ -14,12 +23,25 @@ export interface SectionMeta {
 @Component({
   selector: 'app-admin-section',
   standalone: true,
-  imports: [RouterLink, MorphIconComponent],
+  imports: [RouterLink, FormsModule, MorphIconComponent],
   templateUrl: './admin-section.page.html',
   styleUrl: './admin-section.page.css',
 })
-export class AdminSectionPage {
+export class AdminSectionPage implements OnInit {
   private readonly route = inject(ActivatedRoute);
+  private readonly adminApi = inject(AdminContentService);
+
+  readonly loading = signal(false);
+  readonly errorMsg = signal<string | null>(null);
+
+  readonly releases = signal<AdminRelease[]>([]);
+  readonly activeRelease = signal<AdminRelease | null>(null);
+  readonly cards = signal<AdminCard[]>([]);
+  readonly characters = signal<AdminCharacter[]>([]);
+  readonly wikiPages = signal<AdminWikiPage[]>([]);
+  readonly auditEvents = signal<AdminAuditEvent[]>([]);
+
+  readonly searchQuery = signal('');
 
   readonly sectionKey = computed(() => {
     return this.route.snapshot.data['section'] || 'cards';
@@ -94,4 +116,80 @@ export class AdminSectionPage {
         };
     }
   });
+
+  ngOnInit(): void {
+    this.loadSectionData();
+  }
+
+  loadSectionData(): void {
+    const key = this.sectionKey();
+    this.loading.set(true);
+    this.errorMsg.set(null);
+
+    if (key === 'cards' || key === 'characters' || key === 'articles') {
+      this.adminApi.getReleases().subscribe({
+        next: (page) => {
+          this.releases.set(page.items);
+          const first = page.items[0] || null;
+          this.activeRelease.set(first);
+
+          if (first) {
+            this.loadReleaseContent(first.id, key);
+          } else {
+            this.loading.set(false);
+          }
+        },
+        error: (err) => {
+          this.errorMsg.set(err?.detail || 'Chưa thể tải danh sách bản phát hành (Backend đang ngoại tuyến).');
+          this.loading.set(false);
+        },
+      });
+    } else if (key === 'system') {
+      this.adminApi.getAuditEvents(0, 10).subscribe({
+        next: (page) => {
+          this.auditEvents.set(page.items);
+          this.loading.set(false);
+        },
+        error: (err) => {
+          this.errorMsg.set(err?.detail || 'Chưa thể tải nhật ký audit (Backend đang ngoại tuyến).');
+          this.loading.set(false);
+        },
+      });
+    } else {
+      this.loading.set(false);
+    }
+  }
+
+  loadReleaseContent(releaseId: string, key: string): void {
+    if (key === 'cards') {
+      this.adminApi.getRevisions<AdminCard>(releaseId, 'cards', 0, 50, this.searchQuery()).subscribe({
+        next: (res) => {
+          this.cards.set(res.items);
+          this.loading.set(false);
+        },
+        error: () => this.loading.set(false),
+      });
+    } else if (key === 'characters') {
+      this.adminApi.getRevisions<AdminCharacter>(releaseId, 'characters', 0, 20).subscribe({
+        next: (res) => {
+          this.characters.set(res.items);
+          this.loading.set(false);
+        },
+        error: () => this.loading.set(false),
+      });
+    } else if (key === 'articles') {
+      this.adminApi.getRevisions<AdminWikiPage>(releaseId, 'wiki-pages', 0, 20).subscribe({
+        next: (res) => {
+          this.wikiPages.set(res.items);
+          this.loading.set(false);
+        },
+        error: () => this.loading.set(false),
+      });
+    }
+  }
+
+  selectRelease(release: AdminRelease): void {
+    this.activeRelease.set(release);
+    this.loadReleaseContent(release.id, this.sectionKey());
+  }
 }

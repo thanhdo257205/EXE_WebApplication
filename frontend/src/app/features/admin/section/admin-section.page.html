@@ -57,6 +57,60 @@
           Bao gồm: Thẻ Cơ bản, Thẻ Cư dân, Thẻ Hóa đơn, Thẻ Sự kiện, Thẻ Drama, Thẻ Quỹ nhà và các bộ mở rộng.
           Mỗi thẻ bài có mã định danh QR duy nhất và không bị thay đổi ID khi xuất bản.
         </p>
+
+        @if (releases().length > 0) {
+          <div class="flex flex-wrap items-center justify-between gap-3 p-3 my-3 bg-slate-900/60 rounded-xl border border-slate-800">
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-slate-400 font-medium">Bản phát hành:</span>
+              <span class="text-xs font-bold text-sky-400 font-mono">{{ activeRelease()?.versionLabel }}</span>
+              <span class="text-xs text-slate-400">({{ activeRelease()?.title }})</span>
+            </div>
+            @if (activeRelease(); as rel) {
+              <div class="flex items-center gap-2 text-xs text-slate-400">
+                <span>Version: <strong class="text-sky-400 font-mono">{{ rel.version }}</strong></span>
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold"
+                      [class.bg-amber-950]="rel.status === 'DRAFT'"
+                      [class.text-amber-400]="rel.status === 'DRAFT'"
+                      [class.bg-emerald-950]="rel.status === 'PUBLISHED'"
+                      [class.text-emerald-400]="rel.status === 'PUBLISHED'">
+                  {{ rel.status }}
+                </span>
+              </div>
+            }
+          </div>
+        }
+
+        @if (cards().length > 0) {
+          <div class="table-responsive my-3">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Mã</th>
+                  <th>Tên thẻ bài</th>
+                  <th class="text-center">Số bản</th>
+                  <th class="text-center">Trạng thái luật</th>
+                  <th>Hiệu ứng tóm tắt</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (card of cards(); track card.id) {
+                  <tr>
+                    <td class="font-mono text-sky-400 font-bold text-xs">{{ card.code }}</td>
+                    <td class="font-bold text-slate-100 text-sm">{{ card.name }}</td>
+                    <td class="text-center text-xs font-mono text-slate-300">{{ card.copiesInDeck }}</td>
+                    <td class="text-center">
+                      <span [class.status-pill-green]="card.ruleStatus === 'CONFIRMED'"
+                            [class.status-pill-amber]="card.ruleStatus === 'NEEDS_REVIEW'">
+                        {{ card.ruleStatus === 'CONFIRMED' ? 'XÁC NHẬN' : 'CẦN DUYỆT' }}
+                      </span>
+                    </td>
+                    <td class="text-xs text-slate-400 max-w-xs truncate">{{ card.effectText }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
       </div>
     }
 
@@ -265,6 +319,34 @@
             <span class="stat-val text-purple-400">Render Free (Java 25)</span>
           </div>
         </div>
+
+        @if (auditEvents().length > 0) {
+          <div class="mt-4">
+            <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">Nhật ký Audit nội dung gần nhất</h3>
+            <div class="table-responsive">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>Thời gian</th>
+                    <th>Hành động</th>
+                    <th>Đối tượng</th>
+                    <th>Người thực hiện</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (ev of auditEvents(); track ev.id) {
+                    <tr>
+                      <td class="text-xs text-slate-400 font-mono">{{ ev.createdAt }}</td>
+                      <td><span class="status-pill-blue font-mono text-[10px]">{{ ev.action }}</span></td>
+                      <td class="text-xs text-slate-300">{{ ev.targetType }}</td>
+                      <td class="text-xs text-slate-400 font-mono">{{ ev.actorDisplayName || ev.actorId || 'Hệ thống' }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        }
       </div>
     }
 

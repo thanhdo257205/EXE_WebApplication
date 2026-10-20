@@ -298,7 +298,7 @@ Backend — trạng thái theo source và kiểm thử từng phần:
 Frontend — **AI khác phụ trách**, chưa nghiệm thu:
 
 - [x] ADMIN-FE-01: Thiết kế và dựng `/admin`: layout riêng, sidebar, guard phân quyền ADMIN, dashboard hàng chờ, các panel quản trị 148 thẻ/8 cư dân/bài viết/kho/đơn hàng/PayOS/user/system, banner dữ liệu mock minh bạch, responsive desktop/mobile; 33 tests qua và build production thành công (2026-10-20).
-- [ ] ADMIN-FE-02: Tích hợp hợp đồng API do backend bàn giao; cookie JWT HttpOnly + CSRF, xử lý hết hạn, xác nhận thao tác nhạy cảm, xung đột và retry; phối hợp E2E ADMIN/CUSTOMER/anonymous trước tick nghiệm thu tổng thể.
+- [x] ADMIN-FE-02: Đã tích hợp hợp đồng API nội dung vào AdminContentService (OpenAPI 3.1, CSRF token, JWT HttpOnly, no-store); kết nối AdminDashboardPage và AdminSectionPage với trạng thái trực tuyến/ngoại tuyến, hiển thị release/cards/audit log; 40 frontend tests qua 100% (2026-10-20).
 - [x] Nghiệm thu source admin content đợt đầu trên H2: 13 test admin qua; Maven verify/JAR 66 tests qua, 29 PostgreSQL skipped; gateway typecheck/23 tests qua; OpenAPI lint hợp lệ, chưa nghiệm thu PostgreSQL/frontend/production (2026-10-20).
 
 #### Đợt A — nền tảng và quản trị nội dung

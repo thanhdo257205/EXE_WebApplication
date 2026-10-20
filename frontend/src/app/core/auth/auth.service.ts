@@ -128,6 +128,10 @@ export class AuthService {
     ), tap(() => this.currentUser.set(null)));
   }
 
+  getCsrf() {
+    return this.csrf();
+  }
+
   private csrf() {
     return this.http.get<Csrf>(`${this.base}/csrf`, { withCredentials: true });
   }

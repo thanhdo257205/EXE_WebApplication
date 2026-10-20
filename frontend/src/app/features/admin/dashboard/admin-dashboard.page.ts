@@ -1,6 +1,7 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, OnInit, signal, computed } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/auth/auth.service';
+import { AdminContentService, AdminDashboardData } from '../../../core/admin/admin-content.service';
 import { MorphIconComponent } from '../../../shared/components/morph-icon/morph-icon.component';
 
 export interface ActionQueueItem {
@@ -20,11 +21,26 @@ export interface ActionQueueItem {
   templateUrl: './admin-dashboard.page.html',
   styleUrl: './admin-dashboard.page.css',
 })
-export class AdminDashboardPage {
+export class AdminDashboardPage implements OnInit {
   readonly auth = inject(AuthService);
+  private readonly adminApi = inject(AdminContentService);
 
   readonly refreshing = signal(false);
   readonly activeFilter = signal<'ALL' | 'CONTENT' | 'COMMERCE' | 'PAYMENT'>('ALL');
+
+  readonly dashboardData = signal<AdminDashboardData | null>(null);
+  readonly backendStatus = signal<'CONNECTED' | 'LOADING' | 'OFFLINE'>('LOADING');
+  readonly errorMessage = signal<string | null>(null);
+
+  readonly formattedAsOf = computed(() => {
+    const raw = this.dashboardData()?.asOf;
+    if (!raw) return '';
+    try {
+      return new Date(raw).toLocaleString('vi-VN');
+    } catch {
+      return raw;
+    }
+  });
 
   readonly queueItems = signal<ActionQueueItem[]>([
     {
@@ -80,14 +96,34 @@ export class AdminDashboardPage {
     return this.queueItems().filter(item => item.category === filter);
   }
 
+  ngOnInit(): void {
+    this.loadDashboardData();
+  }
+
+  loadDashboardData(): void {
+    this.backendStatus.set('LOADING');
+    this.errorMessage.set(null);
+
+    this.adminApi.getDashboard().subscribe({
+      next: (data) => {
+        this.dashboardData.set(data);
+        this.backendStatus.set('CONNECTED');
+        this.refreshing.set(false);
+      },
+      error: (err) => {
+        this.backendStatus.set('OFFLINE');
+        this.errorMessage.set(err?.detail || 'Không thể kết nối đến API Quản trị viên');
+        this.refreshing.set(false);
+      },
+    });
+  }
+
   setFilter(filter: 'ALL' | 'CONTENT' | 'COMMERCE' | 'PAYMENT'): void {
     this.activeFilter.set(filter);
   }
 
   refreshDashboard(): void {
     this.refreshing.set(true);
-    setTimeout(() => {
-      this.refreshing.set(false);
-    }, 600);
+    this.loadDashboardData();
   }
 }

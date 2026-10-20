@@ -268,3 +268,11 @@ Các ghi chú theo phiên bên dưới là lịch sử tại thời điểm th�
 - **Backend Admin Content**: Triển khai các API quản trị nội dung draft/clone/preview/identity lookup/dashboard/audit (`ADMIN-BE-01..04`), contract OpenAPI 3.1 với 29 operations tại `docs/ADMIN_BACKEND.md`.
 - **Sửa deadlock PostgreSQL**: Loại bỏ `FOR UPDATE` không cần thiết trên bảng `app_users` trong `AdminContentService.actor()`, giải quyết xung đột khóa tròn (circular lock) với foreign key check `created_by` trong `content_releases` khi cập nhật đồng thời.
 - **Kiểm thử & CI/CD**: Frontend 33/33 tests qua (Vitest), prerender build pass; Backend 108 tests qua (13 test H2 + disposable Postgres schema tests); Gateway 23 tests qua. CI run `39375896826` trên commit `4164171` pass 100%.
+
+### Tích hợp API Admin Content vào Frontend (ADMIN-FE-02) — 2026-10-20
+
+- Xây dựng `AdminContentService` đầy đủ kiểu dữ liệu theo hợp đồng OpenAPI 3.1: kết nối `GET /api/v1/admin/dashboard`, `GET/POST /api/v1/admin/content/releases`, `GET /api/v1/admin/content/releases/{release}/{kind}`, `GET /api/v1/admin/content/audit-events`.
+- Đảm bảo tuân thủ tiêu chuẩn bảo mật: request mang cookie `withCredentials: true`, header `Cache-Control: no-store`, tự động lấy token CSRF qua `AuthService.getCsrf()` khi thực hiện mutations (POST/PUT/DELETE).
+- Cập nhật `AdminDashboardPage`: hiển thị trạng thái kết nối trực tuyến/ngoại tuyến, số liệu bản thảo release, thẻ cần duyệt và liên kết làm mới dữ liệu.
+- Cập nhật `AdminSectionPage`: hiển thị danh sách bản phát hành (release), bảng thẻ bài V2 từ API thực tế và bảng nhật ký audit logs.
+- Kiểm thử: 12 test files và 40/40 tests Vitest đã qua 100%; build production prerender 6 routes thành công không có lỗi.
