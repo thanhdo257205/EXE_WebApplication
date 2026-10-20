@@ -11,6 +11,8 @@ export interface Env {
 }
 
 const LOGIN = '/api/v1/auth/login';
+const FORGOT_PASSWORD = '/api/v1/auth/forgot-password';
+const RESET_PASSWORD = '/api/v1/auth/reset-password';
 const PAYOS_WEBHOOK = '/api/v1/payments/payos/webhook';
 const OAUTH_START = '/api/v1/auth/oauth2/authorization/google';
 const OAUTH_CALLBACK = '/api/v1/auth/oauth2/callback/google';
@@ -99,10 +101,26 @@ export async function handle(request: Request, env: Env, fetcher: typeof fetch =
       return new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store' } });
     }
     if (!['GET', 'POST', 'HEAD', 'PUT', 'PATCH', 'DELETE'].includes(request.method)) return problem(405, 'Method not allowed');
-    const authAttempt = (request.method === 'POST' && url.pathname === LOGIN) || url.pathname === OAUTH_START;
+    const recovery = request.method === 'POST' && [FORGOT_PASSWORD, RESET_PASSWORD].includes(url.pathname);
+    const authAttempt = (request.method === 'POST' && url.pathname === LOGIN) || url.pathname === OAUTH_START || recovery;
     if (authAttempt && !(await env.LOGIN_LIMITER.limit({ key: `login:${ip}` })).success) return problem(429, 'Too many login attempts', '60');
     const body = SAFE_METHODS.has(request.method) ? undefined : await readLimitedBody(request, webhook ? 16384 : 65536);
     if (body === null) return problem(413, 'Request too large');
+    if (recovery) {
+      if (!request.headers.get('Content-Type')?.toLowerCase().startsWith('application/json')) return problem(415, 'JSON required');
+      let payload: { email?: unknown; token?: unknown; password?: unknown };
+      try {
+        payload = JSON.parse(new TextDecoder().decode(body));
+        if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return problem(400, 'Invalid recovery request');
+      } catch { return problem(400, 'Invalid JSON'); }
+      if (url.pathname === FORGOT_PASSWORD) {
+        if (typeof payload.email !== 'string' || !payload.email.trim() || payload.email.length > 254) return problem(400, 'Invalid recovery request');
+        const key = await digest(payload.email.trim().toLowerCase());
+        if (!(await env.ACCOUNT_LIMITER.limit({ key: `recovery:${key}` })).success) return problem(429, 'Too many recovery attempts', '60');
+      } else if (typeof payload.token !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(payload.token)
+          || typeof payload.password !== 'string' || payload.password.length < 8
+          || new TextEncoder().encode(payload.password).length > 72) return problem(400, 'Invalid recovery request');
+    }
     if (request.method === 'POST' && url.pathname === LOGIN) {
       if (!request.headers.get('Content-Type')?.toLowerCase().startsWith('application/json')) return problem(415, 'JSON required');
       let email: unknown;

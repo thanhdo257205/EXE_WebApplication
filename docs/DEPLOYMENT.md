@@ -69,3 +69,14 @@ Ngày 19/10/2026 tạo mới Pages `exe-webapp` và Worker nội bộ `exe-webap
 Bản schema `42d32ba` được push rồi tự chạy [CI #39296229959](https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/39296229959) thành công cả 4 job và [CD #39296516356](https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/39296516356) thành công cả 2 job. Deploy job thực sự chạy: Worker → Render exact commit → chờ SHA live → publish Pages artifact cùng CI → production smoke. Không coi workflow success nhưng deploy skipped là bằng chứng triển khai.
 
 Render deployment `dep-dbb5djon74is73bm2stg` và Pages canonical production deployment `6fd6c029-60c4-4c13-9c8d-8c9f62a0b26b` đều khớp SHA. Aiven Flyway V5, 34 bảng ứng dụng, dữ liệu user không đổi. Nguồn dữ liệu vẫn PostgreSQL Free; không tạo thêm tài nguyên trả phí. Các push cập nhật tài liệu cũng tiếp tục chạy CI/CD, nên xem Actions summary và API info để biết SHA mới nhất.
+
+
+## Điều kiện deploy JWT và recovery — thay đổi local 2026-10-20
+
+Trước triển khai backend mới, đặt `JWT_SECRET` trên Render (Base64 >=32 byte ngẫu nhiên). Không dùng origin proxy secret làm JWT key. Thiếu/sai biến dừng startup prod. CI/container dùng local có key ngẫu nhiên trong RAM; không chứng minh prod đủ key.
+
+Flyway áp V6/V7 cộng thêm; session đăng nhập cũ phải login lại vì code không đọc security context JDBC. OAuth handshake vẫn dùng session tạm. Giữ JWT key qua restart để token còn hạn tiếp tục hoạt động; xoay key khi cần thu hồi toàn hệ thống. JWT hết hạn tuyệt đối sau 30 phút, chưa có refresh.
+
+Mail mặc định tắt. Chỉ bật `PASSWORD_RESET_ENABLED=true` sau khi đặt `RESEND_API_KEY`, `MAIL_FROM` đã xác minh và `PASSWORD_RESET_PUBLIC_ORIGIN` đúng public website; xem [PASSWORD_RECOVERY.md](PASSWORD_RECOVERY.md). Không coi mock là bằng chứng giao thư thật. Render Free chặn SMTP 25/465/587 nên code dùng HTTPS.
+
+Sau deploy kiểm tra login/Google cấp AUTH_TOKEN HttpOnly/Secure/Lax/Path=/api, CSRF, `/me`, logout/replay trả 401 và recovery thật bằng tài khoản thử được chỉ định. Form login local còn thiếu Turnstile; cần hoàn thiện trước nghiệm thu password login qua gateway. Phiên này chưa commit/push/deploy.

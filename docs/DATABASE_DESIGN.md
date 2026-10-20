@@ -1,6 +1,6 @@
 # Thiết kế database — Nhà Này Hơi Báo!
 
-Ngày: 19/10/2026. PostgreSQL 18 trên Aiven; Spring Boot, Flyway và JDBC transaction. H2 chỉ phục vụ local/test. Đây là schema và hợp đồng triển khai; chưa có API mua hàng hay kết nối PayOS thực tế.
+Bản thiết kế nền ngày 19/10/2026; cập nhật auth local 20/10/2026. PostgreSQL 18 trên Aiven; Spring Boot, Flyway và JDBC transaction. H2 chỉ phục vụ local/test. Đây là schema và hợp đồng triển khai; hiện có API checkout/orders và PayOS, các API content/catalog/cart/admin vẫn thiếu.
 
 ## Phạm vi và quyết định
 
@@ -228,3 +228,12 @@ Migration nằm trong backend nên sẽ được Flyway tự áp dụng khi bả
 - CI thực tế: backend 28 tests pass với PostgreSQL 18 disposable; gateway/frontend/build và Docker smoke 512 MB pass.
 - Aiven production đã áp dụng V3, V4, V5; JDBC kiểm tra Flyway V5, 34 bảng ứng dụng, không có migration lỗi và không còn schema thử nghiệm. Dữ liệu tài khoản không đổi.
 - API qua Pages báo đúng SHA được test; Pages production deployment và Render deploy đều khớp SHA. Smoke website/API/health/guard pass. Schema PayOS đã có, API mua hàng/PayOS vẫn chưa triển khai và chưa có giao dịch tiền thật.
+
+
+## Bổ sung auth local 2026-10-20 — V6/V7, chưa deploy
+
+- V6: `password_reset_tokens` có user_id PK/FK cascade, token_hash SHA-256 unique, requested_at/expires_at có timezone và constraint expiry. Một link mỗi tài khoản, TTL 15 phút, cooldown 60 giây. Không lưu raw token; row hết hạn được thay thế khi yêu cầu lại, không vượt số tài khoản.
+- V7: `app_users.auth_version BIGINT NOT NULL DEFAULT 0`. JWT chứa subject UUID và phiên bản; mỗi request kiểm tra enabled/quyền/version bằng SELECT. Logout và reset tăng version thu hồi mọi JWT tài khoản.
+- Đăng nhập không ghi session JDBC; giữ bảng Spring Session cho state OAuth ngắn hạn. Reset xóa cả session legacy/OAuth theo email/sub khi có principal.
+- Cấp và dùng reset link khóa `app_users FOR UPDATE` trong transaction. Hai lần reset đồng thời chỉ một thành công; gửi mail lỗi rollback replacement, link trước còn hợp lệ. Chỉ hỗ trợ enabled đã có password hash; không tự thêm mật khẩu cho Google-only.
+- V1–V5 giữ checksum. Production trước phiên này ghi nhận V5/34 bảng; local sau V6 có 35 bảng ngoài Flyway. Chưa áp V6/V7 lên Aiven trong phiên này.

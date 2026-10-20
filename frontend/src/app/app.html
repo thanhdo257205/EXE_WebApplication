@@ -17,6 +17,26 @@
   @if (mobileMenuOpen()) {
     <div class="mobile-overlay md:hidden" (click)="toggleMobileMenu()"></div>
     <nav class="mobile-drawer md:hidden" aria-label="Menu di động">
+      <!-- User Profile or Login CTA in mobile drawer -->
+      @if (auth.currentUser(); as user) {
+        <div class="p-3 bg-[#111d2e] rounded-md mb-3 border border-[#1e2e3e]">
+          <div class="flex items-center gap-2 mb-1">
+            <app-morph-icon name="user" [size]="18" color="#38bdf8"></app-morph-icon>
+            <span class="font-bold text-slate-100 text-sm">{{ user.displayName }}</span>
+          </div>
+          <span class="text-xs text-sky-400">Cư dân ({{ user.role }})</span>
+        </div>
+      } @else {
+        <div class="flex items-center gap-2 mb-3">
+          <a routerLink="/dang-nhap" (click)="toggleMobileMenu()" class="flex-1 text-center py-2 bg-sky-600 hover:bg-sky-500 text-white rounded text-xs font-bold transition-colors">
+            Đăng nhập
+          </a>
+          <a routerLink="/dang-ky" (click)="toggleMobileMenu()" class="flex-1 text-center py-2 bg-[#18232f] hover:bg-[#202f3f] text-sky-400 border border-[#2e4157] rounded text-xs font-bold transition-colors">
+            Đăng ký
+          </a>
+        </div>
+      }
+
       <a routerLink="/" (click)="toggleMobileMenu()" class="drawer-link flex items-center gap-3">
         <app-morph-icon name="home" [size]="18" color="#38bdf8"></app-morph-icon>
         <span>Trang chủ</span>
@@ -59,10 +79,5 @@
   <!-- Main Content View Area -->
   <main id="main" tabindex="-1" class="main-content">
     <router-outlet />
-    <footer class="legal-footer" aria-label="Thông tin website">
-      <a routerLink="/chinh-sach-quyen-rieng-tu">Chính sách quyền riêng tư</a>
-      <a routerLink="/dieu-khoan-su-dung">Điều khoản sử dụng</a>
-      <a href="mailto:dothanh2572005@gmail.com">Liên hệ hỗ trợ</a>
-    </footer>
   </main>
 </div>

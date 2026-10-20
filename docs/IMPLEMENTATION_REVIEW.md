@@ -1,5 +1,7 @@
 # Rà soát tính năng và điểm tiếp tục — 2026-10-20
 
+> Bảng dưới là rà soát lịch sử trước đợt auth local 2026-10-20. Local hiện đã thêm UI login/register, JWT HttpOnly và forgot/reset qua Resend HTTPS (chưa cấu hình mail thật hoặc deploy); header có auth và gọi /me. V6/V7 chưa lên Aiven. Các thiếu sót form Turnstile, xác minh email, route guards và luồng shop/admin vẫn còn. Xem [PASSWORD_RECOVERY.md](PASSWORD_RECOVERY.md) và PROGRESS.md cho trạng thái mới.
+
 ## Phạm vi và bằng chứng
 
 Đối chiếu `PROGRESS.md`, `CHECKLIST.md`, mã nguồn ở commit `8196312`, workflow

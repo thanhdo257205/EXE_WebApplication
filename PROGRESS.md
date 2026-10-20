@@ -5,12 +5,16 @@
 ## Cập nhật gần nhất
 
 - Ngày: 2026-10-20 (Asia/Saigon).
-- Rà soát mới nhất: Đã đối chiếu checklist, mô tả sản phẩm và mã nguồn ở `8196312`; kết quả chi tiết tại [IMPLEMENTATION_REVIEW.md](docs/IMPLEMENTATION_REVIEW.md). Đây là rà soát tài liệu/code, không phải triển khai thêm tính năng.
+- Thay đổi local mới nhất: theo yêu cầu, thêm UI/API quên mật khẩu qua Resend HTTPS và chuyển xác thực sang JWT HttpOnly 30 phút. V6 lưu reset digest, V7 thêm auth_version; logout/reset thu hồi mọi JWT tài khoản. JDBC chỉ dùng OAuth handshake tạm. Mail mặc định tắt, chưa có credentials/người gửi đã xác minh; xem docs/PASSWORD_RECOVERY.md.
+- JWT/recovery chưa commit/push/deploy; production bên dưới là kết quả trước thay đổi này. Cần JWT_SECRET trên Render trước deploy, sau đó cấu hình mail và nghiệm thu gửi thật/Google thật. Chưa benchmark để khẳng định mức giảm tải.
+- Xác minh JWT/recovery: Maven verify thành công (69 tổng, 53 chạy qua, 16 PostgreSQL skipped do chưa có DB disposable); H2 migrations tới V7. Frontend 17 tests + production build/prerender 6 routes qua; gateway typecheck, 23 tests và Wrangler dry-run qua. Test mail chỉ mock Resend, chưa gửi thật. Header auth có thay đổi local đồng thời, đã giữ nguyên và kiểm tra lại frontend.
+- Rà soát trước đợt JWT/recovery: Đã đối chiếu checklist, mô tả sản phẩm và mã nguồn ở `8196312`; kết quả chi tiết tại [IMPLEMENTATION_REVIEW.md](docs/IMPLEMENTATION_REVIEW.md). Đây là rà soát tài liệu/code, không phải triển khai thêm tính năng.
 - Trạng thái đã xác minh: Home/shell Angular và backend auth/PayOS đã lên Cloudflare Pages + Render; database Aiven ở Flyway V5 với 34 bảng ứng dụng theo lần kiểm tra trước. Hai trang privacy/terms đã có nội dung chính thức; các trang nội dung trò chơi/shop ngoài Home hiện dùng PlaceholderPage.
 - GitHub/deploy: `3c66908` đã push; CI #39358823062 và CD #39359007604 success, gồm job deploy thật. Hai trang privacy/terms và footer đã lên Pages; Google login vẫn bật sau deploy.
 - PayOS: SDK/keys/webhook thật đã xác minh; create/query/cancel probe có amountPaid=0, không chuyển tiền. Có checkout/orders, chống trùng, ledger và đối soát cron 30 phút; 63 backend tests đã qua CI. Chưa có giao dịch ngân hàng thật hoặc luồng mua hàng Angular hoàn chỉnh.
 - Google thật: OAuth client EXE_WebApplication Production trong project exewebapplication; credentials chỉ lưu Render, GOOGLE_ENABLED=true. Callback https://exe-webapp.pages.dev/api/v1/auth/oauth2/callback/google. External/In production từ 2026-10-20; hai URL privacy/terms đã công bố và khai báo Google. Gmail chủ dự án đã được dùng để thử đăng nhập. Đăng nhập thật đã thành công, CUSTOMER và phiên JDBC đã xác minh.
-- Các thiếu sót chính từ code: chưa có đăng ký/khôi phục mật khẩu, UI login, API content/catalog/cart/profile/address, admin và dữ liệu chính thức. Ô search chưa xử lý; header giỏ hàng đang ghi cố định (2).
+- Admin production: đã cập nhật trực tiếp một tài khoản có sẵn thành ADMIN enabled, đặt password hash BCrypt cost 12 và giữ liên kết Google theo yêu cầu chủ dự án. Đã xác minh DB sau commit giao dịch; chưa thử đăng nhập/quyền ADMIN qua UI/API thật. Không ghi danh tính/mật khẩu/hash; cập nhật phiên này chỉ local, không commit/push theo yêu cầu.
+- Các thiếu sót chính: local đã có đăng ký/login/recovery, nhưng chưa cấu hình và nghiệm thu gửi email thật; chưa có xác minh email, form Turnstile, refresh JWT, route guards, API content/catalog/cart/profile/address, admin hoặc dữ liệu chính thức. Ô search chưa xử lý; header giỏ hàng đang ghi cố định (2).
 - Việc tiếp theo cho website giới thiệu: xác định dữ liệu nguồn, xây thư viện/chi tiết/wiki và mô phỏng Quỹ; public content phải dùng được khi Render ngủ.
 - Việc tiếp theo trước mở bán: tài khoản khách → catalog/tồn kho → cart/địa chỉ/phí giao → checkout/orders UI → xử lý UNKNOWN/REVIEW/refund/vận chuyển → E2E và kiểm thử chuyển tiền thật. Nhóm 7–11 trong CHECKLIST.md bổ sung các việc chi tiết và mức ưu tiên; không coi đây là tính năng đã xây.
 - Tích hợp Morphicons: Đã cài `morphicons@^2.0.0` (giấy phép MIT), đăng ký global web component `<morph-icon>`, xây dựng wrapper `MorphIconComponent` (`<app-morph-icon>`) với hiệu ứng morph physics spring (`bouncy`), hover morph và chuyển đổi menu/close/cart/navigation. Tất cả 5 unit tests và `npm run build` (hiện prerender 6 routes, gồm privacy/terms) đều pass 100%.
@@ -53,7 +57,7 @@
 - Render Free có giới hạn tài nguyên và cơ chế ngủ; cần đo RAM thực tế, tối ưu JVM, connection pool và thời gian khởi động.
 - Ảnh cố định ban đầu lưu cùng frontend; chưa chốt dịch vụ upload ảnh. R2 chỉ là phương án tương lai, chưa kích hoạt cho dự án.
 - Đã chọn Angular 22.2.3, Spring Boot 4.1.1, Java 25 và Node.js 24.15.0. Frontend có package-lock.json; backend có Maven Wrapper. Local dùng H2 trong bộ nhớ, production bắt buộc PostgreSQL qua biến môi trường.
-- Người dùng đã chọn cả email/mật khẩu và Google. Backend đã triển khai hai luồng; đã có Turnstile và Google credentials thật, đã thử Google thành công ngày 2026-10-20; chưa có UI đăng nhập. Đã chọn và tích hợp PayOS, chưa có luồng mua hàng Angular hoàn chỉnh.
+- Người dùng đã chọn cả email/mật khẩu và Google. Backend đã triển khai hai luồng; đã có Turnstile và Google credentials thật, đã thử Google thành công ngày 2026-10-20; UI đăng nhập mới có local; chưa có Turnstile trong form. Đã chọn và tích hợp PayOS, chưa có luồng mua hàng Angular hoàn chỉnh.
 - Không lưu ảnh dạng nhị phân trong database; secrets phải nằm ngoài Git.
 
 ## Checklist công việc
@@ -218,3 +222,26 @@ Các ghi chú theo phiên bên dưới là lịch sử tại thời điểm th�
 - Chủ dự án yêu cầu mọi lần sửa/thêm tính năng phải cập nhật docs. Đã thêm AGENTS.md ở root để các phiên sau đọc và tuân theo; README liên kết quy trình.
 - Đồng bộ nghiệm thu Google In production và privacy/terms đã deploy vào checklist, progress, báo cáo rà soát và AUTH_AND_GATEWAY.md; sửa nhận định cũ chưa deploy/chưa thử Google trong hướng dẫn auth.
 - Đợt này chỉ thay tài liệu, không thay runtime; dùng commit docs-only với [skip ci] để không deploy lại ứng dụng. Bản runtime đã xác minh vẫn là 3c66908, CI #39358823062 và CD #39359007604 success.
+
+### Cấp ADMIN trực tiếp trên production — 2026-10-20 (local only)
+
+- Theo chỉ định chủ dự án, cập nhật đúng một user có sẵn: role ADMIN, enabled; lưu BCrypt cost 12 và giữ Google subject. Không tạo tài khoản trùng hoặc thay schema.
+- Xác minh BCrypt khớp mật khẩu được cung cấp trước commit transaction; đọc lại qua kết nối mới xác nhận có 1 ADMIN enabled với cả password hash và liên kết Google.
+- Đã xử lý thu hồi phiên theo principal của riêng tài khoản; không tác động phiên user khác. Cần đăng nhập lại để nhận quyền hiện tại.
+- Không lưu mật khẩu/hash/subject/session trong docs hoặc file script; không commit/push hoặc deploy. AUTH-07 vẫn cần nghiệm thu đăng nhập và quyền thật.
+
+### Đề xuất trang admin và cập nhật checklist — 2026-10-20
+
+- Theo yêu cầu chủ dự án, bổ sung docs/ADMIN_PLAN.md và nhóm 12 của CHECKLIST.md với ADMIN-01–20: đợt A nền tảng/nội dung, đợt B vận hành commerce, đợt C báo cáo/EDITOR tùy nhu cầu. Các mục đều để chưa hoàn thành, liên kết AUTH/CONTENT/SHOP/OPS/QA để tránh coi là tính năng đã có.
+- Đối chiếu controller payment, auth và migrations V3–V5: đã có schema/quyền và API khách, chưa có module/API admin hoàn chỉnh. Ưu tiên quản lý thẻ/bộ/nhân vật/wiki/import/publish cho website giới thiệu; hàng chờ đối soát, kho, đơn và refund cần làm trước mở bán thật.
+- Đợt này chỉ sửa tài liệu, không sửa runtime, DB, secrets hoặc các file auth/security/tests đang thay đổi đồng thời; không chạy lại build/test runtime. Chưa commit/push; giữ riêng phần ghi nhận cấp ADMIN local theo yêu cầu phiên trước.
+
+
+### JWT và khôi phục mật khẩu qua mail — 2026-10-20 (local)
+
+- Theo yêu cầu mới, chuyển đăng nhập mật khẩu/đăng ký/Google sang JWT HS256 30 phút trong AUTH_TOKEN HttpOnly, Secure prod, SameSite=Lax, path /api. Không lưu token trong JavaScript/localStorage. CSRF cookie tách session; mỗi request JWT đọc enabled/quyền/auth_version. Logout thu hồi mọi JWT tài khoản; không có refresh token. Chưa benchmark mức giảm tải.
+- Google chỉ giữ session JDBC tạm cho state/nonce/PKCE, callback cấp JWT rồi hủy session; không giữ Google access/refresh token. V7 cộng auth_version, không sửa checksum migration cũ. Production bắt buộc JWT_SECRET; local bỏ trống dùng key ngẫu nhiên theo process.
+- Thêm `/quen-mat-khau`, `/dat-lai-mat-khau`, link ở login và hai API forgot/reset có CSRF. Token 256 bit, database chỉ SHA-256, TTL 15 phút, dùng một lần, cooldown 60 giây; transaction khóa tài khoản, resend thay link cũ và lỗi provider rollback. Reset tăng auth_version, xóa session legacy và xóa cookie JWT hiện tại. Google-only/disabled không nhận link password reset.
+- Adapter Resend qua HTTPS với timeout, worker có hàng chờ giới hạn; không log token/email/provider response. Mail mặc định tắt; chưa có API key/sender được xác minh, chưa gửi mail thật. Cần các biến tại docs/PASSWORD_RECOVERY.md. Render Free không hỗ trợ SMTP phổ biến nên không thêm SMTP.
+- Maven verify: 69 tests tổng, 53 qua, 16 Postgres skipped; adapter email dùng mock, Google success handler/callback state có tests local. Frontend 17 tests và build qua, gateway 23 tests/typecheck/dry-run qua. Sau bổ sung xóa cookie khi reset, chạy lại PasswordResetFlowTests. Chưa nghiệm thu PostgreSQL/Google/mail thật hoặc hiệu năng production trong phiên này.
+- Giữ nguyên các thay đổi local login/register/header từ công việc đồng thời; cập nhật README, AUTH_AND_GATEWAY, PASSWORD_RECOVERY, DATABASE_DESIGN, DEPLOYMENT và checklist. Chưa commit/push/deploy; cần đặt JWT_SECRET trước deploy và cấu hình/kiểm tra email thật sau đó. Form login vẫn thiếu Turnstile; route guards chưa hoàn thiện. Không tick phần xác minh email hoặc mở bán.

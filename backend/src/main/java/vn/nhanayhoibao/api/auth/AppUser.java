@@ -20,6 +20,8 @@ public class AppUser {
     private String role;
     @Column(nullable = false)
     private boolean enabled = true;
+    @Column(name = "auth_version", nullable = false)
+    private long authVersion;
 
     protected AppUser() {}
 
@@ -39,4 +41,5 @@ public class AppUser {
     public String getDisplayName() { return displayName; }
     public String getRole() { return role; }
     public boolean isEnabled() { return enabled; }
+    public long getAuthVersion() { return authVersion; }
 }

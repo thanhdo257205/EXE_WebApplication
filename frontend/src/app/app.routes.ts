@@ -2,6 +2,37 @@ import { Routes } from '@angular/router';
 
 export const routes: Routes = [
   {
+    path: 'quen-mat-khau',
+    title: 'Quên mật khẩu — Nhà Này Hơi Báo!',
+    loadComponent: () => import('./features/auth/recovery/recovery.page').then(m => m.RecoveryPage),
+  },
+  {
+    path: 'dat-lai-mat-khau',
+    title: 'Đặt lại mật khẩu — Nhà Này Hơi Báo!',
+    data: { resetPassword: true },
+    loadComponent: () => import('./features/auth/recovery/recovery.page').then(m => m.RecoveryPage),
+  },
+  {
+    path: 'dang-nhap',
+    title: 'Đăng nhập — Nhà Này Hơi Báo!',
+    loadComponent: () => import('./features/auth/login/login.page').then(m => m.LoginPage),
+  },
+  {
+    path: 'login',
+    redirectTo: 'dang-nhap',
+    pathMatch: 'full',
+  },
+  {
+    path: 'dang-ky',
+    title: 'Đăng ký tài khoản cư dân — Nhà Này Hơi Báo!',
+    loadComponent: () => import('./features/auth/register/register.page').then(m => m.RegisterPage),
+  },
+  {
+    path: 'register',
+    redirectTo: 'dang-ky',
+    pathMatch: 'full',
+  },
+  {
     path: 'chinh-sach-quyen-rieng-tu',
     title: 'Chính sách quyền riêng tư — Nhà Này Hơi Báo!',
     data: { legalDocument: 'privacy' },

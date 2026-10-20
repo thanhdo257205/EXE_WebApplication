@@ -43,7 +43,7 @@ class AuthFlowTests {
     }
 
     @Test
-    void passwordSessionCsrfRotationAndLogout() throws Exception {
+    void jwtCookieCsrfRotationAndLogoutRevocation() throws Exception {
         var browser = new Browser();
         assertThat(browser.send("GET", "/api/v1/auth/me", null, null).statusCode()).isEqualTo(401);
         assertThat(browser.send("POST", "/api/v1/auth/login", login(PASSWORD), null).statusCode()).isEqualTo(403);
@@ -53,7 +53,8 @@ class AuthFlowTests {
         assertThat(login.statusCode()).isEqualTo(200);
         assertThat(login.body()).contains(EMAIL, "CUSTOMER").doesNotContain("passwordHash", PASSWORD);
         assertThat(browser.cookie).isNotEqualTo(previousSession);
-        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM SPRING_SESSION_ATTRIBUTES WHERE ATTRIBUTE_NAME = 'SPRING_SECURITY_CONTEXT'", Integer.class)).isGreaterThan(0);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM SPRING_SESSION_ATTRIBUTES WHERE ATTRIBUTE_NAME = 'SPRING_SECURITY_CONTEXT'", Integer.class)).isZero();
+        assertThat(login.headers().allValues("set-cookie").toString()).contains("AUTH_TOKEN=");
         assertThat(login.headers().allValues("set-cookie").toString()).containsIgnoringCase("HttpOnly");
         assertThat(browser.send("GET", "/api/v1/auth/me", null, null).statusCode()).isEqualTo(200);
         assertThat(browser.send("GET", "/api/v1/admin/private", null, null).statusCode()).isEqualTo(403);
@@ -63,6 +64,22 @@ class AuthFlowTests {
         assertThat(browser.send("POST", "/api/v1/auth/logout", "", csrf).statusCode()).isEqualTo(204);
         browser.cookie = authenticatedCookie;
         assertThat(browser.send("GET", "/api/v1/auth/me", null, null).statusCode()).isEqualTo(401);
+    }
+
+    @Test
+    void registerNewCustomerAndAuthenticate() throws Exception {
+        var browser = new Browser();
+        String csrf = browser.csrf();
+        var reg = browser.send("POST", "/api/v1/auth/register",
+            "{\"displayName\":\"New Customer\",\"email\":\"newcustomer@example.test\",\"password\":\"ValidPass123!\"}", csrf);
+        assertThat(reg.statusCode()).isEqualTo(200);
+        assertThat(reg.body()).contains("newcustomer@example.test", "New Customer", "CUSTOMER");
+        assertThat(browser.send("GET", "/api/v1/auth/me", null, null).statusCode()).isEqualTo(200);
+
+        // Duplicated email is rejected
+        var dup = browser.send("POST", "/api/v1/auth/register",
+            "{\"displayName\":\"Other\",\"email\":\"newcustomer@example.test\",\"password\":\"ValidPass123!\"}", browser.csrf());
+        assertThat(dup.statusCode()).isEqualTo(400);
     }
 
     @Test
@@ -96,7 +113,7 @@ class AuthFlowTests {
             "{\"email\":\"" + email + "\",\"password\":\"" + PASSWORD + "\"}", browser.csrf());
         assertThat(response.statusCode()).isEqualTo(200);
         assertThat(browser.send("GET", "/api/v1/auth/me", null, null).statusCode()).isEqualTo(200);
-        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM SPRING_SESSION WHERE PRINCIPAL_NAME = ?", Integer.class, email)).isGreaterThan(0);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM SPRING_SESSION WHERE PRINCIPAL_NAME = ?", Integer.class, email)).isZero();
     }
 
     @Test
@@ -164,7 +181,14 @@ class AuthFlowTests {
             request.method(method, body == null ? HttpRequest.BodyPublishers.noBody() : HttpRequest.BodyPublishers.ofString(body));
             var response = client.send(request.build(), HttpResponse.BodyHandlers.ofString());
             for (String value : response.headers().allValues("set-cookie")) {
-                if (value.startsWith("SESSION=")) cookie = value.split(";", 2)[0];
+                String pair = value.split(";", 2)[0];
+                String name = pair.split("=", 2)[0];
+                var pairs = new java.util.LinkedHashMap<String, String>();
+                for (String existing : cookie.split("; ")) {
+                    if (existing.contains("=")) pairs.put(existing.split("=", 2)[0], existing);
+                }
+                pairs.put(name, pair);
+                cookie = String.join("; ", pairs.values());
             }
             return response;
         }

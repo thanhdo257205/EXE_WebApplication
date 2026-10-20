@@ -1,0 +1,171 @@
+<div class="auth-page-container">
+  <!-- Top header breadcrumb / brand -->
+  <div class="header-block">
+    <div>
+      <p class="brand-prefix">NHÀ NÀY HƠI BÁO! · TÀI KHOẢN</p>
+      <h1 class="main-title">ĐĂNG NHẬP</h1>
+      <p class="subtitle">Đăng nhập tài khoản cư dân để lưu lịch sử, quản lý giỏ hàng và theo dõi đơn board game.</p>
+    </div>
+
+    <div class="card-badge">
+      <span class="badge-number">V2</span>
+      <span class="badge-label">XÁC THỰC</span>
+    </div>
+  </div>
+
+  <!-- Main Canvas Card Frame -->
+  <app-wiki-canvas [versionTag]="'HỆ THỐNG XÁC THỰC / BẢO MẬT'" [subtitleTag]="'ĐĂNG NHẬP'">
+    <div class="auth-card-layout">
+      <!-- Left side: Illustration / Game Lore callout -->
+      <div class="auth-info-panel">
+        <div class="info-badge">
+          <app-morph-icon name="residents" [size]="20" color="#38bdf8"></app-morph-icon>
+          <span>Cư Dân Chưa Giàu Đã Lớn</span>
+        </div>
+        <h2 class="info-heading">Gia nhập ngôi nhà đầy sóng gió & hóa đơn!</h2>
+        <p class="info-text">
+          Đăng nhập để đóng Quỹ Nhà Chung, lưu lại danh mục 148 thẻ bài yêu thích và đặt mua các phiên bản board game độc quyền.
+        </p>
+
+        <div class="perks-list">
+          <div class="perk-item">
+            <app-morph-icon name="check" [size]="16" color="#38bdf8"></app-morph-icon>
+            <span>Lưu giỏ hàng và đơn đặt trước bản mở rộng V2</span>
+          </div>
+          <div class="perk-item">
+            <app-morph-icon name="check" [size]="16" color="#38bdf8"></app-morph-icon>
+            <span>Tra cứu chi tiết hiệu ứng 148 thẻ bài & FAQ luật</span>
+          </div>
+          <div class="perk-item">
+            <app-morph-icon name="check" [size]="16" color="#38bdf8"></app-morph-icon>
+            <span>Bảo mật phiên đăng nhập HTTP-Only & CSRF token</span>
+          </div>
+        </div>
+
+        <div class="switch-auth-box">
+          <span>Chưa có tài khoản cư dân?</span>
+          <a routerLink="/dang-ky" class="switch-link">
+            Đăng ký tài khoản mới →
+          </a>
+        </div>
+      </div>
+
+      <!-- Right side: Form -->
+      <div class="auth-form-panel">
+        <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="auth-form" novalidate>
+          @if (errorMessage()) {
+            <div class="error-banner" role="alert">
+              <app-morph-icon name="alert-circle" [size]="18" color="#f87171"></app-morph-icon>
+              <span>{{ errorMessage() }}</span>
+            </div>
+          }
+
+          <!-- Email Input -->
+          <div class="form-group">
+            <label for="email" class="form-label">
+              <span>Email</span>
+              <span class="required-star">*</span>
+            </label>
+            <div class="input-wrapper" [class.input-error]="loginForm.get('email')?.invalid && loginForm.get('email')?.touched">
+              <app-morph-icon name="mail" [size]="18" color="#64748b" class="input-icon"></app-morph-icon>
+              <input
+                id="email"
+                type="email"
+                formControlName="email"
+                placeholder="vidu@domain.com"
+                autocomplete="email"
+                class="form-input"
+              />
+            </div>
+            @if (loginForm.get('email')?.invalid && loginForm.get('email')?.touched) {
+              <span class="field-error">Vui lòng nhập địa chỉ email hợp lệ.</span>
+            }
+          </div>
+
+          <!-- Password Input -->
+          <div class="form-group">
+            <div class="flex items-center justify-between">
+              <label for="password" class="form-label">
+                <span>Mật khẩu</span>
+                <span class="required-star">*</span>
+              </label>
+            </div>
+            <div class="input-wrapper" [class.input-error]="loginForm.get('password')?.invalid && loginForm.get('password')?.touched">
+              <app-morph-icon name="lock" [size]="18" color="#64748b" class="input-icon"></app-morph-icon>
+              <input
+                id="password"
+                [type]="showPassword() ? 'text' : 'password'"
+                formControlName="password"
+                placeholder="Nhập mật khẩu..."
+                autocomplete="current-password"
+                class="form-input"
+              />
+              <button
+                type="button"
+                (click)="togglePasswordVisibility()"
+                class="toggle-pwd-btn"
+                [attr.aria-label]="showPassword() ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'"
+              >
+                <app-morph-icon [name]="showPassword() ? 'eye-off' : 'eye'" [size]="18" color="#94a3b8"></app-morph-icon>
+              </button>
+            </div>
+            @if (loginForm.get('password')?.invalid && loginForm.get('password')?.touched) {
+              <span class="field-error">Mật khẩu phải từ 6 đến 72 ký tự.</span>
+            }
+          </div>
+
+          <!-- Remember me & Forgot password row -->
+          <div class="form-options">
+            <label class="remember-label">
+              <input type="checkbox" formControlName="remember" class="checkbox-input" />
+              <span>Ghi nhớ đăng nhập</span>
+            </label>
+              <a routerLink="/quen-mat-khau" class="switch-link">Quên mật khẩu?</a>
+          </div>
+
+          <!-- Submit Button -->
+          <button
+            type="submit"
+            [disabled]="loading()"
+            class="submit-btn"
+          >
+            @if (loading()) {
+              <span class="spinner"></span>
+              <span>Đang xử lý...</span>
+            } @else {
+              <app-morph-icon name="user" [size]="18" color="currentColor"></app-morph-icon>
+              <span>Đăng nhập</span>
+            }
+          </button>
+
+          <!-- Divider -->
+          <div class="form-divider">
+            <span class="divider-line"></span>
+            <span class="divider-text">HOẶC</span>
+            <span class="divider-line"></span>
+          </div>
+
+          <!-- Social Login: Google -->
+          <a
+            href="/api/v1/auth/oauth2/authorization/google"
+            class="google-btn"
+          >
+            <svg class="w-4 h-4" viewBox="0 0 24 24">
+              <path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.7 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.4 9 5 12 5z"/>
+              <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.7-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.8z"/>
+              <path fill="#FBBC05" d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.3 0-.8.2-1.6.4-2.3L1.9 7.3C.7 9.7 0 12.3 0 15.2c0 2.8.7 5.5 1.9 7.8l3.7-2.9z"/>
+              <path fill="#34A853" d="M12 23.5c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2-6.4-4.8L1.9 16.9C3.7 20.6 7.5 23.5 12 23.5z"/>
+            </svg>
+            <span>Đăng nhập bằng tài khoản Google</span>
+          </a>
+
+          <!-- Mobile switch to register -->
+          <div class="mobile-switch md:hidden">
+            <span>Chưa có tài khoản? </span>
+            <a routerLink="/dang-ky" class="switch-link">Đăng ký ngay</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </app-wiki-canvas>
+</div>

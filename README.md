@@ -7,7 +7,7 @@ Website board game **Chưa Giàu Đã Lớn — Nhà Này Hơi Báo!**
 - Angular 22.2.3, TypeScript, Tailwind CSS; các trang công khai xuất tĩnh.
 - Spring Boot 4.1.1, Java 25, Maven Wrapper, Spring Security, JPA, Flyway.
 - Local dùng H2 trong bộ nhớ; production dùng PostgreSQL trên Aiven qua TLS.
-- Có giao diện Home/shell theo prototype và điều hướng; các khu vực nội dung/shop còn dùng placeholder. Backend có auth, CSRF, session JDBC, checkout/inventory và tích hợp PayOS. Chưa có UI login, dữ liệu 148 thẻ chính thức, catalog/cart API, admin hoặc luồng mua hàng Angular hoàn chỉnh.
+- Có giao diện Home/shell theo prototype và điều hướng; các khu vực nội dung/shop còn dùng placeholder. Backend có auth, CSRF, checkout/inventory và PayOS. Local mới có JWT HttpOnly và UI/API khôi phục mật khẩu qua Resend HTTPS, chưa deploy; mail mặc định tắt khi chưa cấu hình. Đã có UI login/register local; form chưa tích hợp Turnstile. Chưa có dữ liệu 148 thẻ chính thức, catalog/cart API, admin hoặc luồng mua hàng Angular hoàn chỉnh.
 - Đã deploy trên Cloudflare Pages Free, Render Free và Aiven Free. CI/CD của `3c66908` đã thành công, gồm kiểm tra container 512 MB và smoke production; máy local chưa có Docker theo lần kiểm tra trước.
 
 - Google OAuth đã ở External/In production; đăng nhập thật đã kiểm tra. Hai trang [quyền riêng tư](https://exe-webapp.pages.dev/chinh-sach-quyen-rieng-tu) và [điều khoản](https://exe-webapp.pages.dev/dieu-khoan-su-dung) đã công bố.
@@ -59,7 +59,7 @@ Mở `http://localhost:4200`, bấm **Kiểm tra kết nối API**. Dev server c
 | `GET /actuator/health` | Health check, gồm database |
 | `GET /api/v1/info` | Thông tin ứng dụng |
 
-Ngoài health/info, backend có API đăng nhập và cấu hình auth. Phiên lưu JDBC, cookie HttpOnly, CSRF bắt buộc khi thay đổi dữ liệu; production yêu cầu origin secret từ gateway. Xem [AUTH_AND_GATEWAY.md](docs/AUTH_AND_GATEWAY.md) để cấu hình email/mật khẩu, Google và Cloudflare. Không có tài khoản/mật khẩu mặc định.
+Ngoài health/info, backend có API đăng nhập và cấu hình auth. Code local dùng JWT HttpOnly (30 phút), kiểm tra auth_version để thu hồi; JDBC chỉ lưu OAuth handshake tạm. CSRF bắt buộc khi thay đổi dữ liệu; production yêu cầu origin secret từ gateway. Xem [AUTH_AND_GATEWAY.md](docs/AUTH_AND_GATEWAY.md) để cấu hình email/mật khẩu, Google và Cloudflare. Không có tài khoản/mật khẩu mặc định. Production bắt buộc `JWT_SECRET`; xem [khôi phục mật khẩu và cấu hình mail](docs/PASSWORD_RECOVERY.md).
 
 ## Kiểm tra và build
 

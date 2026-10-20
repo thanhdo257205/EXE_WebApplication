@@ -107,6 +107,8 @@ Chi tiết bằng chứng: [IMPLEMENTATION_REVIEW.md](docs/IMPLEMENTATION_REVIEW
 
 ### 4. Database, phản hồi và quản trị
 
+Các mục quản trị dưới đây được chi tiết hóa tại nhóm 12 và [ADMIN_PLAN.md](docs/ADMIN_PLAN.md); chưa có nghĩa đã triển khai.
+
 - [x] Thiết kế dữ liệu nhân vật, thẻ, bộ thẻ, luật và phiên bản nội dung.
 - [x] Tạo PostgreSQL Free trên Aiven và cấu hình TLS xác minh chứng chỉ.
 - [x] Viết migration schema V3–V5 cho content, user, shop và thanh toán.
@@ -204,12 +206,13 @@ Chi tiết bằng chứng: [IMPLEMENTATION_REVIEW.md](docs/IMPLEMENTATION_REVIEW
 ### 7. Tài khoản khách hàng và hồ sơ — P0 trước mở bán
 
 - [ ] AUTH-01: Xây API đăng ký email/mật khẩu, chỉ cấp CUSTOMER; xử lý email trùng và chống spam mà không cho client chọn role.
-- [ ] AUTH-02: Chốt kênh gửi email; xác minh email và khôi phục mật khẩu bằng token dùng một lần, có hạn dùng, không lộ tài khoản; giới hạn gửi lại.
+- [ ] AUTH-02: Local đã có recovery UI/API Resend, TTL 15 phút, digest, one-use/cooldown; chưa có xác minh email hoặc gửi mail thật. Phần còn lại: Chốt kênh gửi email; xác minh email và khôi phục mật khẩu bằng token dùng một lần, có hạn dùng, không lộ tài khoản; giới hạn gửi lại.
 - [ ] AUTH-03: Đổi mật khẩu có xác minh người dùng, thu hồi phiên phù hợp và kiểm tra giới hạn UTF-8 của BCrypt.
 - [ ] AUTH-04: Nối AuthService vào UI login/logout/Google + Turnstile; khôi phục trạng thái từ /me, xử lý hết phiên và điều hướng quay lại trang đang mua.
 - [ ] AUTH-05: Thêm frontend guards cho tài khoản/admin; đồng bộ role contract với backend, chưa coi EDITOR có quyền khi chưa triển khai.
 - [ ] AUTH-06: Xây API/UI cập nhật profile và sổ địa chỉ, địa chỉ mặc định; kiểm tra ownership, validation và giữ nguyên snapshot đơn cũ.
-- [ ] AUTH-07: Tạo admin production qua quy trình an toàn, kiểm thử đăng nhập/quyền thật; không dùng tài khoản bootstrap làm đăng ký khách hàng.
+- [ ] AUTH-07: Tạo admin production qua quy trình an toàn, kiểm thử đăng nhập/quyền thật; không dùng tài khoản bootstrap làm đăng ký khách hàng. Đã cấp ADMIN trực tiếp trong DB theo yêu cầu chủ dự án (2026-10-20); còn nghiệm thu đăng nhập/quyền qua ứng dụng.
+- [x] Cấp ADMIN cho tài khoản được chủ dự án chỉ định trong production; BCrypt cost 12, giữ Google link, xác minh lại DB; không commit thông tin xác thực.
 
 ### 8. Hoàn thiện nghiệp vụ bán hàng và phục hồi — P0 trước mở bán
 
@@ -263,3 +266,45 @@ Chi tiết bằng chứng: [IMPLEMENTATION_REVIEW.md](docs/IMPLEMENTATION_REVIEW
 - [x] Xây hai trang privacy/terms prerender và footer với nội dung đã được chủ dự án duyệt; local build + 5 frontend tests pass.
 - [x] Xác minh hai URL privacy/terms đã được deploy công khai: HTTP 200, HTML và browser đúng nội dung (2026-10-20).
 - [x] Chuyển Google OAuth từ Testing sang In production sau khi khai báo URL policy và terms hoạt động (Google Audience xác nhận 2026-10-20).
+
+
+### 12. Trang quản trị — kế hoạch đề xuất 2026-10-20
+
+Phạm vi, màn hình và tiêu chí tại [ADMIN_PLAN.md](docs/ADMIN_PLAN.md). Đợt A ưu tiên quản lý nội dung để hoàn thiện website giới thiệu; đợt B hoàn thiện vận hành bán hàng trước mở bán; đợt C là mở rộng. Các mục dưới đều chưa triển khai, không tick theo việc đã có schema/tài khoản ADMIN.
+
+#### Đợt A — nền tảng và quản trị nội dung
+
+- [ ] ADMIN-01: Dựng /admin với layout riêng, sidebar, breadcrumb, bảng/form dễ dùng trên desktop và màn hình nhỏ; dữ liệu có loading/empty/error/backend ngủ, không dùng số demo làm thống kê thật.
+- [ ] ADMIN-02: Nối login/logout và /me; guard Angular, API /api/v1/admin/** kiểm tra ADMIN ở server, CSRF/proxy guard; chưa login 401, CUSTOMER 403, hết phiên điều hướng lại an toàn (AUTH-05/07).
+- [ ] ADMIN-03: Dashboard hàng chờ nội dung nháp/phản hồi mới, thời điểm cập nhật và link danh sách đã lọc; các chỉ số đơn/kho/payment chỉ thêm khi có API nghiệp vụ thật.
+- [ ] ADMIN-04: API/UI quản trị thẻ và bộ thẻ: tìm/lọc/phân trang, xem trước, sửa hiệu ứng/ảnh/tham chiếu/phiên bản; giữ ID/QR ổn định và tránh xóa cứng dữ liệu đã xuất bản.
+- [ ] ADMIN-05: API/UI quản trị nhân vật, kỹ năng, ảnh và trạng thái thiếu nội dung từ nguồn được duyệt.
+- [ ] ADMIN-06: Soạn wiki, hướng dẫn, FAQ, câu chuyện và devlog; nháp/preview/revision và hiển thị nội dung an toàn (CONTENT-03, QA-04).
+- [ ] ADMIN-07: Import JSON/CSV có template, dry-run, lỗi theo dòng/trường và xác nhận; đối chiếu 148 thẻ/11 bộ/8 nhân vật, chống ID trùng và tham chiếu hỏng; không ghi dữ liệu khi validation thất bại (CONTENT-01).
+- [ ] ADMIN-08: Xuất bản release snapshot, theo dõi build/deploy, báo lỗi đúng và rollback snapshot; public/search chỉ dùng release đã xuất bản, hoạt động khi backend ngủ (CONTENT-02/03).
+- [ ] ADMIN-09: Hộp phản hồi theo thẻ/luật/version: lọc, trạng thái, ghi chú xử lý và bảo vệ thông tin người gửi (CONTENT-04).
+- [ ] ADMIN-14: Quản trị người dùng: danh sách/phân trang, role/trạng thái/phương thức login, khóa/mở và yêu cầu dữ liệu; đổi quyền cần xác thực lại, thu hồi phiên theo thiết kế và không làm mất admin cuối cùng. Không hiện password/hash/token; chưa thêm EDITOR khi chưa chốt quyền.
+- [ ] ADMIN-15: Nhật ký thao tác admin có actor/đối tượng/thời gian/lý do/kết quả; lưu thay đổi quan trọng và lọc bí mật/PII không cần thiết; không cho sửa/xóa audit từ UI (OPS-05).
+- [ ] ADMIN-16: Trang trạng thái chỉ đọc cho backend/database, release public và lần đối soát gần nhất; không đưa Google/PayOS/proxy secrets vào UI admin; credential tiếp tục quản lý ở nền tảng deploy.
+- [ ] ADMIN-17: Thao tác có quyền và xác thực lại khi nhạy cảm; xác nhận rõ đối tượng/lý do, chống gửi trùng, kiểm soát version/xung đột, kiểm tra dữ liệu server; phân trang và refresh/backoff phù hợp Free plan.
+- [ ] ADMIN-18: E2E/kiểm thử API với ADMIN/CUSTOMER/anonymous; 401/403/CSRF, hết phiên, truy cập ID không được phép, hai admin cùng sửa, lỗi import/publish, dữ liệu nháp không public; nghiệm thu trước tick module.
+
+#### Đợt B — bắt buộc cho các chức năng bán hàng tương ứng trước mở bán
+
+- [ ] ADMIN-10: API/UI sản phẩm/SKU/giá/trạng thái bán và ảnh lưu bền vững; quản lý tồn thực tế/giữ/khả dụng, nhập-xuất-điều chỉnh có lý do và lịch sử; cập nhật kho qua service có kiểm soát (SHOP-02).
+- [ ] ADMIN-11: Danh sách/chi tiết đơn, lọc ngày/trạng thái, thông tin khách/giao hàng theo quyền; xác nhận/đóng gói/giao/hoàn tất/hủy có điều kiện chuyển trạng thái, audit và không trừ/nhả kho lặp (SHOP-09).
+- [ ] ADMIN-12: Hàng chờ payment UNKNOWN/REVIEW, thiếu/thừa/trễ và webhook lỗi; bằng chứng provider đã lọc, đối soát/replay an toàn và idempotent; không có nút PAID tùy ý hoặc nhả kho khi chưa đủ bằng chứng (SHOP-08, OPS-02/03).
+- [ ] ADMIN-13: Quy trình refund yêu cầu/duyệt/ghi nhận thực hiện, số tiền không vượt phần còn có thể hoàn, external reference và audit; nhập lại hàng là nghiệp vụ riêng; kiểm thử retry không hoàn tiền hai lần (SHOP-10).
+
+#### Đợt C — sau MVP
+
+- [ ] ADMIN-19: Báo cáo theo khoảng ngày: giá trị đơn, tiền thực nhận và hoàn tiền tách biệt; chỉ thêm biểu đồ khi metric đã chốt, truy vấn không gây tải quá mức. Export có phân quyền, giới hạn và xử lý CSV formula injection.
+- [ ] ADMIN-20: Nếu có người biên tập riêng, chốt ma trận EDITOR và quyền draft/publish; migration/API/UI/tests nhất quán, EDITOR không có quyền user/tiền/kho theo mặc định.
+
+
+### JWT và khôi phục mật khẩu — 2026-10-20, local
+
+- [x] AUTH-08: JWT cookie HttpOnly/Secure/Lax/Path=/api, chữ ký/issuer/audience/expiry/version, logout/reset thu hồi và không ghi session đăng nhập; đã qua tests local (2026-10-20); production chưa nghiệm thu.
+- [x] AUTH-09: UI/API forgot/reset, CSRF/rate limit, mail adapter HTTPS, one-use/expiry/resend/concurrency và UTF-8 BCrypt; đã qua tests local (2026-10-20); production chưa nghiệm thu.
+- [ ] AUTH-10: Cấu hình JWT_SECRET trên Render và deploy V6/V7; kiểm tra password/Google login thật, CSRF, logout/replay và token hết hạn. Hiện chưa deploy.
+- [ ] AUTH-11: Cấu hình Resend + verified sender, bật recovery và kiểm tra gửi/nhận/reset thật với người nhận được chỉ định. Hiện chưa có credentials; không coi mock là email thật.

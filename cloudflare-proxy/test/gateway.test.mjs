@@ -28,6 +28,39 @@ function login(overrides = {}) {
 }
 const noUpstream = async () => { assert.fail('Request must not reach upstream'); };
 
+function recovery(path, payload, headers = {}) {
+  return browser(`/api/v1/auth/${path}`, { method: 'POST', body: JSON.stringify(payload),
+    headers: { Origin: ORIGIN, 'Content-Type': 'application/json', ...headers } });
+}
+
+test('recovery applies IP and normalized email limits without leaking or requiring a login challenge', async () => {
+  const request = () => recovery('forgot-password', { email: 'Member@example.test' });
+  assert.equal((await handle(request(), environment({ LOGIN_LIMITER: limiter(0) }), noUpstream)).status, 429);
+  const env = environment({ ACCOUNT_LIMITER: limiter(1) });
+  const upstream = async (input, init) => {
+    assert.equal(String(input), 'https://backend.example.test/api/v1/auth/forgot-password');
+    assert.equal(init.headers.get('X-Origin-Verify'), SECRET);
+    return Response.json({ message: 'Generic acknowledgement' }, { status: 202 });
+  };
+  assert.equal((await handle(request(), env, upstream)).status, 202);
+  assert.equal((await handle(recovery('forgot-password', { email: ' member@EXAMPLE.test ' }), env, noUpstream)).status, 429);
+});
+
+test('reset validates payload, preserves JWT and CSRF cookies, and requires same origin', async () => {
+  const payload = { token: 'a'.repeat(43), password: 'New-password-123!' };
+  const valid = recovery('reset-password', payload, { Cookie: 'AUTH_TOKEN=signed; XSRF-TOKEN=csrf', 'X-XSRF-TOKEN': 'csrf-header' });
+  assert.equal((await handle(valid, environment(), async (input, init) => {
+    assert.equal(init.headers.get('Cookie'), 'AUTH_TOKEN=signed; XSRF-TOKEN=csrf');
+    assert.equal(init.headers.get('X-XSRF-TOKEN'), 'csrf-header');
+    assert.deepEqual(JSON.parse(new TextDecoder().decode(init.body)), payload);
+    return new Response(null, { status: 204 });
+  })).status, 204);
+  assert.equal((await handle(recovery('reset-password', { ...payload, token: 'bad' }), environment(), noUpstream)).status, 400);
+  assert.equal((await handle(recovery('reset-password', { ...payload, password: '界'.repeat(25) }), environment(), noUpstream)).status, 400);
+  assert.equal((await handle(recovery('reset-password', payload, { Origin: 'https://evil.test' }), environment(), noUpstream)).status, 403);
+  assert.equal((await handle(recovery('forgot-password', null), environment(), noUpstream)).status, 400);
+});
+
 test('only exact POST PayOS webhook bypasses browser metadata; cookies are stripped', async () => {
   const request = new Request(ORIGIN + '/api/v1/payments/payos/webhook', {
     method: 'POST', headers: { 'CF-Connecting-IP': '192.0.2.2', 'Content-Type': 'application/json', Cookie: 'SESSION=spoof' }, body: '{}',
