@@ -56,7 +56,7 @@ public class AdminContentService {
     }
     private static long version(Map<String,Object> row) {return ((Number)row.get("version")).longValue();}
     private void actor(Actor actor) {
-        var rows=db.queryForList("SELECT role,enabled,auth_version FROM app_users WHERE id=? FOR UPDATE",actor.id());
+        var rows=db.queryForList("SELECT role,enabled,auth_version FROM app_users WHERE id=?",actor.id());
         if(rows.isEmpty() || !Boolean.TRUE.equals(rows.getFirst().get("enabled"))
                 || !"ADMIN".equals(rows.getFirst().get("role"))
                 || ((Number)rows.getFirst().get("auth_version")).longValue()!=actor.authVersion())
