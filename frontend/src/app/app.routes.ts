@@ -2,6 +2,18 @@ import { Routes } from '@angular/router';
 
 export const routes: Routes = [
   {
+    path: 'chinh-sach-quyen-rieng-tu',
+    title: 'Chính sách quyền riêng tư — Nhà Này Hơi Báo!',
+    data: { legalDocument: 'privacy' },
+    loadComponent: () => import('./features/legal/legal.page').then(m => m.LegalPage),
+  },
+  {
+    path: 'dieu-khoan-su-dung',
+    title: 'Điều khoản sử dụng — Nhà Này Hơi Báo!',
+    data: { legalDocument: 'terms' },
+    loadComponent: () => import('./features/legal/legal.page').then(m => m.LegalPage),
+  },
+  {
     path: '',
     title: 'Nhà Này Hơi Báo! — Wiki',
     loadComponent: () => import('./features/home/home.page').then(m => m.HomePage),

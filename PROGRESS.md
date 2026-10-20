@@ -7,9 +7,10 @@
 - Ngày: 2026-10-20 (Asia/Saigon).
 - Rà soát mới nhất: Đã đối chiếu checklist, mô tả sản phẩm và mã nguồn ở `8196312`; kết quả chi tiết tại [IMPLEMENTATION_REVIEW.md](docs/IMPLEMENTATION_REVIEW.md). Đây là rà soát tài liệu/code, không phải triển khai thêm tính năng.
 - Trạng thái đã xác minh: Home/shell Angular và backend auth/PayOS đã lên Cloudflare Pages + Render; database Aiven ở Flyway V5 với 34 bảng ứng dụng theo lần kiểm tra trước. Các trang nội dung/shop ngoài Home hiện dùng PlaceholderPage.
-- GitHub/deploy: Commit `8196312` đã push; CI #39308780302 và CD #39309163153 đều success, gồm job deploy thật. Bản PayOS `ca7f329` trước đó cũng có CI #39305407158 và CD #39305661750 success. Không còn trạng thái “chuẩn bị deploy” cho các bản này.
+- GitHub/deploy: Runtime `58069ed` có CI #39354106621 success. CD thủ công #39355633402 success; đã kiểm tra riêng Render deploy `dep-dbbci07avr4c73dcbph0` live và Google bật sau khi container mới khởi động. Cấu hình Google là thay đổi Environment, không cần sửa runtime/commit rỗng.
 - PayOS: SDK/keys/webhook thật đã xác minh; create/query/cancel probe có amountPaid=0, không chuyển tiền. Có checkout/orders, chống trùng, ledger và đối soát cron 30 phút; 63 backend tests đã qua CI. Chưa có giao dịch ngân hàng thật hoặc luồng mua hàng Angular hoàn chỉnh.
-- Các thiếu sót chính từ code: chưa có đăng ký/khôi phục mật khẩu, UI login/Google thật, API content/catalog/cart/profile/address, admin và dữ liệu chính thức. Ô search chưa xử lý; header giỏ hàng đang ghi cố định (2).
+- Google thật: OAuth client EXE_WebApplication Production trong project exewebapplication; credentials chỉ lưu Render, GOOGLE_ENABLED=true. Callback https://exe-webapp.pages.dev/api/v1/auth/oauth2/callback/google. External/Testing; đã thêm Gmail của chủ dự án làm test user. Đăng nhập thật đã thành công, CUSTOMER và phiên JDBC đã xác minh.
+- Các thiếu sót chính từ code: chưa có đăng ký/khôi phục mật khẩu, UI login, API content/catalog/cart/profile/address, admin và dữ liệu chính thức. Ô search chưa xử lý; header giỏ hàng đang ghi cố định (2).
 - Việc tiếp theo cho website giới thiệu: xác định dữ liệu nguồn, xây thư viện/chi tiết/wiki và mô phỏng Quỹ; public content phải dùng được khi Render ngủ.
 - Việc tiếp theo trước mở bán: tài khoản khách → catalog/tồn kho → cart/địa chỉ/phí giao → checkout/orders UI → xử lý UNKNOWN/REVIEW/refund/vận chuyển → E2E và kiểm thử chuyển tiền thật. Nhóm 7–11 trong CHECKLIST.md bổ sung các việc chi tiết và mức ưu tiên; không coi đây là tính năng đã xây.
 - Tích hợp Morphicons: Đã cài `morphicons@^2.0.0` (giấy phép MIT), đăng ký global web component `<morph-icon>`, xây dựng wrapper `MorphIconComponent` (`<app-morph-icon>`) với hiệu ứng morph physics spring (`bouncy`), hover morph và chuyển đổi menu/close/cart/navigation. Tất cả 5 unit tests và `npm run build` (prerender 4 routes) đều pass 100%.
@@ -52,7 +53,7 @@
 - Render Free có giới hạn tài nguyên và cơ chế ngủ; cần đo RAM thực tế, tối ưu JVM, connection pool và thời gian khởi động.
 - Ảnh cố định ban đầu lưu cùng frontend; chưa chốt dịch vụ upload ảnh. R2 chỉ là phương án tương lai, chưa kích hoạt cho dự án.
 - Đã chọn Angular 22.2.3, Spring Boot 4.1.1, Java 25 và Node.js 24.15.0. Frontend có package-lock.json; backend có Maven Wrapper. Local dùng H2 trong bộ nhớ, production bắt buộc PostgreSQL qua biến môi trường.
-- Người dùng đã chọn cả email/mật khẩu và Google. Backend đã triển khai hai luồng; đã có Turnstile thật, chưa có Google credentials và UI đăng nhập. Đã chọn và tích hợp PayOS, chưa có luồng mua hàng Angular hoàn chỉnh.
+- Người dùng đã chọn cả email/mật khẩu và Google. Backend đã triển khai hai luồng; đã có Turnstile và Google credentials thật, đã thử Google thành công ngày 2026-10-20; chưa có UI đăng nhập. Đã chọn và tích hợp PayOS, chưa có luồng mua hàng Angular hoàn chỉnh.
 - Không lưu ảnh dạng nhị phân trong database; secrets phải nằm ngoài Git.
 
 ## Checklist công việc
@@ -194,3 +195,18 @@ Các ghi chú theo phiên bên dưới là lịch sử tại thời điểm th�
 - Chú ý từ PaymentStore/PaymentService: UNKNOWN có thể giữ reservation lâu dài khi provider không tìm thấy link; chưa có thao tác admin phục hồi. Sweep batch 5 và inbox replay cần theo dõi lag/lỗi, ưu tiên/backoff và quy trình xử lý thủ công. Orders API hiện trả tối đa 50 đơn, chưa phân trang.
 - Kiểm tra phiên này chỉ đọc mã nguồn/trạng thái Actions và đối chiếu liên kết/tài liệu; không chạy lại build/test vì không sửa runtime. Hai file dependency Morphicons có trước phiên và component Morphicons xuất hiện đồng thời đều giữ nguyên; không coi thay đổi local đang diễn ra là bản đã nghiệm thu.
 - Kết quả lưu local trong tài liệu; chưa commit/push hay kích hoạt deploy mới cho phiên rà soát.
+
+### Google OAuth production configuration — 2026-10-20
+
+- Đã tạo branding và Web OAuth client theo xác nhận của người dùng; chỉ openid/email/profile, không thêm quyền Gmail/Drive. Client Secret không ghi vào repo.
+- Đã lưu GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI trên Render và bật GOOGLE_ENABLED=true; deploy lại qua CD #39355633402 trên commit đã qua CI 58069ed.
+- Sau khi Render thực sự live: /api/v1/auth/config trả google=true. Browser đi qua Google consent và callback quay về / không có authError. Aiven xác nhận Google customer enabled, role CUSTOMER, password_hash NULL và phiên JDBC có SPRING_SECURITY_CONTEXT còn hạn. Không ghi subject/session/token vào tài liệu.
+- Ứng dụng vẫn External/Testing; thêm test user trong Google Console khi cần thử tài khoản khác. Chưa xây login/logout UI Angular.
+- Phát hiện cần cải thiện CD: deploy-backend.mjs chỉ so SHA từ /info nên khi redeploy cùng SHA có thể báo ready trước container mới. Phiên này đã chờ và xác minh Render/runtime riêng; bổ sung checklist theo dõi deployment thực tế.
+- Tài liệu phiên cấu hình này được cập nhật local; không push thay đổi chỉ tài liệu để tránh kích hoạt một lượt deploy không cần thiết.
+
+### Chuẩn bị Google OAuth Production — 2026-10-20
+
+- Chủ dự án đã duyệt nội dung quyền riêng tư và điều khoản trong docs/OAUTH_PUBLIC_POLICIES_DRAFT.md cùng việc công bố/deploy. Hai route /chinh-sach-quyen-rieng-tu và /dieu-khoan-su-dung dùng nội dung đã duyệt, prerender HTML; footer toàn site có liên kết và email hỗ trợ.
+- Local: npm run build thành công, prerender 6 routes; 5 frontend tests pass. Browser đã kiểm tra nội dung và chuyển qua lại giữa hai tài liệu.
+- Google Branding đã lưu homepage https://exe-webapp.pages.dev/. Cần chờ hai trang lên production, khai báo URL privacy/terms rồi kiểm tra lại Publish. Chưa đánh dấu OAuth In production trước khi Google xác nhận.

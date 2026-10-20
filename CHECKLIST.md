@@ -139,7 +139,7 @@ Chi tiết bằng chứng: [IMPLEMENTATION_REVIEW.md](docs/IMPLEMENTATION_REVIEW
 - [x] Kiểm tra Wrangler runtime local: direct backend 403, browser proxy 200, login lần 6 trả 429.
 - [x] Bổ sung job CI gateway; cấu hình đã push `a92a952`.
 - [x] CI auth/gateway #39278743322 thành công; đã xác nhận conclusion success.
-- [ ] Cấu hình Google Client ID/Secret và callback, kiểm tra Google login thật.
+- [x] Cấu hình Google Client ID/Secret và callback, kiểm tra Google login thật (2026-10-20: consent/callback thành công, CUSTOMER và phiên JDBC trên Aiven đã xác minh).
 - [x] Tạo Turnstile widget, cấu hình sitekey/secret cho hostname thật.
 - [x] Cấu hình origin/secrets thật, deploy gateway cùng Pages/Render/Aiven và smoke test website/API/database.
 
@@ -257,3 +257,9 @@ Chi tiết bằng chứng: [IMPLEMENTATION_REVIEW.md](docs/IMPLEMENTATION_REVIEW
 - [ ] EXTRA-01: Tích hợp Morphicons vào một vài nút đổi trạng thái (menu/đóng, mở rộng), bọc Angular an toàn với prerender, cleanup khi destroy, reduced motion và giữ thông báo giấy phép.
 - [ ] EXTRA-02: Hướng dẫn chơi theo bước với thẻ mẫu đã duyệt, tiến/lùi/reset và kết quả xác định theo phiên bản luật; chưa mở rộng thành game multiplayer.
 - [ ] EXTRA-03: Lưu thẻ/luật yêu thích hoặc lịch sử tra cứu trên thiết bị; có xóa dữ liệu, vẫn tra cứu công khai không cần đăng nhập.
+
+- [ ] OPS-07: CD cần xác minh deployment Render mới đã live khi redeploy cùng SHA; kiểm tra SHA từ /info một mình có thể khớp container cũ.
+
+- [x] Xây hai trang privacy/terms prerender và footer với nội dung đã được chủ dự án duyệt; local build + 5 frontend tests pass.
+- [ ] Xác minh hai URL privacy/terms đã được deploy công khai.
+- [ ] Chuyển Google OAuth từ Testing sang In production sau khi khai báo URL policy và terms hoạt động.

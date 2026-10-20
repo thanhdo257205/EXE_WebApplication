@@ -1,0 +1,21 @@
+<article class="legal-document">
+  <a routerLink="/">← Trang chủ</a>
+  <header>
+    <p>Nhà Này Hơi Báo — EXE Web Application</p>
+    <h1>{{ document().title }}</h1>
+    <p>Cập nhật: <time datetime="2026-10-20">20/10/2026</time></p>
+  </header>
+  @for (section of document().sections; track section.heading) {
+    <section>
+      <h2>{{ section.heading }}</h2>
+      @for (paragraph of section.paragraphs; track $index) {
+        <p>{{ paragraph }}</p>
+      }
+    </section>
+  }
+  <nav aria-label="Tài liệu liên quan">
+    <a routerLink="/chinh-sach-quyen-rieng-tu">Chính sách quyền riêng tư</a>
+    <a routerLink="/dieu-khoan-su-dung">Điều khoản sử dụng</a>
+    <a href="mailto:dothanh2572005@gmail.com">Liên hệ hỗ trợ</a>
+  </nav>
+</article>
