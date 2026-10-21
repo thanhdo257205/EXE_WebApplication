@@ -32,30 +32,45 @@ export class ColumnSpreadComponent {
     if (!ctx) return;
     const images: (HTMLImageElement | undefined)[] = Array(12).fill(undefined);
     const media = matchMedia('(prefers-reduced-motion: reduce)');
-    let t = 0.12, last = performance.now(), frame = 0, visible = true, destroyed = false;
+    let t = 0.12, last = 0, frame = 0, visible = false, destroyed = false;
+    let dirty = true, sizeDirty = true;
+    const running = () => !media.matches && !this.paused();
+    const schedule = () => {
+      if (!destroyed && visible && !document.hidden && !frame && (dirty || running())) frame = requestAnimationFrame(tick);
+    };
     const draw = () => {
       if (destroyed || !canvas.width || !canvas.height) return;
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // The supplied engine already resets and clears the complete canvas.
       TEMPLATE.render({ ctx, t, width: canvas.width, height: canvas.height, params: SPREAD_PARAMS, images, background: null });
       ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.globalCompositeOperation = 'destination-over'; ctx.fillStyle = '#0c0b10';
       ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.restore();
       this.ready.set(true);
     };
-    const resize = () => {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      canvas.width = Math.round(container.clientWidth * dpr); canvas.height = Math.round(container.clientHeight * dpr); draw();
-    };
+    const resize = () => { sizeDirty = true; dirty = true; schedule(); };
     const tick = (now: number) => {
       frame = 0;
-      const dt = Math.min(0.05, (now - last) / 1000); last = now;
-      t = (t + dt / 8.0) % 1; draw(); frame = requestAnimationFrame(tick);
+      if (destroyed || !visible || document.hidden) { last = 0; return; }
+      if (sizeDirty) {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const width = Math.round(container.clientWidth * dpr), height = Math.round(container.clientHeight * dpr);
+        // Assigning an unchanged dimension still clears/reallocates the bitmap.
+        if (canvas.width !== width) canvas.width = width;
+        if (canvas.height !== height) canvas.height = height;
+        sizeDirty = false;
+      }
+      if (running()) {
+        const dt = last ? Math.min(0.05, (now - last) / 1000) : 0;
+        t = (t + dt / 8.0) % 1; last = now;
+      } else last = 0;
+      draw(); dirty = false; schedule();
     };
     const playback = () => {
-      cancelAnimationFrame(frame); frame = 0;
-      if (media.matches) { t = 0.12; draw(); }
-      else if (!destroyed && visible && !document.hidden && !this.paused()) { last = performance.now(); frame = requestAnimationFrame(tick); }
+      if (media.matches) { t = 0.12; dirty = true; }
+      if (destroyed || !visible || document.hidden || !running()) {
+        cancelAnimationFrame(frame); frame = 0; last = 0;
+      }
+      schedule();
     };
     this.paused.set(media.matches); this.reducedMotion.set(media.matches); this.updatePlayback = playback;
     const resizeObserver = new ResizeObserver(resize); resizeObserver.observe(container);
@@ -65,8 +80,8 @@ export class ColumnSpreadComponent {
     media.addEventListener('change', preferenceChanged); document.addEventListener('visibilitychange', playback);
     const loaders = this.imageSources().slice(0, 12).map((src, index) => {
       const image = new Image();
-      image.onload = () => { if (!destroyed) { images[index] = image; draw(); } };
-      image.onerror = () => draw(); image.src = src; return image;
+      image.onload = () => { if (!destroyed) { images[index] = image; dirty = true; schedule(); } };
+      image.onerror = () => { dirty = true; schedule(); }; image.src = src; return image;
     });
     resize(); playback();
     this.destroyRef.onDestroy(() => {

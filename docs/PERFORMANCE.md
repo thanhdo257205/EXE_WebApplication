@@ -1,4 +1,14 @@
-# Hiệu năng frontend — 2026-10-20
+# Hiệu năng frontend — cập nhật 2026-10-21
+
+## Column Spread: giảm công việc vẽ thừa — 2026-10-21
+
+Rà soát source thấy wrapper gọi clearRect/setTransform ngay trước engine trong khi `He()` của engine đã reset/clear toàn canvas. ResizeObserver gán lại cả width/height dù giá trị không đổi, còn từng image load/error gọi render ngay, có thể vẽ nhiều lần trong cùng frame và khi canvas offscreen/hidden.
+
+Wrapper mới chờ IntersectionObserver trước lần vẽ đầu; một scheduler rAF gộp resize/image với animation tick. Size chỉ đo khi dirty, chỉ gán dimension thực sự thay đổi. Offscreen/hidden hủy frame và hoãn dirty đến khi hiện lại; paused/reduced cho phép một frame cập nhật ảnh/kích thước rồi nghỉ. Thời gian nghỉ không cộng vào animation. Bỏ clear/setTransform ngoài engine; giữ nguyên file engine, thứ tự/crop, màu, DPR cap2, tham số và duration8 giây. Không giảm FPS hoặc chất lượng raster.
+
+Xác minh local: `npm test -- --watch=false`108/108 tests/24 files qua, gồm4 test scheduler mới về coalescing, bitmap unchanged, timeline8s, paused/hidden/offscreen/reduced và destroy. `npm run build` qua/prerender6 routes, initial428,79kB raw/118,49kB estimated transfer; warnings CSS home/dashboard và React CommonJS vẫn có. Test scheduler tách rAF Angular change detection khỏi rAF canvas.
+
+Edge headless chạy renderer độc lập với12 SVG thật tại8 thời điểm0/0,12/0,22/0,35/0,5/0,7/0,84/1 × DPR1/1,25/2, so sánh wrapper cũ có clear ngoài và wrapper mới:24 frames,0 byte pixel khác. Script `frontend/output/check-spread-render-equivalence.cjs` ignored. Kết quả chứng minh tương đương raster của bước bỏ clear trong kịch bản này; không phải browser QA toàn trang hoặc benchmark FPS/CPU/LCP/INP. Code/docs local, chưa commit/push/deploy; cần đo thiết bị thật trước khi tuyên bố mức cải thiện độ mượt.
 
 ## Phạm vi và phát hiện
 

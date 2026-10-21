@@ -4,6 +4,13 @@
 
 ## Cập nhật gần nhất
 
+### Giảm công việc vẽ thừa Column Spread (2026-10-21, local)
+
+- Rà soát các scheduler cursor/dot grid/liquid glass/viewer3D; đợt này chỉ sửa wrapper Column Spread. Bỏ clearRect/setTransform ngoài engine vì engine đã làm; không đổi engine, thứ tự/crop thẻ, tham số, nền, DPR cap2 hoặc chu kỳ8 giây.
+- Gộp image load/error và resize vào một rAF; kiểm tra viewport trước lần vẽ đầu, ngừng công việc vẽ/cấp bitmap khi offscreen/hidden, giữ dirty để cập nhật khi hiện lại. Chỉ gán width/height canvas khi khác; ảnh tải khi paused/reduced vẫn cập nhật một frame, không bật loop. Resume không cộng thời gian nghỉ.
+- Xác minh:108/108 frontend tests/24 files qua (4 regression scheduler mới); production build/prerender6 routes qua, initial428,79kB raw/118,49kB estimated transfer. Giữ warnings CSS home/dashboard và React CommonJS cũ. Edge headless dùng SVG thật, so sánh engine + wrapper cũ/mới ở8 thời điểm ×3 DPR1/1,25/2:24 frames,0 byte pixel khác. Script `frontend/output/check-spread-render-equivalence.cjs` là artifact ignored; đây là kiểm tra renderer độc lập, chưa phải QA tương tác toàn trang hay benchmark FPS/CPU thiết bị thật.
+- Code/docs chỉ local, chưa commit/push/deploy. Không thay backend/gateway; chưa chạy lại checks hai phần đó. Chi tiết [PERFORMANCE.md](docs/PERFORMANCE.md); tiếp theo cần trace trang thực để xác định nút thắt còn lại.
+
 
 ### Thư viện thẻ 2D và xem thẻ 3D (2026-10-21, đã push GitHub)
 
