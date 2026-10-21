@@ -1,12 +1,27 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import TEMPLATE from '../../motion/spread-columns.js';
-import { ColumnSpreadComponent, DECORATIVE_CARDS, POKEMON_POSTER_NAMES, SPREAD_PARAMS, shuffleIndices } from './column-spread.component';
+import { ColumnSpreadComponent, DECORATIVE_CARDS, POKEMON_POSTER_NAMES, SPREAD_PARAMS, shuffleIndices, spreadRenderBudget } from './column-spread.component';
 
 class Preference extends EventTarget {
   matches = false;
   change(value: boolean) { this.matches = value; this.dispatchEvent(new Event('change')); }
 }
+
+describe('spreadRenderBudget', () => {
+  it('keeps the original DPR cap of 2 and no frame limit on capable devices', () => {
+    expect(spreadRenderBudget(3, false, false)).toEqual({ dpr: 2, minFrameMs: 0 });
+    expect(spreadRenderBudget(1.25, false, false)).toEqual({ dpr: 1.25, minFrameMs: 0 });
+  });
+  it('lowers the DPR cap to 1.5 on coarse pointers', () => {
+    expect(spreadRenderBudget(3, true, false)).toEqual({ dpr: 1.5, minFrameMs: 0 });
+    expect(spreadRenderBudget(1, true, false)).toEqual({ dpr: 1, minFrameMs: 0 });
+  });
+  it('uses DPR 1 and ~30fps when perf-tier is low, and tolerates a missing DPR', () => {
+    expect(spreadRenderBudget(3, true, true)).toEqual({ dpr: 1, minFrameMs: 33 });
+    expect(spreadRenderBudget(0, false, true)).toEqual({ dpr: 1, minFrameMs: 33 });
+  });
+});
 
 describe('Column spread frame scheduling', () => {
   let fixture: ComponentFixture<ColumnSpreadComponent>;
@@ -44,6 +59,30 @@ describe('Column spread frame scheduling', () => {
     fixture = TestBed.createComponent(ColumnSpreadComponent); fixture.detectChanges();
   });
   afterEach(() => { fixture.destroy(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+
+  it('uses DPR 1 and skips frames closer than ~30fps once perf-tier is low', () => {
+    vi.spyOn(window, 'devicePixelRatio', 'get').mockReturnValue(2);
+    document.documentElement.dataset['perf'] = 'low';
+    try {
+      visibility(true); images.forEach(image => image.onload?.());
+      flush(100);
+      const canvas = fixture.nativeElement.querySelector('canvas') as HTMLCanvasElement;
+      expect(canvas.width).toBe(784);
+      expect(TEMPLATE.render).toHaveBeenCalledTimes(1);
+      flush(110); // 10ms later: bỏ khung
+      expect(TEMPLATE.render).toHaveBeenCalledTimes(1);
+      flush(140); // 40ms sau khung vẽ gần nhất: vẽ
+      expect(TEMPLATE.render).toHaveBeenCalledTimes(2);
+    } finally { delete document.documentElement.dataset['perf']; }
+  });
+
+  it('keeps drawing every frame and the DPR cap of 2 on capable devices', () => {
+    vi.spyOn(window, 'devicePixelRatio', 'get').mockReturnValue(3);
+    visibility(true); images.forEach(image => image.onload?.());
+    flush(100); flush(110); flush(120);
+    expect(TEMPLATE.render).toHaveBeenCalledTimes(3);
+    expect((fixture.nativeElement.querySelector('canvas') as HTMLCanvasElement).width).toBe(1568);
+  });
 
   it('configures Pokémon poster defaults in 12 slots with 9 unique sources and cardAspect auto', () => {
     expect(DECORATIVE_CARDS.length).toBe(12);

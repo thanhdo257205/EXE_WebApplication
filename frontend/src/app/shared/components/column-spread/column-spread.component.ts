@@ -1,5 +1,6 @@
 import { afterNextRender, Component, DestroyRef, ElementRef, inject, input, NgZone, signal, viewChild } from '@angular/core';
 import TEMPLATE from '../../motion/spread-columns.js';
+import { PERF_TIER_EVENT } from '../../utils/perf-tier';
 
 export const SPREAD_PARAMS = { cornerRadius: 3, padding: 6, shadowEnabled: false, rows: 3, rowsOdd: 3, rowGap: 3, cardGap: 3, stackStyle: 'single', stackScale: 50, zoom: 50, drift: 16, rowDelay: 4, cardAspect: 'auto', backgroundType: 'color', background: 'rgba(0,0,0,0)' };
 export const POKEMON_POSTER_NAMES = [
@@ -18,6 +19,15 @@ export const DECORATIVE_CARDS = [
   ...UNIQUE_POKEMON_CARDS,
   ...UNIQUE_POKEMON_CARDS.slice(0, 3),
 ];
+
+/**
+ * Ngân sách vẽ canvas theo thiết bị: số điểm ảnh tỷ lệ với DPR², nên hạ DPR là cách giảm tải rẻ nhất.
+ * Máy mạnh giữ DPR cap 2 như cũ; màn cảm ứng cap 1,5; máy bị `perf-tier=low` dùng DPR 1 và tối đa ~30 khung/giây.
+ */
+export function spreadRenderBudget(devicePixelRatio: number, coarsePointer: boolean, lowTier: boolean): { dpr: number; minFrameMs: number } {
+  const cap = lowTier ? 1 : coarsePointer ? 1.5 : 2;
+  return { dpr: Math.min(devicePixelRatio || 1, cap), minFrameMs: lowTier ? 33 : 0 };
+}
 
 /**
  * Pure Fisher-Yates shuffle over an array of slot indices or elements.
@@ -98,6 +108,8 @@ export class ColumnSpreadComponent {
     syncDisplayImages();
 
     const media = matchMedia('(prefers-reduced-motion: reduce)');
+    const coarse = matchMedia('(pointer: coarse)');
+    const budget = () => spreadRenderBudget(window.devicePixelRatio, coarse.matches, document.documentElement.dataset['perf'] === 'low');
     let t = 0.12, last = 0, frame = 0, visible = false, destroyed = false;
     let dirty = true, sizeDirty = true;
     let initiated = false;
@@ -122,7 +134,7 @@ export class ColumnSpreadComponent {
       frame = 0;
       if (destroyed || !visible || document.hidden) { last = 0; return; }
       if (sizeDirty) {
-        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const { dpr } = budget();
         const width = Math.round(container.clientWidth * dpr), height = Math.round(container.clientHeight * dpr);
         // Assigning an unchanged dimension still clears/reallocates the bitmap.
         if (canvas.width !== width) canvas.width = width;
@@ -130,6 +142,9 @@ export class ColumnSpreadComponent {
         sizeDirty = false;
       }
       if (running()) {
+        const { minFrameMs } = budget();
+        // Giới hạn tốc độ khung khi máy giật: bỏ khung này, dt tích lũy sang khung sau nên nhịp 8s không đổi.
+        if (minFrameMs && last && now - last < minFrameMs - 2 && !dirty) { schedule(); return; }
         const dt = last ? Math.min(0.05, (now - last) / 1000) : 0;
         const nextT = t + dt / 8.0;
         if (last > 0 && nextT >= 1) {
@@ -222,11 +237,14 @@ export class ColumnSpreadComponent {
     const intersection = new IntersectionObserver(entries => { visible = entries[0]?.isIntersecting ?? false; playback(); });
     intersection.observe(container);
     const preferenceChanged = () => { this.paused.set(media.matches); this.reducedMotion.set(media.matches); playback(); };
+    const tierChanged = () => { sizeDirty = true; dirty = true; schedule(); };
     media.addEventListener('change', preferenceChanged); document.addEventListener('visibilitychange', playback);
+    window.addEventListener(PERF_TIER_EVENT, tierChanged);
     resize(); playback();
     this.destroyRef.onDestroy(() => {
       destroyed = true; cancelAnimationFrame(frame); resizeObserver.disconnect(); intersection.disconnect();
       media.removeEventListener('change', preferenceChanged); document.removeEventListener('visibilitychange', playback);
+      window.removeEventListener(PERF_TIER_EVENT, tierChanged);
       loaders.forEach(image => { image.onload = null; image.onerror = null; }); this.updatePlayback = () => {};
     });
   }

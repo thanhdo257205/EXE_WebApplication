@@ -4,6 +4,11 @@
 
 ## Cập nhật gần nhất
 
+### Column Spread: DPR theo thiết bị + giới hạn 30fps khi máy giật — 2026-10-21, local
+
+- Hướng 1 và 4 trong đề xuất tối ưu canvas thẻ: thêm `spreadRenderBudget()` trong `column-spread.component.ts`. Máy mạnh giữ DPR cap2 và không giới hạn khung như cũ; màn cảm ứng (`pointer: coarse`) cap1,5; khi `perf-tier=low` dùng DPR1 và bỏ khung gần hơn ~33ms (≈30fps, dt tích lũy nên nhịp8s không đổi). Component nghe `perf-tier-change` để đổi kích thước canvas ngay. Không đụng engine `spread-columns.js`, thứ tự vẽ, easing hay ảnh.
+- Xác minh: 147/147 tests (thêm 5: helper và component), build/prerender qua. Chromium headless dsf3: desktop canvas 2502px (cap2) ~105 lần clear/2s; mobile 585px (=390×1,5) ~120/2s; low 1251px (DPR1) ~60/2s (~30fps). Số điểm ảnh canvas giảm: mobile ×0,56, low ×0,25 (cộng nửa số khung). Đây là số điểm ảnh và số lần vẽ, không phải FPS/CPU đo trên máy thật. Chưa nhìn thấy khác biệt độ sắc trên thiết bị thật; chưa deploy.
+
 ### Sửa cuộn trang khi zoom thẻ 3D — 2026-10-21, local
 
 - Lỗi người dùng báo: cuộn chuột trên khung xem thẻ 3D vừa phóng to thẻ vừa cuộn trang. Nguyên nhân: Lenis (thêm ở đợt editorial) bắt mọi sự kiện wheel trên cửa sổ, kể cả khi OrbitControls đã `preventDefault`. Sửa: thêm `data-lenis-prevent` vào `.viewer-panel` (Lenis bỏ qua vùng này; trang và wheel ngoài khung vẫn cuộn mượt).

@@ -1,5 +1,9 @@
 # Hiệu năng frontend — cập nhật 2026-10-21
 
+## Column Spread theo `perf-tier` và DPR — local, mới nhất
+
+`spreadRenderBudget(dpr, coarse, low)`: mặc định cap DPR2 (như cũ); `pointer: coarse` cap1,5; `perf-tier=low` DPR1 và bỏ khung <~33ms (≈30fps). Engine vẫn bỏ qua lá nằm hẳn ngoài khung. Chromium dsf3: canvas 2502/585/1251px tương ứng desktop/mobile/low; ~105/~120/~60 lần clear mỗi 2s. Chưa đo FPS/CPU thiết bị thật; hướng cache lá bo góc chờ số đo.
+
 ## Loader, marquee, Lenis — local, mới nhất
 
 Curtain nằm trong HTML tĩnh (không chờ Angular), gỡ bằng `runBoot()`; marquee chỉ `transform` CSS; chữ ma là text tĩnh; Lenis nạp `import()` sau boot, `autoRaf`, bị hủy khi vào admin, reduced motion hoặc `perf-tier=low` (cuộn native). Initial451,79kB raw/122,13kB transfer. Chưa đo FPS/INP thiết bị thật; Lenis chạy rAF liên tục khi cuộn nên cần theo dõi trên máy yếu.
