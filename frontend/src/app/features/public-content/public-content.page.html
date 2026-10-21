@@ -48,7 +48,7 @@
         />
         <div class="card-description">
           <p class="detail-code">{{ demo() ? 'THẺ MINH HỌA' : item.code }}</p>
-          <h2>{{ demo() ? 'Cầm thử một lá thẻ' : 'Hiệu ứng' }}</h2>
+          <h2 class="display">{{ demo() ? 'Cầm thử một lá thẻ' : 'Hiệu ứng' }}</h2>
           <p class="detail-copy">{{ item.effectText }}</p>
           @if (!demo()) {
             <p>{{ item.copiesInDeck }} lá trong bộ</p>
@@ -63,7 +63,7 @@
           <p class="model-note">
             Model Pokémon mặc định dùng để trải nghiệm 3D. Artwork của thẻ trong game sẽ được thay
             khi có bản chính thức.
-            @if (demo() && sampleTexture(item)) {
+            @if (demo() && sampleFromTcgdex(item)) {
               <span>
                 Hình ảnh thẻ minh họa từ <a href="https://tcgdex.net" target="_blank" rel="noopener noreferrer">TCGdex</a>.
               </span>

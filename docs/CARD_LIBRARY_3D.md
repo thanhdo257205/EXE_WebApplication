@@ -2,6 +2,10 @@
 
 Cập nhật 2026-10-21. Bản ứng dụng4dca2db (bao gồm tính năng3D ban đầu) đã CI/CD/smoke production thành công. Bản bổ sung9 texture Pokémon bên dưới chỉ local, chưa commit/push/deploy; chưa nghiệm thu GPU/touch trên thiết bị thật.
 
+## Thẻ linh vật "Linh Vật Hoàng Nam" — 2026-10-21
+
+Thêm thẻ mẫu thứ11 theo yêu cầu: tên **Linh Vật Hoàng Nam**, route `/thu-vien/mau/linh-vat-hoang-nam`, dùng chung `default-card.glb` như các mẫu khác. Ảnh mặt trước do người dùng cung cấp (ảnh "Sao Đỏ đối ngoại" của Sân Trường có linh vật và một người thật); được dàn thành thẻ 600×825 (khung đỏ nâu, ảnh vuông 530×530, tên bằng Anton) rồi xuất WebP texture (64kB) và poster360×495 (31kB) tại `frontend/public/assets/cards/`. Ảnh gốc 2000px không đưa vào repo. Không có chỉ số/luật bịa thêm; `effectText` ghi rõ là thẻ minh họa. Ghi chú nguồn TCGdex chỉ hiện cho thẻ Pokémon. Cần người dùng xác nhận có quyền/đồng ý dùng ảnh người thật trên web công khai.
+
 ## Bộ10 mẫu Pokémon — local
 
 Giữ thẻ mẫu gốc pokemon-card-3d và thêm9 mẫu: Charizard, Blastoise, Venusaur, Mewtwo, Pikachu, Bulbasaur, Charmander, Squirtle (Base Set), Eevee (Jungle). Catalog fallback khi chưa có release có10 mục với ảnh2D riêng, tìm tên/mã và URL `/thu-vien/mau/:slug` (ví dụ charizard-3d). Param thay đổi cập nhật sample cục bộ; unknown sample báo lỗi, retry không gọi API. Demo chỉ xuất hiện khi chưa có release và API/snapshot không tải được; list release thành công và404 thẻ thật không bị thay bằng mẫu. ID và demo gate tránh điều hướng nhầm nếu slug thẻ thật trùng mẫu.

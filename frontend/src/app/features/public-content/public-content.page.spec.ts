@@ -101,15 +101,15 @@ describe('Card catalog', () => {
     expect(service.detail).not.toHaveBeenCalled();
   });
 
-  it('labels fallback cards as 10 samples, searches specific Pokémon locally, and builds sample links', () => {
+  it('labels fallback cards as 11 samples, searches specific Pokémon locally, and builds sample links', () => {
     service.list.mockReturnValue(throwError(() => ({ status: 503 })));
     const fixture = TestBed.createComponent(PublicContentPage);
     fixture.detectChanges();
     const page = fixture.componentInstance;
     expect(page.demo()).toBe(true);
     expect(page.cardSets()).toEqual([SAMPLE_CARD_SET]);
-    expect(page.items().length).toBe(10);
-    expect(page.total()).toBe(10);
+    expect(page.items().length).toBe(11);
+    expect(page.total()).toBe(11);
 
     // Links for each sample
     expect(page.itemLink(SAMPLE_CARD)).toEqual(['/thu-vien/mau', 'pokemon-card-3d']);
@@ -119,6 +119,12 @@ describe('Card catalog', () => {
     // Texture helper returns frontTextureUrl for sample cards
     expect(page.sampleTexture(charizard)).toBe('/assets/cards/pokemon/charizard.webp');
     expect(page.sampleTexture(SAMPLE_CARD)).toBeUndefined();
+
+    // Thẻ linh vật có route, texture và tìm kiếm riêng
+    const mascot = findSampleCard('linh-vat-hoang-nam')!;
+    expect(mascot.name).toBe('Linh Vật Hoàng Nam');
+    expect(page.itemLink(mascot)).toEqual(['/thu-vien/mau', 'linh-vat-hoang-nam']);
+    expect(page.sampleTexture(mascot)).toBe('/assets/cards/linh-vat-hoang-nam.webp');
 
     // Search specific Pokémon: Pikachu
     page.query.set('pikachu');

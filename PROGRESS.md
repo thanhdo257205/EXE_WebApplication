@@ -4,6 +4,11 @@
 
 ## Cập nhật gần nhất
 
+### Thẻ "Linh Vật Hoàng Nam" — 2026-10-21, local
+
+- Thêm thẻ mẫu thứ11 vào catalog fallback (`MASCOT_CARD` trong `core/content/default-card.ts`): route `/thu-vien/mau/linh-vat-hoang-nam`, texture/poster dàn từ ảnh người dùng gửi (xem docs/CARD_LIBRARY_3D.md). Sửa note nguồn TCGdex chỉ cho thẻ Pokémon và thêm class `display` cho h2 "Cầm thử một lá thẻ" để không cắt dấu.
+- Xác minh: 141/141 tests (cập nhật số mẫu 10→11 và thêm kiểm tra thẻ linh vật), build/prerender qua; Chromium: catalog 11 thẻ, thẻ cuối đúng tên, trang chi tiết tải viewer 3D với texture mới, 0 pageerror. Chưa commit đến khi push; chưa deploy. Ảnh có người thật: cần xác nhận quyền/đồng ý trước khi phát hành.
+
 ### Logo "SÂN TRƯỜNG" làm huy hiệu + favicon — 2026-10-21, local
 
 - Người dùng gửi logo web (chữ đỏ nâu "… SÂN TRƯỜNG", linh vật xanh–cam, nền giấy kem; ảnh 2000×2000). Theo lựa chọn "huy hiệu + favicon", không đổi tên site hay bảng màu: tạo `logo-96.webp` (3,5kB) và `logo-256.webp` (14kB), `favicon.ico` (16/32/48) và `apple-touch-icon.png` (180px) từ ảnh gốc; ảnh gốc 2000px không đưa vào repo. Huy hiệu bo góc xuất hiện ở header (44px), màn mở trang (112px) và footer (88px).

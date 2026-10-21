@@ -197,6 +197,12 @@ export class PublicContentPage implements OnInit {
     return sample?.id === item.id ? sample.frontTextureUrl : undefined;
   }
 
+  /** Chỉ thẻ Pokémon mẫu có nguồn TCGdex; thẻ linh vật dùng ảnh người dùng cung cấp. */
+  sampleFromTcgdex(item: PublicItem): boolean {
+    const sample = findSampleCard(item.slug);
+    return sample?.id === item.id && !!sample.sourceUrl;
+  }
+
   isCard(item: PublicItem): item is PublicCard {
     return 'effectText' in item;
   }
