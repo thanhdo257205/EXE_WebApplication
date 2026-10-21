@@ -4,6 +4,13 @@
 
 ## Cập nhật gần nhất
 
+### Tự hạ cấp hiệu ứng khi giật — 2026-10-21, local
+
+- Thêm `frontend/src/app/shared/utils/perf-tier.ts`: đo khoảng cách khung rAF chỉ khi có cuộn/rê/phím (nghỉ khi idle hoặc tab ẩn). Ngưỡng giật theo nhịp màn hình (p10×1,6, kẹp24–50ms) nên màn30Hz không bị coi là yếu, nhưng <20fps luôn là giật. Cần2 cửa sổ giật liên tiếp mới hạ; chỉ hạ, không tự nâng lại, lưu `sessionStorage`. Khi `low`: đặt `html[data-perf=low]`, phát `perf-tier-change`, hủy đuôi chuột, CSS hạ `.liquid-glass` xuống blur8px, header/drawer bỏ blur dùng nền đặc. `?perf=1` hiện FPS/mức.
+- CSS tĩnh (`styles.css`): `pointer: coarse` blur12/10/12px; `prefers-reduced-transparency` bỏ blur. Máy mạnh giữ nguyên hiệu ứng cũ.
+- App dùng Angular22 zoneless (không có zone.js) nên `eventCoalescing` không áp dụng; OnPush ít lợi, không đổi.
+- Xác minh: 137/137 tests (thêm8 spec perf-tier), production build/prerender6routes qua. Chromium headless: CPU throttle1× giữ `high` ~60fps, canvas cursor còn, header blur16px; throttle20× (~8fps) chuyển `low`, canvas cursor bị hủy, header blur none, 0pageerror. Chưa kiểm tra thiết bị/GPU thật; ngưỡng (40% khung chậm, 2 cửa sổ) là giá trị ban đầu cần tinh chỉnh khi có số đo thật. Cùng nhánh/PR với đợt font-ảnh-cache; chưa deploy.
+
 ### Giảm tải font/ảnh và cache asset tĩnh — 2026-10-21, local
 
 - Rà soát hiệu năng theo yêu cầu, chọn các thay đổi không đổi hiệu ứng: (1) Google Fonts chỉ xin Be Vietnam Pro wght 400–900, bỏ 7 biến thể italic và weight300 vì CSS không dùng (`em` dùng Fraunces); (2) Fraunces TTF85.076 byte → WOFF2 subset Latin/Việt24.252 byte, giữ weight700 italic và `font-display: swap`; (3) `can-nha-ban-dem.png`208.026 byte → WebP19.118 byte (sai khác trung bình ~0,5/255 mỗi kênh, giữ alpha), cập nhật `<img>` và nền `.artwork-bg`; (4) thêm `frontend/public/_headers` cache30 ngày (không immutable vì tên file không có hash) cho `/assets/{fonts,models,cards,images}`.

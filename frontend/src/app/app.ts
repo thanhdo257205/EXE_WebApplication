@@ -5,6 +5,7 @@ import { AuthService } from './core/auth/auth.service';
 import { GlobalBarComponent } from './shared/components/global-bar/global-bar.component';
 import { MorphIconComponent } from './shared/components/morph-icon/morph-icon.component';
 import { CursorGhost } from './shared/utils/cursor-ghost';
+import { PERF_TIER_EVENT, startPerfMonitor } from './shared/utils/perf-tier';
 import { GlassControlsDirective } from './shared/motion/glass-controls.directive';
 
 @Component({
@@ -23,6 +24,8 @@ export class App implements OnDestroy {
   readonly isAdminRoute = signal(false);
 
   private ghostEffect?: CursorGhost;
+  private stopPerfMonitor?: () => void;
+  private readonly onPerfTier = () => { this.ghostEffect?.destroy(); this.ghostEffect = undefined; };
   private readonly zone = inject(NgZone);
 
   constructor() {
@@ -37,6 +40,9 @@ export class App implements OnDestroy {
     // Kích hoạt hiệu ứng Cursor Ghost toàn trang trên Client (SSR-safe qua afterNextRender)
     afterNextRender(() => {
       this.zone.runOutsideAngular(() => {
+        window.addEventListener(PERF_TIER_EVENT, this.onPerfTier);
+        this.stopPerfMonitor = startPerfMonitor();
+        if (document.documentElement.dataset['perf'] === 'low') return;
         this.ghostEffect = new CursorGhost(document.body, {
           ghosts: 6,
           size: 22,
@@ -49,6 +55,8 @@ export class App implements OnDestroy {
   }
 
   ngOnDestroy() {
+    if (typeof window !== 'undefined') window.removeEventListener(PERF_TIER_EVENT, this.onPerfTier);
+    this.stopPerfMonitor?.();
     this.ghostEffect?.destroy();
   }
 

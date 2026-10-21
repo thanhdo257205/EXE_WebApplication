@@ -97,7 +97,9 @@ Cập nhật: 2026-10-21 (Asia/Saigon).
 
 - [x] PERF-ASSET-01: Trim Google Font Be Vietnam Pro, Fraunces WOFF2 subset, hero PNG→WebP, `_headers` cache30 ngày; tests/build local qua.
 - [ ] PERF-ASSET-02: Sau deploy, xác minh `Cache-Control` thật của asset qua Pages, so sánh hình/chữ và đo LCP/transfer trước-sau.
-- [ ] PERF-ASSET-03: Cân nhắc tự host Be Vietnam Pro, giảm blur backdrop-filter trên thiết bị yếu, OnPush/eventCoalescing, snapshot-first.
+- [x] PERF-TIER-01: Bộ giám sát FPS `perf-tier`, hạ blur/tắt đuôi chuột khi giật, CSS coarse/reduced-transparency, `?perf=1`; tests/build/Chromium throttle local qua.
+- [ ] PERF-TIER-02: Đo trên thiết bị yếu thật và tinh chỉnh ngưỡng (40% khung chậm, 2 cửa sổ); cân nhắc hạ thêm dot-grid/canvas Column Spread khi `low`.
+- [ ] PERF-ASSET-03: Tự host Be Vietnam Pro, snapshot-first nội dung công khai (eventCoalescing/OnPush không áp dụng: app zoneless).
 
 ## Quy tắc cập nhật
 
