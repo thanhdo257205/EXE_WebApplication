@@ -3,5 +3,5 @@
   font-style: italic;
   font-weight: 700;
   font-display: swap;
-  src: url(/assets/fonts/fraunces-italic-0.ttf) format('truetype');
+  src: url(/assets/fonts/fraunces-italic-0.woff2) format('woff2');
 }

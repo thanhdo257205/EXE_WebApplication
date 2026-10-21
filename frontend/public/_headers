@@ -1,0 +1,8 @@
+/assets/fonts/*
+  Cache-Control: public, max-age=2592000
+/assets/models/*
+  Cache-Control: public, max-age=2592000
+/assets/cards/*
+  Cache-Control: public, max-age=2592000
+/assets/images/*
+  Cache-Control: public, max-age=2592000

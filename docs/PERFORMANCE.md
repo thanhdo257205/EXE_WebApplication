@@ -1,5 +1,13 @@
 # Hiệu năng frontend — cập nhật 2026-10-21
 
+## Tự hạ cấp theo FPS (`perf-tier`) — local, mới nhất
+
+Nhận biết "máy yếu" bằng đo thật, không dựa `deviceMemory`/`hardwareConcurrency`. Monitor rAF chạy khi có tương tác, nghỉ khi idle/tab ẩn; khung chậm tính theo nhịp màn hình (p10×1,6 kẹp24–50ms), hạ sau2 cửa sổ giật (≥40% khung chậm; cửa sổ60 khung hoặc1,5s/≥10 khung), chỉ hạ và nhớ trong phiên. Mức `low`: `html[data-perf=low]`, hủy đuôi chuột, blur kính8px, header/drawer nền đặc. Thêm media query tĩnh cho `pointer: coarse` và `prefers-reduced-transparency`. `?perf=1` hiển thị FPS/mức để QA. Spec8 ca + Chromium throttle: 1× giữ high ~60fps, 20× (~8fps) thành low. Chưa kiểm tra GPU/thiết bị thật; ngưỡng cần tinh chỉnh. Không áp dụng eventCoalescing vì app zoneless.
+
+## Font, ảnh hero và cache asset — local, mới nhất
+
+Bỏ italic/weight300 của Be Vietnam Pro khỏi URL Google Fonts; Fraunces chuyển TTF85.076→WOFF2 subset24.252 byte; ảnh hero PNG208.026→WebP19.118 byte (`can-nha-ban-dem.webp`, dùng ở `<img>` LCP và nền `.artwork-bg`); `public/_headers` đặt `Cache-Control: public, max-age=2592000` cho fonts/models/cards/images (không immutable vì chưa có hash trong tên). 129 tests và production build qua. Chưa so ảnh bằng trình duyệt, chưa đo LCP/transfer, chưa xác minh header sau deploy; chưa commit/push/deploy.
+
 ## Cache nền chấm khi cuộn trang chủ — local, mới nhất
 
 Scroll trước đây gọi rebuild của dot-grid: đọc bounds, cấp arrays điểm/rows, clear/raster bitmap nền trước khi kiểm tra offscreen. Nay bitmap/rows dùng tọa độ hero; scroll chỉ cập nhật bounds và dịch bitmap khi composite lên fixed canvas. Restore patch dùng clip rồi vẽ bitmap đã dịch, pointer warp vẫn cùng công thức và tọa độ viewport. Chỉ tái tạo khi kích thước hero/DPR đổi và đang visible; resize lúc offscreen được áp dụng khi trở lại. Không thêm vòng rAF/timer hoặc đổi hiệu ứng. Cache backing store nay theo toàn hero thay vì viewport, nên có thể tốn thêm bộ nhớ bitmap trên hero cao; chỉ một cache/mount và được thu hồi cùng teardown.
