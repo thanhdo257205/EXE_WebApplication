@@ -59,20 +59,20 @@ export const SAMPLE_CARDS: SampleCard[] = [
   })),
 ];
 
-/** Thẻ linh vật do người dùng cung cấp (ảnh Sân Trường), tách khỏi nhóm Pokémon. */
-export const MASCOT_CARD: SampleCard = {
+/** Thẻ do người dùng cung cấp (ảnh Sân Trường, đã được đồng ý), tách khỏi nhóm Pokémon TCG. */
+export const HOANG_NAM_CARD: SampleCard = {
   ...SAMPLE_CARD,
-  id: 'sample-linh-vat-hoang-nam',
-  slug: 'linh-vat-hoang-nam',
+  id: 'sample-pokemon-hoang-nam',
+  slug: 'pokemon-hoang-nam',
   sortOrder: POKEMON_SAMPLES.length + 1,
-  code: 'LINH VẬT · SÂN TRƯỜNG',
-  name: 'Linh Vật Hoàng Nam',
-  effectText: 'Thẻ minh họa linh vật Hoàng Nam để xoay, lật và zoom 3D. Không phải thẻ hoặc luật chính thức của Nhà Này Hơi Báo!',
-  artworkUrl: '/assets/cards/linh-vat-hoang-nam-poster.webp',
-  frontTextureUrl: '/assets/cards/linh-vat-hoang-nam.webp',
+  code: 'POKÉMON · SÂN TRƯỜNG',
+  name: 'Pokémon Hoàng Nam',
+  effectText: 'Thẻ minh họa Pokémon Hoàng Nam để xoay, lật và zoom 3D. Không phải thẻ hoặc luật chính thức của Nhà Này Hơi Báo!',
+  artworkUrl: '/assets/cards/pokemon-hoang-nam-poster.webp',
+  frontTextureUrl: '/assets/cards/pokemon-hoang-nam.webp',
   sourceUrl: undefined,
 };
-SAMPLE_CARDS.push(MASCOT_CARD);
+SAMPLE_CARDS.push(HOANG_NAM_CARD);
 
 export function findSampleCard(slug: string): SampleCard | undefined {
   return SAMPLE_CARDS.find(card => card.slug === slug);
