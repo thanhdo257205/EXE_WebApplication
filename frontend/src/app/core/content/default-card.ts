@@ -59,6 +59,21 @@ export const SAMPLE_CARDS: SampleCard[] = [
   })),
 ];
 
+/** Thẻ linh vật do người dùng cung cấp (ảnh Sân Trường), tách khỏi nhóm Pokémon. */
+export const MASCOT_CARD: SampleCard = {
+  ...SAMPLE_CARD,
+  id: 'sample-linh-vat-hoang-nam',
+  slug: 'linh-vat-hoang-nam',
+  sortOrder: POKEMON_SAMPLES.length + 1,
+  code: 'LINH VẬT · SÂN TRƯỜNG',
+  name: 'Linh Vật Hoàng Nam',
+  effectText: 'Thẻ minh họa linh vật Hoàng Nam để xoay, lật và zoom 3D. Không phải thẻ hoặc luật chính thức của Nhà Này Hơi Báo!',
+  artworkUrl: '/assets/cards/linh-vat-hoang-nam-poster.webp',
+  frontTextureUrl: '/assets/cards/linh-vat-hoang-nam.webp',
+  sourceUrl: undefined,
+};
+SAMPLE_CARDS.push(MASCOT_CARD);
+
 export function findSampleCard(slug: string): SampleCard | undefined {
   return SAMPLE_CARDS.find(card => card.slug === slug);
 }
