@@ -27,7 +27,7 @@ Public routes retain existing destinations and auth logic. Route data binds plac
 
 Column Spread now randomizes its twelve image-slot indices at mount and once per animation wrap, while the cards are collapsed. The image order remains stable during the fan-out. Source loading positions and the display buffer are separate so late decoding preserves the current order. This changes image selection only; animation maths and cached poster loading remain unchanged. Pausing, resizing, visibility and reduced-motion changes do not trigger a reshuffle. Repeated source images mean some visible cards can retain their positions between rounds.
 
-- House image: pre-existing `frontend/public/assets/images/can-nha-ban-dem.png`.
+- House image: pre-existing `frontend/public/assets/images/can-nha-ban-dem.webp`.
 - Column Spread: Pokémon sample posters sourced from TCGdex, reused from the catalog; see `assets/cards/pokemon/sources.json` and `ATTRIBUTION.md`. Separate hero/theme decorative SVGs retain their typography, dice and simple geometry.
 - Fraunces italic: self-hosted from Google Fonts; OFL license beside font. Existing Be Vietnam Pro body font setup retained.
 - Reference photos/screenshots are inspection artifacts, not shipped art.

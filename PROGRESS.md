@@ -4,6 +4,12 @@
 
 ## Cập nhật gần nhất
 
+### Giảm tải font/ảnh và cache asset tĩnh — 2026-10-21, local
+
+- Rà soát hiệu năng theo yêu cầu, chọn các thay đổi không đổi hiệu ứng: (1) Google Fonts chỉ xin Be Vietnam Pro wght 400–900, bỏ 7 biến thể italic và weight300 vì CSS không dùng (`em` dùng Fraunces); (2) Fraunces TTF85.076 byte → WOFF2 subset Latin/Việt24.252 byte, giữ weight700 italic và `font-display: swap`; (3) `can-nha-ban-dem.png`208.026 byte → WebP19.118 byte (sai khác trung bình ~0,5/255 mỗi kênh, giữ alpha), cập nhật `<img>` và nền `.artwork-bg`; (4) thêm `frontend/public/_headers` cache30 ngày (không immutable vì tên file không có hash) cho `/assets/{fonts,models,cards,images}`.
+- Xác minh: 129/129 frontend tests, production build/prerender qua (Node24.15.0); `_headers` và WOFF2 có trong output. Chưa mở trình duyệt so ảnh/chữ, chưa đo LCP/transfer thật, chưa xác nhận Cloudflare Pages áp `_headers` cho asset qua worker `ASSETS` — cần kiểm tra header sau deploy. Chưa commit/push/deploy.
+- Chưa làm: tự host Be Vietnam Pro, giảm blur backdrop-filter, OnPush/event coalescing, snapshot-first nội dung công khai (xem `docs/PERFORMANCE.md`).
+
 ### Khôi phục xác nhận deploy liquid glass/cache cuộn — 2026-10-21
 
 - CI39621965643 của runtime9679e6e success. CD39622667297 publish gateway/backend/Pages thành công nhưng smoke ngay sau publish nhận500 tại GET /, làm deployment đỏ. Sau đó cùng smoke script trên production đã qua; chưa có bằng chứng xác định nguyên nhân nền tảng của500, chỉ xác nhận lỗi tạm thời không còn tái hiện.

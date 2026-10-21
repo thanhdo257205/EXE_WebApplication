@@ -93,6 +93,12 @@ Cập nhật: 2026-10-21 (Asia/Saigon).
 
 Đây là danh sách công việc chính thức để theo dõi hoàn thành. Bối cảnh, quyết định kỹ thuật, nhật ký và điểm tiếp tục được lưu trong [PROGRESS.md](PROGRESS.md).
 
+## Tối ưu tải font/ảnh/cache (2026-10-21)
+
+- [x] PERF-ASSET-01: Trim Google Font Be Vietnam Pro, Fraunces WOFF2 subset, hero PNG→WebP, `_headers` cache30 ngày; tests/build local qua.
+- [ ] PERF-ASSET-02: Sau deploy, xác minh `Cache-Control` thật của asset qua Pages, so sánh hình/chữ và đo LCP/transfer trước-sau.
+- [ ] PERF-ASSET-03: Cân nhắc tự host Be Vietnam Pro, giảm blur backdrop-filter trên thiết bị yếu, OnPush/eventCoalescing, snapshot-first.
+
 ## Quy tắc cập nhật
 
 - `[ ]`: chưa hoàn thành, kể cả đang làm hoặc đang bị chặn.
