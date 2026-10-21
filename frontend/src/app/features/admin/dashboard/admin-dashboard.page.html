@@ -27,7 +27,7 @@
         <span>{{ refreshing() ? 'Đang cập nhật...' : 'Làm mới' }}</span>
       </button>
 
-      <a routerLink="/admin/cards" class="primary-action-btn">
+      <a data-glass-control routerLink="/admin/cards" class="primary-action-btn">
         <app-morph-icon name="cards" [size]="16" color="#ffffff"></app-morph-icon>
         <span>Quản lý 148 thẻ bài</span>
       </a>
@@ -47,7 +47,7 @@
             </p>
           </div>
         </div>
-        <a routerLink="/dang-nhap" [queryParams]="{ returnUrl: '/admin' }" class="relogin-btn shrink-0">
+        <a data-glass-control routerLink="/dang-nhap" [queryParams]="{ returnUrl: '/admin' }" class="relogin-btn shrink-0">
           Đăng nhập lại →
         </a>
       </div>
@@ -241,7 +241,7 @@
               </td>
               <td class="text-right text-xs text-slate-400">{{ item.updatedAt }}</td>
               <td class="text-center">
-                <a [routerLink]="item.actionUrl" class="action-btn">
+                <a data-glass-control [routerLink]="item.actionUrl" class="action-btn">
                   Mở →
                 </a>
               </td>

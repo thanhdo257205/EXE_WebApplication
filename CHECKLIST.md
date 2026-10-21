@@ -2,6 +2,21 @@
 
 Cập nhật: 2026-10-21 (Asia/Saigon).
 
+## Phát hành liquid glass và cache cuộn (2026-10-21)
+
+- [x] FE-GLASS-SCROLL-RELEASE-CHECKS —129tests/build/prerender, browser QA và diff check đã qua sau thay đổi runtime cuối; code/docs cùng đợt phát hành.
+- [ ] FE-GLASS-SCROLL-RELEASE-CI-CD — Xác minh CI/CD và production của bản phát hành mới; push không đồng nghĩa deploy thành công.
+
+## Cuộn trang chủ (2026-10-21)
+
+- [x] FE-SCROLL-DOT-CACHE — Cache bitmap theo hero, không raster lại theo scroll/offscreen; invalidation kích thước/DPR.129tests/build và Edge baseline/after/fingerprint qua; local.
+- [ ] FE-SCROLL-DEVICE — Đo frame/GPU trên thiết bị người dùng và xác minh sau phát hành; chưa coi operation counts là hết khựng toàn trang.
+
+## Liquid glass controls (2026-10-21)
+
+- [x] FE-GLASS-ALL-CONTROLS — Material chung public/auth/viewer/catalog/mobile/admin, selected/disabled/focus/danger; root delegated pointer/cache/1rAF/1ResizeObserver và no idle/nested blur.127tests/build/prerender và Edge9nhóm trang/keyboard/forced-colors/touch qua; local, chưa deploy.
+- [ ] FE-GLASS-DEVICE-PERF — Benchmark FPS/CPU trên thiết bị thật và xác minh production sau phát hành; số pointer/layout của fixture chưa là mức tăng tốc toàn web.
+
 ## Bản phát hành Pokémon lên GitHub (2026-10-21)
 
 - [x] FE-POKEMON-RELEASE-CHECKS —123 frontend tests/24files, focused13tests sau bổ sung cuối, production build/prerender và browser QA catalog/viewer/motion/shuffle đã qua; ảnh/attribution/docs cùng đợt.

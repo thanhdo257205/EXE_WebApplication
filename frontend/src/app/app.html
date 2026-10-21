@@ -1,6 +1,6 @@
 <a class="skip-link" href="#main">Chuyển đến nội dung</a>
 
-<div class="app-container" [class.admin-mode]="isAdminRoute()">
+<div class="app-container" appGlassControls [class.admin-mode]="isAdminRoute()">
   @if (!isAdminRoute()) {
     <!-- Shared Top Global Wiki Bar -->
     <app-global-bar
@@ -24,53 +24,53 @@
         </div>
       } @else {
         <div class="flex items-center gap-2 mb-3">
-          <a routerLink="/dang-nhap" (click)="toggleMobileMenu()" class="flex-1 text-center py-2 bg-sky-600 hover:bg-sky-500 text-white rounded text-xs font-bold transition-colors">
+          <a data-glass-control routerLink="/dang-nhap" (click)="toggleMobileMenu()" class="flex-1 text-center py-2 bg-sky-600 hover:bg-sky-500 text-white rounded text-xs font-bold transition-colors">
             Đăng nhập
           </a>
-          <a routerLink="/dang-ky" (click)="toggleMobileMenu()" class="flex-1 text-center py-2 bg-[#18232f] hover:bg-[#202f3f] text-sky-400 border border-[#2e4157] rounded text-xs font-bold transition-colors">
+          <a data-glass-control routerLink="/dang-ky" (click)="toggleMobileMenu()" class="flex-1 text-center py-2 bg-[#18232f] hover:bg-[#202f3f] text-sky-400 border border-[#2e4157] rounded text-xs font-bold transition-colors">
             Đăng ký
           </a>
         </div>
       }
 
-      <a routerLink="/" (click)="toggleMobileMenu()" class="drawer-link flex items-center gap-3">
+      <a data-glass-control routerLink="/" (click)="toggleMobileMenu()" class="drawer-link flex items-center gap-3">
         <app-morph-icon name="home" [size]="18" color="#38bdf8"></app-morph-icon>
         <span>Trang chủ</span>
       </a>
-      <a routerLink="/cau-chuyen" (click)="toggleMobileMenu()" class="drawer-link flex items-center gap-3">
+      <a data-glass-control routerLink="/cau-chuyen" (click)="toggleMobileMenu()" class="drawer-link flex items-center gap-3">
         <app-morph-icon name="story" [size]="18" color="#38bdf8"></app-morph-icon>
         <span>Câu chuyện</span>
       </a>
-      <a routerLink="/cu-dan" (click)="toggleMobileMenu()" class="drawer-link flex items-center gap-3">
+      <a data-glass-control routerLink="/cu-dan" (click)="toggleMobileMenu()" class="drawer-link flex items-center gap-3">
         <app-morph-icon name="residents" [size]="18" color="#38bdf8"></app-morph-icon>
         <span>Cư dân (8 người)</span>
       </a>
-      <a routerLink="/cach-choi" (click)="toggleMobileMenu()" class="drawer-link flex items-center gap-3">
+      <a data-glass-control routerLink="/cach-choi" (click)="toggleMobileMenu()" class="drawer-link flex items-center gap-3">
         <app-morph-icon name="gameplay" [size]="18" color="#38bdf8"></app-morph-icon>
         <span>Cách chơi</span>
       </a>
-      <a routerLink="/wiki" (click)="toggleMobileMenu()" class="drawer-link flex items-center gap-3">
+      <a data-glass-control routerLink="/wiki" (click)="toggleMobileMenu()" class="drawer-link flex items-center gap-3">
         <app-morph-icon name="rules" [size]="18" color="#38bdf8"></app-morph-icon>
         <span>Wiki luật</span>
       </a>
-      <a routerLink="/thu-vien" (click)="toggleMobileMenu()" class="drawer-link flex items-center gap-3">
+      <a data-glass-control routerLink="/thu-vien" (click)="toggleMobileMenu()" class="drawer-link flex items-center gap-3">
         <app-morph-icon name="cards" [size]="18" color="#38bdf8"></app-morph-icon>
         <span>Thư viện thẻ (148 thẻ)</span>
       </a>
-      <a routerLink="/quy-nha" (click)="toggleMobileMenu()" class="drawer-link flex items-center gap-3">
+      <a data-glass-control routerLink="/quy-nha" (click)="toggleMobileMenu()" class="drawer-link flex items-center gap-3">
         <app-morph-icon name="fund" [size]="18" color="#38bdf8"></app-morph-icon>
         <span>Mô phỏng Quỹ nhà</span>
       </a>
-      <a routerLink="/cua-hang" (click)="toggleMobileMenu()" class="drawer-link flex items-center gap-3">
+      <a data-glass-control routerLink="/cua-hang" (click)="toggleMobileMenu()" class="drawer-link flex items-center gap-3">
         <app-morph-icon name="store" [size]="18" color="#38bdf8"></app-morph-icon>
         <span>Cửa hàng board game</span>
       </a>
-      <a routerLink="/gio-hang" (click)="toggleMobileMenu()" class="drawer-link flex items-center gap-3">
+      <a data-glass-control routerLink="/gio-hang" (click)="toggleMobileMenu()" class="drawer-link flex items-center gap-3">
         <app-morph-icon name="cart" [size]="18" color="#38bdf8"></app-morph-icon>
         <span>Giỏ hàng & Thanh toán</span>
       </a>
-      <a routerLink="/chinh-sach-quyen-rieng-tu" (click)="toggleMobileMenu()" class="drawer-link">Quyền riêng tư</a>
-      <a routerLink="/dieu-khoan-su-dung" (click)="toggleMobileMenu()" class="drawer-link">Điều khoản sử dụng</a>
+      <a data-glass-control routerLink="/chinh-sach-quyen-rieng-tu" (click)="toggleMobileMenu()" class="drawer-link">Quyền riêng tư</a>
+      <a data-glass-control routerLink="/dieu-khoan-su-dung" (click)="toggleMobileMenu()" class="drawer-link">Điều khoản sử dụng</a>
     </nav>
   }
 

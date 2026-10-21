@@ -1,5 +1,25 @@
 # Hiệu năng frontend — cập nhật 2026-10-21
 
+## Cache nền chấm khi cuộn trang chủ — local, mới nhất
+
+Scroll trước đây gọi rebuild của dot-grid: đọc bounds, cấp arrays điểm/rows, clear/raster bitmap nền trước khi kiểm tra offscreen. Nay bitmap/rows dùng tọa độ hero; scroll chỉ cập nhật bounds và dịch bitmap khi composite lên fixed canvas. Restore patch dùng clip rồi vẽ bitmap đã dịch, pointer warp vẫn cùng công thức và tọa độ viewport. Chỉ tái tạo khi kích thước hero/DPR đổi và đang visible; resize lúc offscreen được áp dụng khi trở lại. Không thêm vòng rAF/timer hoặc đổi hiệu ứng. Cache backing store nay theo toàn hero thay vì viewport, nên có thể tốn thêm bộ nhớ bitmap trên hero cao; chỉ một cache/mount và được thu hồi cùng teardown.
+
+Codex chạy Edge headless1280×800/DPR1,25, kịch bản scroll xuống/lên của Antigravity: baseline58scroll/20.776arc/78clear/124.800.000pixel clear; sau56scroll/0arc/23clear/36.800.000pixel clear.0pageerror cả hai. Layout reads150→148, phần khác của trang vẫn còn; không tuyên bố tối ưu mọi nguồn khựng. Các event/frame khác nhau do scheduling. Bộ đếm longFrames trong script tính khoảng cách giữa mọi callback rAF, không đo frame liên tục, nên không dùng để suy ra FPS hoặc tốc độ tăng.
+
+QA độc lập so fingerprint FNV32 của toàn RGBA trước/sau ở viewport1000×900/DPR1,25, hero1000×800, các mốc scroll0/200/600/1200/0: trùng nhau, gồm pointer warp tại200/600 và blur restore; hidden ngoài viewport/quay lại visible. Đây là fixture geometry/DPR cụ thể, không bảo đảm pixel khớp mọi fractional scroll/DPR vì dịch bitmap có thể nội suy khác raster lại. Đã xem ảnh homepage sau cuộn. Scripts measure-scroll-baseline.cjs/check-scroll-grid.cjs và ảnh scroll-grid-after.png ở frontend/output ignored.
+
+129/129tests/25files qua (thêm2cache/resize regressions), production build/prerender6routes qua: initial445,95kB raw/120,59kB estimated transfer. Cảnh báo home/dashboard CSS và React cũ còn. Antigravity chỉ tạo baseline script; sau hơn12phút chưa có bản sửa đã hủy task, Codex thực hiện code/tests/review. Local, chưa commit/push/deploy; cần nghiệm thu cuộn và GPU/FPS trên thiết bị thật.
+
+## Liquid glass cho controls toàn app — local
+
+Style global áp dụng tự động cho native buttons và các link/badge dạng nút, không mount LiquidGlassDirective riêng trên mỗi control. Root GlassControlsDirective chạy ngoài Angular với event delegation, một rAF chờ, cached active rect/styles, một ResizeObserver chỉ theo dõi active control và reset khi navigation/hidden/focus/media/destroy. Dynamic buttons không cần DOM scan hoặc observer cho từng nút. Existing nav/CTA có optical directive không bị xử lý trùng.
+
+Control idle blur none; desktop fine hover/focus tối đa8px, không animate blur hoặc blanket will-change. Touch/reduced/forced-colors không blur; reduced transparency dùng opaque tokens mà vẫn giữ accent. Không thêm blur lồng header/nav/drawer. Styles vẫn tăng bundle và có chi phí repaint trên control active; không diễn giải các thay đổi này thành phần trăm tăng FPS.
+
+127tests/25files, build/prerender6routes qua. Edge fixture kiểm tra9nhóm giao diện và touch/keyboard/forced-colors,0pageerror.100move warm Google CTA→1rAF/0rect read/1style write. Scripts/screenshots glass-controls-* ignored. Chưa đo FPS/CPU/LCP/INP thiết bị thật hoặc production; chưa commit/push/deploy. [Phạm vi/cascade/lifecycle](LIQUID_GLASS_CONTROLS.md).
+
+Build cuối:initial445,95kB raw/120,64kB estimated transfer, khoảng+2,23kB estimated transfer so với bản trước. Không thêm library/budget; warnings CSS home/dashboard và React CommonJS cũ giữ nguyên. Chi phí stylesheet mới là tradeoff để phủ toàn bộ controls, không gọi đây là giảm bundle.
+
 ## Xáo ảnh Column Spread theo chu kỳ — local
 
 Fisher-Yates trên12 chỉ số slot lúc mount và khi phase8s wrap1→0, trong đoạn đã khép bài; không random mỗi frame hoặc thay hình giữa lúc tỏa. Identity RNG có fallback xoay1slot. Hoán vị chỉ số đổi không có nghĩa mọi ảnh/lá trên cùng phải khác vì3nguồn được lặp lại và shuffle có thể giữ lại một số vị trí. Không dùng cho mục đích bảo mật/trò chơi có cược.

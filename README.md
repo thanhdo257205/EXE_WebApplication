@@ -4,6 +4,8 @@ Website board game **Chưa Giàu Đã Lớn — Nhà Này Hơi Báo!**
 
 ## Công nghệ và trạng thái
 
+Bản local mới áp dụng [liquid glass cho nút toàn giao diện](docs/LIQUID_GLASS_CONTROLS.md), gồm public/auth/catalog/3D/mobile/admin. Dùng pointer delegation dùng chung, không loop hoặc blur trên từng nút khi idle;127frontend tests/build và browser fixture đã qua. Chưa commit/push/deploy bản nút kính mới.
+
 Bản phát hành GitHub ngày2026-10-21 gộp9 mẫu Pokémon mới, texture3D và Column Spread dùng poster/xáo ảnh mỗi vòng.123frontend tests và production build/prerender đã qua; CI/CD của bản này cần xác minh trên [GitHub Actions](https://github.com/thanhdo257205/EXE_WebApplication/actions). Các ghi chú local ở dưới là lịch sử triển khai trước đợt phát hành.
 
 Column Spread local xáo ảnh ngẫu nhiên lúc mở và mỗi vòng8s khi bài đã khép, giữ thứ tự trong lượt tỏa và dùng lại ảnh đã decode.123frontend tests/build qua; bản xáo ảnh cùng bộ Pokémon mới chưa push/deploy.

@@ -97,7 +97,8 @@ describe('Dot grid bitmap and scheduler stability', () => {
     expect(ctx.clearRect.mock.calls.every(([, , width, height]) => width * height < canvas.width * canvas.height)).toBe(true);
     flush();
     window.dispatchEvent(new Event('blur')); flush();
-    expect(ctx.drawImage.mock.calls.some(args => args.length === 9)).toBe(true);
+    expect(ctx.drawImage).toHaveBeenCalled();
+    expect(ctx.clip).toHaveBeenCalled();
     expect(frames.size).toBe(0);
   });
   it('keeps patch coordinates finite and clipped near viewport edges', () => {
@@ -121,5 +122,30 @@ describe('Dot grid bitmap and scheduler stability', () => {
     window.dispatchEvent(new Event('blur')); flush();
     expect(ctx.drawImage).toHaveBeenCalled();
     expect(field().style.visibility).toBe('visible');
+  });
+  it('reuses surface-local dots during visible scrolling and offscreen round trips', () => {
+    const canvas = field();
+    const base = [...contexts.keys()].find(item => item !== canvas)!;
+    const baseCtx = contexts.get(base)!;
+    const arcs = baseCtx.arc.mock.calls.length;
+    const clears = baseCtx.clearRect.mock.calls.length;
+    for (const position of [20, -140, -420, -1200, -1600, -400, 80]) {
+      top = position; window.dispatchEvent(new Event('scroll')); flush();
+    }
+    expect(baseCtx.arc).toHaveBeenCalledTimes(arcs);
+    expect(baseCtx.clearRect).toHaveBeenCalledTimes(clears);
+    expect(contexts.get(canvas)!.drawImage).toHaveBeenLastCalledWith(base, 0, 80 * window.devicePixelRatio);
+    expect(canvas.style.visibility).toBe('visible');
+  });
+  it('rebuilds the surface bitmap on geometry changes, not same-size notifications', () => {
+    const base = [...contexts.keys()].find(item => item !== field())!;
+    const ctx = contexts.get(base)!;
+    const fills = ctx.fill.mock.calls.length;
+    window.dispatchEvent(new Event('resize')); flush();
+    expect(ctx.fill).toHaveBeenCalledTimes(fills);
+    vi.mocked(surface.getBoundingClientRect).mockReturnValue({ left: 0, top: 0, right: 800, bottom: 700, width: 800, height: 700, x: 0, y: 0, toJSON() {} });
+    window.dispatchEvent(new Event('resize')); flush();
+    expect(ctx.fill).toHaveBeenCalledTimes(fills + 1);
+    expect(base.width).toBe(Math.round(800 * Math.min(window.devicePixelRatio, 2)));
   });
 });

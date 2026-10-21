@@ -4,6 +4,26 @@
 
 ## Cập nhật gần nhất
 
+### Phát hành liquid glass và cache cuộn — 2026-10-21
+
+- Theo yêu cầu chủ dự án, gộp material liquid glass toàn app và cache nền chấm hero cùng docs vào bản phát hành origin/main. Các ghi chú local bên dưới là lịch sử trước đợt phát hành này. Không đưa output QA/build/cache vào commit.
+- Kiểm tra trước phát hành:129/129 frontend tests và production build/prerender6routes đã qua sau thay đổi runtime cuối; diff check sạch. Fetch xác nhận HEAD và origin/main không phân kỳ. Không thay backend/gateway; không chạy lại local suite hai phần đó.
+- CI/CD sẽ chạy theo workflow hiện có sau push; chưa xác nhận kết quả CI/CD hoặc production của bản này. Kiểm tra FPS/GPU trên thiết bị thật vẫn chưa hoàn thành.
+
+### Cache nền chấm khi cuộn trang chủ — 2026-10-21, local
+
+- Dot-grid trước đây dựng lại điểm/raster bitmap mỗi scroll, kể cả trước khi kiểm tra offscreen. Codex chuyển sang bitmap tọa độ cục bộ hero, dùng lại khi cuộn; chỉ raster lại khi kích thước/DPR đổi và visible. Giữ công thức warp/timing/màu/gap. Cache kích thước hero thay viewport, đổi bộ nhớ lấy ít raster hơn.
+- Antigravity tạo script baseline nhưng chưa sửa code sau hơn12phút; đã hủy đúng task/process. Codex trực tiếp sửa và kiểm tra, giữ toàn bộ liquid glass local có trước.
+- 129/129tests/25files và production build/prerender6routes qua; thêm2regression scroll-cache/resize. Edge down/up: trước58scroll/20.776arc/78clear, sau56scroll/0arc/23clear;0pageerror. Khác số scroll do scheduling, không suy ra phần trăm FPS. Fingerprint RGBA fixture DPR1,25 trùng trước/sau tại scroll0/200/600/1200/0, gồm pointer warp và blur restore; offscreen hidden/quay lại đúng. Đã xem ảnh homepage sau cuộn.
+- Scripts/ảnh frontend/output/*scroll* ignored. Chưa đo GPU/FPS thiết bị thật, chưa khẳng định hết khựng toàn trang. Code/docs local, chưa commit/push/deploy; chi tiết docs/PERFORMANCE.md.
+
+### Liquid glass cho toàn bộ nút — 2026-10-21, local
+
+- Native button/input action/role button và CTA links/badge Xem3D dùng chung material kính qua stylesheet global; có public/auth/catalog/viewer/mobile/admin, state selected/disabled/focus/danger và fallback touch/reduced/transparency/forced-colors. Đánh dấu anchor dạng nút bằng data-glass-control; text link/card giữ semantics. Không thêm overlay hoặc thay handler click/form/nav/layout vị trí component.
+- Antigravity MCP Bridge tạo stylesheet theo phạm vi; Codex review/sửa cascade blur cũ, fallback tọa độ quang học, token reduced transparency và media gate forced colors; trực tiếp triển khai root directive/test/integration. Một controller outside Angular, delegation không scan/listener từng nút,1rAF chờ, cache active rect/giá trị ghi,1ResizeObserver chỉ observe nút active và cleanup khi navigation/visibility/destroy. Existing optical nav/CTA không xử lý trùng;0blur control idle, hover/focus desktop tối đa8px, không blur lồng header/nav.
+- 127/127 frontend tests/25files qua, gồm4regression controller; production build/prerender6routes qua, initial445,95kB raw/120,64kB estimated transfer; warnings CSS home/dashboard và React CommonJS cũ giữ nguyên. Edge local qua9nhóm giao diện, material trên mọi native button hiển thị trong fixture; theme/password/menu/viewer/adminfilter/notification vẫn hoạt động,0pageerror.100pointer event trên Google CTA warm cache→1rAF/0layout read/1style write. Keyboard outline2px; forced colors không gradient/blur; touch390px coarse=true,blur none,transition0s và0overflow. Đã xem ảnh login/admin/mobile.
+- Tests browser dùng auth/admin fixture, không thao tác tài khoản/backend thật. Scripts/ảnh glass-controls-* ở frontend/output ignored; chưa benchmark FPS/CPU thiết bị thật. Code/docs local, chưa commit/push/deploy. [Thiết kế và kiểm tra](docs/LIQUID_GLASS_CONTROLS.md).
+
 ### Bản phát hành GitHub: Pokémon và xáo ảnh — 2026-10-21
 
 - Gộp bộ9 mẫu Pokémon mới (catalog10thẻ, texture3D riêng dùng chung GLB), Column Spread dùng poster/dedup/viewport decode và xáo ảnh mỗi vòng. Mã,18ảnh WebP, manifest nguồn/attribution và docs được phát hành cùng đợt; không đưa output browser/log/build/cache hoặc secrets vào Git.

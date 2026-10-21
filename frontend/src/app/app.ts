@@ -5,11 +5,12 @@ import { AuthService } from './core/auth/auth.service';
 import { GlobalBarComponent } from './shared/components/global-bar/global-bar.component';
 import { MorphIconComponent } from './shared/components/morph-icon/morph-icon.component';
 import { CursorGhost } from './shared/utils/cursor-ghost';
+import { GlassControlsDirective } from './shared/motion/glass-controls.directive';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterLink, RouterOutlet, GlobalBarComponent, MorphIconComponent],
+  imports: [RouterLink, RouterOutlet, GlobalBarComponent, MorphIconComponent, GlassControlsDirective],
   templateUrl: './app.html',
   styleUrl: './app.css',
   host: { '(document:keydown.escape)': 'closeMobileMenu()' },

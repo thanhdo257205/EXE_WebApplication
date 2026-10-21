@@ -43,6 +43,7 @@ function createField(surface: HTMLElement): () => void {
   let rows: { x: number; y: number }[][] = [];
   type Area = { left: number; top: number; width: number; height: number };
   let previousArea: Area | null = null, fullPaint = true;
+  let cachedWidth = 0, cachedHeight = 0, cachedDpr = 0;
   const pathDot = (context: CanvasRenderingContext2D, cx: number, cy: number, radius: number) => {
     context.moveTo(cx + radius, cy); context.arc(cx, cy, radius, 0, Math.PI * 2);
   };
@@ -54,40 +55,47 @@ function createField(surface: HTMLElement): () => void {
       const w = Math.round(width * dpr), h = Math.round(height * dpr);
       // Reassigning either dimension destroys the entire bitmap, even unchanged.
       if (canvas.width !== w || canvas.height !== h) {
-        canvas.width = w; canvas.height = h; base.width = w; base.height = h;
+        canvas.width = w; canvas.height = h;
       }
       viewportDirty = false;
     }
     bounds = surface.getBoundingClientRect();
+    targetStrength = pointerPresent && inside() ? 1 : 0;
+    layoutDirty = false; fullPaint = true; previousArea = null;
+    // Scrolling only changes the translation of the surface-local bitmap.
+    // Do not rasterize dots at all while the hero is outside the viewport.
+    if (bounds.bottom <= 0 || bounds.top >= height || !width || !height) return;
+    if (cachedWidth === bounds.width && cachedHeight === bounds.height && cachedDpr === dpr) return;
+    cachedWidth = bounds.width; cachedHeight = bounds.height; cachedDpr = dpr;
+    base.width = Math.round(bounds.width * dpr); base.height = Math.round(bounds.height * dpr);
     points = []; rows = [];
-    const firstRow = Math.max(0, Math.floor((-bounds.top - gap / 2 - push) / gap));
-    for (let row = firstRow; ; row++) {
-      const cy = bounds.top + gap / 2 + row * gap;
-      if (cy > Math.min(height + push, bounds.bottom)) break;
+    for (let row = 0; ; row++) {
+      const cy = gap / 2 + row * gap;
+      if (cy > bounds.height) break;
       const rowPoints: { x: number; y: number }[] = [];
-      for (let cx = bounds.left + gap / 2; cx < Math.min(width + push, bounds.right); cx += gap) {
+      for (let cx = gap / 2; cx < bounds.width; cx += gap) {
         const point = { x: cx, y: cy }; points.push(point); rowPoints.push(point);
       }
       rows.push(rowPoints);
     }
     baseCtx.setTransform(1, 0, 0, 1, 0, 0); baseCtx.clearRect(0, 0, base.width, base.height);
     baseCtx.setTransform(dpr, 0, 0, dpr, 0, 0); baseCtx.save();
-    baseCtx.beginPath(); baseCtx.rect(bounds.left, bounds.top, bounds.width, bounds.height); baseCtx.clip();
+    baseCtx.beginPath(); baseCtx.rect(0, 0, bounds.width, bounds.height); baseCtx.clip();
     baseCtx.fillStyle = '#FFFFFF'; baseCtx.beginPath();
     for (const point of points) pathDot(baseCtx, point.x, point.y, dotSize / 2);
     baseCtx.fill(); baseCtx.restore();
-    targetStrength = pointerPresent && inside() ? 1 : 0;
-    layoutDirty = false; fullPaint = true; previousArea = null;
   };
+  const paintBase = () => ctx.drawImage(base, bounds.left * dpr, bounds.top * dpr);
   const restore = (area: Area) => {
     ctx.clearRect(area.left, area.top, area.width, area.height);
-    ctx.drawImage(base, area.left, area.top, area.width, area.height, area.left, area.top, area.width, area.height);
+    ctx.save(); ctx.beginPath(); ctx.rect(area.left, area.top, area.width, area.height); ctx.clip();
+    paintBase(); ctx.restore();
   };
   const draw = () => {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     if (fullPaint) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(base, 0, 0);
+      paintBase();
       fullPaint = false;
     } else if (previousArea) restore(previousArea);
     previousArea = null;
@@ -106,7 +114,7 @@ function createField(surface: HTMLElement): () => void {
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.beginPath(); ctx.rect(bounds.left, bounds.top, bounds.width, bounds.height); ctx.clip();
         ctx.fillStyle = '#FFFFFF'; ctx.beginPath();
-        const firstY = rows[0]?.[0]?.y ?? 0, firstX = rows[0]?.[0]?.x ?? 0;
+        const firstY = (rows[0]?.[0]?.y ?? 0) + bounds.top, firstX = (rows[0]?.[0]?.x ?? 0) + bounds.left;
         const minRow = Math.max(0, Math.floor((top / dpr - dotSize * 2 - firstY) / gap));
         const maxRow = Math.min(rows.length - 1, Math.ceil((bottom / dpr + dotSize * 2 - firstY) / gap));
         for (let rowIndex = minRow; rowIndex <= maxRow; rowIndex++) {
@@ -115,12 +123,13 @@ function createField(surface: HTMLElement): () => void {
           const maxCol = Math.min(row.length - 1, Math.ceil((right / dpr + dotSize * 2 - firstX) / gap));
           for (let colIndex = minCol; colIndex <= maxCol; colIndex++) {
             const point = row[colIndex];
-            const dx = point.x - x, dy = point.y - y, squared = dx * dx + dy * dy;
-            if (squared >= reachSquared) { pathDot(ctx, point.x, point.y, dotSize / 2); continue; }
+            const px = point.x + bounds.left, py = point.y + bounds.top;
+            const dx = px - x, dy = py - y, squared = dx * dx + dy * dy;
+            if (squared >= reachSquared) { pathDot(ctx, px, py, dotSize / 2); continue; }
             const distance = Math.sqrt(squared);
             const influence = (1 - distance / reach) * strength;
             const ux = distance > .001 ? dx / distance : 1, uy = distance > .001 ? dy / distance : 0;
-            pathDot(ctx, point.x + ux * push * influence, point.y + uy * push * influence, dotSize / 2 * (1 + influence * (interactive ? 2.35 : 2)));
+            pathDot(ctx, px + ux * push * influence, py + uy * push * influence, dotSize / 2 * (1 + influence * (interactive ? 2.35 : 2)));
           }
         }
         ctx.fill(); ctx.restore();

@@ -1,0 +1,479 @@
+/**
+ * glass-controls.css
+ * Lightweight liquid glass material for all interface buttons and button-like anchors.
+ *
+ * Scoped strictly to:
+ * .app-container :is(button, input[type="button"], input[type="submit"], input[type="reset"], [role="button"], a[data-glass-control], a.primary-cta, a.submit-btn, a.google-btn, a.action-btn-primary, a.action-btn-secondary, a.cart-link, a.liquid-glass, span.view-3d)
+ *
+ * Performance and Accessibility Guarantees:
+ * - Default / idle backdrop-filter: none (zero per-button idle blur cost)
+ * - Desktop hover/focus backdrop-filter: bounded <= 8px on fine pointer supported desktop only
+ * - Nested blur suppressed for public header/nav controls and controls already inside .liquid-glass
+ * - Mobile / coarse / touch: zero blur, static material, no transitions
+ * - prefers-reduced-motion, prefers-reduced-transparency, forced-colors fully handled
+ * - Preserves existing layout, positioning (e.g. absolute password toggle/motion controls), radius and sizing
+ * - No pseudo elements (::before/::after) created; suppresses legacy .liquid-glass button ::after
+ */
+
+/* --------------------------------------------------------------------------
+   1. Theme Tokens & CSS Custom Properties
+   -------------------------------------------------------------------------- */
+:root {
+  /* Dynamic pointer coordinates updated by root event-delegated directive */
+
+  /* Default base glass: dark green / slate tinted fill with high contrast against light & dark pages */
+  --ctrl-glass-bg-base: #14252b;
+  --ctrl-glass-bg-tint: rgba(18, 36, 42, 0.86);
+  --ctrl-glass-bg-hover: rgba(22, 44, 52, 0.92);
+  --ctrl-glass-text: #f4f8f8;
+  --ctrl-glass-text-hover: #ffffff;
+  --ctrl-glass-border: rgba(220, 240, 255, 0.22);
+  --ctrl-glass-border-hover: rgba(235, 248, 255, 0.45);
+
+  /* Optical rim shine & specular highlights */
+  --ctrl-glass-rim-top: rgba(255, 255, 255, 0.38);
+  --ctrl-glass-rim-bottom: rgba(0, 0, 0, 0.28);
+  --ctrl-glass-specular-color: rgba(255, 255, 255, 0.32);
+  --ctrl-glass-shadow:
+    inset 0 1px 0 var(--ctrl-glass-rim-top),
+    inset 0 -1px 0 var(--ctrl-glass-rim-bottom),
+    0 3px 10px rgba(0, 0, 0, 0.2);
+  --ctrl-glass-shadow-hover:
+    inset 0 1px 1px rgba(255, 255, 255, 0.55),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.32),
+    0 6px 18px rgba(0, 0, 0, 0.28);
+  --ctrl-glass-shadow-active:
+    inset 0 2px 4px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 1px 3px rgba(0, 0, 0, 0.25);
+
+  /* Focus ring tokens */
+  --ctrl-glass-focus-ring: #5ab2e7;
+  --ctrl-glass-focus-ring-public: #a13b64;
+
+  /* Selected / Active / Expanded accent tokens (lime for public, sky for admin) */
+  --ctrl-glass-accent-bg: #dafa76;
+  --ctrl-glass-accent-text: #12281c;
+  --ctrl-glass-accent-border: rgba(218, 250, 118, 0.85);
+
+  /* Semantic Danger / Destructive tokens */
+  --ctrl-glass-danger-bg: rgba(68, 16, 23, 0.86);
+  --ctrl-glass-danger-text: #fecdd3;
+  --ctrl-glass-danger-border: rgba(248, 113, 113, 0.45);
+  --ctrl-glass-danger-hover-bg: rgba(98, 22, 31, 0.94);
+  --ctrl-glass-danger-hover-border: #f87171;
+}
+
+/* Admin Workspace overrides for semantic accents */
+.app-container.admin-mode {
+  --ctrl-glass-bg-tint: rgba(14, 25, 36, 0.88);
+  --ctrl-glass-bg-hover: rgba(18, 33, 48, 0.94);
+  --ctrl-glass-accent-bg: #38bdf8;
+  --ctrl-glass-accent-text: #041421;
+  --ctrl-glass-accent-border: rgba(56, 189, 248, 0.85);
+  --ctrl-glass-focus-ring: #38bdf8;
+}
+
+/* --------------------------------------------------------------------------
+   2. Fallback Corner Radius (Zero-specificity via :where)
+   Preserves component-defined border-radius, pills, circles, and admin corners.
+   -------------------------------------------------------------------------- */
+:where(
+  .app-container
+    :is(button, input[type="button"], input[type="submit"], input[type="reset"], [role="button"], a[data-glass-control], a.primary-cta, a.submit-btn, a.google-btn, a.action-btn-primary, a.action-btn-secondary, a.cart-link, a.liquid-glass, span.view-3d)
+) {
+  border-radius: 8px;
+}
+
+:where(
+  .app-container.admin-mode
+    :is(button, input[type="button"], input[type="submit"], input[type="reset"], [role="button"], a[data-glass-control], a.primary-cta, a.submit-btn, a.google-btn, a.action-btn-primary, a.action-btn-secondary, a.cart-link, a.liquid-glass, span.view-3d)
+) {
+  border-radius: 6px;
+}
+
+/* --------------------------------------------------------------------------
+   3. Base Liquid Glass Material
+   Applies consistent tinted glass fill, gradient rim, specular highlight, and inset shine.
+   Preserves component positioning, sizing, padding, and layout intact.
+   -------------------------------------------------------------------------- */
+.app-container
+  :is(button, input[type="button"], input[type="submit"], input[type="reset"], [role="button"], a[data-glass-control], a.primary-cta, a.submit-btn, a.google-btn, a.action-btn-primary, a.action-btn-secondary, a.cart-link, a.liquid-glass, span.view-3d) {
+  /* Dynamic coordinate resolution: prefer directive percentages, fallback to legacy directives, then center */
+  --ctrl-x: var(--control-glass-x, var(--glass-x, 50%));
+  --ctrl-y: var(--control-glass-y, var(--glass-y, 50%));
+
+  /* Multi-layered CSS background: radial specular shine + diagonal optical sheen + dark tinted fill */
+  background-color: var(--ctrl-glass-bg-tint) !important;
+  background-image:
+    radial-gradient(
+      circle at var(--ctrl-x) var(--ctrl-y),
+      rgba(255, 255, 255, 0.16) 0%,
+      rgba(255, 255, 255, 0.04) 35%,
+      transparent 70%
+    ),
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.14) 0%,
+      rgba(255, 255, 255, 0.02) 50%,
+      rgba(255, 255, 255, 0.08) 100%
+    ) !important;
+
+  /* Glass rim and inset shine */
+  border: 1px solid var(--ctrl-glass-border) !important;
+  box-shadow: var(--ctrl-glass-shadow) !important;
+  color: var(--ctrl-glass-text) !important;
+
+  /* Zero idle blur: performance standard */
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+
+  /* Controlled transitions on visual properties only (no backdrop-filter or gradient animation) */
+  transition-property: color, background-color, border-color, box-shadow, opacity, filter;
+  transition-duration: 0.18s;
+  transition-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* --------------------------------------------------------------------------
+   4. Subtle Hover and Dynamic Pointer Active States
+   -------------------------------------------------------------------------- */
+.app-container
+  :is(button, input[type="button"], input[type="submit"], input[type="reset"], [role="button"], a[data-glass-control], a.primary-cta, a.submit-btn, a.google-btn, a.action-btn-primary, a.action-btn-secondary, a.cart-link, a.liquid-glass, span.view-3d):is(:hover, [data-control-glass-active]):not(:disabled):not([aria-disabled="true"]) {
+  background-color: var(--ctrl-glass-bg-hover) !important;
+  background-image:
+    radial-gradient(
+      circle at var(--ctrl-x) var(--ctrl-y),
+      var(--ctrl-glass-specular-color) 0%,
+      rgba(255, 255, 255, 0.08) 38%,
+      transparent 70%
+    ),
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.22) 0%,
+      rgba(255, 255, 255, 0.04) 50%,
+      rgba(255, 255, 255, 0.12) 100%
+    ) !important;
+  border-color: var(--ctrl-glass-border-hover) !important;
+  box-shadow: var(--ctrl-glass-shadow-hover) !important;
+  color: var(--ctrl-glass-text-hover) !important;
+}
+
+/* --------------------------------------------------------------------------
+   5. Tactile Press State
+   Preserves absolute transforms and layout; relies on inset shadow & brightness.
+   -------------------------------------------------------------------------- */
+.app-container
+  :is(button, input[type="button"], input[type="submit"], input[type="reset"], [role="button"], a[data-glass-control], a.primary-cta, a.submit-btn, a.google-btn, a.action-btn-primary, a.action-btn-secondary, a.cart-link, a.liquid-glass, span.view-3d):active:not(:disabled):not([aria-disabled="true"]) {
+  box-shadow: var(--ctrl-glass-shadow-active) !important;
+  filter: brightness(0.96);
+}
+
+/* --------------------------------------------------------------------------
+   6. Strong Focus Ring
+   -------------------------------------------------------------------------- */
+.app-container
+  :is(button, input[type="button"], input[type="submit"], input[type="reset"], [role="button"], a[data-glass-control], a.primary-cta, a.submit-btn, a.google-btn, a.action-btn-primary, a.action-btn-secondary, a.cart-link, a.liquid-glass, span.view-3d):focus-visible {
+  outline: 2px solid var(--ctrl-glass-focus-ring) !important;
+  outline-offset: 2px !important;
+}
+
+.app-container:not(.admin-mode)
+  :is(button, input[type="button"], input[type="submit"], input[type="reset"], [role="button"], a[data-glass-control], a.primary-cta, a.submit-btn, a.google-btn, a.action-btn-primary, a.action-btn-secondary, a.cart-link, a.liquid-glass, span.view-3d):focus-visible {
+  outline: 2px solid var(--ctrl-glass-focus-ring-public) !important;
+  outline-offset: 2px !important;
+}
+
+/* Dark island surfaces inside public mode (e.g. 3D card viewer panel, mobile drawer) */
+:where(.viewer-panel, .desktop-nav, .mobile-drawer, .home-world)
+  :is(button, input[type="button"], input[type="submit"], input[type="reset"], [role="button"], a[data-glass-control], a.primary-cta, a.submit-btn, a.google-btn, a.action-btn-primary, a.action-btn-secondary, a.cart-link, a.liquid-glass, span.view-3d):focus-visible {
+  outline-color: #ffb7d2 !important;
+}
+
+/* --------------------------------------------------------------------------
+   7. Selected / Active / aria-pressed / expanded Semantic Accent State
+   Clear luminous accent fill and dark legible text.
+   -------------------------------------------------------------------------- */
+.app-container
+  :is(button, input[type="button"], input[type="submit"], input[type="reset"], [role="button"], a[data-glass-control], a.primary-cta, a.submit-btn, a.google-btn, a.action-btn-primary, a.action-btn-secondary, a.cart-link, a.liquid-glass, span.view-3d):is(
+    [aria-pressed="true"],
+    [aria-expanded="true"],
+    [aria-selected="true"],
+    .active,
+    .active-filter,
+    .active-nav-item,
+    [data-active="true"]
+  ) {
+  background-color: var(--ctrl-glass-accent-bg) !important;
+  background-image:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.45) 0%,
+      rgba(255, 255, 255, 0.1) 60%,
+      rgba(218, 250, 118, 0.3) 100%
+    ) !important;
+  color: var(--ctrl-glass-accent-text) !important;
+  border-color: var(--ctrl-glass-accent-border) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.15),
+    0 3px 10px rgba(0, 0, 0, 0.15) !important;
+}
+
+.app-container.admin-mode
+  :is(button, input[type="button"], input[type="submit"], input[type="reset"], [role="button"], a[data-glass-control], a.primary-cta, a.submit-btn, a.google-btn, a.action-btn-primary, a.action-btn-secondary, a.cart-link, a.liquid-glass, span.view-3d):is(
+    [aria-pressed="true"],
+    [aria-expanded="true"],
+    [aria-selected="true"],
+    .active,
+    .active-filter,
+    .active-nav-item,
+    [data-active="true"]
+  ) {
+  background-image:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.4) 0%,
+      rgba(255, 255, 255, 0.08) 60%,
+      rgba(56, 189, 248, 0.25) 100%
+    ) !important;
+}
+
+.app-container
+  :is(button, input[type="button"], input[type="submit"], input[type="reset"], [role="button"], a[data-glass-control], a.primary-cta, a.submit-btn, a.google-btn, a.action-btn-primary, a.action-btn-secondary, a.cart-link, a.liquid-glass, span.view-3d):is(
+    [aria-pressed="true"],
+    [aria-expanded="true"],
+    [aria-selected="true"],
+    .active,
+    .active-filter,
+    .active-nav-item,
+    [data-active="true"]
+  ):is(:hover, [data-control-glass-active]):not(:disabled):not([aria-disabled="true"]) {
+  filter: brightness(1.05);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.8),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.2),
+    0 5px 14px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* --------------------------------------------------------------------------
+   8. Danger / Destructive Red Indication
+   Preserves clear red semantics for logout, delete, and destructive actions.
+   -------------------------------------------------------------------------- */
+.app-container
+  :is(button, input[type="button"], input[type="submit"], input[type="reset"], [role="button"], a[data-glass-control], a.primary-cta, a.submit-btn, a.google-btn, a.action-btn-primary, a.action-btn-secondary, a.cart-link, a.liquid-glass, span.view-3d):is(
+    .danger,
+    .btn-danger,
+    .danger-btn,
+    .logout,
+    .admin-logout-btn,
+    .delete,
+    .btn-delete,
+    [data-destructive],
+    .destructive
+  ) {
+  background-color: var(--ctrl-glass-danger-bg) !important;
+  background-image:
+    radial-gradient(
+      circle at var(--ctrl-x) var(--ctrl-y),
+      rgba(255, 255, 255, 0.2) 0%,
+      transparent 65%
+    ),
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.12) 0%,
+      rgba(255, 255, 255, 0.02) 50%,
+      rgba(248, 113, 113, 0.08) 100%
+    ) !important;
+  border-color: var(--ctrl-glass-danger-border) !important;
+  color: var(--ctrl-glass-danger-text) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.3),
+    0 3px 10px rgba(180, 20, 30, 0.2) !important;
+}
+
+.app-container
+  :is(button, input[type="button"], input[type="submit"], input[type="reset"], [role="button"], a[data-glass-control], a.primary-cta, a.submit-btn, a.google-btn, a.action-btn-primary, a.action-btn-secondary, a.cart-link, a.liquid-glass, span.view-3d):is(
+    .danger,
+    .btn-danger,
+    .danger-btn,
+    .logout,
+    .admin-logout-btn,
+    .delete,
+    .btn-delete,
+    [data-destructive],
+    .destructive
+  ):is(:hover, [data-control-glass-active]):not(:disabled):not([aria-disabled="true"]) {
+  background-color: var(--ctrl-glass-danger-hover-bg) !important;
+  border-color: var(--ctrl-glass-danger-hover-border) !important;
+  color: #ffffff !important;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.4),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.35),
+    0 5px 14px rgba(220, 38, 38, 0.3) !important;
+}
+
+/* --------------------------------------------------------------------------
+   9. Disabled State
+   Dimmed visual presentation and complete suppression of interaction effects.
+   -------------------------------------------------------------------------- */
+.app-container
+  :is(button, input[type="button"], input[type="submit"], input[type="reset"], [role="button"], a[data-glass-control], a.primary-cta, a.submit-btn, a.google-btn, a.action-btn-primary, a.action-btn-secondary, a.cart-link, a.liquid-glass, span.view-3d):is(:disabled, [aria-disabled="true"], [disabled], .disabled) {
+  opacity: 0.42 !important;
+  cursor: not-allowed !important;
+  filter: none !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 1px 3px rgba(0, 0, 0, 0.1) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* --------------------------------------------------------------------------
+   10. Desktop Hover/Focus Backdrop Blur (Bounded <= 8px on Fine Pointer)
+   Zero idle blur, with nested blur suppression for header, nav, and .liquid-glass.
+   -------------------------------------------------------------------------- */
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) and (forced-colors: none) and (prefers-reduced-transparency: no-preference) {
+  @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+    .app-container
+      :is(button, input[type="button"], input[type="submit"], input[type="reset"], [role="button"], a[data-glass-control], a.primary-cta, a.submit-btn, a.google-btn, a.action-btn-primary, a.action-btn-secondary, a.cart-link, a.liquid-glass, span.view-3d):is(:hover, :focus-visible, [data-control-glass-active]):not(:disabled):not([aria-disabled="true"]) {
+      backdrop-filter: blur(8px) saturate(130%) !important;
+      -webkit-backdrop-filter: blur(8px) saturate(130%) !important;
+    }
+
+    /* Suppress nested blur: public header, nav clusters, and existing .liquid-glass containers */
+    :is(.public-header, nav, [appliquidglass], .liquid-glass, .submenu-surface, .mobile-drawer)
+      :is(button, input[type="button"], input[type="submit"], input[type="reset"], [role="button"], a[data-glass-control], a.primary-cta, a.submit-btn, a.google-btn, a.action-btn-primary, a.action-btn-secondary, a.cart-link, a.liquid-glass, span.view-3d) {
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+    }
+
+    :is(.public-header, nav, [appliquidglass], .liquid-glass, .submenu-surface, .mobile-drawer)
+      :is(button, input[type="button"], input[type="submit"], input[type="reset"], [role="button"], a[data-glass-control], a.primary-cta, a.submit-btn, a.google-btn, a.action-btn-primary, a.action-btn-secondary, a.cart-link, a.liquid-glass, span.view-3d):is(:hover, :focus-visible, [data-control-glass-active]) {
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+    }
+  }
+}
+
+/* --------------------------------------------------------------------------
+   11. Coarse / Touch Input Devices
+   Zero backdrop blur, zero transitions, stable static material.
+   -------------------------------------------------------------------------- */
+@media (hover: none), (pointer: coarse) {
+  .app-container
+    :is(button, input[type="button"], input[type="submit"], input[type="reset"], [role="button"], a[data-glass-control], a.primary-cta, a.submit-btn, a.google-btn, a.action-btn-primary, a.action-btn-secondary, a.cart-link, a.liquid-glass, span.view-3d) {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    transition: none !important;
+  }
+
+  .app-container
+    :is(button, input[type="button"], input[type="submit"], input[type="reset"], [role="button"], a[data-glass-control], a.primary-cta, a.submit-btn, a.google-btn, a.action-btn-primary, a.action-btn-secondary, a.cart-link, a.liquid-glass, span.view-3d):is(:hover, :active, :focus-visible, [data-control-glass-active]) {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   12. Accessibility: Reduced Motion
+   Immediate state switches with zero transition latency.
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .app-container
+    :is(button, input[type="button"], input[type="submit"], input[type="reset"], [role="button"], a[data-glass-control], a.primary-cta, a.submit-btn, a.google-btn, a.action-btn-primary, a.action-btn-secondary, a.cart-link, a.liquid-glass, span.view-3d) {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   13. Accessibility: Reduced Transparency
+   Opaque solid fills with maximum contrast and zero blur.
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-transparency: reduce) {
+  .app-container {
+    --ctrl-glass-bg-tint: #14252b;
+    --ctrl-glass-bg-hover: #1b3540;
+    --ctrl-glass-danger-bg: #441017;
+    --ctrl-glass-danger-hover-bg: #62161f;
+  }
+  .app-container.admin-mode {
+    --ctrl-glass-bg-tint: #0d1a24;
+    --ctrl-glass-bg-hover: #122130;
+  }
+  .app-container
+    :is(button, input[type="button"], input[type="submit"], input[type="reset"], [role="button"], a[data-glass-control], a.primary-cta, a.submit-btn, a.google-btn, a.action-btn-primary, a.action-btn-secondary, a.cart-link, a.liquid-glass, span.view-3d) {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    transition: none !important;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   14. Accessibility: Forced Colors (Windows High Contrast Mode)
+   System semantic colors for high-contrast mode.
+   -------------------------------------------------------------------------- */
+@media (forced-colors: active) {
+  .app-container
+    :is(button, input[type="button"], input[type="submit"], input[type="reset"], [role="button"], a[data-glass-control], a.primary-cta, a.submit-btn, a.google-btn, a.action-btn-primary, a.action-btn-secondary, a.cart-link, a.liquid-glass, span.view-3d) {
+    forced-color-adjust: none;
+    transition: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: ButtonFace !important;
+    color: ButtonText !important;
+    border: 1px solid ButtonBorder !important;
+    box-shadow: none !important;
+  }
+
+  .app-container
+    :is(button, input[type="button"], input[type="submit"], input[type="reset"], [role="button"], a[data-glass-control], a.primary-cta, a.submit-btn, a.google-btn, a.action-btn-primary, a.action-btn-secondary, a.cart-link, a.liquid-glass, span.view-3d):is(:hover, [data-control-glass-active]):not(:disabled):not([aria-disabled="true"]) {
+    background: Highlight !important;
+    color: HighlightText !important;
+    border-color: Highlight !important;
+  }
+
+  .app-container
+    :is(button, input[type="button"], input[type="submit"], input[type="reset"], [role="button"], a[data-glass-control], a.primary-cta, a.submit-btn, a.google-btn, a.action-btn-primary, a.action-btn-secondary, a.cart-link, a.liquid-glass, span.view-3d):focus-visible {
+    outline: 2px solid Highlight !important;
+    outline-offset: 2px !important;
+  }
+
+  .app-container
+    :is(button, input[type="button"], input[type="submit"], input[type="reset"], [role="button"], a[data-glass-control], a.primary-cta, a.submit-btn, a.google-btn, a.action-btn-primary, a.action-btn-secondary, a.cart-link, a.liquid-glass, span.view-3d):is(:disabled, [aria-disabled="true"], [disabled], .disabled) {
+    color: GrayText !important;
+    border-color: GrayText !important;
+  }
+
+  .app-container
+    :is(button, input[type="button"], input[type="submit"], input[type="reset"], [role="button"], a[data-glass-control], a.primary-cta, a.submit-btn, a.google-btn, a.action-btn-primary, a.action-btn-secondary, a.cart-link, a.liquid-glass, span.view-3d):is(
+      [aria-pressed="true"],
+      [aria-expanded="true"],
+      [aria-selected="true"],
+      .active,
+      .active-filter,
+      .active-nav-item
+    ) {
+    background: Highlight !important;
+    color: HighlightText !important;
+    border-color: Highlight !important;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   15. Legacy ::after Suppression for Matching Buttons Only
+   Disables duplicate radial highlight ::after on buttons from legacy .liquid-glass.
+   Preserves nav lens and component pseudo-elements.
+   -------------------------------------------------------------------------- */
+.app-container
+  :is(
+    button,
+    input[type="button"],
+    input[type="submit"],
+    input[type="reset"],
+    [role="button"]
+  ).liquid-glass::after {
+  display: none !important;
+  content: none !important;
+}
