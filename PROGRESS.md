@@ -4,12 +4,13 @@
 
 ## Cập nhật gần nhất
 
-### Giảm công việc vẽ thừa Column Spread (2026-10-21, local)
+### Giảm công việc vẽ thừa Column Spread (2026-10-21, đã push và deploy)
 
 - Rà soát các scheduler cursor/dot grid/liquid glass/viewer3D; đợt này chỉ sửa wrapper Column Spread. Bỏ clearRect/setTransform ngoài engine vì engine đã làm; không đổi engine, thứ tự/crop thẻ, tham số, nền, DPR cap2 hoặc chu kỳ8 giây.
 - Gộp image load/error và resize vào một rAF; kiểm tra viewport trước lần vẽ đầu, ngừng công việc vẽ/cấp bitmap khi offscreen/hidden, giữ dirty để cập nhật khi hiện lại. Chỉ gán width/height canvas khi khác; ảnh tải khi paused/reduced vẫn cập nhật một frame, không bật loop. Resume không cộng thời gian nghỉ.
 - Xác minh:108/108 frontend tests/24 files qua (4 regression scheduler mới); production build/prerender6 routes qua, initial428,79kB raw/118,49kB estimated transfer. Giữ warnings CSS home/dashboard và React CommonJS cũ. Edge headless dùng SVG thật, so sánh engine + wrapper cũ/mới ở8 thời điểm ×3 DPR1/1,25/2:24 frames,0 byte pixel khác. Script `frontend/output/check-spread-render-equivalence.cjs` là artifact ignored; đây là kiểm tra renderer độc lập, chưa phải QA tương tác toàn trang hay benchmark FPS/CPU thiết bị thật.
-- Code/docs chỉ local, chưa commit/push/deploy. Không thay backend/gateway; chưa chạy lại checks hai phần đó. Chi tiết [PERFORMANCE.md](docs/PERFORMANCE.md); tiếp theo cần trace trang thực để xác định nút thắt còn lại.
+- Commit ứng dụng `4dca2dbd20e12729bf0add3297ac4a46d99126bb` đã push origin/main và xác minh SHA remote khớp. [CI39607319174](https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/39607319174) thành công: frontend108 tests/build/prerender, backend138 tests/0 skipped/JAR, gateway25 tests +5 release-gate tests/build, Docker512MB/smoke đều qua.
+- [CD39607636906](https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/39607636906) thành công ngày2026-10-21: gateway, backend đúng SHA, Pages artifact và production smoke (static routes/API commit/origin guard/PostgreSQL health/PayOS guards). Kiểm tra API production độc lập sau CD trả đúng SHA4dca2db. Website https://exe-webapp.pages.dev; Pages deployment https://791da0dd.exe-webapp.pages.dev. Bổ sung trạng thái bằng commit docs-only `[skip ci]`, không đổi runtime và không yêu cầu triển khai lại. Chi tiết [PERFORMANCE.md](docs/PERFORMANCE.md); tiếp theo cần trace trang thực để xác định nút thắt còn lại.
 
 
 ### Thư viện thẻ 2D và xem thẻ 3D (2026-10-21, đã push GitHub)

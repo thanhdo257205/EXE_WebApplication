@@ -4,7 +4,7 @@ Cập nhật: 2026-10-21 (Asia/Saigon).
 
 ## Giảm công việc vẽ Column Spread (2026-10-21)
 
-- [x] FE-SPREAD-SCHEDULER — Một rAF cho image/resize, không reset bitmap cùng kích thước, không clear trùng engine, nghỉ offscreen/hidden và cập nhật static paused/reduced.108 tests/24 files và build/prerender qua; Edge renderer24 frames/3 DPR có0 byte khác. Local, chưa push/deploy.
+- [x] FE-SPREAD-SCHEDULER — Một rAF cho image/resize, không reset bitmap cùng kích thước, không clear trùng engine, nghỉ offscreen/hidden và cập nhật static paused/reduced.108 tests/24 files và build/prerender qua; Edge renderer24 frames/3 DPR có0 byte khác. Commit4dca2db đã push/deploy; CI39607319174/CD39607636906 và smoke production thành công, API trả đúng SHA.
 - [ ] FE-SPREAD-DEVICE-TRACE — QA tương tác toàn trang và đo FPS/CPU trên thiết bị thật; pixel comparison renderer và scheduler mocks chưa xác minh độ mượt tổng website.
 
 ## Thư viện thẻ 3D (2026-10-21)

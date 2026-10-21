@@ -8,7 +8,9 @@ Wrapper mới chờ IntersectionObserver trước lần vẽ đầu; một sched
 
 Xác minh local: `npm test -- --watch=false`108/108 tests/24 files qua, gồm4 test scheduler mới về coalescing, bitmap unchanged, timeline8s, paused/hidden/offscreen/reduced và destroy. `npm run build` qua/prerender6 routes, initial428,79kB raw/118,49kB estimated transfer; warnings CSS home/dashboard và React CommonJS vẫn có. Test scheduler tách rAF Angular change detection khỏi rAF canvas.
 
-Edge headless chạy renderer độc lập với12 SVG thật tại8 thời điểm0/0,12/0,22/0,35/0,5/0,7/0,84/1 × DPR1/1,25/2, so sánh wrapper cũ có clear ngoài và wrapper mới:24 frames,0 byte pixel khác. Script `frontend/output/check-spread-render-equivalence.cjs` ignored. Kết quả chứng minh tương đương raster của bước bỏ clear trong kịch bản này; không phải browser QA toàn trang hoặc benchmark FPS/CPU/LCP/INP. Code/docs local, chưa commit/push/deploy; cần đo thiết bị thật trước khi tuyên bố mức cải thiện độ mượt.
+Edge headless chạy renderer độc lập với12 SVG thật tại8 thời điểm0/0,12/0,22/0,35/0,5/0,7/0,84/1 × DPR1/1,25/2, so sánh wrapper cũ có clear ngoài và wrapper mới:24 frames,0 byte pixel khác. Script `frontend/output/check-spread-render-equivalence.cjs` ignored. Kết quả chứng minh tương đương raster của bước bỏ clear trong kịch bản này; không phải browser QA toàn trang hoặc benchmark FPS/CPU/LCP/INP. Cần đo thiết bị thật trước khi tuyên bố mức cải thiện độ mượt.
+
+Ngày2026-10-21 commit4dca2db đã push origin/main, [CI39607319174](https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/39607319174) và [CD39607636906](https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/39607636906) thành công. CI chạy cả frontend108 tests, backend138 tests không skip, gateway25 tests +5 release-gate tests và Docker512MB/smoke. CD triển khai gateway/backend/Pages rồi xác minh static routes, SHA API, origin guard, database health và PayOS guards. API https://exe-webapp.pages.dev/api/v1/info sau CD trả đúng SHA4dca2db; trạng thái được bổ sung bằng commit docs-only `[skip ci]` không đổi runtime. Smoke production chưa phải benchmark hiệu năng/QA tương tác toàn trang.
 
 ## Phạm vi và phát hiện
 
