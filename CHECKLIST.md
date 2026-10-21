@@ -112,7 +112,8 @@ Cập nhật: 2026-10-21 (Asia/Saigon).
 - [ ] BRAND-02: Chốt tên chữ trên logo và có đổi tên site/bảng màu theo logo (kem + đỏ nâu) hay không.
 - [ ] STYLE-ED-05: Giảm CSS component dưới budget 6kB (global-bar, home, public-content) và rà tablet 768–1000px.
 - [ ] STYLE-ED-02: Rà ảnh mobile 390px và các trang register/recovery/chi tiết thẻ/wiki/cửa hàng/giỏ hàng sau retheme; sửa độ tương phản nếu có.
-- [ ] STYLE-ED-03: Kiểm tra Lenis với viewer 3D, modal, menu mobile, anchor `#the-bai`; đo FPS thiết bị thật.
+- [x] STYLE-ED-06: Wheel trên viewer 3D không còn cuộn trang (data-lenis-prevent), kiểm bằng Chromium + spec.
+- [ ] STYLE-ED-03: Kiểm tra Lenis với modal, menu mobile, anchor `#the-bai`, pinch/touch trên viewer; đo FPS thiết bị thật.
 
 ## Quy tắc cập nhật
 
