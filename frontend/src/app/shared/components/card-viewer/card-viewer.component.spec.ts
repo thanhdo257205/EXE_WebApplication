@@ -40,6 +40,9 @@ describe('Card viewer lifecycle', () => {
     fixture.destroy();
     vi.unstubAllGlobals();
   });
+  it('opts the viewer out of Lenis smooth scroll so wheel zoom does not scroll the page', () => {
+    expect(fixture.nativeElement.querySelector('.viewer-panel')?.hasAttribute('data-lenis-prevent')).toBe(true);
+  });
   it('waits for visibility, delegates controls, then aborts and disposes on navigation', async () => {
     expect(runtime.mount).not.toHaveBeenCalled();
     intersect([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver);

@@ -4,6 +4,11 @@
 
 ## Cập nhật gần nhất
 
+### Sửa cuộn trang khi zoom thẻ 3D — 2026-10-21, local
+
+- Lỗi người dùng báo: cuộn chuột trên khung xem thẻ 3D vừa phóng to thẻ vừa cuộn trang. Nguyên nhân: Lenis (thêm ở đợt editorial) bắt mọi sự kiện wheel trên cửa sổ, kể cả khi OrbitControls đã `preventDefault`. Sửa: thêm `data-lenis-prevent` vào `.viewer-panel` (Lenis bỏ qua vùng này; trang và wheel ngoài khung vẫn cuộn mượt).
+- Xác minh bằng Chromium WebGL: trước sửa cuộn 6 nấc wheel trên khung làm `scrollY` 150→0; sau sửa 150→150, wheel ngoài khung vẫn cuộn trang (→888). 142 tests (thêm 1 spec data-lenis-prevent). Chưa kiểm tra pinch-zoom/touch trên thiết bị thật; chưa deploy.
+
 ### Đổi tên thẻ thành "Pokémon Hoàng Nam" — 2026-10-21, local
 
 - Theo yêu cầu, bỏ chữ "Linh Vật": tên thẻ **Pokémon Hoàng Nam**, mã `POKÉMON · SÂN TRƯỜNG`, slug/route `pokemon-hoang-nam`, file `pokemon-hoang-nam(.webp|-poster.webp)`, chữ trên ảnh thẻ vẽ lại ("POKÉMON / HOÀNG NAM"). Người dùng xác nhận đã có sự đồng ý dùng ảnh người thật. URL cũ `/thu-vien/mau/linh-vat-hoang-nam` (bản PR#3, đã/đang deploy) sẽ không còn tồn tại.
