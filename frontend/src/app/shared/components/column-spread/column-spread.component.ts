@@ -1,17 +1,69 @@
 import { afterNextRender, Component, DestroyRef, ElementRef, inject, input, NgZone, signal, viewChild } from '@angular/core';
 import TEMPLATE from '../../motion/spread-columns.js';
 
-export const SPREAD_PARAMS = { cornerRadius: 3, padding: 6, shadowEnabled: false, rows: 3, rowsOdd: 3, rowGap: 3, cardGap: 3, stackStyle: 'single', stackScale: 50, zoom: 50, drift: 16, rowDelay: 4, cardAspect: '1:1', backgroundType: 'color', background: 'rgba(0,0,0,0)' };
-export const DECORATIVE_CARDS = Array.from({ length: 12 }, (_, i) => `/assets/cards/card-${String(i + 1).padStart(2, '0')}.svg`);
+export const SPREAD_PARAMS = { cornerRadius: 3, padding: 6, shadowEnabled: false, rows: 3, rowsOdd: 3, rowGap: 3, cardGap: 3, stackStyle: 'single', stackScale: 50, zoom: 50, drift: 16, rowDelay: 4, cardAspect: 'auto', backgroundType: 'color', background: 'rgba(0,0,0,0)' };
+export const POKEMON_POSTER_NAMES = [
+  'charizard',
+  'blastoise',
+  'venusaur',
+  'mewtwo',
+  'pikachu',
+  'bulbasaur',
+  'charmander',
+  'squirtle',
+  'eevee',
+] as const;
+const UNIQUE_POKEMON_CARDS = POKEMON_POSTER_NAMES.map(name => `/assets/cards/pokemon/${name}-poster.webp`);
+export const DECORATIVE_CARDS = [
+  ...UNIQUE_POKEMON_CARDS,
+  ...UNIQUE_POKEMON_CARDS.slice(0, 3),
+];
+
+/**
+ * Pure Fisher-Yates shuffle over an array of slot indices or elements.
+ * Guarantees that the resulting permutation differs from the input order
+ * when length >= 2 (falls back to a 1-element cyclic rotate if RNG produces identity).
+ */
+export function shuffleIndices(
+  source: readonly number[],
+  rng: () => number = Math.random
+): number[] {
+  const result = source.slice();
+  const n = result.length;
+  if (n <= 1) return result;
+
+  for (let i = n - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    const temp = result[i];
+    result[i] = result[j];
+    result[j] = temp;
+  }
+
+  // Ensure next permutation differs from input when RNG yields identity
+  let isIdentical = true;
+  for (let i = 0; i < n; i++) {
+    if (result[i] !== source[i]) {
+      isIdentical = false;
+      break;
+    }
+  }
+
+  if (isIdentical) {
+    const first = result.shift()!;
+    result.push(first);
+  }
+
+  return result;
+}
 
 @Component({
   selector: 'app-column-spread',
   template: `<div class="spread-stage" #stage>
-    <img class="still" src="/assets/cards/card-01.svg" [src]="imageSources()[0]" alt="" [class.ready]="ready()" />
+    <img class="still" [src]="imageSources()[0]" alt="" loading="lazy" decoding="async" [class.ready]="ready()" />
     <canvas #canvas role="img" aria-label="Bộ mặt thẻ minh họa tách thành ba cột rồi thu về một chồng" [class.ready]="ready()"></canvas>
     @if (!reducedMotion()) { <button type="button" class="motion-control" (click)="togglePause()" [attr.aria-pressed]="paused()">{{ paused() ? 'Phát chuyển động' : 'Dừng chuyển động' }}</button> }
   </div>`,
-  styles: `:host { display:block; }.spread-stage { position:relative; aspect-ratio:16/9; overflow:hidden; background:#0c0b10; }canvas { display:block; width:100%; height:100%; opacity:0; }canvas.ready { opacity:1; }.still { position:absolute; width:30%; aspect-ratio:1; object-fit:cover; left:35%; top:23%; border-radius:12px; }.still.ready { visibility:hidden; }.motion-control { position:absolute; right:16px; bottom:16px; padding:10px 14px; background:#f9f6e9; color:#17392c; border-radius:24px; font-size:12px; font-weight:700; }.motion-control:focus-visible { outline:3px solid #ff91b2; outline-offset:3px; }`,
+  styles: `:host { display:block; }.spread-stage { position:relative; aspect-ratio:16/9; overflow:hidden; background:#0c0b10; }canvas { display:block; width:100%; height:100%; opacity:0; }canvas.ready { opacity:1; }.still { position:absolute; width:auto; height:70%; aspect-ratio:360/495; object-fit:contain; left:50%; top:50%; transform:translate(-50%, -50%); border-radius:12px; }.still.ready { visibility:hidden; }.motion-control { position:absolute; right:16px; bottom:16px; padding:10px 14px; background:#f9f6e9; color:#17392c; border-radius:24px; font-size:12px; font-weight:700; }.motion-control:focus-visible { outline:3px solid #ff91b2; outline-offset:3px; }`,
 })
 export class ColumnSpreadComponent {
   readonly imageSources = input<string[]>(DECORATIVE_CARDS);
@@ -30,10 +82,28 @@ export class ColumnSpreadComponent {
     const container = this.stage().nativeElement, canvas = this.canvas().nativeElement;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    const images: (HTMLImageElement | undefined)[] = Array(12).fill(undefined);
+
+    // Fixed 12-slot buffer for decoded HTMLImageElements indexed by source position (0..11)
+    const sourceImages: (HTMLImageElement | undefined)[] = Array(12).fill(undefined);
+    // Display buffer passed to TEMPLATE.render; reuses same array to avoid heap allocations
+    const displayImages: (HTMLImageElement | undefined)[] = Array(12).fill(undefined);
+    // Stable slot indices 0..11 representing display card permutation
+    let currentPermutation = shuffleIndices(Array.from({ length: 12 }, (_, i) => i));
+
+    const syncDisplayImages = () => {
+      for (let i = 0; i < 12; i++) {
+        displayImages[i] = sourceImages[currentPermutation[i]];
+      }
+    };
+    syncDisplayImages();
+
     const media = matchMedia('(prefers-reduced-motion: reduce)');
     let t = 0.12, last = 0, frame = 0, visible = false, destroyed = false;
     let dirty = true, sizeDirty = true;
+    let initiated = false;
+    const loaders: HTMLImageElement[] = [];
+    let firstDecodedImage: HTMLImageElement | null = null;
+
     const running = () => !media.matches && !this.paused();
     const schedule = () => {
       if (!destroyed && visible && !document.hidden && !frame && (dirty || running())) frame = requestAnimationFrame(tick);
@@ -41,7 +111,7 @@ export class ColumnSpreadComponent {
     const draw = () => {
       if (destroyed || !canvas.width || !canvas.height) return;
       // The supplied engine already resets and clears the complete canvas.
-      TEMPLATE.render({ ctx, t, width: canvas.width, height: canvas.height, params: SPREAD_PARAMS, images, background: null });
+      TEMPLATE.render({ ctx, t, width: canvas.width, height: canvas.height, params: SPREAD_PARAMS, images: displayImages, background: null });
       ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.globalCompositeOperation = 'destination-over'; ctx.fillStyle = '#0c0b10';
       ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.restore();
@@ -61,14 +131,89 @@ export class ColumnSpreadComponent {
       }
       if (running()) {
         const dt = last ? Math.min(0.05, (now - last) / 1000) : 0;
-        t = (t + dt / 8.0) % 1; last = now;
+        const nextT = t + dt / 8.0;
+        if (last > 0 && nextT >= 1) {
+          currentPermutation = shuffleIndices(currentPermutation);
+          syncDisplayImages();
+        }
+        t = nextT % 1; last = now;
       } else last = 0;
       draw(); dirty = false; schedule();
     };
+
+    const loadImages = () => {
+      if (initiated || destroyed || !visible || document.hidden) return;
+      initiated = true;
+
+      const sources = this.imageSources().slice(0, 12);
+      const urlToIndices = new Map<string, number[]>();
+      sources.forEach((src, idx) => {
+        const list = urlToIndices.get(src);
+        if (list) list.push(idx);
+        else urlToIndices.set(src, [idx]);
+      });
+
+      urlToIndices.forEach((indices, src) => {
+        const img = new Image();
+        img.decoding = 'async';
+        loaders.push(img);
+
+        const onReady = () => {
+          if (destroyed) return;
+          const assignImage = () => {
+            if (destroyed) return;
+            if (!firstDecodedImage) firstDecodedImage = img;
+            indices.forEach(idx => { sourceImages[idx] = img; });
+            syncDisplayImages();
+            dirty = true;
+            schedule();
+          };
+
+          if (typeof img.decode === 'function') {
+            img.decode().then(assignImage).catch(() => {
+              // If decode() rejects (or image format issue), fallback or reuse first decoded
+              if (destroyed) return;
+              if (firstDecodedImage) {
+                indices.forEach(idx => { sourceImages[idx] = firstDecodedImage!; });
+                syncDisplayImages();
+              }
+              dirty = true;
+              schedule();
+            });
+          } else {
+            assignImage();
+          }
+        };
+
+        img.onload = () => {
+          img.onload = null;
+          img.onerror = null;
+          onReady();
+        };
+
+        img.onerror = () => {
+          img.onload = null;
+          img.onerror = null;
+          if (destroyed) return;
+          if (firstDecodedImage) {
+            indices.forEach(idx => { sourceImages[idx] = firstDecodedImage!; });
+            syncDisplayImages();
+          }
+          dirty = true;
+          schedule();
+        };
+
+        img.src = src;
+      });
+    };
+
     const playback = () => {
       if (media.matches) { t = 0.12; dirty = true; }
       if (destroyed || !visible || document.hidden || !running()) {
         cancelAnimationFrame(frame); frame = 0; last = 0;
+      }
+      if (visible && !document.hidden && !initiated) {
+        loadImages();
       }
       schedule();
     };
@@ -78,11 +223,6 @@ export class ColumnSpreadComponent {
     intersection.observe(container);
     const preferenceChanged = () => { this.paused.set(media.matches); this.reducedMotion.set(media.matches); playback(); };
     media.addEventListener('change', preferenceChanged); document.addEventListener('visibilitychange', playback);
-    const loaders = this.imageSources().slice(0, 12).map((src, index) => {
-      const image = new Image();
-      image.onload = () => { if (!destroyed) { images[index] = image; dirty = true; schedule(); } };
-      image.onerror = () => { dirty = true; schedule(); }; image.src = src; return image;
-    });
     resize(); playback();
     this.destroyRef.onDestroy(() => {
       destroyed = true; cancelAnimationFrame(frame); resizeObserver.disconnect(); intersection.disconnect();

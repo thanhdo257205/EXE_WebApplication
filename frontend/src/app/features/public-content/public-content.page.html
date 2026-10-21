@@ -41,7 +41,11 @@
   @if (selected(); as item) {
     <article class="detail-sheet" [class.card-detail]="isCard(item)">
       @if (isCard(item)) {
-        <app-card-viewer [cardName]="item.name" />
+        <app-card-viewer
+          [cardName]="item.name"
+          [poster]="demo() ? item.artworkUrl || poster : poster"
+          [frontTexture]="demo() ? sampleTexture(item) : undefined"
+        />
         <div class="card-description">
           <p class="detail-code">{{ demo() ? 'THẺ MINH HỌA' : item.code }}</p>
           <h2>{{ demo() ? 'Cầm thử một lá thẻ' : 'Hiệu ứng' }}</h2>
@@ -59,6 +63,11 @@
           <p class="model-note">
             Model Pokémon mặc định dùng để trải nghiệm 3D. Artwork của thẻ trong game sẽ được thay
             khi có bản chính thức.
+            @if (demo() && sampleTexture(item)) {
+              <span>
+                Hình ảnh thẻ minh họa từ <a href="https://tcgdex.net" target="_blank" rel="noopener noreferrer">TCGdex</a>.
+              </span>
+            }
           </p>
           <a class="back-link" routerLink="/thu-vien">Khám phá bộ thẻ →</a>
         </div>

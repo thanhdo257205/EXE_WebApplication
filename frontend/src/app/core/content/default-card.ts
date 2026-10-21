@@ -24,3 +24,41 @@ export const SAMPLE_CARD: PublicCard = {
   copiesInDeck: 1,
   artworkUrl: DEFAULT_CARD_POSTER,
 };
+
+export interface SampleCard extends PublicCard {
+  frontTextureUrl?: string;
+  sourceUrl?: string;
+}
+
+const POKEMON_SAMPLES = [
+  ['charizard', 'Charizard', 'base1-4'],
+  ['blastoise', 'Blastoise', 'base1-2'],
+  ['venusaur', 'Venusaur', 'base1-15'],
+  ['mewtwo', 'Mewtwo', 'base1-10'],
+  ['pikachu', 'Pikachu', 'base1-58'],
+  ['bulbasaur', 'Bulbasaur', 'base1-44'],
+  ['charmander', 'Charmander', 'base1-46'],
+  ['squirtle', 'Squirtle', 'base1-63'],
+  ['eevee', 'Eevee', 'base2-51'],
+] as const;
+
+/** Local demonstration artwork; never mixed into a published game release. */
+export const SAMPLE_CARDS: SampleCard[] = [
+  SAMPLE_CARD,
+  ...POKEMON_SAMPLES.map(([slug, name, sourceId], index): SampleCard => ({
+    ...SAMPLE_CARD,
+    id: `sample-pokemon-${slug}`,
+    slug: `${slug}-3d`,
+    sortOrder: index + 1,
+    code: `POKÉMON · ${sourceId.toUpperCase()}`,
+    name: `${name} · Pokémon TCG`,
+    effectText: `${name} — thẻ Pokémon TCG dùng để minh họa xoay, lật và zoom 3D. Không thuộc bộ thẻ hoặc luật của Nhà Này Hơi Báo!`,
+    artworkUrl: `/assets/cards/pokemon/${slug}-poster.webp`,
+    frontTextureUrl: `/assets/cards/pokemon/${slug}.webp`,
+    sourceUrl: `https://api.tcgdex.net/v2/en/cards/${sourceId}`,
+  })),
+];
+
+export function findSampleCard(slug: string): SampleCard | undefined {
+  return SAMPLE_CARDS.find(card => card.slug === slug);
+}

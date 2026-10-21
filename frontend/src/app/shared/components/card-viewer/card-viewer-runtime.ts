@@ -16,6 +16,7 @@ export async function mountCardViewer(
   source: string,
   signal: AbortSignal,
   onLost: () => void,
+  frontTexture?: string,
 ): Promise<CardViewerHandle> {
   signal.throwIfAborted();
   const scene = new THREE.Scene();
@@ -148,6 +149,43 @@ export async function mountCardViewer(
     model.add(gltf.scene);
     model.rotation.y = -Math.PI / 2;
     scene.add(model);
+    if (frontTexture) {
+      const imageResponse = await fetch(frontTexture, {
+        signal: AbortSignal.any([signal, AbortSignal.timeout(20_000)]),
+      });
+      if (!imageResponse.ok) throw new Error('Không tải được mặt thẻ.');
+      // The supplied GLB's front uses vertically inverted images. Flip pixels,
+      // not UVs; WebGL ignores Texture.flipY for ImageBitmap sources.
+      const bitmap = await createImageBitmap(await imageResponse.blob(), { imageOrientation: 'flipY' });
+      if (disposed || signal.aborted) {
+        bitmap.close();
+        throw new DOMException('Viewer was removed', 'AbortError');
+      }
+      const texture = new THREE.Texture(bitmap);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.flipY = false;
+      texture.needsUpdate = true;
+      const previous = new Set<THREE.Texture>();
+      let replaced = false;
+      model.traverse(object => {
+        if (!(object instanceof THREE.Mesh)) return;
+        for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
+          if (!(material instanceof THREE.MeshStandardMaterial) || material.name !== 'face') continue;
+          if (material.map) {
+            texture.wrapS = material.map.wrapS; texture.wrapT = material.map.wrapT;
+            texture.repeat.copy(material.map.repeat); texture.offset.copy(material.map.offset);
+            previous.add(material.map);
+          }
+          if (material.emissiveMap) previous.add(material.emissiveMap);
+          material.map = texture; material.emissiveMap = texture; material.needsUpdate = true;
+          replaced = true;
+        }
+      });
+      if (!replaced) { texture.dispose(); bitmap.close(); throw new Error('Model không có mặt thẻ phù hợp.'); }
+      previous.forEach(old => {
+        (old.source.data as { close?: () => void } | null)?.close?.(); old.dispose();
+      });
+    }
     model.updateMatrixWorld(true);
     const bounds = new THREE.Box3().setFromObject(model),
       size = bounds.getSize(new THREE.Vector3());

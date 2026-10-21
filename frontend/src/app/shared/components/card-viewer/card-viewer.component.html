@@ -23,7 +23,7 @@
     @if (status() !== 'ready') {
       <img
         class="viewer-poster"
-        [src]="poster"
+        [src]="poster()"
         [alt]="'Mặt trước thẻ mẫu ' + cardName()"
         width="500"
         height="700"

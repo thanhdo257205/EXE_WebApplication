@@ -4,7 +4,13 @@ Website board game **Chưa Giàu Đã Lớn — Nhà Này Hơi Báo!**
 
 ## Công nghệ và trạng thái
 
-Bản bổ sung ngày2026-10-21: [thư viện thẻ2D và viewer3D](docs/CARD_LIBRARY_3D.md), dùng model mặc định do người dùng cung cấp, bộ thẻ/lọc từ API public và bản mẫu được gắn nhãn khi chưa có release.104 frontend tests/build qua; đợt3D đã push main tại [b0ff8d2](https://github.com/thanhdo257205/EXE_WebApplication/commit/b0ff8d2898f472f026972ca2af78556c67b76c40), chưa xác nhận CI/CD/deploy. Thử local: http://127.0.0.1:4200/thu-vien/mau/pokemon-card-3d.
+Bản phát hành GitHub ngày2026-10-21 gộp9 mẫu Pokémon mới, texture3D và Column Spread dùng poster/xáo ảnh mỗi vòng.123frontend tests và production build/prerender đã qua; CI/CD của bản này cần xác minh trên [GitHub Actions](https://github.com/thanhdo257205/EXE_WebApplication/actions). Các ghi chú local ở dưới là lịch sử triển khai trước đợt phát hành.
+
+Column Spread local xáo ảnh ngẫu nhiên lúc mở và mỗi vòng8s khi bài đã khép, giữ thứ tự trong lượt tỏa và dùng lại ảnh đã decode.123frontend tests/build qua; bản xáo ảnh cùng bộ Pokémon mới chưa push/deploy.
+
+Column Spread homepage hiện dùng9 poster Pokémon mới cho12 slot (lặp3 ảnh), giữ tỷ lệ dọc và nhịp chuyển động cũ. Ảnh được tải theo viewport/giải mã async/dedup; không tải texture lớn hoặc GLB cho hiệu ứng này.118 frontend tests và production build/prerender qua, browser desktop/mobile/pause/reduced/offscreen kiểm tra thành công. Thay đổi mới vẫn local, chưa push/deploy; [chi tiết tối ưu](docs/PERFORMANCE.md).
+
+Bản bổ sung ngày2026-10-21: [thư viện thẻ2D và viewer3D](docs/CARD_LIBRARY_3D.md), dùng model mặc định do người dùng cung cấp, bộ thẻ/lọc từ API public và bản mẫu được gắn nhãn khi chưa có release. Bản local mới thêm9 texture Pokémon từ TCGdex, tổng10 mẫu; dùng chung GLB và mặt sau, chỉ tải texture lớn khi mở viewer.113 frontend tests/build qua; phần9 mẫu mới chưa commit/push/deploy. Bản ứng dụng trước4dca2db đã CI/CD/smoke production thành công. Thử local: http://127.0.0.1:4200/thu-vien, http://127.0.0.1:4200/thu-vien/mau/charizard-3d; URL mẫu cũ pokemon-card-3d vẫn giữ.
 
 Mã ứng dụng [`6e73213`](https://github.com/thanhdo257205/EXE_WebApplication/commit/6e732136823e1743fed5656e5d9caa9bbdffc633) đã được push lên `main` ngày2026-10-20. Kiểm tra local qua; [CI/CD](https://github.com/thanhdo257205/EXE_WebApplication/actions) cần xác minh riêng trước khi coi website production đã cập nhật.
 

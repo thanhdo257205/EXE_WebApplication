@@ -1,5 +1,25 @@
 # Hiệu năng frontend — cập nhật 2026-10-21
 
+## Xáo ảnh Column Spread theo chu kỳ — local
+
+Fisher-Yates trên12 chỉ số slot lúc mount và khi phase8s wrap1→0, trong đoạn đã khép bài; không random mỗi frame hoặc thay hình giữa lúc tỏa. Identity RNG có fallback xoay1slot. Hoán vị chỉ số đổi không có nghĩa mọi ảnh/lá trên cùng phải khác vì3nguồn được lặp lại và shuffle có thể giữ lại một số vị trí. Không dùng cho mục đích bảo mật/trò chơi có cược.
+
+`sourceImages` chứa tham chiếu theo nguồn load cố định, `displayImages` là buffer tái sử dụng theo hoán vị hiện hành. Chỉ đồng bộ12tham chiếu khi ảnh hoàn tất/fallback hoặc đổi vòng; mỗi vòng cấp một mảng12chỉ số, không ảnh/bitmap/network/decode mới. Decode trễ sau wrap không ghi sai slot. Pause/offscreen/hidden không tiến thời gian; resize/reduced/visibility không chủ động xáo. Tất cả tối ưu viewport/async decode/dedup trước đó giữ nguyên, không đổi engine JS hoặc thông số chuyển động.
+
+Xác minh:123tests/24files qua và production build/prerender6routes qua, initial428,78kB raw/118,41kB estimated transfer; warnings CSS/React cũ giữ nguyên. Test cuối bổ sung offscreen và late decode sau wrap:focused13/13 ColumnSpread qua. Edge chạy thực2vòng mới thấy3nhóm RNG (mount+2wrap),11calls/nhóm;9decode tổng,0request thêm sau tải đầu; pause/resize/reduced không xáo,0pageerror. `frontend/output/check-spread-shuffle.cjs` và `pokemon-shuffle-*.png` ignored. Chưa đo FPS/CPU thiết bị thật, chưa commit/push/deploy.
+
+## Column Spread Pokémon: ảnh raster và tải theo viewport — local
+
+Section Column Spread ở homepage/placeholder dùng9 poster WebP đã có trong catalog, lặp3 ảnh đầu cho12 slot. Chỉ đổi cardAspect1:1→auto và still contain để không crop portrait; engine JS/3 cột/easing/chuyển động8s/gaps/drift/zoom/DPR cap2 giữ nguyên. SVG hero và theme picker riêng vẫn giữ. Caption ghi TCGdex và không trình bày Pokémon thành bộ game của website.
+
+12 slot dùng9 Image nhờ map URL→indices. Chỉ khởi tạo loader khi IntersectionObserver thấy stage và document không hidden, một lần/mount. `decoding=async`, chờ `decode()` trước khi dùng ảnh, fallback khi thiếu API hoặc decode lỗi; không cập nhật sau destroy. Image errors không tải lặp. Scheduler rAF coalescing/dimension guard/nghỉ khi paused/offscreen/hidden/reduced của đợt trước vẫn giữ. Still native lazy có thể tải1 poster sớm trong ngưỡng preload của trình duyệt; không tuyên bố0 network trước viewport. Input `imageSources` vẫn được đọc khi bắt đầu load; chưa hỗ trợ đổi toàn bộ bộ ảnh động trong cùng instance.
+
+9 poster tổng384678bytes so với9 texture lớn711066bytes (giảm khoảng45,9% dung lượng file lựa chọn), không phải số transfer đo mạng hoặc tỷ lệ tăng FPS. Không tạo ảnh/GLB mới cho hiệu ứng; catalog/motion dùng cùng URL nên tận dụng cache. Tradeoff: poster360×495 có thể kém sắc hơn texture lớn khi hiển thị quá lớn/DPR cao; DPR cap của canvas không đổi và không giảm tốc animation.
+
+Xác minh:118/118 frontend tests/24 files qua, gồm regression mới load visibility/dedup/decoding/failure/hidden start/late decode và portrait loop/source crop. Edge headless local1280×900/390×844: trước stage visible0 canvas draws/0 decode và1 native still request; sau scroll9 nguồn WebP poster/9 decode/0 source crop,0 high-texture/GLB; pause/offscreen/reduced không thêm draw trong400ms, mobile không overflow, route canvas cleanup và0 pageerror. Đã xem ảnh desktop/mobile. `frontend/output/check-pokemon-spread.cjs` và `pokemon-spread-*.png` ignored. Không có trace FPS/CPU/LCP/INP thiết bị thật hoặc nghiệm thu production; code/docs chưa commit/push/deploy.
+
+Production build/prerender6 routes qua: initial428,78kB raw/118,43kB estimated transfer; warnings CSS home/dashboard và React CommonJS cũ giữ nguyên. Không tăng budget hoặc thêm thư viện.
+
 ## Column Spread: giảm công việc vẽ thừa — 2026-10-21
 
 Rà soát source thấy wrapper gọi clearRect/setTransform ngay trước engine trong khi `He()` của engine đã reset/clear toàn canvas. ResizeObserver gán lại cả width/height dù giá trị không đổi, còn từng image load/error gọi render ngay, có thể vẽ nhiều lần trong cùng frame và khi canvas offscreen/hidden.

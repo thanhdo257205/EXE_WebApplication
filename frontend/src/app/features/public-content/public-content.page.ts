@@ -19,7 +19,13 @@ import {
   renderPublicMarkdown,
 } from '../../core/content/public-content.service';
 import { CardViewerComponent } from '../../shared/components/card-viewer/card-viewer.component';
-import { DEFAULT_CARD_POSTER, SAMPLE_CARD, SAMPLE_CARD_SET } from '../../core/content/default-card';
+import {
+  DEFAULT_CARD_POSTER,
+  SAMPLE_CARD,
+  SAMPLE_CARDS,
+  SAMPLE_CARD_SET,
+  findSampleCard,
+} from '../../core/content/default-card';
 import { RiseHeadingDirective } from '../../shared/motion/rise-heading.directive';
 
 @Component({
@@ -80,8 +86,9 @@ export class PublicContentPage implements OnInit {
     if (!isPlatformBrowser(this.platformId)) return;
     if (this.sample()) {
       this.demo.set(true);
-      this.selected.set(SAMPLE_CARD);
-      this.loading.set(false);
+      this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
+        this.selectSample(params.get('slug'));
+      });
       return;
     }
 
@@ -135,6 +142,10 @@ export class PublicContentPage implements OnInit {
   }
 
   retry(): void {
+    if (this.sample()) {
+      this.selectSample(this.route.snapshot.paramMap.get('slug'));
+      return;
+    }
     this.demo.set(false);
     if (this.selectedSet() === SAMPLE_CARD_SET.id) this.selectedSet.set('');
     this.error.set(false);
@@ -181,6 +192,11 @@ export class PublicContentPage implements OnInit {
     if (image.getAttribute('src') !== this.poster) image.src = this.poster;
   }
 
+  sampleTexture(item: PublicItem): string | undefined {
+    const sample = findSampleCard(item.slug);
+    return sample?.id === item.id ? sample.frontTextureUrl : undefined;
+  }
+
   isCard(item: PublicItem): item is PublicCard {
     return 'effectText' in item;
   }
@@ -194,7 +210,9 @@ export class PublicContentPage implements OnInit {
     return 'title' in item ? item.title : item.name;
   }
   itemLink(item: PublicItem): string[] {
-    if (item.id === SAMPLE_CARD.id) return ['/thu-vien/mau/pokemon-card-3d'];
+    if (this.kind() === 'cards' && this.demo() && findSampleCard(item.slug)?.id === item.id) {
+      return ['/thu-vien/mau', item.slug];
+    }
     return [
       this.kind() === 'wiki-pages'
         ? '/wiki'
@@ -213,6 +231,14 @@ export class PublicContentPage implements OnInit {
 
   private loadList(): void {
     this.refreshChanges.next();
+  }
+
+  private selectSample(slug: string | null): void {
+    const card = findSampleCard(slug ?? SAMPLE_CARD.slug);
+    this.selected.set(card ?? null);
+    this.error.set(!card);
+    this.unavailable.set(!card);
+    this.loading.set(false);
   }
 
   private requestList() {
@@ -244,14 +270,17 @@ export class PublicContentPage implements OnInit {
       if (this.kind() === 'cards' && !this.pinnedRelease) {
         this.demo.set(true);
         this.cardSets.set([SAMPLE_CARD_SET]);
-        const matches =
-          !this.query() ||
-          normalizeSearch(`${SAMPLE_CARD.name} ${SAMPLE_CARD.code}`).includes(
-            normalizeSearch(this.query()),
-          );
-        this.items.set(matches ? [SAMPLE_CARD] : []);
-        this.total.set(matches ? 1 : 0);
-        this.totalPages.set(matches ? 1 : 0);
+        const q = normalizeSearch(this.query());
+        const filtered = SAMPLE_CARDS.filter(
+          (card) =>
+            !q ||
+            normalizeSearch(card.name).includes(q) ||
+            normalizeSearch(card.code).includes(q) ||
+            normalizeSearch(card.effectText).includes(q),
+        );
+        this.items.set(filtered);
+        this.total.set(filtered.length);
+        this.totalPages.set(filtered.length > 0 ? 1 : 0);
         return;
       }
       this.items.set([]);

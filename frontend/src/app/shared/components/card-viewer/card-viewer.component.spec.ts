@@ -75,4 +75,33 @@ describe('Card viewer lifecycle', () => {
     await pending;
     expect(handle.dispose).toHaveBeenCalledOnce();
   });
+  it('keeps the selected poster while waiting and forwards only its texture when visible', async () => {
+    fixture.componentRef.setInput('poster', '/assets/cards/pokemon/charizard-poster.webp');
+    fixture.componentRef.setInput('frontTexture', '/assets/cards/pokemon/charizard.webp');
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.viewer-poster').getAttribute('src')).toBe('/assets/cards/pokemon/charizard-poster.webp');
+    expect(runtime.mount).not.toHaveBeenCalled();
+    intersect([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver);
+    await vi.waitFor(() => expect(fixture.componentInstance.status()).toBe('ready'));
+    expect(runtime.mount.mock.calls[0][4]).toBe('/assets/cards/pokemon/charizard.webp');
+  });
+  it('aborts an old variant and disposes its late result when inputs change', async () => {
+    let finish!: (value: typeof handle) => void;
+    runtime.mount.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    fixture.componentRef.setInput('frontTexture', '/assets/cards/pokemon/charizard.webp');
+    fixture.detectChanges();
+    const pending = fixture.componentInstance.start();
+    await vi.waitFor(() => expect(runtime.mount).toHaveBeenCalledOnce());
+    const oldSignal = runtime.mount.mock.calls[0][2] as AbortSignal;
+    const nextHandle = { ...handle, dispose: vi.fn() };
+    runtime.mount.mockResolvedValueOnce(nextHandle);
+    fixture.componentRef.setInput('frontTexture', '/assets/cards/pokemon/blastoise.webp');
+    fixture.detectChanges();
+    await vi.waitFor(() => expect(fixture.componentInstance.status()).toBe('ready'));
+    expect(oldSignal.aborted).toBe(true);
+    expect(runtime.mount.mock.calls.at(-1)![4]).toBe('/assets/cards/pokemon/blastoise.webp');
+    finish(handle); await pending;
+    expect(handle.dispose).toHaveBeenCalledOnce();
+    expect(nextHandle.dispose).not.toHaveBeenCalled();
+  });
 });

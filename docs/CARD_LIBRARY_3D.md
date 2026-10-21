@@ -1,12 +1,22 @@
 # Thư viện thẻ 2D và xem 3D
 
-Cập nhật 2026-10-21. Commit tính năng [b0ff8d2](https://github.com/thanhdo257205/EXE_WebApplication/commit/b0ff8d2898f472f026972ca2af78556c67b76c40) đã push origin/main và xác minh SHA remote. Chưa xác nhận CI/CD/deploy hoặc GPU/touch trên thiết bị thật.
+Cập nhật 2026-10-21. Bản ứng dụng4dca2db (bao gồm tính năng3D ban đầu) đã CI/CD/smoke production thành công. Bản bổ sung9 texture Pokémon bên dưới chỉ local, chưa commit/push/deploy; chưa nghiệm thu GPU/touch trên thiết bị thật.
+
+## Bộ10 mẫu Pokémon — local
+
+Giữ thẻ mẫu gốc pokemon-card-3d và thêm9 mẫu: Charizard, Blastoise, Venusaur, Mewtwo, Pikachu, Bulbasaur, Charmander, Squirtle (Base Set), Eevee (Jungle). Catalog fallback khi chưa có release có10 mục với ảnh2D riêng, tìm tên/mã và URL `/thu-vien/mau/:slug` (ví dụ charizard-3d). Param thay đổi cập nhật sample cục bộ; unknown sample báo lỗi, retry không gọi API. Demo chỉ xuất hiện khi chưa có release và API/snapshot không tải được; list release thành công và404 thẻ thật không bị thay bằng mẫu. ID và demo gate tránh điều hướng nhầm nếu slug thẻ thật trùng mẫu.
+
+Nguồn ảnh: [TCGdex assets](https://tcgdex.dev/assets). Thư mục `frontend/public/assets/cards/pokemon/` có9 texture high WebP600×825 tải nguyên gốc (711066bytes tổng),9 poster360×495 WebP quality86 (384678bytes tổng), `sources.json` ghi metadata/cardId/illustrator/URL/hash/ngày tải và `ATTRIBUTION.md`. Không phụ thuộc API/host TCGdex lúc người dùng truy cập; file được phục vụ cùng origin. Ảnh Pokémon thuộc chủ sở hữu artwork/thương hiệu tương ứng, không được gán license CC BY của model.
+
+Mọi mẫu dùng chung `default-card.glb`: không nhân geometry/model9 lần và không thay file model/poster ban đầu. Runtime nhận optional frontTexture, tải bằng fetch có abort/timeout, decode ImageBitmap flipY rồi gắn vào map/emissiveMap của material face; giữ UV, ánh sáng, mặt sau, metallic/roughness và controls. Mép mỏng của GLB dùng cùng face material nên màu mép đi theo ảnh mặt trước. Dispose texture cũ sau thay; lỗi/abort dọn model và bitmap; component đổi input sẽ hủy viewer cũ, bỏ kết quả muộn và khởi tạo mẫu mới. Grid chỉ tải poster lazy, không GLB/WebGL/high texture; viewer vẫn render theo input và nghỉ khi idle/hidden/offscreen.
+
+Xác minh local:113 tests/24 files và production build/prerender6 routes qua; initial428,78kB raw/118,41kB estimated transfer, runtime3D640,80kB raw/132,90kB estimated transfer. Warnings CSS/React cũ giữ nguyên. Edge browser:10 catalog links/poster decode,0 GLB/high texture catalog,10 detail front khác nhau với đúng texture và0 API nội dung ở mẫu; search, mobile390px, zoom/phím/idle600ms0 draw, route cleanup, texture503/poster/retry và unknown sample qua,0 pageerror. Renderer riêng xác minh9 front khác nhau và vùng trung tâm artwork mặt sau giống nhau, không yêu cầu mép3D có pixel giống vì face map thay đổi. Đã xem ảnh catalog/detail và kiểm tra chữ đúng chiều. Script/ảnh ở `frontend/output/check-pokemon-catalog.cjs`, `check-pokemon-runtime.cjs`, `pokemon-*.png` ignored. Chưa benchmark FPS/GPU/pinch thiết bị thật hoặc deploy9 mẫu mới.
 
 ## Trải nghiệm
 
 - `/thu-vien`: liệt kê các bộ đã xuất bản, chọn bộ để lọc, tìm theo tên/mã và phân trang thẻ. Bộ thẻ có nút tải thêm khi vượt một trang24 mục. Danh sách chỉ dùng ảnh2D lazy, không khởi tạo WebGL hoặc tải GLB.
 - `/thu-vien/:slug`: luật và thông tin thẻ từ release public; phần xem dùng model mặc định được cung cấp. Có kéo xoay toàn cảnh, cuộn/pinch zoom, nút mặt trước/sau, xoay, zoom và đặt lại. Focus khung rồi dùng mũi tên, +/− hoặc Home.
-- `/thu-vien/mau/pokemon-card-3d`: route mẫu riêng, không gọi API nội dung. Catalog chưa tải được API/snapshot khi chưa ghim release sẽ hiện duy nhất một bộ/thẻ mẫu với nhãn rõ và nút thử tải lại. Không tự chuyển slug thật bị404 thành demo; không thay luật thật bằng dữ liệu mẫu.
+- `/thu-vien/mau/:slug`: route mẫu riêng, không gọi API nội dung; URL pokemon-card-3d cũ giữ nguyên. Catalog chưa tải được API/snapshot khi chưa ghim release sẽ hiện một bộ với10 thẻ mẫu, nhãn rõ và nút thử tải lại. Không tự chuyển slug thật bị404 thành demo; không thay luật thật bằng dữ liệu mẫu.
 - Máy không tạo được WebGL, tải GLB lỗi hoặc mất context: giữ ảnh2D và nút thử lại. Mobile có các nút để thao tác ngoài cử chỉ chạm.
 
 Chưa có dữ liệu/artwork chính thức148 thẻ. Bộ và hiệu ứng thực tế phải được xuất bản qua quy trình nội dung hiện có. Hai bộ/thẻ trong ảnh kiểm thử là fixture, không được seed vào backend.
@@ -41,4 +51,4 @@ Nguồn/license trong metadata GLB: [Pokemon Card3D — Johana-PS](https://sketc
 - Edge headless local: catalog không tải GLB; detail tải1 lần; ảnh trước/sau/drag/zoom/phím khác nhau; idle700ms0 draw mới; mobile390px không overflow; rời route còn0 canvas. Fixture2 bộ/thẻ xác minh filter ghim release, ảnh2D tải được, real detail, context-loss/retry, slug404 giữ lỗi và GLB503 có poster;0 pageerror.
 - Scripts/screenshots trong `frontend/output/check-cards-3d.cjs`, `check-cards-fixture.cjs`, `card-3d-*.png`, `cards-catalog-loaded.png` được ignore. Chưa nghiệm thu pinch/GPU trên điện thoại thật hoặc benchmark FPS/CPU/LCP/INP.
 
-Thay model mặc định ở `public/assets/models/default-card.glb` và poster tương ứng; cập nhật metadata/attribution, kiểm tra bounds/hướng mặt trước và mobile trước khi phát hành. Chưa có model riêng cho từng thẻ, upload model hoặc editor3D trong admin.
+Thay model mặc định ở `public/assets/models/default-card.glb` và poster tương ứng; cập nhật metadata/attribution, kiểm tra bounds/hướng mặt trước và mobile trước khi phát hành. Bộ mẫu có texture riêng khai báo trong `core/content/default-card.ts`; chưa có upload texture/model hoặc editor3D trong admin, không dùng artworkUrl API làm texture3D tự động.

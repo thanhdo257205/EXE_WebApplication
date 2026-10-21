@@ -13,7 +13,7 @@
 
 `frontend/src/app/shared/motion/spread-columns.js` ports the supplied engine with equivalent formatting and quotes; maths, constants, PRNG, slot mapping, easing, clipping and draw order are unchanged. `.d.ts` adds the Angular boundary without editing the engine. `ColumnSpreadComponent` hosts it at responsive 16:9; backing store uses rounded CSS dimensions × min(DPR, 2). Transparent engine background is filled with #0c0b10 using destination-over. Phase starts at .12 and advances by min(dt,.05)/8. Reduced motion renders .12 statically. Resize redraws; pause, tab visibility, offscreen suspension and teardown do not change engine maths.
 
-12 local SVG faces in `frontend/public/assets/cards/` are authored decorative graphic layouts, **not official game cards or rules**. Default slot order is card-01 through card-12. Replace those paths or the component's `imageSources` when official assets arrive. Images are loaded in the browser and passed into the engine only after onload; no upload endpoint.
+As of the user's 2026-10-21 image change, Column Spread defaults to nine local Pokémon TCG WebP posters in `frontend/public/assets/cards/pokemon/`, repeating the first three to retain twelve slots. `cardAspect: auto` and the static poster's contain fit retain the full portrait artwork; all other movement parameters and the engine are unchanged. Loaders are visibility gated and URL deduplicated (nine images for twelve slots), with asynchronous decode before canvas use and cleanup guards. The native lazy static poster can load earlier within the browser's preload margin. Homepage/placeholder captions credit TCGdex and distinguish these samples from the site's game content. `imageSources` can still supply another initial set; no upload endpoint. Source metadata and rights are in that asset directory. Original decorative SVGs remain in the separate hero/theme previews.
 
 `RiseHeadingDirective` selects h1–h6 and is imported into every current heading-bearing Angular component (including admin/legal/auth). New heading-bearing components must import it too. React is lazy-loaded after Angular hydration. The original bound content stays in a screen-reader-only source span; the React layer is aria-hidden and uses TextEngine spans inside the existing semantic heading. Explicit breaks split display lines; inline emphasis retains typography. Source mutations update the visual layer, and route removal unmounts roots. Missing browser APIs or module-load failures keep static HTML visible.
 
@@ -23,8 +23,10 @@ Public routes retain existing destinations and auth logic. Route data binds plac
 
 ## Assets
 
+Column Spread now randomizes its twelve image-slot indices at mount and once per animation wrap, while the cards are collapsed. The image order remains stable during the fan-out. Source loading positions and the display buffer are separate so late decoding preserves the current order. This changes image selection only; animation maths and cached poster loading remain unchanged. Pausing, resizing, visibility and reduced-motion changes do not trigger a reshuffle. Repeated source images mean some visible cards can retain their positions between rounds.
+
 - House image: pre-existing `frontend/public/assets/images/can-nha-ban-dem.png`.
-- Decorative card SVGs: authored in this change; typography, dice and simple geometry.
+- Column Spread: Pokémon sample posters sourced from TCGdex, reused from the catalog; see `assets/cards/pokemon/sources.json` and `ATTRIBUTION.md`. Separate hero/theme decorative SVGs retain their typography, dice and simple geometry.
 - Fraunces italic: self-hosted from Google Fonts; OFL license beside font. Existing Be Vietnam Pro body font setup retained.
 - Reference photos/screenshots are inspection artifacts, not shipped art.
 

@@ -2,6 +2,25 @@
 
 Cập nhật: 2026-10-21 (Asia/Saigon).
 
+## Bản phát hành Pokémon lên GitHub (2026-10-21)
+
+- [x] FE-POKEMON-RELEASE-CHECKS —123 frontend tests/24files, focused13tests sau bổ sung cuối, production build/prerender và browser QA catalog/viewer/motion/shuffle đã qua; ảnh/attribution/docs cùng đợt.
+- [ ] FE-POKEMON-RELEASE-CI-CD — Xác minh CI/CD/smoke production cho bản Pokémon mới; không coi push là deploy thành công.
+
+## Xáo ảnh Column Spread (2026-10-21)
+
+- [x] FE-SPREAD-SHUFFLE — Fisher-Yates lúc mount và mỗi phase wrap, buffer nguồn/hiển thị riêng, giữ multiset/ref/decode muộn; không xáo giữa lượt hoặc do pause/resize/media/visibility.123 tests/build qua; focused13 tests sau bổ sung test decode-cross-wrap/offscreen qua. Edge2 vòng thêm0request/9decode tổng,0 pageerror; local, chưa push/deploy.
+
+## Column Spread Pokémon (2026-10-21)
+
+- [x] FE-SPREAD-POKEMON — Thay12 slot bằng9 poster Pokémon/lặp3, tỷ lệ portrait không crop nguồn; load theo viewport, dedup9 Image/decode async/late decode cleanup; giữ engine/lifecycle/controls.118 tests/24 files, production build/prerender6 routes và Edge desktop/mobile/pause/offscreen/reduced/route qua; local, chưa push/deploy.
+- [ ] FE-SPREAD-POKEMON-DEVICE — Đo FPS/CPU trên thiết bị thật và nghiệm thu sau deploy; số draw/decode không phải benchmark tăng tốc toàn web.
+
+## Bộ10 thẻ mẫu Pokémon (2026-10-21)
+
+- [x] FE-POKEMON-SAMPLES — Thêm9 ảnh/texture/poster có source/hash/attribution, giữ model/mặt sau cũ; catalog tổng10 mẫu, search và URL mẫu riêng. API/release/slug thật giữ nguyên.113 tests/build và Edge desktop/mobile/texture503-retry/idle/cleanup qua; local, chưa push/deploy.
+- [ ] FE-POKEMON-RELEASE — Push/CI/CD/smoke production cho9 mẫu mới khi có yêu cầu; GPU/pinch và hiệu năng trên điện thoại thật chưa nghiệm thu.
+
 ## Giảm công việc vẽ Column Spread (2026-10-21)
 
 - [x] FE-SPREAD-SCHEDULER — Một rAF cho image/resize, không reset bitmap cùng kích thước, không clear trùng engine, nghỉ offscreen/hidden và cập nhật static paused/reduced.108 tests/24 files và build/prerender qua; Edge renderer24 frames/3 DPR có0 byte khác. Commit4dca2db đã push/deploy; CI39607319174/CD39607636906 và smoke production thành công, API trả đúng SHA.

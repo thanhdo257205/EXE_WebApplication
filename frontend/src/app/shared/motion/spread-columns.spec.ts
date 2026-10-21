@@ -1,9 +1,9 @@
 import TEMPLATE from './spread-columns.js';
 import { SPREAD_PARAMS } from '../components/column-spread/column-spread.component';
 
-function trace(t: number, scale = 1) {
+function trace(t: number, scale = 1, imageSize: [number, number] = [512, 512]) {
   const cards: unknown[][] = [];
-  const images = Array.from({ length: 12 }, (_, slot) => ({ width: 512, height: 512, slot })) as unknown as HTMLImageElement[];
+  const images = Array.from({ length: 12 }, (_, slot) => ({ width: imageSize[0], height: imageSize[1], slot })) as unknown as HTMLImageElement[];
   const ctx = new Proxy({ drawImage: (...args: unknown[]) => cards.push(args) }, {
     get(target, key) { return key in target ? target[key as keyof typeof target] : () => {}; },
     set() { return true; },
@@ -34,5 +34,14 @@ describe('User-supplied Column Spread rendering invariants', () => {
   });
   it('has distinct stacked and spread phases', () => {
     expect(trace(.12)).not.toEqual(trace(.5));
+  });
+  it('keeps the full Pokémon portrait and closes the loop without cropping its artwork', () => {
+    const portraits = trace(.5, 1, [360, 495]);
+    expect(portraits.length).toBeGreaterThan(0);
+    portraits.forEach(card => {
+      card.coordinates.slice(0, 4).forEach((coordinate, index) => expect(coordinate).toBeCloseTo([0, 0, 360, 495][index], 5));
+      expect(card.coordinates[6] / card.coordinates[7]).toBeCloseTo(360 / 495, 5);
+    });
+    expect(trace(0, 1, [360, 495])).toEqual(trace(1, 1, [360, 495]));
   });
 });
