@@ -204,9 +204,10 @@ Schema hiện dành cho **một PayOS merchant channel**. Nếu thêm nhiều k�
 | `V5__payos_payment_ledger_and_audit.sql` | PayOS attempts, verified inbox, tiền nhận, refunds và audit |
 | V6/V7 | Password reset digest và auth_version thu hồi JWT |
 | V8/V9 | Version release nháp, version/ghi chú moderation phản hồi |
+| `V11__seed_pokemon_hoang_nam_product.sql` | Seed một sản phẩm thử: thẻ Pokémon Hoàng Nam, 2.000 VND, tồn 10 (kèm dòng RECEIVE trong ledger) |
 | `V10__admin_notifications.sql` | Notification admin theo feedback và read state riêng mỗi tài khoản |
 
-`DatabaseSchemaTests` chạy nâng V2 → V10 giữ dữ liệu user cũ, Flyway validate/idempotence, constraints, dedup, snapshots và hai buyer đồng thời. Luôn test H2; nếu có biến `SCHEMA_TEST_JDBC_URL/USERNAME/PASSWORD`, test thêm PostgreSQL trong schema ngẫu nhiên `exe_schema_test_<12 hex>` và xóa đúng schema đó khi xong. Không gọi Flyway clean, không migrate public schema Aiven khi chạy contract test.
+`DatabaseSchemaTests` chạy nâng V2 → V11 (9 migration) giữ dữ liệu user cũ, Flyway validate/idempotence, constraints, dedup, snapshots và hai buyer đồng thời. Luôn test H2; nếu có biến `SCHEMA_TEST_JDBC_URL/USERNAME/PASSWORD`, test thêm PostgreSQL trong schema ngẫu nhiên `exe_schema_test_<12 hex>` và xóa đúng schema đó khi xong. Không gọi Flyway clean, không migrate public schema Aiven khi chạy contract test.
 
 CI backend có PostgreSQL 18 disposable để kiểm tra thật, không dùng secret database production. Chạy local: `.\mvnw.cmd -B -ntp test` hoặc `-Dtest=DatabaseSchemaTests test`. Session/credentials cũ vẫn phải qua các test auth hiện có.
 

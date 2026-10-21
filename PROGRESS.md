@@ -4,6 +4,13 @@
 
 ## Cập nhật gần nhất
 
+### Cửa hàng thử: thẻ Pokémon Hoàng Nam 2.000 ₫ + thanh toán QR PayOS — 2026-10-21, local
+
+- Theo yêu cầu: sản phẩm thử là thẻ **Pokémon Hoàng Nam** (ban đầu 1.000.000 ₫, sau đó chủ dự án đổi thành **2.000 ₫** để test chuyển tiền). Backend: Flyway **V11** seed 1 category/product/variant (id cố định `5a1f0c2e-…0003`, SKU `POKEMON-HOANG-NAM-01`)/ảnh/tồn 10 + dòng RECEIVE; `GET /api/v1/shop/products` (public, no-store); `SecurityConfig` cho phép GET này. Giá luôn lấy từ DB, client chỉ gửi variantId.
+- Frontend: `/cua-hang` (danh sách + giá + Mua ngay) và `/gio-hang?variant=` (đăng nhập bắt buộc, form tên/SĐT/địa chỉ/tỉnh/ghi chú, `POST /checkout` có CSRF + idempotency key, hiện mã QR dựng từ `qrCode` bằng thư viện `qrcode` nạp lazy, nút mở trang PayOS, poll đơn mỗi 5s đến khi PAID, nút kiểm tra thanh toán). Thêm dependency `qrcode`/`@types/qrcode`.
+- Xác minh: frontend 156/156 tests, build/prerender qua; Chromium với backend giả lập (page.route): giá 2.000 ₫, tên điền sẵn, validate, body checkout đúng (không có giá), QR hiện, poll PAID hiện "Đã nhận thanh toán", 0 pageerror. Backend (JDK21 override, JDK25 theo pom không có local): 131 tests/0 lỗi (46 test Postgres bị skip local), gồm `ShopCatalogTests` mới (catalog 2.000 + checkout seed ra total 2.000/qr) và `DatabaseSchemaTests` cập nhật 9 migration. **Chưa** chạy thanh toán thật với PayOS và chưa deploy: V11 sẽ chạy trên database production khi CD deploy backend.
+- Lưu ý vận hành: webhook PayOS phải đã được đăng ký (xem docs/PAYOS.md) để đơn chuyển CONFIRMED; đơn chưa thanh toán giữ hàng 30 phút (tối đa 5 đơn chờ/khách, tồn 10).
+
 ### Column Spread: DPR theo thiết bị + giới hạn 30fps khi máy giật — 2026-10-21, local
 
 - Hướng 1 và 4 trong đề xuất tối ưu canvas thẻ: thêm `spreadRenderBudget()` trong `column-spread.component.ts`. Máy mạnh giữ DPR cap2 và không giới hạn khung như cũ; màn cảm ứng (`pointer: coarse`) cap1,5; khi `perf-tier=low` dùng DPR1 và bỏ khung gần hơn ~33ms (≈30fps, dt tích lũy nên nhịp8s không đổi). Component nghe `perf-tier-change` để đổi kích thước canvas ngay. Không đụng engine `spread-columns.js`, thứ tự vẽ, easing hay ảnh.

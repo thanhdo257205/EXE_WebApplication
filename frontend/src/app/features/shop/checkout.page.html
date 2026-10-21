@@ -1,0 +1,77 @@
+<section class="checkout">
+  <a routerLink="/cua-hang" class="back-link">← Về cửa hàng</a>
+  <p class="eyebrow">Thanh toán</p>
+  <h1 class="display">Đặt mua</h1>
+
+  @switch (loadState()) {
+    @case ('loading') { <p class="state" aria-live="polite">Đang tải sản phẩm…</p> }
+    @case ('failed') { <p class="state" role="alert">Chưa tải được sản phẩm. Vui lòng tải lại trang.</p> }
+    @case ('missing') {
+      <div class="state"><p>Giỏ hàng trống hoặc sản phẩm không còn bán.</p><a class="cta" routerLink="/cua-hang">Đến cửa hàng</a></div>
+    }
+    @case ('ready') {
+      @if (!auth.currentUser()) {
+        <div class="state">
+          @if (auth.checkingSession()) { <p>Đang kiểm tra phiên đăng nhập…</p> }
+          @else {
+            <p>Bạn cần đăng nhập để đặt hàng và nhận mã thanh toán.</p>
+            <a class="cta" [routerLink]="loginLink" [queryParams]="loginQuery">Đăng nhập để mua</a>
+          }
+        </div>
+      } @else {
+        <div class="layout">
+          <aside class="summary" aria-label="Tóm tắt đơn hàng">
+            @if (product(); as p) {
+              @if (p.imageUrl) { <img [src]="p.imageUrl" [alt]="p.name" width="360" height="495" /> }
+              <h2>{{ p.name }}</h2>
+              <p class="line"><span>{{ selected()?.name }} × 1</span><strong>{{ price(selected()!.priceAmount) }}</strong></p>
+              <p class="line total"><span>Tổng thanh toán</span><strong>{{ price(selected()!.priceAmount) }}</strong></p>
+              <p class="hint">Phí vận chuyển: 0 ₫ (bản thử nghiệm).</p>
+            }
+          </aside>
+
+          @if (order(); as o) {
+            <div class="panel" aria-live="polite">
+              <p class="eyebrow">Đơn {{ o.number }}</p>
+              @if (paid(o)) {
+                <h2 class="done">Đã nhận thanh toán</h2>
+                <p>Cảm ơn bạn! Đơn hàng {{ o.number }} đã được xác nhận ({{ price(o.total) }}).</p>
+                <a class="cta" routerLink="/cua-hang">Tiếp tục mua sắm</a>
+              } @else if (o.checkoutUrl) {
+                <h2>Quét mã QR để thanh toán</h2>
+                @if (qrImage()) { <img class="qr" [src]="qrImage()!" alt="Mã QR thanh toán PayOS" width="320" height="320" /> }
+                <p class="amount">{{ price(o.total) }}</p>
+                <p class="hint">Mở app ngân hàng, quét mã và giữ nguyên số tiền. Trang tự cập nhật khi PayOS nhận tiền.</p>
+                <div class="actions">
+                  <a class="cta" [href]="o.checkoutUrl" target="_blank" rel="noopener noreferrer">Mở trang thanh toán PayOS</a>
+                  <button type="button" class="ghost" (click)="check()">Kiểm tra thanh toán</button>
+                </div>
+              } @else {
+                <h2>Đơn hàng chưa thanh toán</h2>
+                <p>Liên kết thanh toán đã hết hạn hoặc bị hủy. Bạn có thể đặt lại từ cửa hàng.</p>
+                <a class="cta" routerLink="/cua-hang">Về cửa hàng</a>
+              }
+              @if (notice()) { <p class="notice" role="status">{{ notice() }}</p> }
+            </div>
+          } @else {
+            <form class="form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+              <h2>Thông tin giao hàng</h2>
+              <label>Họ và tên<input formControlName="recipientName" autocomplete="name" maxlength="120" /></label>
+              @if (form.controls.recipientName.touched && form.controls.recipientName.invalid) { <p class="field-error">Vui lòng nhập họ tên.</p> }
+              <label>Số điện thoại<input formControlName="recipientPhone" autocomplete="tel" inputmode="tel" maxlength="32" /></label>
+              @if (form.controls.recipientPhone.touched && form.controls.recipientPhone.invalid) { <p class="field-error">Số điện thoại gồm 8–32 ký tự số, +, khoảng trắng hoặc dấu ngoặc.</p> }
+              <label>Địa chỉ nhận hàng<input formControlName="addressLine" autocomplete="street-address" maxlength="500" placeholder="Số nhà, đường, phường/xã, quận/huyện" /></label>
+              @if (form.controls.addressLine.touched && form.controls.addressLine.invalid) { <p class="field-error">Vui lòng nhập địa chỉ.</p> }
+              <label>Tỉnh / Thành phố<input formControlName="province" autocomplete="address-level1" maxlength="120" /></label>
+              @if (form.controls.province.touched && form.controls.province.invalid) { <p class="field-error">Vui lòng nhập tỉnh/thành phố.</p> }
+              <label>Ghi chú (không bắt buộc)<textarea formControlName="note" rows="3" maxlength="1000"></textarea></label>
+              @if (error()) { <p class="field-error" role="alert">{{ error() }}</p> }
+              <button class="cta submit" type="submit" [disabled]="submitting()">{{ submitting() ? 'Đang tạo mã thanh toán…' : 'Thanh toán ' + price(selected()!.priceAmount) }}</button>
+              <p class="hint">Bạn sẽ nhận mã QR thanh toán từ PayOS ngay sau khi bấm nút.</p>
+            </form>
+          }
+        </div>
+      }
+    }
+  }
+</section>

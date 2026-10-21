@@ -121,14 +121,12 @@ export const routes: Routes = [
   {
     path: 'cua-hang',
     title: 'Cửa hàng board game — Nhà Này Hơi Báo!',
-    data: { heading: 'Kho vật phẩm & Board game chính hãng', description: 'Sở hữu trọn bộ bản cứng Chưa Giàu Đã Lớn, các gói mở rộng V2 và phụ kiện bàn chơi cao cấp.' },
-    loadComponent: () => import('./shared/placeholder.page').then(m => m.PlaceholderPage),
+    loadComponent: () => import('./features/shop/shop.page').then(m => m.ShopPage),
   },
   {
     path: 'gio-hang',
     title: 'Giỏ hàng & Thanh toán — Nhà Này Hơi Báo!',
-    data: { heading: 'Giỏ hàng & Thanh toán', description: 'Danh sách vật phẩm đã chọn và hóa đơn thanh toán qua PayOS.' },
-    loadComponent: () => import('./shared/placeholder.page').then(m => m.PlaceholderPage),
+    loadComponent: () => import('./features/shop/checkout.page').then(m => m.CheckoutPage),
   },
   {
     path: '**',

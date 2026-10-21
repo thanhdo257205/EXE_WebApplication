@@ -117,6 +117,12 @@ Cập nhật: 2026-10-21 (Asia/Saigon).
 - [x] STYLE-ED-06: Wheel trên viewer 3D không còn cuộn trang (data-lenis-prevent), kiểm bằng Chromium + spec.
 - [ ] STYLE-ED-03: Kiểm tra Lenis với modal, menu mobile, anchor `#the-bai`, pinch/touch trên viewer; đo FPS thiết bị thật.
 
+## Cửa hàng thử (2026-10-21)
+
+- [x] SHOP-01: V11 seed thẻ Pokémon Hoàng Nam 2.000 ₫, `GET /shop/products`, trang `/cua-hang` và `/gio-hang` (form giao hàng, QR PayOS, poll); tests local qua.
+- [ ] SHOP-02: Sau deploy, thanh toán thật 2.000 ₫ qua PayOS (QR, webhook → CONFIRMED, trừ tồn), xác nhận webhook đã đăng ký; kiểm tra Postgres V11 trên Aiven.
+- [ ] SHOP-03: Giỏ nhiều sản phẩm, quản trị sản phẩm/tồn kho, phí ship thật, trang lịch sử đơn của khách.
+
 ## Quy tắc cập nhật
 
 - `[ ]`: chưa hoàn thành, kể cả đang làm hoặc đang bị chặn.

@@ -19,6 +19,7 @@ writes. Get `/api/v1/auth/csrf` and send its `headerName`/`token` when posting.
 
 | Method | Path | Access and purpose |
 |---|---|---|
+| GET | `/api/v1/shop/products` | Public; sản phẩm ACTIVE, biến thể bật, giá VND nguyên và còn hàng (`on_hand - reserved > 0`); `Cache-Control: no-store` |
 | GET | `/api/v1/payments/config` | Public; configuration presence only, not proof of merchant connectivity |
 | POST | `/api/v1/checkout` | Signed-in enabled account + CSRF; atomic order/stock reservation and PayOS link |
 | GET | `/api/v1/orders` | Current customer's last 50 orders |
@@ -44,8 +45,11 @@ Example checkout body (replace variant UUID with an actual enabled SKU):
 Prices are read from active catalog rows, never the request. This MVP sets
 shipping and discount to zero; real shipping charges/promotions require an
 approved server-side policy before enabling them. Maximum 20 distinct SKUs,
-100 units per SKU, 5 pending orders per customer. No demo catalog, accounts,
-prices or completed payments are inserted into production.
+100 units per SKU, 5 pending orders per customer. Flyway V11 seeds exactly one trial product requested by the owner: **Pokémon Hoàng Nam**
+(`pokemon-hoang-nam`, SKU `POKEMON-HOANG-NAM-01`, variant `5a1f0c2e-7b1d-4c8a-9a10-000000000003`,
+**2,000 VND**, stock 10 with a RECEIVE ledger row). No other catalog, accounts or completed
+payments are inserted; change the price/stock by a new migration or admin tooling when real
+products exist.
 
 The response contains `id`, order/payment status, integer VND amounts and the
 PayOS `checkoutUrl`/`qrCode` when payable. Never discard the idempotency key
@@ -148,3 +152,15 @@ Release proof for backend `0cfb553`:
 Official references: [Java SDK](https://github.com/payOSHQ/payos-lib-java),
 [Merchant API](https://payos.vn/docs/api/),
 [webhook signatures](https://payos.vn/docs/tich-hop-webhook/kiem-tra-du-lieu-voi-signature/).
+
+## Storefront (frontend)
+
+- `/cua-hang` lists products from `GET /api/v1/shop/products`; "Mua ngay" opens `/gio-hang?variant=<variantId>`.
+- `/gio-hang` requires a signed-in customer (otherwise links to `/dang-nhap?returnUrl=...`). The form collects
+  name, phone, address, province and optional note; submit calls `POST /api/v1/checkout` with CSRF and a
+  client-generated idempotency key (kept while the form data is unchanged, renewed when it changes). The client
+  sends only `variantId` and quantity 1 — never a price.
+- The response `qrCode` is the VietQR payload; the browser renders it with the `qrcode` package (lazy chunk) and also
+  offers the PayOS `checkoutUrl`. The page polls `GET /api/v1/orders/{id}` every 5 seconds (paused while the tab is
+  hidden) and shows success when `paymentStatus` is `PAID`; "Kiểm tra thanh toán" calls `refresh-payment`
+  (backend throttles it). The order becomes CONFIRMED only via the signed webhook or reconciliation.
