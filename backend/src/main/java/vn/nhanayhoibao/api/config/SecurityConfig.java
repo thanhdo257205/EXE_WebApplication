@@ -86,7 +86,7 @@ public class SecurityConfig {
                     "/api/v1/auth/csrf", "/api/v1/auth/config", "/api/v1/payments/config").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/payments/payos/webhook", "/api/v1/internal/payments/reconcile").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/payments/return/*").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/v1/content/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/content/**", "/api/v1/shop/products").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/checkout", "/api/v1/orders/*/refresh-payment", "/api/v1/feedback").authenticated()
                 .requestMatchers(HttpMethod.GET, "/api/v1/orders", "/api/v1/orders/*").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/login", "/api/v1/auth/register",

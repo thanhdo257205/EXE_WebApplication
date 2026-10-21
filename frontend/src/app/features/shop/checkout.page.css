@@ -1,0 +1,20 @@
+:host{display:block;background:#0b0c0d;color:#f3f1ea;min-height:70vh}
+.checkout{max-width:1100px;margin:0 auto;padding:clamp(28px,5vw,64px) var(--gutter,24px) 96px}
+.back-link{font-size:12px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:#8f9289}.back-link:hover{color:#f3f1ea}
+.eyebrow{margin:40px 0 0}h1{margin:24px 0 0;font-size:clamp(56px,9vw,130px);line-height:1}
+.state{margin:48px 0;color:#8f9289;display:grid;gap:16px;justify-items:start}
+.layout{display:grid;grid-template-columns:minmax(220px,320px) 1fr;gap:clamp(24px,5vw,64px);margin-top:48px;align-items:start}
+.summary{padding:20px;border:1px solid #f3f1ea1a;border-radius:18px;background:#141618}.summary img{display:block;width:100%;max-width:220px;margin:0 auto 16px;border-radius:10px}
+.summary h2{margin:0 0 14px;font-size:22px}.line{display:flex;justify-content:space-between;gap:12px;margin:0;padding:12px 0;border-top:1px solid #f3f1ea1a;font-size:14px;color:#8f9289}
+.line strong{color:#f3f1ea;font-weight:600}.total strong{color:#dafa76;font-size:20px}.hint{margin:10px 0 0;font-size:12px;line-height:1.6;color:#8f9289}
+.form,.panel{display:grid;gap:14px}.form h2,.panel h2{margin:0 0 4px;font-size:26px}.panel .eyebrow{margin:0}
+label{display:grid;gap:8px;font-size:12px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:#8f9289}
+input,textarea{padding:14px 16px;border:1px solid #f3f1ea33;border-radius:12px;background:#141618;color:#f3f1ea;font:inherit;font-size:15px;letter-spacing:0;text-transform:none}
+input:focus-visible,textarea:focus-visible{outline:2px solid #dafa76;outline-offset:2px;border-color:#dafa76}
+.field-error{margin:-6px 0 0;font-size:12px;color:#ff9aa8}.notice{margin:0;font-size:13px;color:#dafa76}
+.cta{display:inline-flex;justify-content:center;align-items:center;padding:15px 24px;border:0;border-radius:999px;background:#dafa76;color:#183c2b;font-weight:700;font-size:14px;cursor:pointer;transition:background .2s}
+.cta:hover:not(:disabled){background:#e6fb9d}.cta:disabled{opacity:.6;cursor:progress}.submit{margin-top:6px}
+.ghost{padding:15px 24px;border:1px solid #f3f1ea40;border-radius:999px;color:#f3f1ea;font-size:14px}.ghost:hover{border-color:#dafa76;color:#dafa76}
+.qr{display:block;width:min(320px,100%);height:auto;padding:10px;border-radius:14px;background:#fff}.amount{margin:0;font-size:32px;font-weight:600;color:#dafa76}
+.actions{display:flex;flex-wrap:wrap;gap:12px}.done{color:#dafa76}
+@media(max-width:800px){.layout{grid-template-columns:1fr}}

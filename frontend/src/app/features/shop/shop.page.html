@@ -1,0 +1,32 @@
+<section class="shop">
+  <a routerLink="/" class="back-link">← Về căn nhà</a>
+  <p class="eyebrow">Cửa hàng</p>
+  <h1 class="display">Thẻ sưu tập</h1>
+  <p class="lead">Bản thử nghiệm cửa hàng: đặt mua, nhập thông tin giao hàng và thanh toán bằng mã QR của PayOS.</p>
+
+  @if (failed()) {
+    <div class="state" role="alert"><p>Chưa tải được danh sách sản phẩm.</p><button type="button" (click)="load()">Thử lại</button></div>
+  } @else if (!products()) {
+    <p class="state" aria-live="polite">Đang tải sản phẩm…</p>
+  } @else if (!products()!.length) {
+    <p class="state">Hiện chưa có sản phẩm nào đang bán.</p>
+  } @else {
+    <ul class="grid">
+      @for (product of products(); track product.id) {
+        @for (variant of product.variants; track variant.id) {
+          <li class="product">
+            <div class="art">@if (product.imageUrl) { <img [src]="product.imageUrl" [alt]="product.name" width="360" height="495" loading="lazy" /> }</div>
+            <div class="info">
+              <h2>{{ product.name }}</h2>
+              <p class="desc">{{ product.description }}</p>
+              <p class="meta"><span>{{ variant.name }}</span><strong>{{ price(variant.priceAmount) }}</strong></p>
+              @if (variant.available) {
+                <a class="buy" [routerLink]="['/gio-hang']" [queryParams]="{ variant: variant.id }">Mua ngay</a>
+              } @else { <span class="sold-out">Tạm hết hàng</span> }
+            </div>
+          </li>
+        }
+      }
+    </ul>
+  }
+</section>

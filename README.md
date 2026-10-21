@@ -90,7 +90,7 @@ Trong `backend/`:
 .\mvnw.cmd -B -ntp verify
 ```
 
-Frontend tạo file tĩnh tại `frontend/dist/exe-web/browser/`, prerender `/`, `/thu-vien`, `/wiki`, `/huong-dan`. Các trang hiện là khung/placeholder. Build không gọi backend. `_redirects` hỗ trợ Angular client routing trên Cloudflare Pages.
+Frontend tạo file tĩnh tại `frontend/dist/exe-web/browser/`, prerender `/`, `/thu-vien`, `/wiki`, `/huong-dan`. Các trang nội dung còn là khung/placeholder; `/cua-hang` và `/gio-hang` là cửa hàng thử (xem [docs/PAYOS.md](docs/PAYOS.md)). Build không gọi backend. `_redirects` hỗ trợ Angular client routing trên Cloudflare Pages.
 
 ## Triển khai hiện tại
 

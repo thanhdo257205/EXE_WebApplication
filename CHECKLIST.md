@@ -98,6 +98,8 @@ Cập nhật: 2026-10-21 (Asia/Saigon).
 - [x] PERF-ASSET-01: Trim Google Font Be Vietnam Pro, Fraunces WOFF2 subset, hero PNG→WebP, `_headers` cache30 ngày; tests/build local qua.
 - [ ] PERF-ASSET-02: Sau deploy, xác minh `Cache-Control` thật của asset qua Pages, so sánh hình/chữ và đo LCP/transfer trước-sau.
 - [x] PERF-TIER-01: Bộ giám sát FPS `perf-tier`, hạ blur/tắt đuôi chuột khi giật, CSS coarse/reduced-transparency, `?perf=1`; tests/build/Chromium throttle local qua.
+- [x] PERF-SPREAD-01: Column Spread dùng ngân sách vẽ theo thiết bị (DPR cap, 30fps khi low), tests/Chromium local qua.
+- [ ] PERF-SPREAD-02: Cân nhắc cache lá đã bo góc và bỏ vẽ khi các lá đứng yên, sau khi có trace FPS/CPU thật.
 - [ ] PERF-TIER-02: Đo trên thiết bị yếu thật và tinh chỉnh ngưỡng (40% khung chậm, 2 cửa sổ); cân nhắc hạ thêm dot-grid/canvas Column Spread khi `low`.
 - [ ] PERF-ASSET-03: Tự host Be Vietnam Pro, snapshot-first nội dung công khai (eventCoalescing/OnPush không áp dụng: app zoneless).
 
@@ -114,6 +116,12 @@ Cập nhật: 2026-10-21 (Asia/Saigon).
 - [ ] STYLE-ED-02: Rà ảnh mobile 390px và các trang register/recovery/chi tiết thẻ/wiki/cửa hàng/giỏ hàng sau retheme; sửa độ tương phản nếu có.
 - [x] STYLE-ED-06: Wheel trên viewer 3D không còn cuộn trang (data-lenis-prevent), kiểm bằng Chromium + spec.
 - [ ] STYLE-ED-03: Kiểm tra Lenis với modal, menu mobile, anchor `#the-bai`, pinch/touch trên viewer; đo FPS thiết bị thật.
+
+## Cửa hàng thử (2026-10-21)
+
+- [x] SHOP-01: V11 seed thẻ Pokémon Hoàng Nam 2.000 ₫, `GET /shop/products`, trang `/cua-hang` và `/gio-hang` (form giao hàng, QR PayOS, poll); tests local qua.
+- [ ] SHOP-02: Sau deploy, thanh toán thật 2.000 ₫ qua PayOS (QR, webhook → CONFIRMED, trừ tồn), xác nhận webhook đã đăng ký; kiểm tra Postgres V11 trên Aiven.
+- [ ] SHOP-03: Giỏ nhiều sản phẩm, quản trị sản phẩm/tồn kho, phí ship thật, trang lịch sử đơn của khách.
 
 ## Quy tắc cập nhật
 
