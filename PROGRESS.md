@@ -4,6 +4,11 @@
 
 ## Cập nhật gần nhất
 
+### Đổi tên thẻ thành "Pokémon Hoàng Nam" — 2026-10-21, local
+
+- Theo yêu cầu, bỏ chữ "Linh Vật": tên thẻ **Pokémon Hoàng Nam**, mã `POKÉMON · SÂN TRƯỜNG`, slug/route `pokemon-hoang-nam`, file `pokemon-hoang-nam(.webp|-poster.webp)`, chữ trên ảnh thẻ vẽ lại ("POKÉMON / HOÀNG NAM"). Người dùng xác nhận đã có sự đồng ý dùng ảnh người thật. URL cũ `/thu-vien/mau/linh-vat-hoang-nam` (bản PR#3, đã/đang deploy) sẽ không còn tồn tại.
+- Xác minh: xem ảnh thẻ mới; tests/build chạy trong đợt này (kết quả ghi ở PR). Chưa deploy.
+
 ### Thẻ "Linh Vật Hoàng Nam" — 2026-10-21, local
 
 - Thêm thẻ mẫu thứ11 vào catalog fallback (`MASCOT_CARD` trong `core/content/default-card.ts`): route `/thu-vien/mau/linh-vat-hoang-nam`, texture/poster dàn từ ảnh người dùng gửi (xem docs/CARD_LIBRARY_3D.md). Sửa note nguồn TCGdex chỉ cho thẻ Pokémon và thêm class `display` cho h2 "Cầm thử một lá thẻ" để không cắt dấu.

@@ -120,11 +120,11 @@ describe('Card catalog', () => {
     expect(page.sampleTexture(charizard)).toBe('/assets/cards/pokemon/charizard.webp');
     expect(page.sampleTexture(SAMPLE_CARD)).toBeUndefined();
 
-    // Thẻ linh vật có route, texture và tìm kiếm riêng
-    const mascot = findSampleCard('linh-vat-hoang-nam')!;
-    expect(mascot.name).toBe('Linh Vật Hoàng Nam');
-    expect(page.itemLink(mascot)).toEqual(['/thu-vien/mau', 'linh-vat-hoang-nam']);
-    expect(page.sampleTexture(mascot)).toBe('/assets/cards/linh-vat-hoang-nam.webp');
+    // Thẻ Pokémon Hoàng Nam có route, texture và tìm kiếm riêng
+    const mascot = findSampleCard('pokemon-hoang-nam')!;
+    expect(mascot.name).toBe('Pokémon Hoàng Nam');
+    expect(page.itemLink(mascot)).toEqual(['/thu-vien/mau', 'pokemon-hoang-nam']);
+    expect(page.sampleTexture(mascot)).toBe('/assets/cards/pokemon-hoang-nam.webp');
 
     // Search specific Pokémon: Pikachu
     page.query.set('pikachu');

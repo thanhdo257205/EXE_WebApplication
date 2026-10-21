@@ -2,9 +2,9 @@
 
 Cập nhật 2026-10-21. Bản ứng dụng4dca2db (bao gồm tính năng3D ban đầu) đã CI/CD/smoke production thành công. Bản bổ sung9 texture Pokémon bên dưới chỉ local, chưa commit/push/deploy; chưa nghiệm thu GPU/touch trên thiết bị thật.
 
-## Thẻ linh vật "Linh Vật Hoàng Nam" — 2026-10-21
+## Thẻ "Pokémon Hoàng Nam" — 2026-10-21
 
-Thêm thẻ mẫu thứ11 theo yêu cầu: tên **Linh Vật Hoàng Nam**, route `/thu-vien/mau/linh-vat-hoang-nam`, dùng chung `default-card.glb` như các mẫu khác. Ảnh mặt trước do người dùng cung cấp (ảnh "Sao Đỏ đối ngoại" của Sân Trường có linh vật và một người thật); được dàn thành thẻ 600×825 (khung đỏ nâu, ảnh vuông 530×530, tên bằng Anton) rồi xuất WebP texture (64kB) và poster360×495 (31kB) tại `frontend/public/assets/cards/`. Ảnh gốc 2000px không đưa vào repo. Không có chỉ số/luật bịa thêm; `effectText` ghi rõ là thẻ minh họa. Ghi chú nguồn TCGdex chỉ hiện cho thẻ Pokémon. Cần người dùng xác nhận có quyền/đồng ý dùng ảnh người thật trên web công khai.
+Thẻ mẫu thứ11, tên **Pokémon Hoàng Nam** (ban đầu đặt "Linh Vật Hoàng Nam", đã bỏ chữ "Linh Vật" theo yêu cầu). Route `/thu-vien/mau/pokemon-hoang-nam`, dùng chung `default-card.glb`. Ảnh mặt trước do người dùng cung cấp (ảnh "Sao Đỏ đối ngoại" của Sân Trường); được dàn thành thẻ 600×825 (khung đỏ nâu, ảnh vuông 530×530, tên bằng Anton) rồi xuất `pokemon-hoang-nam.webp` (64kB) và `pokemon-hoang-nam-poster.webp` (360×495). Ảnh gốc 2000px không đưa vào repo. Không có chỉ số/luật bịa thêm; `effectText` ghi rõ là thẻ minh họa. Ghi chú nguồn TCGdex chỉ hiện cho thẻ Pokémon TCG. Người dùng xác nhận đã có sự đồng ý dùng ảnh người thật (2026-10-21).
 
 ## Bộ10 mẫu Pokémon — local
 

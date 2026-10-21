@@ -106,8 +106,9 @@ Cập nhật: 2026-10-21 (Asia/Saigon).
 - [x] STYLE-ED-01: Retheme public-content/placeholder/legal/auth/drawer/footer sang nền tối + nhấn lime; loader, marquee, chữ ma, Lenis; tests/build/ảnh local qua.
 - [x] STYLE-ED-04: Dựng lại trang chủ/nav/footer/menu mobile theo ngôn ngữ prompt (Anton, eyebrow, hero chữ khổng lồ, 12 cột đánh số, dải số liệu); local build/test/ảnh qua.
 - [x] BRAND-01: Logo SÂN TRƯỜNG làm huy hiệu header/loader/footer + favicon/apple-touch-icon; build/test local qua.
-- [x] CARD-MASCOT-01: Thẻ mẫu Linh Vật Hoàng Nam (route/texture/poster/tests/docs); local qua.
-- [ ] CARD-MASCOT-02: Xác nhận quyền/đồng ý dùng ảnh người thật trên web công khai trước khi phát hành.
+- [x] CARD-MASCOT-01: Thẻ mẫu Hoàng Nam (route/texture/poster/tests/docs); local qua.
+- [x] CARD-MASCOT-02: Người dùng xác nhận đã có sự đồng ý dùng ảnh người thật (2026-10-21).
+- [x] CARD-MASCOT-03: Đổi tên thẻ thành Pokémon Hoàng Nam (bỏ "Linh Vật"), slug/file/ảnh/tests; local qua.
 - [ ] BRAND-02: Chốt tên chữ trên logo và có đổi tên site/bảng màu theo logo (kem + đỏ nâu) hay không.
 - [ ] STYLE-ED-05: Giảm CSS component dưới budget 6kB (global-bar, home, public-content) và rà tablet 768–1000px.
 - [ ] STYLE-ED-02: Rà ảnh mobile 390px và các trang register/recovery/chi tiết thẻ/wiki/cửa hàng/giỏ hàng sau retheme; sửa độ tương phản nếu có.
