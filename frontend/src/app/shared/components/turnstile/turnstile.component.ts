@@ -46,7 +46,7 @@ export class TurnstileLoader {
       <p role="alert">Chưa tải được bước xác minh. Kiểm tra kết nối hoặc trình chặn nội dung.</p>
       <button type="button" (click)="mount()">Tải lại xác minh</button>
     }`,
-  styles: `:host { display: block; min-height: 65px; color: #fca5a5; font-size: .8rem; } button { margin-top: .5rem; color: #7dd3fc; text-decoration: underline; cursor: pointer; }`,
+  styles: `:host { display: block; min-height: 65px; color: #fca5a5; font-size: .8rem; } button { margin-top: .5rem; color: #e6fb9d; text-decoration: underline; cursor: pointer; }`,
 })
 export class TurnstileComponent implements AfterViewInit, OnDestroy {
   readonly siteKey = input.required<string>();

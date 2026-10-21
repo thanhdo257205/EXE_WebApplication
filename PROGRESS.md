@@ -4,6 +4,27 @@
 
 ## Cập nhật gần nhất
 
+### Logo "SÂN TRƯỜNG" làm huy hiệu + favicon — 2026-10-21, local
+
+- Người dùng gửi logo web (chữ đỏ nâu "… SÂN TRƯỜNG", linh vật xanh–cam, nền giấy kem; ảnh 2000×2000). Theo lựa chọn "huy hiệu + favicon", không đổi tên site hay bảng màu: tạo `logo-96.webp` (3,5kB) và `logo-256.webp` (14kB), `favicon.ico` (16/32/48) và `apple-touch-icon.png` (180px) từ ảnh gốc; ảnh gốc 2000px không đưa vào repo. Huy hiệu bo góc xuất hiện ở header (44px), màn mở trang (112px) và footer (88px).
+- Phần đầu tên trên logo bị linh vật che nên chưa chép tên bằng chữ vào site; chưa quyết định đổi tên/palette theo logo.
+- Sửa thêm: heading của placeholder/thư viện/auth/legal thêm class `display` để dấu tiếng Việt của chữ hoa không bị cắt.
+- Xác minh: 141/141 tests, build/prerender6routes qua; đã xem ảnh loader và trang câu chuyện. Chưa kiểm tra favicon trong tab trình duyệt thật. Chưa deploy.
+
+### Ngôn ngữ thiết kế theo bộ prompt (Marcus Vane/Baseline/Lumora) — 2026-10-21, local
+
+- Sau phản hồi "cần phong cách thiết kế của prompt chứ không chỉ nền", dựng lại trang chủ và nhiều thành phần theo ngôn ngữ prompt: chữ display Anton (tự host WOFF2 latin+vietnamese, 27 kB, OFL), tiêu đề hoa sát dòng cỡ lớn; nhãn `eyebrow` có chấm lime; hero chữ khổng lồ "NHÀ NÀY / HƠI BÁO!" nằm sau hộp game và thẻ, cột vai trò Chia tiền/việc/vui/Chơi chung và đoạn mô tả hai bên, gợi ý "Cuộn để vào nhà"; marquee Anton có chấm phân cách; section "Cách chơi" lưới 12 cột + danh sách đánh số 01–03 (từ 3 lối tắt có sẵn); "Thư viện thẻ" giữ Column Spread; dải "Con số" 4 ô (148/8/3/1 lấy từ nội dung site, không bịa); phần kết có chữ ma và link lớn hover dịch phải; footer chữ ký + 3 cột; nav tối giản (chữ hoa giãn chữ, gạch chân lime, bỏ viên thuốc kính hồng); menu mobile toàn màn hình chữ Anton; tiêu đề trang thư viện/placeholder/auth/legal dùng display font. Bộ chọn chủ đề giữ chức năng, gọn thành pill. Thêm directive `appReveal` (fade+trượt khi vào khung nhìn).
+- Sửa lỗi đã gặp: dấu tiếng Việt của chữ hoa bị cắt bởi ô clip của reveal chữ; nới `line-height` của `.line-word` và bù margin (padding/margin trực tiếp làm engine không phát hiện hiển thị nên hero kẹt `running`).
+- Màu nhấn giữ lime `#dafa76`, giữ Fraunces cho nhấn italic nhỏ. Không dùng rem-adaptive-grid của prompt (dùng clamp) để tránh vỡ bố cục cũ.
+- Xác minh: 141/141 tests, production build/prerender6routes qua; initial ~459kB raw/123kB transfer. Chromium 1360×850 và 390×844: đã xem hero, home đầy đủ, thư viện, menu mobile; 0 pageerror, 0 overflow ngang. Cảnh báo budget CSS component (global-bar 8,1kB, home 7,9kB, public-content 6,5kB, admin-dashboard) còn mở. Chưa xem ảnh register/recovery/chi tiết thẻ/cửa hàng, chưa kiểm tra 768–1000px, chưa đo FPS; chưa deploy.
+
+### Phong cách editorial tối cho toàn bộ trang công khai — 2026-10-21, local
+
+- Theo 8 prompt "recreate site" người dùng cung cấp (Soda, KIMI, Lumora, Laocoön, Baseline, Ascend, Flowstate, Marcus Vane; prompt8=prompt9), chọn hướng editorial tối tương phản cao, giữ Be Vietnam Pro + Fraunces. Nền công khai `#0b0c0d`, chữ `#f3f1ea`, nhấn lime `#dafa76`; thẻ lime/hồng/xanh giữ chữ tối.
+- Retheme: thư viện/wiki/chi tiết (public-content, từng rule để thẻ lime giữ chữ tối), trang placeholder (cau-chuyen...), legal (thẻ tối), auth (card giấy kem trên nền tối, nút lime, bỏ sắc xanh dương `#38bdf8` → lime), drawer/footer/focus ring. Admin không đổi.
+- Hiệu ứng mới: màn mở trang (curtain sẵn trong `index.html`, min1100ms/max2600ms/exit850ms, bỏ khi reduced motion/no-JS) và `data-boot` làm heading reveal đợi loader; marquee 22s CSS-only (`app-marquee`) giữa hero và thẻ bài; chữ ma "HƠI BÁO" ở phần kết; cuộn mượt Lenis 1.3.27 nạp lazy, tắt ở admin, khi reduced motion hoặc khi `perf-tier=low`.
+- Xác minh: 141/141 tests (thêm boot.spec), production build/prerender6routes qua, initial451,79kB raw/122,13kB estimated transfer (Lenis lazy ngoài bundle đầu). Chromium headless 1360×850: đã xem ảnh loader, home, thư viện, đăng nhập, câu chuyện, legal; boot→done, curtain bị gỡ, `html.lenis` bật, 0 pageerror (chỉ lỗi tải Google Fonts do sandbox chặn). Chưa xem register/detail mẫu/mobile sau retheme, chưa đo FPS Lenis trên thiết bị thật, chưa kiểm tra xung đột Lenis với viewer 3D/modal scroll; chưa deploy. Docs/DESIGN.md cập nhật cùng đợt.
+
 ### Tự hạ cấp hiệu ứng khi giật — 2026-10-21, local
 
 - Thêm `frontend/src/app/shared/utils/perf-tier.ts`: đo khoảng cách khung rAF chỉ khi có cuộn/rê/phím (nghỉ khi idle hoặc tab ẩn). Ngưỡng giật theo nhịp màn hình (p10×1,6, kẹp24–50ms) nên màn30Hz không bị coi là yếu, nhưng <20fps luôn là giật. Cần2 cửa sổ giật liên tiếp mới hạ; chỉ hạ, không tự nâng lại, lưu `sessionStorage`. Khi `low`: đặt `html[data-perf=low]`, phát `perf-tier-change`, hủy đuôi chuột, CSS hạ `.liquid-glass` xuống blur8px, header/drawer bỏ blur dùng nền đặc. `?perf=1` hiện FPS/mức.

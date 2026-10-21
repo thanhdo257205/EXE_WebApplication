@@ -1,7 +1,9 @@
 <div class="home-world" [style.--world-accent]="themes[selectedTheme()].color">
 <section class="hero" appDotGridWarp [style.--hero-color]="themes[selectedTheme()].color" [style.--hero-ink]="themes[selectedTheme()].ink" aria-labelledby="hero-title">
-  <div class="hero-topline"><span>CHƯA GIÀU ĐÃ LỚN</span><span>BOARD GAME · CHUYỆN CÙNG NHÀ</span></div>
-  <h1 id="hero-title">Nhà này<br><em>hơi báo!</em></h1>
+  <div class="hero-top">
+    <ul class="roles display" aria-label="Chia tiền, chia việc, chia niềm vui, chơi chung"><li>Chia tiền</li><li>Chia việc</li><li>Chia vui</li><li>Chơi chung</li></ul>
+    <div class="hero-intro"><p>Một board game về sống chung, những hóa đơn và cả đống chuyện bất ngờ.</p><a routerLink="/cach-choi" class="primary-cta" appLiquidGlass>Khám phá cách chơi <app-morph-icon name="arrow-right" [size]="20" color="currentColor" /></a></div>
+  </div>
   <div class="product-scene" aria-label="Thiết kế hộp và mặt thẻ minh họa">
     <img class="floating-card card-left" src="/assets/cards/card-02.svg" alt="Mặt thẻ Chuyện cùng nhà minh họa" width="512" height="512" />
     <div class="game-box"><div class="box-spine">CHƯA GIÀU ĐÃ LỚN</div><div class="box-face">
@@ -9,23 +11,43 @@
       <img src="/assets/images/can-nha-ban-dem.webp" alt="Căn nhà trong trò chơi" width="440" height="240" fetchpriority="high" />
       <span class="box-caption">MỘT NHÀ. NHIỀU CHUYỆN.</span><span class="box-label">THIẾT KẾ MINH HỌA</span>
     </div></div>
-    <img class="floating-card card-right" src="/assets/cards/card-01.svg" [src]="themes[selectedTheme()].card" alt="Mặt thẻ trang trí minh họa theo chủ đề đang chọn" width="512" height="512" />
+    <img class="floating-card card-right" [src]="themes[selectedTheme()].card" alt="Mặt thẻ trang trí minh họa theo chủ đề đang chọn" width="512" height="512" />
   </div>
-  <div class="hero-bottom">
-    <div class="hero-intro"><p>Một board game về sống chung,<br>những hóa đơn và cả đống chuyện bất ngờ.</p><a routerLink="/cach-choi" class="primary-cta" appLiquidGlass>Khám phá cách chơi <app-morph-icon name="arrow-right" [size]="20" color="currentColor" /></a></div>
-    <div class="theme-picker" role="group" aria-label="Đổi chủ đề trưng bày"><p aria-live="polite">{{ themes[selectedTheme()].line }}</p><div class="theme-options">@for (theme of themes; track theme.name; let i = $index) {<button appLiquidGlass type="button" [class.selected]="selectedTheme() === i" [attr.aria-pressed]="selectedTheme() === i" (click)="selectedTheme.set(i)"><img [src]="theme.card" alt="" width="512" height="512" /><span class="theme-name">{{ theme.name }}</span></button>}</div></div>
-  </div>
-  <a href="#the-bai" class="scroll-link">Lật tiếp câu chuyện <span aria-hidden="true">↓</span></a>
+  <h1 id="hero-title" class="display">Nhà này<br>hơi báo!</h1>
+  <div class="theme-picker" role="group" aria-label="Đổi chủ đề trưng bày"><p aria-live="polite">{{ themes[selectedTheme()].line }}</p><div class="theme-options">@for (theme of themes; track theme.name; let i = $index) {<button appLiquidGlass type="button" [class.selected]="selectedTheme() === i" [attr.aria-pressed]="selectedTheme() === i" (click)="selectedTheme.set(i)"><img [src]="theme.card" alt="" width="512" height="512" /><span class="theme-name">{{ theme.name }}</span></button>}</div></div>
+  <a href="#cach-choi" class="scroll-link"><span class="scroll-rule" aria-hidden="true"></span>Cuộn để vào nhà</a>
 </section>
+
+<app-marquee [items]="marqueeItems" aria-hidden="true" />
+
+<section id="cach-choi" class="story" aria-labelledby="story-title">
+  <div class="story-intro">
+    <p class="eyebrow">Cách chơi</p>
+    <h2 id="story-title" class="display">Mỗi lượt rút một thẻ.</h2>
+    <p class="lead" appReveal>Chuyện tiền nhà, chuyện chia việc, chuyện chẳng ai ngờ. Mỗi lượt rút mở ra một tình huống mới. Tìm hiểu căn nhà trước khi bước vào cuộc chơi.</p>
+  </div>
+  <ol class="principles">@for (item of shortcuts; track item.link; let i = $index) {<li [appReveal]="i * 90"><a [routerLink]="item.link"><span class="index">0{{ i + 1 }}</span><span class="body"><h3>{{ item.title }}</h3><p>{{ item.text }}</p></span><span class="arrow" aria-hidden="true">↗</span></a></li>}</ol>
+</section>
+
 <section id="the-bai" class="card-section" aria-labelledby="cards-title">
-  <div class="section-heading"><h2 id="cards-title">Một thẻ bài.<br><em>Cả nhà có chuyện.</em></h2><div><p>Chuyện tiền nhà, chuyện chia việc, chuyện chẳng ai ngờ. Mỗi lượt rút mở ra một tình huống mới.</p><a routerLink="/thu-vien" class="text-link">Đến thư viện thẻ <app-morph-icon name="arrow-right" [size]="20" color="currentColor" /></a></div></div>
+  <div class="section-head">
+    <div><p class="eyebrow">Thư viện thẻ</p><h2 id="cards-title" class="display">Một thẻ bài.<br>Cả nhà có chuyện.</h2></div>
+    <div class="head-side"><p class="tag">148 thẻ</p><a routerLink="/thu-vien" class="text-link">Đến thư viện thẻ <app-morph-icon name="arrow-right" [size]="20" color="currentColor" /></a></div>
+  </div>
   <app-column-spread />
   <p class="artwork-note">Ảnh Pokémon TCG minh họa chuyển động · Nguồn <a href="https://tcgdex.net" target="_blank" rel="noopener noreferrer">TCGdex</a> · Không phải bộ thẻ của Nhà Này Hơi Báo!</p>
 </section>
-<section class="discover-section" aria-labelledby="discover-title">
-  <div class="discover-title"><h2 id="discover-title">Ở chung thì dễ.<br><em>Hợp cạ mới vui.</em></h2><p>Tìm hiểu căn nhà trước khi bước vào cuộc chơi.</p></div>
-  <div class="discover-links">@for (item of shortcuts; track item.link) {<a [routerLink]="item.link"><app-morph-icon [name]="item.icon" [size]="28" color="currentColor" /><div><h3>{{ item.title }}</h3><p>{{ item.text }}</p></div><app-morph-icon name="arrow-right" [size]="24" color="currentColor" /></a>}</div>
-</section>
-<section class="closing"><h2>Đủ bạn rồi.<br><em>Về nhà thôi!</em></h2><a routerLink="/cau-chuyen" class="primary-cta" appLiquidGlass>Câu chuyện căn nhà <app-morph-icon name="arrow-right" [size]="20" color="currentColor" /></a></section>
 
+<section class="numbers" aria-labelledby="numbers-title">
+  <p class="eyebrow">Con số</p><h2 id="numbers-title" class="display">Căn nhà, đếm được.</h2>
+  <dl>@for (stat of stats; track stat.label; let i = $index) {<div [appReveal]="i * 110"><dd class="display">{{ stat.value }}</dd><dt>{{ stat.label }}</dt></div>}</dl>
+</section>
+
+<section class="closing" aria-labelledby="closing-title">
+  <span class="ghost-word" aria-hidden="true">Hơi báo</span>
+  <p class="eyebrow">Về nhà thôi</p>
+  <h2 id="closing-title" class="display">Đủ bạn rồi?<br>Về nhà thôi!</h2>
+  <p class="lead" appReveal>Rủ hội bạn, rút một thẻ, bắt đầu câu chuyện.</p>
+  <a routerLink="/cau-chuyen" class="big-link" appReveal>Câu chuyện căn nhà <span aria-hidden="true">↗</span></a>
+</section>
 </div>

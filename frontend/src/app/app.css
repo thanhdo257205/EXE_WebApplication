@@ -4,7 +4,7 @@
   flex-wrap: wrap;
   gap: 0.75rem 1.5rem;
   padding: 2rem 1rem;
-  color: #b6c8d9;
+  color: #a6aaa3;
   font-size: 0.875rem;
 }
 .legal-footer a { text-decoration: underline; text-underline-offset: 0.2em; }
@@ -13,7 +13,7 @@
   position: relative;
   min-height: 100vh;
   width: 100%;
-  background-color: #06182d;
+  background-color: #0b0c0d;
   color: #e6e6e6;
   font-family: 'Be Vietnam Pro', sans-serif;
 }
@@ -80,7 +80,7 @@
   bottom: 0;
   width: 16rem;
   background-color: #080c12;
-  border-right: 1px solid #1e2e3e;
+  border-right: 1px solid #2a2d2f;
   z-index: 50;
   padding: 1rem;
   display: flex;
@@ -98,20 +98,33 @@
 }
 
 .drawer-link:hover {
-  background-color: #18232f;
+  background-color: #1a1d1f;
   color: #ffffff;
 }
 
 /* Public redesign: keep admin layout selectors above intact. */
-.app-container:not(.admin-mode) { background:linear-gradient(#0c0b10 0 80px,#f7f2e5 80px); color:#183c2b; }
+.app-container:not(.admin-mode) { background:#0b0c0d; color:#f3f1ea; }
 .main-content:not(.admin-main) { margin-left:0; padding:0; min-height:calc(100vh - 80px); }
-.mobile-drawer { top:80px; width:min(340px,100%); overflow-y:auto; background:#101e24f5; backdrop-filter:blur(24px); border:1px solid #ffffff20; z-index:60; padding:24px; }
 .mobile-overlay { z-index:50; }
 .drawer-link { border-radius:10px; font-size:14px; padding:12px; }
-.drawer-link:hover { background:#28513d; color:#edffb1; }
-.public-footer { display:flex; align-items:center; justify-content:space-between; gap:25px; flex-wrap:wrap; padding:35px clamp(24px,5vw,88px); background:#0e1919; color:#dce5dd; font-size:11px; }
-.footer-brand { font-family:Fraunces,Georgia,serif; font-style:italic; font-size:25px; }
-.public-footer>div { display:flex; flex-wrap:wrap; gap:20px; }
-.public-footer>div a { text-decoration:underline; text-underline-offset:5px; }
+.drawer-link:hover { background:#26292b; color:#e6fb9d; }
 @media(min-width:1001px) { .mobile-drawer,.mobile-overlay { display:none; } }
-@media(max-width:600px) { .public-footer { align-items:flex-start; flex-direction:column; gap:20px; } }
+
+/* Footer chữ ký + menu di động toàn màn hình (ngôn ngữ editorial) */
+.public-footer { display:grid; grid-template-columns:repeat(12,1fr); gap:40px var(--gutter,40px); padding:clamp(48px,6vw,96px) var(--gutter,40px) 40px; background:#0b0c0d; color:#f3f1ea; border-top:1px solid #f3f1ea1a; }
+.footer-sign { grid-column:span 6; }
+.footer-brand { display:block; font-size:clamp(44px,6vw,96px); }
+.footer-sign .eyebrow { margin-top:20px; }
+.footer-links { grid-column:span 3; display:grid; align-content:start; gap:12px; font-size:15px; color:#8f9289; }
+.footer-meta { grid-column:span 3; display:grid; align-content:start; justify-items:end; gap:12px; font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:#8f9289; }
+.footer-meta p { margin:8px 0 0; }
+.footer-links a, .footer-meta a { position:relative; width:fit-content; transition:color .25s; }
+.footer-links a:hover, .footer-meta a:hover { color:#f3f1ea; }
+.footer-links a::before { content:''; display:inline-block; width:0; height:1px; margin-right:0; background:#dafa76; vertical-align:middle; transition:width .3s, margin .3s; }
+.footer-links a:hover::before { width:1.5rem; margin-right:.6rem; }
+.mobile-drawer { inset:80px 0 0 0; top:80px; width:100%; overflow-y:auto; background:#0b0c0d; border:0; border-top:1px solid #f3f1ea1a; z-index:60; padding:28px var(--gutter,24px) 48px; backdrop-filter:none; }
+.mobile-drawer .drawer-link { padding:8px 0; border-radius:0; font-family:var(--font-display); font-size:clamp(30px,9vw,52px); line-height:1.05; text-transform:uppercase; letter-spacing:-.01em; font-weight:400; }
+.mobile-drawer .drawer-link app-morph-icon { display:none; }
+.mobile-drawer .drawer-link:hover { background:transparent; color:#dafa76; }
+@media(max-width:800px) { .public-footer { display:flex; flex-direction:column; gap:32px; } .footer-meta { justify-items:start; } }
+.footer-logo { width:88px; height:88px; margin-bottom:24px; border-radius:18px; box-shadow:0 0 0 1px #f3f1ea26; }

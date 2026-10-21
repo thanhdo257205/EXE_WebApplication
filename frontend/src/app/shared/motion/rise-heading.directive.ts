@@ -14,10 +14,11 @@ export class RiseHeadingDirective {
     const media = matchMedia('(prefers-reduced-motion: reduce)');
     let visible = false, started = false, destroyed = false;
     const start = () => {
-      if (destroyed || started || !visible || media.matches) return;
+      if (destroyed || started || !visible || media.matches || document.documentElement.dataset['boot'] === 'pending') return;
       started = true;
       intersection.disconnect();
       media.removeEventListener('change', start);
+      window.removeEventListener('app-booted', start);
       void this.animate();
     };
     const intersection = new IntersectionObserver(entries => {
@@ -26,10 +27,12 @@ export class RiseHeadingDirective {
     }, { rootMargin: '100px 0px' });
     intersection.observe(this.heading);
     media.addEventListener('change', start);
+    window.addEventListener('app-booted', start);
     this.destroyRef.onDestroy(() => {
       destroyed = true;
       intersection.disconnect();
       media.removeEventListener('change', start);
+      window.removeEventListener('app-booted', start);
     });
   }
   private async animate() {
