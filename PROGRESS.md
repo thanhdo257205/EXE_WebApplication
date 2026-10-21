@@ -4,6 +4,13 @@
 
 ## Cập nhật gần nhất
 
+### Logo "SÂN TRƯỜNG" làm huy hiệu + favicon — 2026-10-21, local
+
+- Người dùng gửi logo web (chữ đỏ nâu "… SÂN TRƯỜNG", linh vật xanh–cam, nền giấy kem; ảnh 2000×2000). Theo lựa chọn "huy hiệu + favicon", không đổi tên site hay bảng màu: tạo `logo-96.webp` (3,5kB) và `logo-256.webp` (14kB), `favicon.ico` (16/32/48) và `apple-touch-icon.png` (180px) từ ảnh gốc; ảnh gốc 2000px không đưa vào repo. Huy hiệu bo góc xuất hiện ở header (44px), màn mở trang (112px) và footer (88px).
+- Phần đầu tên trên logo bị linh vật che nên chưa chép tên bằng chữ vào site; chưa quyết định đổi tên/palette theo logo.
+- Sửa thêm: heading của placeholder/thư viện/auth/legal thêm class `display` để dấu tiếng Việt của chữ hoa không bị cắt.
+- Xác minh: 141/141 tests, build/prerender6routes qua; đã xem ảnh loader và trang câu chuyện. Chưa kiểm tra favicon trong tab trình duyệt thật. Chưa deploy.
+
 ### Ngôn ngữ thiết kế theo bộ prompt (Marcus Vane/Baseline/Lumora) — 2026-10-21, local
 
 - Sau phản hồi "cần phong cách thiết kế của prompt chứ không chỉ nền", dựng lại trang chủ và nhiều thành phần theo ngôn ngữ prompt: chữ display Anton (tự host WOFF2 latin+vietnamese, 27 kB, OFL), tiêu đề hoa sát dòng cỡ lớn; nhãn `eyebrow` có chấm lime; hero chữ khổng lồ "NHÀ NÀY / HƠI BÁO!" nằm sau hộp game và thẻ, cột vai trò Chia tiền/việc/vui/Chơi chung và đoạn mô tả hai bên, gợi ý "Cuộn để vào nhà"; marquee Anton có chấm phân cách; section "Cách chơi" lưới 12 cột + danh sách đánh số 01–03 (từ 3 lối tắt có sẵn); "Thư viện thẻ" giữ Column Spread; dải "Con số" 4 ô (148/8/3/1 lấy từ nội dung site, không bịa); phần kết có chữ ma và link lớn hover dịch phải; footer chữ ký + 3 cột; nav tối giản (chữ hoa giãn chữ, gạch chân lime, bỏ viên thuốc kính hồng); menu mobile toàn màn hình chữ Anton; tiêu đề trang thư viện/placeholder/auth/legal dùng display font. Bộ chọn chủ đề giữ chức năng, gọn thành pill. Thêm directive `appReveal` (fade+trượt khi vào khung nhìn).

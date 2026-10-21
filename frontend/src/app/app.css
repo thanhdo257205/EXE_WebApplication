@@ -127,3 +127,4 @@
 .mobile-drawer .drawer-link app-morph-icon { display:none; }
 .mobile-drawer .drawer-link:hover { background:transparent; color:#dafa76; }
 @media(max-width:800px) { .public-footer { display:flex; flex-direction:column; gap:32px; } .footer-meta { justify-items:start; } }
+.footer-logo { width:88px; height:88px; margin-bottom:24px; border-radius:18px; box-shadow:0 0 0 1px #f3f1ea26; }

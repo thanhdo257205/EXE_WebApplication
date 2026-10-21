@@ -12,7 +12,7 @@
       <a class="back-link" routerLink="/">← Về căn nhà</a>
     }
     @if (selected(); as item) {
-      <h1 riseHeading>{{ itemName(item) }}</h1>
+      <h1 riseHeading class="display">{{ itemName(item) }}</h1>
       <p>
         {{
           isCard(item)
@@ -25,7 +25,7 @@
         }}
       </p>
     } @else {
-      <h1 riseHeading>{{ heading() }}</h1>
+      <h1 riseHeading class="display">{{ heading() }}</h1>
       <p>{{ description() }}</p>
     }
     @if (releaseLabel()) {
@@ -53,7 +53,7 @@
           @if (!demo()) {
             <p>{{ item.copiesInDeck }} lá trong bộ</p>
             @if (item.rulingNotes) {
-              <h2>Ghi chú luật</h2>
+              <h2 class="display">Ghi chú luật</h2>
               <p class="detail-copy">{{ item.rulingNotes }}</p>
             }
             <p class="rule-status" [class.review-needed]="item.ruleStatus === 'NEEDS_REVIEW'">
@@ -83,7 +83,7 @@
         <p class="detail-code">{{ item.code }}</p>
         <p class="detail-copy">{{ item.biography }}</p>
         @if (item.abilityText) {
-          <h2>Kỹ năng</h2>
+          <h2 class="display">Kỹ năng</h2>
           <p class="detail-copy">{{ item.abilityText }}</p>
         }
       }
@@ -92,7 +92,7 @@
     @if (kind() === 'cards') {
       <section class="sets-section" aria-label="Bộ thẻ">
         <div class="catalog-heading">
-          <h2>Các bộ thẻ</h2>
+          <h2 class="display">Các bộ thẻ</h2>
           <a routerLink="/thu-vien/mau/pokemon-card-3d">Trải nghiệm thẻ mẫu 3D ↗</a>
         </div>
         @if (demo()) {
@@ -135,7 +135,7 @@
           <button type="button" class="all-cards" (click)="setCardSet('')">← Xem tất cả thẻ</button>
         }
       </section>
-      <h2 class="catalog-title">Những lá thẻ trong nhà</h2>
+      <h2 class="catalog-title display">Những lá thẻ trong nhà</h2>
     }
     <section class="browse-tools" aria-label="Tìm trong nội dung">
       <label class="search-field"

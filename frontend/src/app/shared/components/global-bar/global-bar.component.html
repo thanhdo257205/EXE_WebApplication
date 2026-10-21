@@ -1,5 +1,5 @@
 <header class="public-header">
-  <a routerLink="/" class="brand" aria-label="Nhà Này Hơi Báo! — Trang chủ">NHÀ NÀY<br><span>HƠI BÁO!</span></a>
+  <a routerLink="/" class="brand" aria-label="Nhà Này Hơi Báo! — Trang chủ"><img class="brand-logo" src="/assets/images/logo-96.webp" alt="" width="44" height="44"><span class="brand-text">NHÀ NÀY<br><b>HƠI BÁO!</b></span></a>
   <div class="nav-cluster" (pointerenter)="cancelClose()" (pointerleave)="scheduleClose()" (focusout)="onNavFocusOut($event)">
     <nav class="desktop-nav" appLiquidGlass aria-label="Điều hướng chính">
       @for (item of navigation; track item.id) {

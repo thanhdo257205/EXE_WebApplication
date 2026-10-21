@@ -24,7 +24,9 @@
 .public-header{background:#0b0c0df2;border-bottom:1px solid #f3f1ea1a;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none}
 .public-header::before,.public-header::after{display:none}
 .public-header .brand{font-family:var(--font-display);font-weight:400;font-size:26px;line-height:.92;letter-spacing:-.01em;text-transform:uppercase}
-.public-header .brand span{font-size:26px;color:#dafa76}
+.public-header .brand{display:flex;align-items:center;gap:12px}
+.public-header .brand-logo{width:44px;height:44px;border-radius:10px;box-shadow:0 0 0 1px #f3f1ea26}
+.public-header .brand-text b{font-weight:400;color:#dafa76}
 .public-header .desktop-nav.liquid-glass{gap:6px;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;overflow:visible;backdrop-filter:none;-webkit-backdrop-filter:none}
 .public-header .desktop-nav::before,.public-header .desktop-nav::after{display:none}
 .public-header .desktop-nav a{padding:12px 30px 12px 14px;font-size:12px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:#8f9289;text-shadow:none;border-radius:0;background:transparent}
