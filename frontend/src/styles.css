@@ -219,3 +219,26 @@ html[data-perf='low'] .mobile-drawer {
 html.lenis, html.lenis body { height: auto; }
 .lenis.lenis-smooth { scroll-behavior: auto !important; }
 .lenis.lenis-stopped { overflow: hidden; }
+
+/* ===== Ngôn ngữ thiết kế editorial (theo bộ prompt): chữ display cao/hẹp, nhãn eyebrow, đường kẻ mảnh ===== */
+:root {
+  --font-display: 'Anton', 'Be Vietnam Pro', Impact, sans-serif;
+  --ed-bg: #0b0c0d; --ed-ink: #f3f1ea; --ed-muted: #8f9289; --ed-line: #f3f1ea1a; --ed-line-strong: #f3f1ea38; --ed-accent: #dafa76;
+  --gutter: clamp(20px, 4vw, 64px);
+  --section: clamp(80px, 9vw, 144px);
+}
+.display { font-family: var(--font-display); font-weight: 400; text-transform: uppercase; letter-spacing: -.01em; line-height: .98; }
+.eyebrow { display: flex; align-items: center; gap: .75rem; font-size: 12px; font-weight: 500; letter-spacing: .22em; text-transform: uppercase; color: var(--ed-muted); }
+.eyebrow::before { content: ''; width: .5rem; height: .5rem; border-radius: 999px; background: var(--ed-accent); flex: none; }
+/* Cuộn vào khung nhìn: ẩn chỉ sau hydrate (data-reveal do appReveal đặt) nên không mất nội dung khi thiếu JS */
+[data-reveal='pending'] { opacity: 0; transform: translateY(36px); }
+[data-reveal='shown'] { opacity: 1; transform: none; transition: opacity .6s cubic-bezier(.16, 1, .3, 1) var(--reveal-delay, 0ms), transform .6s cubic-bezier(.16, 1, .3, 1) var(--reveal-delay, 0ms); }
+@media (prefers-reduced-motion: reduce) { [data-reveal] { opacity: 1 !important; transform: none !important; transition: none !important; } }
+.app-container:not(.admin-mode) .auth-page-container .main-title { font-family: var(--font-display); font-weight: 400; text-transform: uppercase; letter-spacing: -.01em; line-height: 1; font-size: clamp(48px, 7vw, 104px); }
+.app-container:not(.admin-mode) .legal-document h1 { font-family: var(--font-display); font-weight: 400; text-transform: uppercase; letter-spacing: -.005em; line-height: 1.05; font-size: clamp(36px, 5vw, 64px); }
+
+/* Anton viết hoa có dấu tiếng Việt cao: nới vùng cắt của reveal chữ để không mất dấu */
+.display .line-word { line-height: 1.34; }
+.display .rise-line { margin-top: calc((1.34 - var(--lh, .98)) * -1em); }
+.display .rise-line:first-child { margin-top: calc((1.34 - var(--lh, .98)) * -.5em); }
+.display .rise-line:last-child { margin-bottom: calc((1.34 - var(--lh, .98)) * -.5em); }

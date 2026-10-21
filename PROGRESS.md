@@ -4,6 +4,13 @@
 
 ## Cập nhật gần nhất
 
+### Ngôn ngữ thiết kế theo bộ prompt (Marcus Vane/Baseline/Lumora) — 2026-10-21, local
+
+- Sau phản hồi "cần phong cách thiết kế của prompt chứ không chỉ nền", dựng lại trang chủ và nhiều thành phần theo ngôn ngữ prompt: chữ display Anton (tự host WOFF2 latin+vietnamese, 27 kB, OFL), tiêu đề hoa sát dòng cỡ lớn; nhãn `eyebrow` có chấm lime; hero chữ khổng lồ "NHÀ NÀY / HƠI BÁO!" nằm sau hộp game và thẻ, cột vai trò Chia tiền/việc/vui/Chơi chung và đoạn mô tả hai bên, gợi ý "Cuộn để vào nhà"; marquee Anton có chấm phân cách; section "Cách chơi" lưới 12 cột + danh sách đánh số 01–03 (từ 3 lối tắt có sẵn); "Thư viện thẻ" giữ Column Spread; dải "Con số" 4 ô (148/8/3/1 lấy từ nội dung site, không bịa); phần kết có chữ ma và link lớn hover dịch phải; footer chữ ký + 3 cột; nav tối giản (chữ hoa giãn chữ, gạch chân lime, bỏ viên thuốc kính hồng); menu mobile toàn màn hình chữ Anton; tiêu đề trang thư viện/placeholder/auth/legal dùng display font. Bộ chọn chủ đề giữ chức năng, gọn thành pill. Thêm directive `appReveal` (fade+trượt khi vào khung nhìn).
+- Sửa lỗi đã gặp: dấu tiếng Việt của chữ hoa bị cắt bởi ô clip của reveal chữ; nới `line-height` của `.line-word` và bù margin (padding/margin trực tiếp làm engine không phát hiện hiển thị nên hero kẹt `running`).
+- Màu nhấn giữ lime `#dafa76`, giữ Fraunces cho nhấn italic nhỏ. Không dùng rem-adaptive-grid của prompt (dùng clamp) để tránh vỡ bố cục cũ.
+- Xác minh: 141/141 tests, production build/prerender6routes qua; initial ~459kB raw/123kB transfer. Chromium 1360×850 và 390×844: đã xem hero, home đầy đủ, thư viện, menu mobile; 0 pageerror, 0 overflow ngang. Cảnh báo budget CSS component (global-bar 8,1kB, home 7,9kB, public-content 6,5kB, admin-dashboard) còn mở. Chưa xem ảnh register/recovery/chi tiết thẻ/cửa hàng, chưa kiểm tra 768–1000px, chưa đo FPS; chưa deploy.
+
 ### Phong cách editorial tối cho toàn bộ trang công khai — 2026-10-21, local
 
 - Theo 8 prompt "recreate site" người dùng cung cấp (Soda, KIMI, Lumora, Laocoön, Baseline, Ascend, Flowstate, Marcus Vane; prompt8=prompt9), chọn hướng editorial tối tương phản cao, giữ Be Vietnam Pro + Fraunces. Nền công khai `#0b0c0d`, chữ `#f3f1ea`, nhấn lime `#dafa76`; thẻ lime/hồng/xanh giữ chữ tối.

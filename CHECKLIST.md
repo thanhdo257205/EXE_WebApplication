@@ -104,6 +104,8 @@ Cập nhật: 2026-10-21 (Asia/Saigon).
 ## Editorial tối (2026-10-21)
 
 - [x] STYLE-ED-01: Retheme public-content/placeholder/legal/auth/drawer/footer sang nền tối + nhấn lime; loader, marquee, chữ ma, Lenis; tests/build/ảnh local qua.
+- [x] STYLE-ED-04: Dựng lại trang chủ/nav/footer/menu mobile theo ngôn ngữ prompt (Anton, eyebrow, hero chữ khổng lồ, 12 cột đánh số, dải số liệu); local build/test/ảnh qua.
+- [ ] STYLE-ED-05: Giảm CSS component dưới budget 6kB (global-bar, home, public-content) và rà tablet 768–1000px.
 - [ ] STYLE-ED-02: Rà ảnh mobile 390px và các trang register/recovery/chi tiết thẻ/wiki/cửa hàng/giỏ hàng sau retheme; sửa độ tương phản nếu có.
 - [ ] STYLE-ED-03: Kiểm tra Lenis với viewer 3D, modal, menu mobile, anchor `#the-bai`; đo FPS thiết bị thật.
 
