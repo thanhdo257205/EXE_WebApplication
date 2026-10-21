@@ -4,6 +4,12 @@
 
 ## Cập nhật gần nhất
 
+### Khôi phục xác nhận deploy liquid glass/cache cuộn — 2026-10-21
+
+- CI39621965643 của runtime9679e6e success. CD39622667297 publish gateway/backend/Pages thành công nhưng smoke ngay sau publish nhận500 tại GET /, làm deployment đỏ. Sau đó cùng smoke script trên production đã qua; chưa có bằng chứng xác định nguyên nhân nền tảng của500, chỉ xác nhận lỗi tạm thời không còn tái hiện.
+- GitHub trả trạng thái run cũ không đồng nhất: job deploy failure/completed nhưng run in_progress, rerun báo đang chạy và cancel báo đã hoàn tất. Không đổi gate/artifact hay đánh dấu success thủ công; dispatch CD mới39625459971 chọn đúng9679e6e đã qua CI và hoàn tất success, deployment production7229873848. Pages URL516d7eed.exe-webapp.pages.dev.
+- Xác minh sau CD: chạy lại toàn bộ .github/scripts/smoke.mjs từ local, static/API đúng SHA/origin guard/database/PayOS guards qua. Không sửa runtime hoặc cấu hình deployment. Docs nghiệm thu cùng đợt docs-only [skip ci], tránh triển khai lại chỉ vì cập nhật tài liệu. Chưa nghiệm thu FPS/GPU thiết bị thật; các mục hiệu năng thiết bị vẫn mở.
+
 ### Phát hành liquid glass và cache cuộn — 2026-10-21
 
 - Theo yêu cầu chủ dự án, gộp material liquid glass toàn app và cache nền chấm hero cùng docs vào bản phát hành origin/main. Các ghi chú local bên dưới là lịch sử trước đợt phát hành này. Không đưa output QA/build/cache vào commit.

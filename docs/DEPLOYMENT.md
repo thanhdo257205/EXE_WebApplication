@@ -1,5 +1,11 @@
 # Triển khai và CI/CD
 
+## Khôi phục CD ngày 2026-10-21 — liquid glass/cache cuộn
+
+Runtime `9679e6e5d007f7c9dfb9d168502d0ffa82ea5ee4` đã qua CI39621965643. CD39622667297 publish Worker, backend readiness và Pages thành công, nhưng smoke chạy ngay sau publish nhận HTTP500 tại `/`. Chạy lại toàn smoke từ local sau đó qua; lỗi không còn tái hiện. Chưa đủ log nền tảng để kết luận chính xác vì sao500 xuất hiện, không quy lỗi cho CSS hoặc nới assertion.
+
+GitHub API báo run cũ in_progress trong khi job deploy completed/failure, rerun-failed bị từ chối vì running và cancel bị từ chối vì completed. Dispatch CD mới theo quy trình, giữ nguyên CI gate/commit/artifact: [CD39625459971](https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/39625459971) success; Pages `516d7eed.exe-webapp.pages.dev`, production deployment7229873848 đúng SHA. Smoke trong CD và chạy lại từ local đều qua static routes, gateway API/SHA, origin guard, database health và PayOS guards. Không thay runtime/config/secrets; đây là khôi phục deploy và ghi nhận nghiệm thu, chưa đo hiệu năng thiết bị thật.
+
 ## Tài nguyên thực tế
 
 | Thành phần | Tài nguyên | Gói |

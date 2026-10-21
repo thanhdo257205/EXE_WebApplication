@@ -5,7 +5,7 @@ Cập nhật: 2026-10-21 (Asia/Saigon).
 ## Phát hành liquid glass và cache cuộn (2026-10-21)
 
 - [x] FE-GLASS-SCROLL-RELEASE-CHECKS —129tests/build/prerender, browser QA và diff check đã qua sau thay đổi runtime cuối; code/docs cùng đợt phát hành.
-- [ ] FE-GLASS-SCROLL-RELEASE-CI-CD — Xác minh CI/CD và production của bản phát hành mới; push không đồng nghĩa deploy thành công.
+- [x] FE-GLASS-SCROLL-RELEASE-CI-CD — Runtime9679e6e: CI39621965643 success; CD đầu smoke GET / nhận500 tạm thời sau publish. Dispatch CD39625459971 success; toàn bộ smoke production chạy lại từ local qua, API đúng SHA. Không coi đây là nghiệm thu FPS/GPU.
 
 ## Cuộn trang chủ (2026-10-21)
 
