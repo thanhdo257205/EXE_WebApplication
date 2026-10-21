@@ -52,3 +52,8 @@
   .product-scene,.theme-options button,.theme-options button img,.discover-links a { transition:none; }
   .theme-options button { transform:none; }
 }
+
+/* Chữ ma khổng lồ làm nền phần kết */
+.closing { overflow:hidden; }
+.closing > h2, .closing > a { position:relative; z-index:1; }
+.ghost-word { position:absolute; left:50%; top:50%; z-index:0; transform:translate(-50%,-50%); font-size:clamp(110px,26vw,420px); font-weight:900; line-height:.8; letter-spacing:-.06em; text-transform:uppercase; white-space:nowrap; color:transparent; -webkit-text-stroke:1.5px #f3f1ea1f; pointer-events:none; user-select:none; }

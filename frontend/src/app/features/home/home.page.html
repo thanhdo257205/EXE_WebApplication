@@ -17,6 +17,7 @@
   </div>
   <a href="#the-bai" class="scroll-link">Lật tiếp câu chuyện <span aria-hidden="true">↓</span></a>
 </section>
+<app-marquee [items]="marqueeItems" aria-hidden="true" />
 <section id="the-bai" class="card-section" aria-labelledby="cards-title">
   <div class="section-heading"><h2 id="cards-title">Một thẻ bài.<br><em>Cả nhà có chuyện.</em></h2><div><p>Chuyện tiền nhà, chuyện chia việc, chuyện chẳng ai ngờ. Mỗi lượt rút mở ra một tình huống mới.</p><a routerLink="/thu-vien" class="text-link">Đến thư viện thẻ <app-morph-icon name="arrow-right" [size]="20" color="currentColor" /></a></div></div>
   <app-column-spread />
@@ -26,6 +27,6 @@
   <div class="discover-title"><h2 id="discover-title">Ở chung thì dễ.<br><em>Hợp cạ mới vui.</em></h2><p>Tìm hiểu căn nhà trước khi bước vào cuộc chơi.</p></div>
   <div class="discover-links">@for (item of shortcuts; track item.link) {<a [routerLink]="item.link"><app-morph-icon [name]="item.icon" [size]="28" color="currentColor" /><div><h3>{{ item.title }}</h3><p>{{ item.text }}</p></div><app-morph-icon name="arrow-right" [size]="24" color="currentColor" /></a>}</div>
 </section>
-<section class="closing"><h2>Đủ bạn rồi.<br><em>Về nhà thôi!</em></h2><a routerLink="/cau-chuyen" class="primary-cta" appLiquidGlass>Câu chuyện căn nhà <app-morph-icon name="arrow-right" [size]="20" color="currentColor" /></a></section>
+<section class="closing"><span class="ghost-word" aria-hidden="true">Hơi báo</span><h2>Đủ bạn rồi.<br><em>Về nhà thôi!</em></h2><a routerLink="/cau-chuyen" class="primary-cta" appLiquidGlass>Câu chuyện căn nhà <app-morph-icon name="arrow-right" [size]="20" color="currentColor" /></a></section>
 
 </div>

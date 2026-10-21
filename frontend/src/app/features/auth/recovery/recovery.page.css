@@ -3,4 +3,4 @@
 .success-banner { padding: 1rem; color: #a7f3d0; background: #064e3b66; border: 1px solid #34d39966; border-radius: .375rem; line-height: 1.6; }
 .recovery-links { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 1.5rem; font-size: .875rem; }
 .resend-link { display: block; margin-top: 1rem; cursor: pointer; }
-.form-input:focus-visible { outline: 2px solid #38bdf8; outline-offset: 2px; border-radius: .375rem; }
+.form-input:focus-visible { outline: 2px solid #dafa76; outline-offset: 2px; border-radius: .375rem; }

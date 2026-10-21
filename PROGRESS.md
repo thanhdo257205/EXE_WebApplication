@@ -4,6 +4,13 @@
 
 ## Cập nhật gần nhất
 
+### Phong cách editorial tối cho toàn bộ trang công khai — 2026-10-21, local
+
+- Theo 8 prompt "recreate site" người dùng cung cấp (Soda, KIMI, Lumora, Laocoön, Baseline, Ascend, Flowstate, Marcus Vane; prompt8=prompt9), chọn hướng editorial tối tương phản cao, giữ Be Vietnam Pro + Fraunces. Nền công khai `#0b0c0d`, chữ `#f3f1ea`, nhấn lime `#dafa76`; thẻ lime/hồng/xanh giữ chữ tối.
+- Retheme: thư viện/wiki/chi tiết (public-content, từng rule để thẻ lime giữ chữ tối), trang placeholder (cau-chuyen...), legal (thẻ tối), auth (card giấy kem trên nền tối, nút lime, bỏ sắc xanh dương `#38bdf8` → lime), drawer/footer/focus ring. Admin không đổi.
+- Hiệu ứng mới: màn mở trang (curtain sẵn trong `index.html`, min1100ms/max2600ms/exit850ms, bỏ khi reduced motion/no-JS) và `data-boot` làm heading reveal đợi loader; marquee 22s CSS-only (`app-marquee`) giữa hero và thẻ bài; chữ ma "HƠI BÁO" ở phần kết; cuộn mượt Lenis 1.3.27 nạp lazy, tắt ở admin, khi reduced motion hoặc khi `perf-tier=low`.
+- Xác minh: 141/141 tests (thêm boot.spec), production build/prerender6routes qua, initial451,79kB raw/122,13kB estimated transfer (Lenis lazy ngoài bundle đầu). Chromium headless 1360×850: đã xem ảnh loader, home, thư viện, đăng nhập, câu chuyện, legal; boot→done, curtain bị gỡ, `html.lenis` bật, 0 pageerror (chỉ lỗi tải Google Fonts do sandbox chặn). Chưa xem register/detail mẫu/mobile sau retheme, chưa đo FPS Lenis trên thiết bị thật, chưa kiểm tra xung đột Lenis với viewer 3D/modal scroll; chưa deploy. Docs/DESIGN.md cập nhật cùng đợt.
+
 ### Tự hạ cấp hiệu ứng khi giật — 2026-10-21, local
 
 - Thêm `frontend/src/app/shared/utils/perf-tier.ts`: đo khoảng cách khung rAF chỉ khi có cuộn/rê/phím (nghỉ khi idle hoặc tab ẩn). Ngưỡng giật theo nhịp màn hình (p10×1,6, kẹp24–50ms) nên màn30Hz không bị coi là yếu, nhưng <20fps luôn là giật. Cần2 cửa sổ giật liên tiếp mới hạ; chỉ hạ, không tự nâng lại, lưu `sessionStorage`. Khi `low`: đặt `html[data-perf=low]`, phát `perf-tier-change`, hủy đuôi chuột, CSS hạ `.liquid-glass` xuống blur8px, header/drawer bỏ blur dùng nền đặc. `?perf=1` hiện FPS/mức.

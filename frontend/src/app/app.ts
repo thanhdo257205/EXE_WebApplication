@@ -6,6 +6,7 @@ import { GlobalBarComponent } from './shared/components/global-bar/global-bar.co
 import { MorphIconComponent } from './shared/components/morph-icon/morph-icon.component';
 import { CursorGhost } from './shared/utils/cursor-ghost';
 import { PERF_TIER_EVENT, startPerfMonitor } from './shared/utils/perf-tier';
+import { BOOT_EVENT, runBoot, startSmoothScroll, StopSmoothScroll } from './shared/utils/boot';
 import { GlassControlsDirective } from './shared/motion/glass-controls.directive';
 
 @Component({
@@ -25,7 +26,23 @@ export class App implements OnDestroy {
 
   private ghostEffect?: CursorGhost;
   private stopPerfMonitor?: () => void;
-  private readonly onPerfTier = () => { this.ghostEffect?.destroy(); this.ghostEffect = undefined; };
+  private readonly onPerfTier = () => { this.ghostEffect?.destroy(); this.ghostEffect = undefined; this.syncSmoothScroll(); };
+  private stopSmooth?: StopSmoothScroll;
+  private smoothToken = 0;
+  private booted = false;
+  private readonly onBooted = () => { this.booted = true; this.syncSmoothScroll(); };
+
+  /** Cuộn mượt chỉ cho trang công khai, sau màn mở trang, và khi máy chưa bị hạ cấp. */
+  private syncSmoothScroll() {
+    const wanted = this.booted && !this.isAdminRoute() && document.documentElement.dataset['perf'] !== 'low';
+    const token = ++this.smoothToken;
+    if (!wanted) { this.stopSmooth?.(); this.stopSmooth = undefined; return; }
+    if (this.stopSmooth) return;
+    void startSmoothScroll().then(stop => {
+      if (token !== this.smoothToken || this.stopSmooth) return stop();
+      this.stopSmooth = stop;
+    }).catch(() => undefined);
+  }
   private readonly zone = inject(NgZone);
 
   constructor() {
@@ -35,12 +52,15 @@ export class App implements OnDestroy {
     ).subscribe((event: NavigationEnd) => {
       this.updateAdminRoute(event.urlAfterRedirects || event.url);
       this.mobileMenuOpen.set(false);
+      if (typeof document !== 'undefined') this.syncSmoothScroll();
     });
 
     // Kích hoạt hiệu ứng Cursor Ghost toàn trang trên Client (SSR-safe qua afterNextRender)
     afterNextRender(() => {
       this.zone.runOutsideAngular(() => {
         window.addEventListener(PERF_TIER_EVENT, this.onPerfTier);
+        window.addEventListener(BOOT_EVENT, this.onBooted);
+        runBoot();
         this.stopPerfMonitor = startPerfMonitor();
         if (document.documentElement.dataset['perf'] === 'low') return;
         this.ghostEffect = new CursorGhost(document.body, {
@@ -55,7 +75,8 @@ export class App implements OnDestroy {
   }
 
   ngOnDestroy() {
-    if (typeof window !== 'undefined') window.removeEventListener(PERF_TIER_EVENT, this.onPerfTier);
+    if (typeof window !== 'undefined') { window.removeEventListener(PERF_TIER_EVENT, this.onPerfTier); window.removeEventListener(BOOT_EVENT, this.onBooted); }
+    this.stopSmooth?.();
     this.stopPerfMonitor?.();
     this.ghostEffect?.destroy();
   }

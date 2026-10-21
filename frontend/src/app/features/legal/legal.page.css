@@ -3,8 +3,8 @@
   max-width: 52rem;
   margin: 0 auto;
   padding: clamp(1.25rem, 4vw, 3rem);
-  background: #101720;
-  border: 1px solid #405367;
+  background: #141618;
+  border: 1px solid #3a3f42;
   border-radius: 0.5rem;
   line-height: 1.8;
   overflow-wrap: anywhere;
@@ -13,6 +13,6 @@ header { margin: 1.5rem 0 2rem; }
 h1 { font-size: clamp(1.8rem, 5vw, 2.5rem); line-height: 1.25; color: #fff; }
 h2 { margin: 2rem 0 0.75rem; font-size: 1.25rem; color: #fff; }
 p { margin: 0.75rem 0; }
-header p { color: #b6c8d9; }
-a { color: #7dd3fc; text-decoration: underline; text-underline-offset: 0.2em; }
-nav { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #405367; }
+header p { color: #a6aaa3; }
+a { color: #e6fb9d; text-decoration: underline; text-underline-offset: 0.2em; }
+nav { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #3a3f42; }

@@ -1,6 +1,6 @@
 ---
 name: "Nhà Này Hơi Báo!"
-description: "Diet Soda-inspired public identity with Column Spread and Rise & Settle."
+description: "Editorial dark identity (near-black, lime accent) with Column Spread, Rise & Settle, boot curtain, marquee and Lenis."
 colors:
   cream: "#f7f2e5"
   ink: "#183c2b"
@@ -198,3 +198,9 @@ Rounded pills identify actions and navigation. Fields use 10px corners, small pa
 - Don’t alter the supplied Column Spread mathematics, parameters, image order or draw order.
 - Don’t replace the requested heading springs with CSS keyframes or another motion engine.
 - Don’t imply that local visual verification proves deployment or real authentication.
+
+
+## Cập nhật 2026-10-21: editorial tối
+
+- Nền công khai `#0b0c0d`, chữ `#f3f1ea`, nhấn lime `#dafa76`; thẻ lime/hồng/xanh giữ chữ tối (`#183c2b`/`#4f203c`/`#1d3760`). Auth giữ card giấy kem `#fffcf4` trên nền tối.
+- Chuyển động: curtain mở trang (1100–2600ms, exit 850ms), reveal heading sau boot, marquee 22s linear, chữ ma outline, Lenis (tắt ở admin/reduced motion/máy giật).

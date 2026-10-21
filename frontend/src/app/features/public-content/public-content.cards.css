@@ -25,9 +25,9 @@
 .set-tile {
   text-align: left;
   padding: 1.5rem;
-  border: 1px solid #193c2e33;
+  border: 1px solid #f3f1ea33;
   border-radius: 18px;
-  background: #fff9;
+  background: #ffffff0d;
   color: inherit;
   cursor: pointer;
   display: grid;
@@ -35,7 +35,8 @@
 }
 .set-tile.active {
   background: #dcfb80;
-  border-color: #193c2e;
+  border-color: #dcfb80;
+  color: #183c2b;
 }
 .set-tile strong {
   font-size: 1.25rem;
@@ -58,7 +59,7 @@
   margin-top: 1rem;
   padding: 0.6rem 1rem;
   background: transparent;
-  border: 1px solid #193c2e55;
+  border: 1px solid #f3f1ea55;
   border-radius: 30px;
   color: inherit;
   cursor: pointer;
@@ -142,7 +143,7 @@
 }
 .catalog-card:focus-visible,
 .set-tile:focus-visible {
-  outline: 3px solid #b1658d;
+  outline: 3px solid #dafa76;
   outline-offset: 5px;
 }
 @media (max-width: 760px) {

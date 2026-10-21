@@ -1,6 +1,6 @@
 .wiki-canvas-card {
   background-color: rgba(16, 23, 32, 0.97);
-  border: 1px solid #405367;
+  border: 1px solid #3a3f42;
   border-radius: 0.25rem;
   padding: 1.25rem;
   box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
@@ -25,7 +25,7 @@
 }
 
 .left-tag {
-  color: #5ab2e7;
+  color: #dafa76;
 }
 
 .right-tag {

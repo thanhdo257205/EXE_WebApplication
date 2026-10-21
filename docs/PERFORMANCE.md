@@ -1,5 +1,9 @@
 # Hiệu năng frontend — cập nhật 2026-10-21
 
+## Loader, marquee, Lenis — local, mới nhất
+
+Curtain nằm trong HTML tĩnh (không chờ Angular), gỡ bằng `runBoot()`; marquee chỉ `transform` CSS; chữ ma là text tĩnh; Lenis nạp `import()` sau boot, `autoRaf`, bị hủy khi vào admin, reduced motion hoặc `perf-tier=low` (cuộn native). Initial451,79kB raw/122,13kB transfer. Chưa đo FPS/INP thiết bị thật; Lenis chạy rAF liên tục khi cuộn nên cần theo dõi trên máy yếu.
+
 ## Tự hạ cấp theo FPS (`perf-tier`) — local, mới nhất
 
 Nhận biết "máy yếu" bằng đo thật, không dựa `deviceMemory`/`hardwareConcurrency`. Monitor rAF chạy khi có tương tác, nghỉ khi idle/tab ẩn; khung chậm tính theo nhịp màn hình (p10×1,6 kẹp24–50ms), hạ sau2 cửa sổ giật (≥40% khung chậm; cửa sổ60 khung hoặc1,5s/≥10 khung), chỉ hạ và nhớ trong phiên. Mức `low`: `html[data-perf=low]`, hủy đuôi chuột, blur kính8px, header/drawer nền đặc. Thêm media query tĩnh cho `pointer: coarse` và `prefers-reduced-transparency`. `?perf=1` hiển thị FPS/mức để QA. Spec8 ca + Chromium throttle: 1× giữ high ~60fps, 20× (~8fps) thành low. Chưa kiểm tra GPU/thiết bị thật; ngưỡng cần tinh chỉnh. Không áp dụng eventCoalescing vì app zoneless.

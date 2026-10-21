@@ -101,6 +101,12 @@ Cập nhật: 2026-10-21 (Asia/Saigon).
 - [ ] PERF-TIER-02: Đo trên thiết bị yếu thật và tinh chỉnh ngưỡng (40% khung chậm, 2 cửa sổ); cân nhắc hạ thêm dot-grid/canvas Column Spread khi `low`.
 - [ ] PERF-ASSET-03: Tự host Be Vietnam Pro, snapshot-first nội dung công khai (eventCoalescing/OnPush không áp dụng: app zoneless).
 
+## Editorial tối (2026-10-21)
+
+- [x] STYLE-ED-01: Retheme public-content/placeholder/legal/auth/drawer/footer sang nền tối + nhấn lime; loader, marquee, chữ ma, Lenis; tests/build/ảnh local qua.
+- [ ] STYLE-ED-02: Rà ảnh mobile 390px và các trang register/recovery/chi tiết thẻ/wiki/cửa hàng/giỏ hàng sau retheme; sửa độ tương phản nếu có.
+- [ ] STYLE-ED-03: Kiểm tra Lenis với viewer 3D, modal, menu mobile, anchor `#the-bai`; đo FPS thiết bị thật.
+
 ## Quy tắc cập nhật
 
 - `[ ]`: chưa hoàn thành, kể cả đang làm hoặc đang bị chặn.
