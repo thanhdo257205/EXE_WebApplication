@@ -30,9 +30,10 @@ export class ArenaController {
     this.rng = mulberry32(seed);
   }
 
-  start(seed?: number): void {
+  /** `options.first` ép người đi trước (dùng cho chế độ hướng dẫn: người chơi đi trước). */
+  start(seed?: number, options: { first?: Side } = {}): void {
     if (seed !== undefined) this.rng = mulberry32(seed);
-    const { game, events } = newGame(this.rng);
+    const { game, events } = newGame(this.rng, options);
     this.game = game; this.displayed = game; this.queue = []; this.holdUntil = 0; this.aiAt = 0;
     this.log.length = 0;
     this.addLog(events);

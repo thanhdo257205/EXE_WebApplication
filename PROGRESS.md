@@ -4,6 +4,11 @@
 
 ## Cập nhật gần nhất
 
+### Sân đấu: bàn chơi đẹp hơn + hướng dẫn từng bước — 2026-10-22, local → PR
+
+- Theo yêu cầu "bàn chơi hơi đơn điệu, thêm hướng dẫn từng bước cho người mới": viết lại shader bàn (gỗ + thảm có viền vàng, khung vùng chơi, biểu tượng giữa sân), quầng sáng lượt chơi, đốm sáng trôi, nhãn khu vực; thêm `arena-tutorial.ts` (12 bước theo ván thật, nhấn mạnh thẻ/khu vực/nút trong cảnh), nút "Hướng dẫn", cờ `arena-tutorial-v1`. Engine `newGame` nhận `{ first }` để ép người chơi đi trước khi hướng dẫn. Chi tiết ở [docs/ARENA.md](docs/ARENA.md).
+- Xác minh: frontend 214/214 tests; build qua; Chromium + SwiftShader xem được bàn mới và trang thật (khung hướng dẫn, nhãn). CSS trang arena 7,4 kB (cảnh báo budget 6 kB, dưới ngưỡng lỗi 10 kB). Chưa xem trên GPU thật sau deploy; nội dung hướng dẫn chưa được người dùng mới thử.
+
 ### Sân đấu mô phỏng thẻ bài WebGPU (`/san-dau`) — 2026-10-22, đã merge và CD thành công
 
 - Theo yêu cầu "mức 2: đấu có luật với máy, 9 thẻ Pokémon mẫu, phát hành công khai, WebGPU thuần, không dùng thư viện": thêm `frontend/src/app/features/arena/` (engine luật rút gọn + AI, controller, scene, renderer WebGPU, shader WGSL, trang Angular), route `/san-dau`, mục "Sân đấu mô phỏng" trong menu Thẻ bài. **Không thêm thư viện nào.** Chi tiết ở [docs/ARENA.md](docs/ARENA.md).

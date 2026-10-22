@@ -21,6 +21,11 @@
           aria-label="Sân đấu thẻ bài 3D. Thông tin ván đấu và các nút điều khiển nằm ngay bên dưới."
           (pointermove)="onPointerMove($event)" (pointerdown)="onPointerDown($event)" (pointerleave)="onPointerLeave()"></canvas>
         @if (state() === 'loading') { <p class="overlay" aria-live="polite">Đang dựng sân đấu…</p> }
+        <div class="labels" aria-hidden="true" [class.big]="labelsBig()">
+          @for (label of labels(); track $index) {
+            <span class="zone" [class.foe]="label.side === 1" [class.right]="label.align === 'right'" [class.left]="label.align === 'left'" [style.left.px]="label.x" [style.top.px]="label.y">{{ label.text }}</span>
+          }
+        </div>
         <div class="popups" aria-hidden="true">
           @for (popup of popups(); track popup.id) {
             <span [class]="'popup ' + popup.kind" [style.left.px]="popup.x" [style.top.px]="popup.y">{{ popup.text }}</span>
@@ -38,22 +43,36 @@
       </div>
 
       @if (view(); as v) {
+        @if (coach(); as step) {
+          <section class="coach" role="region" aria-label="Hướng dẫn từng bước" aria-live="polite">
+            <p class="coach-step">Hướng dẫn · bước {{ step.index + 1 }}/{{ step.total }}</p>
+            <h2 class="coach-title">{{ step.title }}</h2>
+            <p class="coach-text">{{ step.text }}</p>
+            <div class="coach-actions">
+              @if (step.manual) { <button type="button" class="primary" (click)="coachNext()">{{ step.nextLabel ?? 'Tiếp' }}</button> }
+              <button type="button" class="link" (click)="skipTutorial()">Bỏ qua hướng dẫn</button>
+            </div>
+            <i class="coach-bar"><b [style.width.%]="((step.index + 1) / step.total) * 100"></b></i>
+          </section>
+        }
+
         <div class="statusbar">
           <p class="status" role="status" aria-live="polite">{{ v.status }}</p>
           <p class="hint" aria-live="polite">{{ hint() }}</p>
         </div>
 
         <div class="controls" role="group" aria-label="Hành động">
-          @if (v.canReady) { <button type="button" class="primary" (click)="ready()">Sẵn sàng — bắt đầu trận</button> }
+          @if (v.canReady) { <button type="button" class="primary" [class.guided]="guided('ready')" (click)="ready()">Sẵn sàng — bắt đầu trận</button> }
           @for (move of v.attacks; track move.index) {
-            <button type="button" class="attack" [disabled]="!move.enabled" [attr.title]="move.reason ?? move.text" (click)="attack(move.index)">
+            <button type="button" class="attack" [class.guided]="guided('attack')" [disabled]="!move.enabled" [attr.title]="move.reason ?? move.text" (click)="attack(move.index)">
               <strong>{{ move.name }}</strong><span>{{ move.cost }} · {{ move.damage }}</span>
             </button>
           }
-          <button type="button" class="chip" [disabled]="!v.canAct || v.over" [attr.aria-pressed]="retreating()" (click)="toggleRetreat()">{{ retreating() ? 'Huỷ rút lui' : 'Rút lui' }}</button>
+          <button type="button" class="chip" [class.guided]="guided('retreat')" [disabled]="!v.canAct || v.over" [attr.aria-pressed]="retreating()" (click)="toggleRetreat()">{{ retreating() ? 'Huỷ rút lui' : 'Rút lui' }}</button>
           @if (selectedIsPokemon()) { <button type="button" class="chip" (click)="placeSelected()">Đặt xuống bàn</button> }
-          <button type="button" class="chip" [disabled]="!v.canEnd" (click)="endTurn()">Kết thúc lượt</button>
+          <button type="button" class="chip" [class.guided]="guided('end')" [disabled]="!v.canEnd" (click)="endTurn()">Kết thúc lượt</button>
           <span class="grow"></span>
+          <button type="button" class="chip" (click)="coach() ? skipTutorial() : startTutorial()">{{ coach() ? 'Thoát hướng dẫn' : 'Hướng dẫn' }}</button>
           <button type="button" class="chip" (click)="newGame()">Ván mới</button>
           @if (state() === 'ready') { <button type="button" class="chip" (click)="cycleQuality()" title="Đồ họa tự hạ khi máy yếu">Đồ họa: {{ qualityLabel() }}</button> }
         </div>

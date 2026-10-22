@@ -172,9 +172,9 @@ fn fs(in: VOut) -> @location(0) vec4<f32> {
     let ang = atan2(p.y, p.x) / 6.2831853;
     let dashes = step(0.5, fract((ang + t * 0.01) * 36.0));
     let pulse = mix(0.7, 0.55 + 0.45 * sin(t * 3.2), inst.fx.x);
-    let fill = (1.0 - smoothstep(-0.01, 0.01, sd)) * (0.035 + 0.1 * inst.fx.x);
+    let fill = (1.0 - smoothstep(-0.01, 0.01, sd)) * (0.035 + 0.055 * inst.fx.x);
     let a = (ring * (0.35 + 0.65 * dashes) * pulse + fill) * inst.color.a * alphaMul;
-    return vec4<f32>(inst.color.rgb * a * (1.0 + inst.fx.x), a);
+    return vec4<f32>(inst.color.rgb * a * (1.0 + 0.5 * inst.fx.x), a);
   }
   if (kind == 6) { // thanh HP
     let hb = inst.size.xy * 0.5;
@@ -202,17 +202,49 @@ fn fs(in: VOut) -> @location(0) vec4<f32> {
     let a = exp(-max(sd, 0.0) * 6.5 / max(pad, 0.01)) * (1.0 - smoothstep(pad * 0.95, pad, sd)) * inst.fx.x * pulse * alphaMul;
     return vec4<f32>(inst.color.rgb * a, 0.0);
   }
-  // kind 8: mặt bàn
+  // kind 8: thảm đấu (felt) đặt trên mặt bàn gỗ.
   let w = in.world.xy;
-  let rr = length(w * vec2<f32>(0.075, 0.105));
-  var col = mix(vec3<f32>(0.016, 0.085, 0.060), vec3<f32>(0.002, 0.010, 0.014), smoothstep(0.05, 1.2, rr));
-  let grain = vnoise(w * 46.0) * 0.55 + vnoise(w * 13.0) * 0.45;
-  col *= 0.88 + 0.28 * grain;
-  col += vec3<f32>(0.55, 0.9, 0.15) * exp(-abs(w.y) * 26.0) * 0.012;
-  let pool0 = exp(-length((w - vec2<f32>(0.0, 1.75)) * vec2<f32>(0.38, 0.55)) * 1.8);
-  let pool1 = exp(-length((w - vec2<f32>(0.0, -1.75)) * vec2<f32>(0.38, 0.55)) * 1.8);
-  col += vec3<f32>(0.01, 0.075, 0.05) * (pool0 + pool1) * 0.55;
-  return vec4<f32>(col, 1.0);
+  let mat = sdBox(w, vec2<f32>(8.75, 10.95), 1.1);
+  // Mặt bàn gỗ: vân dọc, tối dần ra mép, đổ bóng sát thảm.
+  let grainA = vnoise(vec2<f32>(w.x * 1.2, w.y * 34.0));
+  let grainB = vnoise(vec2<f32>(w.x * 0.5, w.y * 5.0));
+  var wood = mix(vec3<f32>(0.030, 0.017, 0.010), vec3<f32>(0.07, 0.038, 0.02), grainA * 0.6 + grainB * 0.4);
+  wood *= (1.0 - 0.55 * smoothstep(8.0, 20.0, length(w))) * (0.45 + 0.55 * smoothstep(-0.2, 1.6, mat));
+  // Thảm: sợi dệt mịn, ánh sáng tụ ở giữa, nửa máy hơi xanh lam, nửa bạn hơi xanh lá.
+  let rr = length(w * vec2<f32>(0.07, 0.088));
+  var felt = mix(vec3<f32>(0.022, 0.120, 0.078), vec3<f32>(0.003, 0.026, 0.022), smoothstep(0.05, 1.15, rr));
+  let weave = 0.5 + 0.5 * sin(w.x * 120.0) * sin(w.y * 120.0);
+  felt *= 0.86 + 0.10 * weave + 0.24 * vnoise(w * 38.0);
+  let side = smoothstep(-3.0, 3.0, w.y);
+  felt = mix(felt * vec3<f32>(1.04, 1.05, 0.9), felt * vec3<f32>(0.78, 0.98, 1.25), side);
+  // Viền thảm: mép vàng, hai đường chỉ khâu sáng.
+  let rim = 1.0 - smoothstep(0.0, 0.07, abs(mat + 0.03));
+  let inlay1 = 1.0 - smoothstep(0.0, 0.035, abs(mat + 0.42));
+  let inlay2 = (1.0 - smoothstep(0.0, 0.022, abs(mat + 0.70))) * step(0.5, fract(atan2(w.y, w.x) * 40.0));
+  felt += vec3<f32>(1.0, 0.78, 0.30) * rim * 0.55 + vec3<f32>(0.55, 0.95, 0.20) * (inlay1 * 0.22 + inlay2 * 0.18);
+  // Khung vùng chơi in trên thảm (mờ): hàng băng ghế, ô Chiến đấu, cột bài/giải thưởng của mỗi bên.
+  let a = abs(w);
+  let frameBench = 1.0 - smoothstep(0.0, 0.03, abs(sdBox(vec2<f32>(a.x, a.y - 5.0), vec2<f32>(4.75, 1.62), 0.35)));
+  let frameActive = 1.0 - smoothstep(0.0, 0.03, abs(sdBox(vec2<f32>(a.x, a.y - 1.85), vec2<f32>(1.45, 1.78), 0.4)));
+  let frameDeck = 1.0 - smoothstep(0.0, 0.03, abs(sdBox(vec2<f32>(a.x - 6.0, a.y - 2.15), vec2<f32>(0.95, 2.75), 0.35)));
+  let frames = max(frameBench, max(frameActive, frameDeck));
+  felt += mix(vec3<f32>(0.45, 0.95, 0.35), vec3<f32>(0.45, 0.75, 1.0), side) * frames * 0.10;
+  // Biểu tượng trung tâm (vòng tròn + đường chia đôi sân) rực nhẹ.
+  let dc = length(w);
+  let pulse = 0.8 + 0.2 * sin(t * 1.3);
+  let ringA = 1.0 - smoothstep(0.0, 0.04, abs(dc - 1.25));
+  let ringB = 1.0 - smoothstep(0.0, 0.03, abs(dc - 0.5));
+  let ringC = (1.0 - smoothstep(0.0, 0.03, abs(dc - 1.85))) * step(0.5, fract(atan2(w.y, w.x) * 7.0 + t * 0.02));
+  let dot0 = 1.0 - smoothstep(0.14, 0.2, dc);
+  let bar = (1.0 - smoothstep(0.0, 0.03, abs(w.y))) * step(0.5, abs(w.x)) * (1.0 - step(1.25, abs(w.x)));
+  let midline = (1.0 - smoothstep(0.0, 0.025, abs(w.y))) * step(2.0, abs(w.x)) * (1.0 - smoothstep(7.9, 8.5, abs(w.x)));
+  felt += vec3<f32>(0.62, 0.98, 0.25) * (ringA * 0.3 + ringB * 0.22 + dot0 * 0.4 + ringC * 0.16 + bar * 0.16 + midline * 0.12) * pulse;
+  // Lòng thảm: quầng sáng quanh hai khu Chiến đấu.
+  let pool0 = exp(-length((w - vec2<f32>(0.0, 1.85)) * vec2<f32>(0.32, 0.45)) * 1.7);
+  let pool1 = exp(-length((w - vec2<f32>(0.0, -1.85)) * vec2<f32>(0.32, 0.45)) * 1.7);
+  felt += vec3<f32>(0.01, 0.075, 0.05) * (pool0 + pool1) * 0.6;
+  let inside = 1.0 - smoothstep(-0.03, 0.03, mat);
+  return vec4<f32>(mix(wood, felt, inside), 1.0);
 }
 `;
 

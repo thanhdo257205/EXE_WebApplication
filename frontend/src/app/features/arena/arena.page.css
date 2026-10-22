@@ -53,3 +53,18 @@ em{font-style:normal;font-size:11px;color:#ffd04a;border:1px solid #ffd04a66;bor
 @media(max-width:1100px){.layout{grid-template-columns:1fr}.stage{aspect-ratio:4/3}}
 @media(max-width:600px){.stage{aspect-ratio:3/4;max-height:none}.attack{flex:1 1 140px}}
 @media(prefers-reduced-motion:reduce){.popup{animation:none}}
+
+.labels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.zone{position:absolute;transform:translate(-50%,-50%);font-size:10px;font-weight:600;letter-spacing:.2em;color:#b9f26a;opacity:.5;text-shadow:0 1px 6px #000;white-space:nowrap}
+.zone.foe{color:#8fb8ff}.zone.right{transform:translate(-100%,-50%)}.zone.left{transform:translate(0,-50%)}
+.labels.big .zone{opacity:1;font-size:12px}
+@media(max-width:680px){.labels:not(.big){display:none}}
+.coach{position:relative;margin:14px 0 0;padding:16px 18px 20px;border:1px solid #dafa76;border-radius:16px;background:#141b10;box-shadow:0 0 0 4px #dafa7614}
+.coach-step{margin:0;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#dafa76}
+.coach-title{margin:6px 0 4px;font-size:18px}.coach-text{margin:0;color:#d9dcd0;line-height:1.65;font-size:14.5px;max-width:78ch}
+.coach-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:12px}
+.link{background:none;border:0;color:#8f9289;text-decoration:underline;font-size:13px;padding:8px 4px;min-height:44px}.link:hover{color:#f3f1ea}
+.coach-bar{position:absolute;left:18px;right:18px;bottom:8px;height:3px;border-radius:9px;background:#f3f1ea1a;overflow:hidden}.coach-bar b{display:block;height:100%;background:#dafa76;transition:width .4s}
+.guided{outline:2px solid #dafa76;outline-offset:3px;animation:glow 1.2s ease-in-out infinite}
+@keyframes glow{50%{outline-color:#dafa7633;box-shadow:0 0 18px #dafa76aa}}
+@media(prefers-reduced-motion:reduce){.guided{animation:none}}

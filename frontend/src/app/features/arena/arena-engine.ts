@@ -85,7 +85,7 @@ const inPlay = (card: Card): InPlay => {
 const pokemonOf = (side: PlayerState): InPlay[] => (side.active ? [side.active, ...side.bench] : [...side.bench]);
 
 /** Tạo ván mới: chia bài, mulligan nếu tay không có Pokémon, máy tự đặt Pokémon, chọn người đi trước. */
-export function newGame(rng: Rng): Result {
+export function newGame(rng: Rng, options: { first?: Side } = {}): Result {
   const game: Game = {
     sides: [{ deck: [], hand: [], active: null, bench: [], prizesTaken: 0, discard: [] }, { deck: [], hand: [], active: null, bench: [], prizesTaken: 0, discard: [] }],
     turn: 0, phase: 'setup', turnNumber: 0, attached: false, retreated: false, ready: [false, false], pending: [], winner: null, reason: '', nextUid: 1,
@@ -101,8 +101,9 @@ export function newGame(rng: Rng): Result {
       if (++attempts > 50) break;
     } while (!side.hand.some(c => c.kind === 'pokemon'));
   }
-  game.turn = rng() < 0.5 ? 0 : 1;
-  events.push({ t: 'say', text: `${names[game.turn]} đi trước (tung đồng xu).` });
+  const flipped: Side = rng() < 0.5 ? 0 : 1; // luôn tiêu thụ RNG để chuỗi ngẫu nhiên không đổi khi ép người đi trước
+  game.turn = options.first ?? flipped;
+  events.push({ t: 'say', text: options.first === undefined ? `${names[game.turn]} đi trước (tung đồng xu).` : `${names[game.turn]} đi trước.` });
   // Máy đặt Pokémon: con có HP cao nhất làm Chiến đấu, còn lại lên băng ghế.
   const ai = game.sides[1];
   const picks = ai.hand.map((c, i) => ({ c, i })).filter(x => x.c.kind === 'pokemon').sort((a, b) => (b.c as { def: PokemonDef }).def.hp - (a.c as { def: PokemonDef }).def.hp);
