@@ -4,12 +4,13 @@
 
 ## Cập nhật gần nhất
 
-### Sân đấu mô phỏng thẻ bài WebGPU (`/san-dau`) — 2026-10-22, local
+### Sân đấu mô phỏng thẻ bài WebGPU (`/san-dau`) — 2026-10-22, đã merge và CD thành công
 
 - Theo yêu cầu "mức 2: đấu có luật với máy, 9 thẻ Pokémon mẫu, phát hành công khai, WebGPU thuần, không dùng thư viện": thêm `frontend/src/app/features/arena/` (engine luật rút gọn + AI, controller, scene, renderer WebGPU, shader WGSL, trang Angular), route `/san-dau`, mục "Sân đấu mô phỏng" trong menu Thẻ bài. **Không thêm thư viện nào.** Chi tiết ở [docs/ARENA.md](docs/ARENA.md).
 - Xác minh: frontend 205/205 tests (mới 29 + engine 18 gồm 300 ván AI), build qua (chunk lazy ~88 kB/26 kB gzip, không cảnh báo budget CSS). Chromium + SwiftShader: shader biên dịch, hover/chọn/đặt thẻ/gắn năng lượng/tấn công/đồng xu/hạ gục hiển thị đúng, chơi qua trang thật với chuột; chế độ chữ khi không có adapter WebGPU đã xem ảnh desktop/mobile.
-- Hạn chế: chưa đo FPS/GPU trên thiết bị thật (SwiftShader tự hạ xuống mức Thấp); chưa kiểm tra Safari/Firefox/Android thật; luật là bản đơn giản hóa; ảnh thẻ thuộc The Pokémon Company — rủi ro bản quyền đã nêu, đã thêm tuyên bố fan-made/không liên kết. Local, chưa commit/push/deploy.
-- Việc tiếp theo: commit + PR, CI, xác minh sau deploy trên Chrome/Edge/Safari thật, thêm thẻ/hiệu ứng nếu cần, cân nhắc nội dung gốc thay ảnh có bản quyền.
+- Hạn chế: chưa đo FPS/GPU trên thiết bị thật (SwiftShader tự hạ xuống mức Thấp); chưa kiểm tra Safari/Firefox/Android thật; luật là bản đơn giản hóa; ảnh thẻ thuộc The Pokémon Company — rủi ro bản quyền đã nêu, đã thêm tuyên bố fan-made/không liên kết. Đã merge/deploy qua CD.
+- GitHub/deploy: PR #9 đã merge vào `main` (`c956503`); CI main 39809023484 thành công; CD 39809170745 thành công trên đúng commit (deploy gateway/backend, publish Pages, "Production smoke checks" qua, 2026-10-22 15:55 UTC). **Chưa xem được `/san-dau` trên production từ phiên này**: mạng sandbox chặn `exe-webapp.pages.dev` (proxy trả 403), nên chưa xác nhận trang tải, chunk lazy và poster trên production.
+- Việc tiếp theo: mở `/san-dau` trên production bằng Chrome/Edge/Safari thật (WebGPU) và ghi kết quả; đo FPS/GPU thật; thêm thẻ/hiệu ứng nếu cần; cân nhắc nội dung gốc thay ảnh có bản quyền.
 
 ### Tối ưu backend Turso + Column Spread 6 thẻ ngẫu nhiên — 2026-10-22, local
 

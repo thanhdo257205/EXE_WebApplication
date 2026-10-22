@@ -9,7 +9,8 @@ Cập nhật: 2026-10-22 (Asia/Saigon).
 - [x] ARENA-PAGE — Trang `/san-dau`, controller, bảng theo dõi, nhật ký, trợ năng bàn phím, chế độ chữ khi thiếu WebGPU, mức đồ họa tự hạ; 205 frontend tests/build qua.
 - [x] ARENA-DOCS — `docs/ARENA.md`, PROGRESS, README.
 - [ ] ARENA-DEVICE — Đo FPS/GPU và xem hình trên thiết bị thật (Chrome/Edge/Safari/Android) sau khi phát hành.
-- [ ] ARENA-RELEASE — Commit/PR/CI/deploy `/san-dau`; xác minh trên production.
+- [x] ARENA-RELEASE — PR #9 merge (`c956503`), CI main và CD 39809170745 thành công gồm smoke production.
+- [ ] ARENA-PROD-VERIFY — Mở `/san-dau` trên production bằng trình duyệt có WebGPU; sandbox hiện bị chặn host `exe-webapp.pages.dev` nên chưa xác nhận.
 - [ ] ARENA-IP — Quyết định thay ảnh thẻ bằng nội dung gốc trước khi thương mại hóa (ảnh hiện thuộc The Pokémon Company).
 
 ## Chuyển sang Turso Free (2026-10-22)
