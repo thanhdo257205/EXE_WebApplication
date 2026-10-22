@@ -7,7 +7,7 @@ Cập nhật2026-10-20, local; chưa commit/push/deploy.
 | Mục chính | Các liên kết con |
 | --- | --- |
 | Khám phá | Câu chuyện căn nhà, Hồ sơ cư dân, Quyền riêng tư, Điều khoản sử dụng |
-| Thẻ bài | Thư viện thẻ, Hồ sơ cư dân |
+| Thẻ bài | Thư viện thẻ, Sân đấu mô phỏng, Hồ sơ cư dân |
 | Cách chơi | Hướng dẫn cách chơi, Quỹ nhà chung |
 | Wiki luật | Tra cứu wiki, Hướng dẫn cách chơi |
 | Cửa hàng | Cửa hàng board game, Giỏ hàng |

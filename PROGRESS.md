@@ -4,6 +4,13 @@
 
 ## Cập nhật gần nhất
 
+### Sân đấu mô phỏng thẻ bài WebGPU (`/san-dau`) — 2026-10-22, local
+
+- Theo yêu cầu "mức 2: đấu có luật với máy, 9 thẻ Pokémon mẫu, phát hành công khai, WebGPU thuần, không dùng thư viện": thêm `frontend/src/app/features/arena/` (engine luật rút gọn + AI, controller, scene, renderer WebGPU, shader WGSL, trang Angular), route `/san-dau`, mục "Sân đấu mô phỏng" trong menu Thẻ bài. **Không thêm thư viện nào.** Chi tiết ở [docs/ARENA.md](docs/ARENA.md).
+- Xác minh: frontend 205/205 tests (mới 29 + engine 18 gồm 300 ván AI), build qua (chunk lazy ~88 kB/26 kB gzip, không cảnh báo budget CSS). Chromium + SwiftShader: shader biên dịch, hover/chọn/đặt thẻ/gắn năng lượng/tấn công/đồng xu/hạ gục hiển thị đúng, chơi qua trang thật với chuột; chế độ chữ khi không có adapter WebGPU đã xem ảnh desktop/mobile.
+- Hạn chế: chưa đo FPS/GPU trên thiết bị thật (SwiftShader tự hạ xuống mức Thấp); chưa kiểm tra Safari/Firefox/Android thật; luật là bản đơn giản hóa; ảnh thẻ thuộc The Pokémon Company — rủi ro bản quyền đã nêu, đã thêm tuyên bố fan-made/không liên kết. Local, chưa commit/push/deploy.
+- Việc tiếp theo: commit + PR, CI, xác minh sau deploy trên Chrome/Edge/Safari thật, thêm thẻ/hiệu ứng nếu cần, cân nhắc nội dung gốc thay ảnh có bản quyền.
+
 ### Tối ưu backend Turso + Column Spread 6 thẻ ngẫu nhiên — 2026-10-22, local
 
 - **Backend (`backend/server`)**: (1) route đọc công khai (`/content/*`, `/shop/products`, `/payments/config`, `/auth/*config|csrf`) không còn tra bảng `app_users` mỗi request; route cần đăng nhập vẫn kiểm tra tài khoản/auth_version; (2) `cache.ts` cache trong tiến trình 30s cho `/content/*` (mỗi app một instance, không cache lỗi, dedupe request đồng thời, xóa khi mọi ghi admin thành công); (3) `batchRead` gom nhiều SELECT thành 1 lần gọi Turso (budget các loại, snapshot, shop/products), bỏ transaction đọc không cần cho release bất biến; (4) header `Server-Timing` và log request ≥1s (chỉ method/route, không query/body/ID).

@@ -2,6 +2,16 @@
 
 Cập nhật: 2026-10-22 (Asia/Saigon).
 
+## Sân đấu mô phỏng WebGPU (2026-10-22)
+
+- [x] ARENA-ENGINE — Engine luật rút gọn bất biến + AI; 18 test gồm 300 ván máy-với-máy không có nước sai luật.
+- [x] ARENA-RENDERER — Renderer WebGPU thuần (texture array + mip, instancing, HDR + bloom + ACES); shader biên dịch và vẽ đúng trên Chromium + SwiftShader.
+- [x] ARENA-PAGE — Trang `/san-dau`, controller, bảng theo dõi, nhật ký, trợ năng bàn phím, chế độ chữ khi thiếu WebGPU, mức đồ họa tự hạ; 205 frontend tests/build qua.
+- [x] ARENA-DOCS — `docs/ARENA.md`, PROGRESS, README.
+- [ ] ARENA-DEVICE — Đo FPS/GPU và xem hình trên thiết bị thật (Chrome/Edge/Safari/Android) sau khi phát hành.
+- [ ] ARENA-RELEASE — Commit/PR/CI/deploy `/san-dau`; xác minh trên production.
+- [ ] ARENA-IP — Quyết định thay ảnh thẻ bằng nội dung gốc trước khi thương mại hóa (ảnh hiện thuộc The Pokémon Company).
+
 ## Chuyển sang Turso Free (2026-10-22)
 
 - [x] TURSO-CLI — Cài Turso CLI v1.0.34 trong Ubuntu WSL, kiểm tra phiên bản thành công.
