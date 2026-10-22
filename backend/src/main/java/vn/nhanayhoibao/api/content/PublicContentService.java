@@ -4,6 +4,7 @@ import java.sql.Timestamp;
 import java.text.Normalizer;
 import java.time.OffsetDateTime;
 import java.util.*;
+import java.util.regex.Pattern;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -38,6 +39,8 @@ public class PublicContentService {
     public record Listing(Map<String,Object> release,Page result) {}
     private final JdbcTemplate db;
     private final TransactionTemplate read;
+    private static final Pattern ACCENTS=Pattern.compile("\\p{M}+");
+    private record Candidate(UUID id,int order,String name) {}
     public PublicContentService(JdbcTemplate db,PlatformTransactionManager manager) {
         this.db=db;read=new TransactionTemplate(manager);
         read.setReadOnly(true);read.setIsolationLevel(TransactionDefinition.ISOLATION_REPEATABLE_READ);
@@ -76,7 +79,7 @@ public class PublicContentService {
             throw new PublicContentException(HttpStatus.PAYLOAD_TOO_LARGE,"CONTENT_TOO_LARGE","Published content exceeds the supported read budget");
     }
     static String normalize(String value) {
-        return Normalizer.normalize(value,Normalizer.Form.NFD).replaceAll("\\p{M}+","")
+        return ACCENTS.matcher(Normalizer.normalize(value,Normalizer.Form.NFD)).replaceAll("")
             .toLowerCase(Locale.ROOT).replace('đ','d').trim();
     }
     private List<Map<String,Object>> items(UUID release,Kind kind) {
@@ -91,19 +94,36 @@ public class PublicContentService {
         return read.execute(s->{
             var release=releaseRow(requested);UUID id=(UUID)release.get("id");budget(id,List.of(kind));
             String query=normalize(q);
-            var filtered=items(id,kind).stream()
-                .filter(row->set==null || set.equals(row.get("cardSetId")))
-                .filter(row->character==null || character.equals(row.get("characterId")))
-                .filter(row->pageType==null || pageType.equals(row.get("pageType")))
-                .filter(row->query.isEmpty() || List.of("name","title","code","slug").stream()
-                    .anyMatch(field->row.get(field) instanceof String value && normalize(value).contains(query)))
-                .toList();
-            var sorted=filtered.stream().sorted(Comparator
-                .comparingInt((Map<String,Object> row)->((Number)row.get("sortOrder")).intValue())
-                .thenComparing(row->normalize((String)row.getOrDefault(kind==Kind.WIKI?"title":"name","")))
-                .thenComparing(row->row.get("id").toString())).toList();
+            // Search/sort only bounded metadata. Large bodies, biographies and artwork URLs
+            // cross the database connection only for the requested page, in this same snapshot.
+            String title=kind==Kind.WIKI?"r.title":"r.name";
+            String code=kind==Kind.WIKI?"NULL":"i.code";
+            var sql=new StringBuilder("SELECT i.id,r.sort_order,"+title+" AS label,i.slug,"+code+
+                " AS code FROM "+kind.identity+" i JOIN "+kind.revision+" r ON r."+kind.fk+"=i.id WHERE r.release_id=?");
+            var args=new ArrayList<Object>();args.add(id);
+            if(set!=null){sql.append(" AND r.card_set_id=?");args.add(set);}
+            if(character!=null){sql.append(" AND r.character_id=?");args.add(character);}
+            if(pageType!=null){sql.append(" AND i.page_type=?");args.add(pageType);}
+            var sorted=db.query(sql.toString(),(row,index)->{
+                String name=normalize(row.getString("label"));
+                boolean matches=query.isEmpty() || name.contains(query) || normalize(row.getString("slug")).contains(query)
+                    || (row.getString("code")!=null && normalize(row.getString("code")).contains(query));
+                return matches?new Candidate(row.getObject("id",UUID.class),row.getInt("sort_order"),name):null;
+            },args.toArray()).stream().filter(Objects::nonNull).sorted(Comparator
+                .comparingInt(Candidate::order).thenComparing(Candidate::name)
+                .thenComparing(row->row.id().toString())).toList();
             long count=sorted.size();
-            return new Listing(release,new Page(sorted.stream().skip((long)page*size).limit(size).toList(),page,size,count,(count+size-1)/size));
+            var selected=sorted.stream().skip((long)page*size).limit(size).map(Candidate::id).toList();
+            List<Map<String,Object>> result=List.of();
+            if(!selected.isEmpty()) {
+                var pageArgs=new ArrayList<Object>();pageArgs.add(id);pageArgs.addAll(selected);
+                var rows=db.queryForList(select(kind)+" WHERE r.release_id=? AND i.id IN ("+
+                    String.join(",",Collections.nCopies(selected.size(),"?"))+")",pageArgs.toArray());
+                var byId=new HashMap<UUID,Map<String,Object>>();
+                for(var row:rows)byId.put((UUID)row.get("id"),camel(row));
+                result=selected.stream().map(byId::get).toList();
+            }
+            return new Listing(release,new Page(result,page,size,count,(count+size-1)/size));
         });
     }
     public Map<String,Object> detail(UUID requested,Kind kind,String key) {

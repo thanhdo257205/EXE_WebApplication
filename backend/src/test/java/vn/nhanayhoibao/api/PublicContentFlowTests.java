@@ -30,6 +30,7 @@ class PublicContentFlowTests {
     @Autowired AdminContentService admin;
     @Autowired UserRepository users;
     @Autowired JdbcTemplate db;
+    @Autowired org.springframework.transaction.PlatformTransactionManager transactions;
     @Value("${local.server.port}") int port;
     final HttpClient client=HttpClient.newHttpClient();
     UUID release,set,character,card,wiki;
@@ -108,6 +109,36 @@ class PublicContentFlowTests {
         assertThat(get("/unknown-kind").statusCode()).isEqualTo(404);
         assertThat(get("/cards/missing").statusCode()).isEqualTo(404);
         assertThat(get("/cards/by-id/"+UUID.randomUUID()).statusCode()).isEqualTo(404);
+    }
+    @Test void paginationTransfersOnlySelectedBodiesAndPreservesSearchOrder() {
+        publish();
+        for(int i=0;i<24;i++) {
+            UUID entity=UUID.randomUUID();
+            db.update("INSERT INTO game_characters(id,code,slug) VALUES (?,?,?)",entity,"BULK_"+suffix+"_"+i,"bulk-"+suffix+"-"+i);
+            db.update("INSERT INTO character_revisions(id,character_id,release_id,name,biography,sort_order) VALUES (?,?,?,?,?,?)",
+                UUID.randomUUID(),entity,release,"Nhân vật %02d".formatted(i),"x".repeat(12000),1);
+        }
+        var transferred=new java.util.concurrent.atomic.AtomicLong();
+        var measured=new JdbcTemplate(Objects.requireNonNull(db.getDataSource())) {
+            @Override public List<Map<String,Object>> queryForList(String sql,Object... args) {
+                var rows=super.queryForList(sql,args);
+                for(var row:rows)for(var entry:row.entrySet())
+                    if(entry.getKey().equalsIgnoreCase("biography") && entry.getValue() instanceof String body)
+                        transferred.addAndGet(body.length());
+                return rows;
+            }
+        };
+        var service=new PublicContentService(measured,transactions);
+        var result=service.list(null,Kind.CHARACTERS,1,3,"NHAN VAT",null,null,null).result();
+        assertThat(result.totalElements()).isEqualTo(25);
+        assertThat(result.items()).extracting(row->row.get("name"))
+            .containsExactly("Nhân vật 02","Nhân vật 03","Nhân vật 04");
+        // 24 large biographies exist; only the three requested bodies leave the database.
+        assertThat(transferred.get()).isEqualTo(36000);
+        transferred.set(0);
+        assertThat(service.list(null,Kind.CHARACTERS,100,3,"",null,null,null).result().items()).isEmpty();
+        assertThat(service.list(null,Kind.CHARACTERS,0,3,"missing-match",null,null,null).result().totalElements()).isZero();
+        assertThat(transferred.get()).isZero();
     }
     @Test void explicitPublishedVersionRemainsPinnedWhenCurrentReleaseChanges() {
         publish();UUID original=release;

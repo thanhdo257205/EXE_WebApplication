@@ -4,6 +4,13 @@
 
 ## Cập nhật gần nhất
 
+### Giảm tải PostgreSQL/backend — đợt phát hành GitHub 2026-10-22
+
+- Điều tra bằng CLI xác nhận Aiven Free 1 GB đang RUNNING; metric 24 giờ tới13:58: RAM đỉnh95,05%, cuối63,10%, disk12,65%. Chưa xác định tác nhân OOM; không suy ra cảnh báo connection closed là nguyên nhân. Chi tiết và giới hạn bằng chứng: [RESOURCE_USAGE.md](docs/RESOURCE_USAGE.md).
+- Public list chỉ tải metadata để tìm/sort, rồi lấy body đúng trang; giữ budget/search tiếng Việt/literal/order/REPEATABLE_READ. Prod đóng connection idle sau60s cộng housekeeping và dọn session mỗi15phút; giữ pool3/min0 và kiểm tra hết hạn khi đọc. Không đổi thanh toán/schema/cloud plan.
+- `mvn verify` BUILD SUCCESS:132 tests tổng,85pass/47PostgreSQL skipped; JAR qua. Sau đó public suite PostgreSQL18.6 qua8/8tests, TLS verify-full/pool2/schema riêng; cleanup schema hoàn tất không lỗi. Regression trang3mục lấy36000 ký tự biography thay vì khoảng288000; trang rỗng0body, session hết hạn vẫn bị từ chối trước cleanup. Code/docs gộp trong đợt phát hành origin/main theo yêu cầu. Đã rebase lên main mới nhất (5faa789), giữ các thay đổi storefront/frontend đã có. Chưa xác nhận CI/CD hoặc đo giảm RAM production.
+- Sau rebase lên main5faa789 (gồm storefront và migrationV11), chạy lại `mvn verify`: BUILD SUCCESS,134tests tổng/87pass/47PostgreSQL skipped, JAR qua. Bộ8PostgreSQL ở trên đã chạy trước rebase trên schemaV10; chưa chạy lại PostgreSQL sau khi nhậnV11. Không thay source frontend/gateway trong commit tối ưu.
+
 ### Cửa hàng thử: thẻ Pokémon Hoàng Nam 2.000 ₫ + thanh toán QR PayOS — 2026-10-21, local
 
 - Theo yêu cầu: sản phẩm thử là thẻ **Pokémon Hoàng Nam** (ban đầu 1.000.000 ₫, sau đó chủ dự án đổi thành **2.000 ₫** để test chuyển tiền). Backend: Flyway **V11** seed 1 category/product/variant (id cố định `5a1f0c2e-…0003`, SKU `POKEMON-HOANG-NAM-01`)/ảnh/tồn 10 + dòng RECEIVE; `GET /api/v1/shop/products` (public, no-store); `SecurityConfig` cho phép GET này. Giá luôn lấy từ DB, client chỉ gửi variantId.
@@ -64,6 +71,7 @@
 - Rà soát hiệu năng theo yêu cầu, chọn các thay đổi không đổi hiệu ứng: (1) Google Fonts chỉ xin Be Vietnam Pro wght 400–900, bỏ 7 biến thể italic và weight300 vì CSS không dùng (`em` dùng Fraunces); (2) Fraunces TTF85.076 byte → WOFF2 subset Latin/Việt24.252 byte, giữ weight700 italic và `font-display: swap`; (3) `can-nha-ban-dem.png`208.026 byte → WebP19.118 byte (sai khác trung bình ~0,5/255 mỗi kênh, giữ alpha), cập nhật `<img>` và nền `.artwork-bg`; (4) thêm `frontend/public/_headers` cache30 ngày (không immutable vì tên file không có hash) cho `/assets/{fonts,models,cards,images}`.
 - Xác minh: 129/129 frontend tests, production build/prerender qua (Node24.15.0); `_headers` và WOFF2 có trong output. Chưa mở trình duyệt so ảnh/chữ, chưa đo LCP/transfer thật, chưa xác nhận Cloudflare Pages áp `_headers` cho asset qua worker `ASSETS` — cần kiểm tra header sau deploy. Chưa commit/push/deploy.
 - Chưa làm: tự host Be Vietnam Pro, giảm blur backdrop-filter, OnPush/event coalescing, snapshot-first nội dung công khai (xem `docs/PERFORMANCE.md`).
+
 
 ### Khôi phục xác nhận deploy liquid glass/cache cuộn — 2026-10-21
 

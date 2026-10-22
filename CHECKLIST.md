@@ -1,6 +1,13 @@
 # EXE_WebApplication — Checklist triển khai
 
-Cập nhật: 2026-10-21 (Asia/Saigon).
+Cập nhật: 2026-10-22 (Asia/Saigon).
+
+## Tài nguyên PostgreSQL/backend (2026-10-22)
+
+- [x] DB-RESOURCE-LOCAL — Public list tải body đúng trang, pattern normalize dùng lại; prod idle timeout60s và cleanup session15phút. Maven verify/JAR qua,85pass/47PostgreSQL skipped; regression body36000/~288000 ký tự và hết hạn session qua. Code/docs gộp trong đợt phát hành GitHub22/10; CI/CD chưa xác nhận.
+- [x] DB-RESOURCE-POSTGRES —8/8public content tests qua trên Aiven PostgreSQL18.6, TLS verify-full/pool2, schema riêng và cleanup không lỗi; không thay public schema.
+- [x] DB-RESOURCE-REBASE-CHECKS — Rebase main5faa789, giữ storefront/frontend đã có; verify/JAR lại qua:87pass/47PostgreSQL skipped. Không chạy lại PostgreSQL sau khi nhậnV11.
+- [ ] DB-RESOURCE-PRODUCTION — Phát hành, đối chiếu RAM/CPU/connections24giờ cùng tải và xác định tác nhân nếu OOM lặp. Chưa chứng minh tối ưu loại bỏ OOM.
 
 ## Phát hành liquid glass và cache cuộn (2026-10-21)
 

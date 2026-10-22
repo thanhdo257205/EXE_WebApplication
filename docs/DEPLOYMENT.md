@@ -1,5 +1,9 @@
 # Triển khai và CI/CD
 
+## Cấu hình giảm tải ngày 2026-10-22 — đợt phát hành GitHub
+
+Source prod mới thêm Hikari idle timeout60s (housekeeping có thể thêm30s), giữ max3/min0; session JDBC cleanup mỗi15phút, expiry vẫn kiểm tra khi đọc. Public list lấy body theo trang. Các cấu hình được gộp trong đợt phát hành origin/main; chưa xác nhận CI/CD hoặc production. Xem [chẩn đoán và xác minh tài nguyên](RESOURCE_USAGE.md). Không đổi gói Aiven/Render hoặc lịch đối soát thanh toán.
+
 ## Khôi phục CD ngày 2026-10-21 — liquid glass/cache cuộn
 
 Runtime `9679e6e5d007f7c9dfb9d168502d0ffa82ea5ee4` đã qua CI39621965643. CD39622667297 publish Worker, backend readiness và Pages thành công, nhưng smoke chạy ngay sau publish nhận HTTP500 tại `/`. Chạy lại toàn smoke từ local sau đó qua; lỗi không còn tái hiện. Chưa đủ log nền tảng để kết luận chính xác vì sao500 xuất hiện, không quy lỗi cho CSS hoặc nới assertion.

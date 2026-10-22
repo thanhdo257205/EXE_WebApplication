@@ -22,7 +22,8 @@ import static org.assertj.core.api.Assertions.*;
     "spring.datasource.url=jdbc:h2:mem:authflow;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE",
     "app.proxy.required=true", "app.proxy.secret=test-only-32-character-proxy-secret",
     "app.auth.google.enabled=true", "GOOGLE_CLIENT_ID=test-client", "GOOGLE_CLIENT_SECRET=test-secret",
-    "GOOGLE_REDIRECT_URI=https://game.example.test/api/v1/auth/oauth2/callback/google"
+    "GOOGLE_REDIRECT_URI=https://game.example.test/api/v1/auth/oauth2/callback/google",
+    "spring.session.jdbc.cleanup-cron=0 */15 * * * *"
 })
 @ActiveProfiles("local")
 class AuthFlowTests {
@@ -34,12 +35,31 @@ class AuthFlowTests {
     @Autowired PasswordEncoder encoder;
     @Autowired GoogleAccountService google;
     @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
+    @Autowired org.springframework.session.jdbc.JdbcIndexedSessionRepository sessions;
 
     @BeforeEach
     void account() {
         if (users.findByEmail(EMAIL).isEmpty()) {
             users.save(new AppUser(EMAIL, encoder.encode(PASSWORD), null, "Member", "CUSTOMER"));
         }
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void expiredOAuthStateIsRejectedBeforeDelayedCleanupRuns() {
+        var repository=(org.springframework.session.SessionRepository<org.springframework.session.Session>)
+            (org.springframework.session.SessionRepository<?>)sessions;
+        var active=repository.createSession();
+        active.setAttribute("oauth-state","test-state");
+        repository.save(active);
+        var expired=repository.createSession();
+        expired.setMaxInactiveInterval(java.time.Duration.ofSeconds(1));
+        expired.setLastAccessedTime(Instant.now().minusSeconds(60));
+        repository.save(expired);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM SPRING_SESSION WHERE SESSION_ID=?",Integer.class,expired.getId())).isOne();
+        assertThat(repository.findById(expired.getId())).isNull();
+        assertThat(repository.findById(active.getId()).<String>getAttribute("oauth-state")).isEqualTo("test-state");
+        repository.deleteById(active.getId());
     }
 
     @Test
