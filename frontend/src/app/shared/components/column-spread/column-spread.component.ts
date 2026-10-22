@@ -15,17 +15,17 @@ export const POKEMON_POSTER_NAMES = [
   'eevee',
 ] as const;
 const UNIQUE_POKEMON_CARDS = POKEMON_POSTER_NAMES.map(name => `/assets/cards/pokemon/${name}-poster.webp`);
-export const DECORATIVE_CARDS = [
-  ...UNIQUE_POKEMON_CARDS,
-  ...UNIQUE_POKEMON_CARDS.slice(0, 3),
-];
+/** Pool of 9 unique posters; each cycle shows SPREAD_SLOTS random ones (fewer cards drawn per frame). */
+export const DECORATIVE_CARDS = UNIQUE_POKEMON_CARDS;
+export const SPREAD_SLOTS = 6;
 
 /**
  * Ngân sách vẽ canvas theo thiết bị: số điểm ảnh tỷ lệ với DPR², nên hạ DPR là cách giảm tải rẻ nhất.
- * Máy mạnh giữ DPR cap 2 như cũ; màn cảm ứng cap 1,5; máy bị `perf-tier=low` dùng DPR 1 và tối đa ~30 khung/giây.
+ * Máy thường cap 1,5 (poster gốc chỉ 360px); màn cảm ứng cap 1,25; máy bị `perf-tier=low` dùng DPR 1 và tối đa ~30 khung/giây.
  */
 export function spreadRenderBudget(devicePixelRatio: number, coarsePointer: boolean, lowTier: boolean): { dpr: number; minFrameMs: number } {
-  const cap = lowTier ? 1 : coarsePointer ? 1.5 : 2;
+  // Posters are 360px wide and drawn at ~500 CSS px, so DPR above ~1.5 only adds fill cost, not detail.
+  const cap = lowTier ? 1 : coarsePointer ? 1.25 : 1.5;
   return { dpr: Math.min(devicePixelRatio || 1, cap), minFrameMs: lowTier ? 33 : 0 };
 }
 
@@ -66,6 +66,22 @@ export function shuffleIndices(
   return result;
 }
 
+/**
+ * Picks `count` distinct pool indices at random (partial Fisher-Yates). Never returns the same ordered
+ * selection as `previous`, so every cycle visibly changes.
+ */
+export function pickSlots(poolSize: number, count: number, rng: () => number = Math.random, previous: readonly number[] = []): number[] {
+  const size = Math.max(0, Math.floor(poolSize)), take = Math.min(Math.max(0, count), size);
+  const pool = Array.from({ length: size }, (_, i) => i);
+  for (let i = 0; i < take; i++) {
+    const j = i + Math.floor(rng() * (size - i));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  const picked = pool.slice(0, take);
+  if (take > 1 && previous.length === take && picked.every((value, index) => value === previous[index])) picked.push(picked.shift()!);
+  return picked;
+}
+
 @Component({
   selector: 'app-column-spread',
   template: `<div class="spread-stage" #stage>
@@ -93,15 +109,16 @@ export class ColumnSpreadComponent {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Fixed 12-slot buffer for decoded HTMLImageElements indexed by source position (0..11)
+    // Decoded images indexed by pool position (one per unique poster, max 12 sources).
     const sourceImages: (HTMLImageElement | undefined)[] = Array(12).fill(undefined);
-    // Display buffer passed to TEMPLATE.render; reuses same array to avoid heap allocations
-    const displayImages: (HTMLImageElement | undefined)[] = Array(12).fill(undefined);
-    // Stable slot indices 0..11 representing display card permutation
-    let currentPermutation = shuffleIndices(Array.from({ length: 12 }, (_, i) => i));
+    // Display buffer passed to TEMPLATE.render (SPREAD_SLOTS cards); reused to avoid heap allocations.
+    const displayImages: (HTMLImageElement | undefined)[] = Array(SPREAD_SLOTS).fill(undefined);
+    const poolSize = Math.min(this.imageSources().length, 12);
+    // Pool indices currently shown, re-picked at random on mount and on every new cycle.
+    let currentPermutation = pickSlots(poolSize, SPREAD_SLOTS);
 
     const syncDisplayImages = () => {
-      for (let i = 0; i < 12; i++) {
+      for (let i = 0; i < SPREAD_SLOTS; i++) {
         displayImages[i] = sourceImages[currentPermutation[i]];
       }
     };
@@ -112,6 +129,10 @@ export class ColumnSpreadComponent {
     const budget = () => spreadRenderBudget(window.devicePixelRatio, coarse.matches, document.documentElement.dataset['perf'] === 'low');
     let t = 0.12, last = 0, frame = 0, visible = false, destroyed = false;
     let dirty = true, sizeDirty = true;
+    // Trong lúc cuộn trang, vẽ tối đa ~30 khung/giây để nhường tài nguyên cho cuộn mượt.
+    let scrolling = false, scrollTimer: ReturnType<typeof setTimeout> | undefined;
+    const onScroll = () => { scrolling = true; clearTimeout(scrollTimer); scrollTimer = setTimeout(() => { scrolling = false; }, 150); };
+    window.addEventListener('scroll', onScroll, { passive: true });
     let initiated = false;
     const loaders: HTMLImageElement[] = [];
     let firstDecodedImage: HTMLImageElement | null = null;
@@ -142,13 +163,13 @@ export class ColumnSpreadComponent {
         sizeDirty = false;
       }
       if (running()) {
-        const { minFrameMs } = budget();
+        const frameGap = Math.max(budget().minFrameMs, scrolling ? 33 : 0);
         // Giới hạn tốc độ khung khi máy giật: bỏ khung này, dt tích lũy sang khung sau nên nhịp 8s không đổi.
-        if (minFrameMs && last && now - last < minFrameMs - 2 && !dirty) { schedule(); return; }
+        if (frameGap && last && now - last < frameGap - 2 && !dirty) { schedule(); return; }
         const dt = last ? Math.min(0.05, (now - last) / 1000) : 0;
         const nextT = t + dt / 8.0;
         if (last > 0 && nextT >= 1) {
-          currentPermutation = shuffleIndices(currentPermutation);
+          currentPermutation = pickSlots(poolSize, SPREAD_SLOTS, Math.random, currentPermutation);
           syncDisplayImages();
         }
         t = nextT % 1; last = now;
@@ -244,7 +265,7 @@ export class ColumnSpreadComponent {
     this.destroyRef.onDestroy(() => {
       destroyed = true; cancelAnimationFrame(frame); resizeObserver.disconnect(); intersection.disconnect();
       media.removeEventListener('change', preferenceChanged); document.removeEventListener('visibilitychange', playback);
-      window.removeEventListener(PERF_TIER_EVENT, tierChanged);
+      window.removeEventListener(PERF_TIER_EVENT, tierChanged); window.removeEventListener('scroll', onScroll); clearTimeout(scrollTimer);
       loaders.forEach(image => { image.onload = null; image.onerror = null; }); this.updatePlayback = () => {};
     });
   }

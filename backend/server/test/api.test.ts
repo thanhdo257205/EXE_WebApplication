@@ -207,9 +207,35 @@ test('failed mail delivery preserves the previous usable reset link', async t =>
   assert.equal((await f.request('POST', '/api/v1/auth/forgot-password', { email: f.user + '@example.test' })).status, 202);
   await started;
   for (let i = 0; i < 100; i++) {
-    const rows = await all(f.db, 'SELECT token_hash FROM password_reset_tokens WHERE user_id=?', [f.user]);
+    // The in-memory test database has one connection; skip a poll while the background worker holds its transaction.
+    const rows = await all(f.db, 'SELECT token_hash FROM password_reset_tokens WHERE user_id=?', [f.user]).catch(error => { if (error?.code === 'TRANSACTION_ACTIVE') return []; throw error; });
     if (rows[0]?.token_hash === 'previous-token-digest') { await new Promise(resolve => setTimeout(resolve, 20)); const final = await one(f.db, 'SELECT token_hash FROM password_reset_tokens WHERE user_id=?', [f.user]); if (final.token_hash === 'previous-token-digest') return; }
     await new Promise(resolve => setTimeout(resolve, 10));
   }
   assert.fail('Previous reset link was not restored');
+});
+
+test('public content is cached until an admin write; failures and drafts are not cached; timing header is sent', async t => {
+  const f = await fixture(); t.after(() => f.db.close());
+  const release = await (await f.request('POST', '/api/v1/admin/content/releases', { title: 'Cache', versionLabel: 'cache-v1' }, f.admin)).json();
+  const set = await (await f.request('POST', `/api/v1/admin/content/releases/${release.id}/card-sets`, { expectedVersion: 0, code: 'C', slug: 'c-set', name: 'Bộ' }, f.admin)).json();
+  assert.equal((await f.request('POST', `/api/v1/admin/content/releases/${release.id}/cards`, { expectedVersion: 1, code: 'C1', slug: 'the-cache', name: 'Thẻ cũ', cardSetId: set.entityId, effectText: 'x', ruleStatus: 'CONFIRMED', copiesInDeck: 1 }, f.admin)).status, 201);
+  assert.equal((await f.request('GET', '/api/v1/content/cards', undefined, null)).status, 404); // chưa có bản xuất bản, không bị cache
+  await execute(f.db, "UPDATE content_releases SET status='PUBLISHED',current_slot=1,published_at=? WHERE id=?", [now(), release.id]);
+  const first = await f.request('GET', '/api/v1/content/cards', undefined, null);
+  assert.equal(first.status, 200); assert.match(first.headers.get('Server-Timing') || '', /^app;dur=\d+$/);
+  assert.equal((await first.json()).result.items[0].name, 'Thẻ cũ');
+  await execute(f.db, "UPDATE card_revisions SET name='Thẻ mới' WHERE release_id=?", [release.id]);
+  assert.equal((await (await f.request('GET', '/api/v1/content/cards', undefined, null)).json()).result.items[0].name, 'Thẻ cũ'); // từ cache
+  assert.equal((await f.request('POST', '/api/v1/admin/content/releases', { title: 'Khác', versionLabel: 'cache-v2' }, f.admin)).status, 201); // ghi admin xóa cache
+  assert.equal((await (await f.request('GET', '/api/v1/content/cards', undefined, null)).json()).result.items[0].name, 'Thẻ mới');
+  const snapshot = await (await f.request('GET', '/api/v1/content/snapshot', undefined, null)).json();
+  assert.equal(snapshot.content.cards.length, 1); assert.equal(snapshot.content['card-sets'].length, 1);
+});
+
+test('public reads skip the per-request user lookup but protected routes still validate the account', async t => {
+  const f = await fixture(); t.after(() => f.db.close());
+  await execute(f.db, 'UPDATE app_users SET enabled=0 WHERE id=?', [f.user]);
+  assert.equal((await f.request('GET', '/api/v1/shop/products', undefined, f.user)).status, 200);
+  assert.equal((await f.request('GET', '/api/v1/orders', undefined, f.user)).status, 401);
 });

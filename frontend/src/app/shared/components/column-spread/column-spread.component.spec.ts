@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import TEMPLATE from '../../motion/spread-columns.js';
-import { ColumnSpreadComponent, DECORATIVE_CARDS, POKEMON_POSTER_NAMES, SPREAD_PARAMS, shuffleIndices, spreadRenderBudget } from './column-spread.component';
+import { ColumnSpreadComponent, DECORATIVE_CARDS, POKEMON_POSTER_NAMES, SPREAD_PARAMS, pickSlots, shuffleIndices, SPREAD_SLOTS, spreadRenderBudget } from './column-spread.component';
 
 class Preference extends EventTarget {
   matches = false;
@@ -9,12 +9,12 @@ class Preference extends EventTarget {
 }
 
 describe('spreadRenderBudget', () => {
-  it('keeps the original DPR cap of 2 and no frame limit on capable devices', () => {
-    expect(spreadRenderBudget(3, false, false)).toEqual({ dpr: 2, minFrameMs: 0 });
+  it('caps DPR at 1.5 (poster sources are only 360px wide) with no frame limit on capable devices', () => {
+    expect(spreadRenderBudget(3, false, false)).toEqual({ dpr: 1.5, minFrameMs: 0 });
     expect(spreadRenderBudget(1.25, false, false)).toEqual({ dpr: 1.25, minFrameMs: 0 });
   });
-  it('lowers the DPR cap to 1.5 on coarse pointers', () => {
-    expect(spreadRenderBudget(3, true, false)).toEqual({ dpr: 1.5, minFrameMs: 0 });
+  it('lowers the DPR cap to 1.25 on coarse pointers', () => {
+    expect(spreadRenderBudget(3, true, false)).toEqual({ dpr: 1.25, minFrameMs: 0 });
     expect(spreadRenderBudget(1, true, false)).toEqual({ dpr: 1, minFrameMs: 0 });
   });
   it('uses DPR 1 and ~30fps when perf-tier is low, and tolerates a missing DPR', () => {
@@ -76,16 +76,34 @@ describe('Column spread frame scheduling', () => {
     } finally { delete document.documentElement.dataset['perf']; }
   });
 
-  it('keeps drawing every frame and the DPR cap of 2 on capable devices', () => {
+  it('draws at most ~30fps while the page is scrolling, then resumes every frame', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      visibility(true); images.forEach(image => image.onload?.());
+      flush(100);
+      const base = vi.mocked(TEMPLATE.render).mock.calls.length;
+      window.dispatchEvent(new Event('scroll'));
+      flush(110); // 10ms sau: bỏ khung
+      expect(vi.mocked(TEMPLATE.render).mock.calls.length).toBe(base);
+      flush(140); // 40ms sau: vẽ
+      expect(vi.mocked(TEMPLATE.render).mock.calls.length).toBe(base + 1);
+      vi.advanceTimersByTime(200); // hết cuộn
+      flush(150); flush(160);
+      expect(vi.mocked(TEMPLATE.render).mock.calls.length).toBe(base + 3);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it('keeps drawing every frame and the DPR cap of 1.5 on capable devices', () => {
     vi.spyOn(window, 'devicePixelRatio', 'get').mockReturnValue(3);
     visibility(true); images.forEach(image => image.onload?.());
     flush(100); flush(110); flush(120);
     expect(TEMPLATE.render).toHaveBeenCalledTimes(3);
-    expect((fixture.nativeElement.querySelector('canvas') as HTMLCanvasElement).width).toBe(1568);
+    expect((fixture.nativeElement.querySelector('canvas') as HTMLCanvasElement).width).toBe(1176);
   });
 
-  it('configures Pokémon poster defaults in 12 slots with 9 unique sources and cardAspect auto', () => {
-    expect(DECORATIVE_CARDS.length).toBe(12);
+  it('configures a pool of 9 unique Pokémon posters shown 6 at a time with cardAspect auto', () => {
+    expect(DECORATIVE_CARDS.length).toBe(9);
+    expect(SPREAD_SLOTS).toBe(6);
     expect(POKEMON_POSTER_NAMES.length).toBe(9);
     expect(new Set(DECORATIVE_CARDS).size).toBe(9);
     expect(DECORATIVE_CARDS.every(card => card.startsWith('/assets/cards/pokemon/') && card.endsWith('-poster.webp'))).toBe(true);
@@ -97,7 +115,7 @@ describe('Column spread frame scheduling', () => {
     expect(still.src).toContain(DECORATIVE_CARDS[0]);
   });
 
-  it('defers image instantiation until visible, deduplicates 12 slots to 9 Image loaders, and coalesces into one frame', () => {
+  it('defers image instantiation until visible, loads 9 Image loaders, draws only 6 distinct slots, and coalesces into one frame', () => {
     expect(images.length).toBe(0);
     expect(frames.size).toBe(0);
     visibility(true);
@@ -109,16 +127,10 @@ describe('Column spread frame scheduling', () => {
     expect(TEMPLATE.render).toHaveBeenCalledOnce(); expect(clear).toHaveBeenCalledOnce();
     expect(frames.size).toBe(1);
     const assignedImages = vi.mocked(TEMPLATE.render).mock.calls.at(-1)![0].images;
-    expect(assignedImages.length).toBe(12);
-    // Assert multiset properties: all 9 unique loaded images are present, with exactly 3 appearing twice
-    const counts = new Map<unknown, number>();
-    assignedImages.forEach(img => counts.set(img, (counts.get(img) || 0) + 1));
-    expect(counts.size).toBe(9);
-    images.forEach(img => expect(counts.has(img)).toBe(true));
-    const duplicates = Array.from(counts.values()).filter(count => count === 2);
-    expect(duplicates.length).toBe(3);
-    const singles = Array.from(counts.values()).filter(count => count === 1);
-    expect(singles.length).toBe(6);
+    expect(assignedImages.length).toBe(6);
+    // 6 distinct slots, all drawn from the 9 loaded images (no duplicates)
+    expect(new Set(assignedImages).size).toBe(6);
+    assignedImages.forEach(img => expect(images).toContain(img));
   });
 
   it('supports image.decode() when available, handles decode rejection gracefully without crashing', async () => {
@@ -139,7 +151,7 @@ describe('Column spread frame scheduling', () => {
       const renderedImages = vi.mocked(TEMPLATE.render).mock.calls.at(-1)![0].images;
       // All decoded/assigned slots must be references to images[0] (either loaded directly or fallback)
       const populated = renderedImages.filter(img => img !== undefined);
-      expect(populated.length).toBe(4);
+      expect(populated.length).toBe(2);
       expect(populated.every(img => img === images[0])).toBe(true);
     });
   });
@@ -151,7 +163,7 @@ describe('Column spread frame scheduling', () => {
     flush();
     const renderedImages = vi.mocked(TEMPLATE.render).mock.calls.at(-1)![0].images;
     const populated = renderedImages.filter(img => img !== undefined);
-    expect(populated.length).toBe(4);
+    expect(populated.length).toBe(2);
     expect(populated.every(img => img === images[0])).toBe(true);
   });
 
@@ -228,65 +240,53 @@ describe('Column spread frame scheduling', () => {
       expect(identityResult).toEqual([1, 2, 3, 0]);
     });
 
-    it('applies initial permutation on mount and keeps order stable during normal frames', () => {
+    it('pickSlots picks distinct pool indices and never repeats the previous ordered selection', () => {
+      const picked = pickSlots(9, 6, () => 0.99999);
+      expect(picked).toEqual([8, 0, 1, 2, 3, 4]);
+      expect(new Set(picked).size).toBe(6);
+      const again = pickSlots(9, 6, () => 0.99999, picked);
+      expect(again).not.toEqual(picked);
+      expect(again.slice().sort()).toEqual(picked.slice().sort());
+      expect(pickSlots(3, 6, () => 0.5)).toHaveLength(3);
+      expect(pickSlots(0, 6)).toEqual([]);
+    });
+
+    it('applies the initial random picks on mount and keeps them stable during normal frames', () => {
       visibility(true);
       images.forEach(img => img.onload?.());
       flush(100);
 
       const renderCalls = vi.mocked(TEMPLATE.render).mock.calls;
-      expect(renderCalls.length).toBeGreaterThan(0);
       const firstRenderImages = [...renderCalls.at(-1)![0].images];
-      expect(firstRenderImages.map(img => img?.src)).toEqual([...DECORATIVE_CARDS.slice(1), DECORATIVE_CARDS[0]]);
+      expect(firstRenderImages.map(img => img?.src)).toEqual([8, 0, 1, 2, 3, 4].map(i => DECORATIVE_CARDS[i]));
       const randomCalls = vi.mocked(Math.random).mock.calls.length;
-
-      // Tick several regular frames (e.g. 50ms each, well within 8s cycle)
       let currentTime = 100;
       for (let i = 0; i < 10; i++) {
         currentTime += 50;
         flush(currentTime);
-        const currentRenderImages = renderCalls.at(-1)![0].images;
-        // Verify order remains identical between normal frames (no mid-fan shuffle)
-        expect(currentRenderImages).toEqual(firstRenderImages);
+        expect(renderCalls.at(-1)![0].images).toEqual(firstRenderImages);
       }
       expect(Math.random).toHaveBeenCalledTimes(randomCalls);
     });
 
-    it('reshuffles exactly once per completed 8s animation cycle when phase wraps', () => {
+    it('re-picks the 6 cards exactly once per completed 8s cycle when the phase wraps', () => {
       visibility(true);
       images.forEach(img => img.onload?.());
       flush(1000);
-
       const renderCalls = vi.mocked(TEMPLATE.render).mock.calls;
-      const cycle1Order = [...renderCalls.at(-1)![0].images];
+      const cycle1 = [...renderCalls.at(-1)![0].images];
       const randomCalls = vi.mocked(Math.random).mock.calls.length;
-
-      // Step time forward until phase wraps (8s = 8000ms; dt capped at 50ms = 0.05s)
-      // 160 steps of 50ms = 8000ms. Since t starts at 0.12, (1 - 0.12) * 8000ms = 7040ms needed for first wrap.
       let currentTime = 1000;
-      // Advance ~150 frames to complete the cycle and wrap past t >= 1
-      for (let i = 0; i < 150; i++) {
-        currentTime += 50;
-        flush(currentTime);
-      }
-
-      // After first wrap, card order must differ from cycle 1
-      const cycle2Order = [...renderCalls.at(-1)![0].images];
-      expect(cycle2Order).not.toEqual(cycle1Order);
-      // But multiset of images must be exactly identical
-      expect(cycle2Order.map(img => img?.src).sort()).toEqual(cycle1Order.map(img => img?.src).sort());
-      expect(Math.random).toHaveBeenCalledTimes(randomCalls + 11);
-
-      // Advance through a second full cycle (~165 frames of 50ms = ~8250ms)
-      for (let i = 0; i < 165; i++) {
-        currentTime += 50;
-        flush(currentTime);
-      }
-
-      // After second wrap, card order must differ again
-      const cycle3Order = [...renderCalls.at(-1)![0].images];
-      expect(cycle3Order).not.toEqual(cycle2Order);
-      expect(cycle3Order.map(img => img?.src).sort()).toEqual(cycle1Order.map(img => img?.src).sort());
-      expect(Math.random).toHaveBeenCalledTimes(randomCalls + 22);
+      for (let i = 0; i < 150; i++) { currentTime += 50; flush(currentTime); }
+      const cycle2 = [...renderCalls.at(-1)![0].images];
+      expect(cycle2).not.toEqual(cycle1);
+      expect(cycle2).toHaveLength(6);
+      expect(new Set(cycle2).size).toBe(6);
+      expect(Math.random).toHaveBeenCalledTimes(randomCalls + 6);
+      for (let i = 0; i < 165; i++) { currentTime += 50; flush(currentTime); }
+      const cycle3 = [...renderCalls.at(-1)![0].images];
+      expect(cycle3).not.toEqual(cycle2);
+      expect(Math.random).toHaveBeenCalledTimes(randomCalls + 12);
     });
 
     it('does not shuffle on pause, resize, visibility change, or media change', () => {
@@ -332,40 +332,20 @@ describe('Column spread frame scheduling', () => {
       expect([...renderCalls.at(-1)![0].images]).toEqual(baselineOrder);
     });
 
-    it('correctly maps late decoding images into shuffled slots and preserves multiset reuse', async () => {
+    it('maps a late decoded image into its current slot without disturbing already assigned slots', () => {
       visibility(true);
-      // Load 8 images immediately, hold the 9th image
-      for (let i = 0; i < 8; i++) {
-        images[i].onload?.();
-      }
+      for (let i = 0; i < 8; i++) images[i].onload?.();
       flush(100);
-
       const renderCalls = vi.mocked(TEMPLATE.render).mock.calls;
-      const initialImages = [...renderCalls.at(-1)![0].images];
-      // 9th image was not yet loaded
-      expect(initialImages).not.toContain(images[8]);
-
-      // Decode may finish after the visible permutation has changed to a new cycle.
-      let now = 100;
-      for (let i = 0; i < 150; i++) { now += 50; flush(now); }
-      const beforeLateDecode = [...renderCalls.at(-1)![0].images];
-
-      // Now late load image[8]
+      const before = [...renderCalls.at(-1)![0].images];
+      // initial picks are pool indices [8,0,1,2,3,4]; image 8 is still loading
+      expect(before[0]).toBeUndefined();
       images[8].onload?.();
-      flush(now + 50);
-
-      const updatedImages = renderCalls.at(-1)![0].images;
-      // image[8] must now appear in the display buffer without disturbing the other assigned images
-      expect(updatedImages).toContain(images[8]);
-      beforeLateDecode.forEach((image, index) => { if (image) expect(updatedImages[index]).toBe(image); });
-
-      // Multiset count check: all 9 images present, total length 12
-      const counts = new Map<unknown, number>();
-      updatedImages.forEach(img => counts.set(img, (counts.get(img) || 0) + 1));
-      expect(counts.size).toBe(9);
-      for (let i = 0; i < 9; i++) {
-        expect(counts.has(images[i])).toBe(true);
-      }
+      flush(150);
+      const after = renderCalls.at(-1)![0].images;
+      expect(after[0]).toBe(images[8]);
+      before.forEach((image, index) => { if (image) expect(after[index]).toBe(image); });
+      expect(new Set(after).size).toBe(6);
     });
   });
 });

@@ -21,6 +21,9 @@ export const one = async (db: Executor, sql: string, args: InValue[] = []): Prom
 export const all = async (db: Executor, sql: string, args: InValue[] = []): Promise<Row[]> => (await db.execute({ sql, args })).rows as Row[];
 export const scalar = async (db: Executor, sql: string, args: InValue[] = []): Promise<number> => Number(Object.values(await one(db, sql, args))[0]);
 export const execute = (db: Executor, sql: string, args: InValue[] = []) => db.execute({ sql, args });
+/** Runs several read statements in one network round trip (one implicit read transaction). */
+export const batchRead = async (db: Client, statements: { sql: string; args?: InValue[] }[]): Promise<Row[][]> =>
+  (await db.batch(statements.map(s => ({ sql: s.sql, args: s.args ?? [] })), 'read')).map(result => result.rows as Row[]);
 export async function transaction<T>(db: Client, fn: (tx: Transaction) => Promise<T>, mode: 'write' | 'read' = 'write'): Promise<T> {
   // Never automatically replay mutations or an ambiguous commit. Callers supply idempotency keys.
   const tx = await db.transaction(mode);

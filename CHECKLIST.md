@@ -140,6 +140,13 @@ Cập nhật: 2026-10-22 (Asia/Saigon).
 - [ ] SHOP-02: Sau deploy, thanh toán thật 2.000 ₫ qua PayOS (QR, webhook → CONFIRMED, trừ tồn), xác nhận webhook đã đăng ký; kiểm tra Postgres V11 trên Aiven.
 - [ ] SHOP-03: Giỏ nhiều sản phẩm, quản trị sản phẩm/tồn kho, phí ship thật, trang lịch sử đơn của khách.
 
+## Tối ưu backend/Spread (2026-10-22)
+
+- [x] PERF-BE-01: Bỏ lookup user ở route công khai, cache public content, batch đọc Turso, Server-Timing; tests local qua.
+- [ ] PERF-BE-02: Sau deploy đo Server-Timing/log chậm trên production; sửa N+1 `GET /orders`, cân nhắc cache rìa Cloudflare/snapshot-first cho nội dung công khai.
+- [x] PERF-SPREAD-03: Column Spread 6 thẻ ngẫu nhiên, DPR cap 1,5, 30fps khi cuộn; tests/Chromium local qua.
+- [ ] PERF-SPREAD-04: Đo độ khựng khi cuộn tới phần thẻ trên máy thật.
+
 ## Quy tắc cập nhật
 
 - `[ ]`: chưa hoàn thành, kể cả đang làm hoặc đang bị chặn.
