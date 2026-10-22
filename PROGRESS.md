@@ -4,7 +4,12 @@
 
 ## Cập nhật gần nhất
 
-### Backend TypeScript / Turso — đang chuẩn bị cutover, 2026-10-22
+### Backend TypeScript / Turso — đã chạy production, 2026-10-22
+
+- Runtime `33946db1048a3c98ed04ff4bd41329a19180e5e0` đã Live trên Render; website giữ https://exe-webapp.pages.dev. CI main39792465000 và job deploy CD39793081090 thành công (gồm publish Pages và production smoke). Smoke production xác nhận đúng commit/storage=turso, health query DB, public routes, origin/proxy guards và PayOS guards. Đọc tài khoản, đơn hàng, dashboard, notifications và CSRF qua200; đối soát nội bộ qua200/checked2, không tạo thanh toán thật.
+- Cutover khóa ghi Aiven trước snapshot cuối; đối chiếu từng trường37bảng/27dòng trên Turso khớp, FK qua. Backup cuối và snapshot Turso sau cutover ở `C:\Users\dotha\.codex\backups\exe-web-aiven-cutover-20261022` (dữ liệu riêng, ngoài Git).
+- Aiven `exe-web-pg`/`defaultdb` đã xóa qua API lúc14:12:50UTC: DELETE200, GET404 và không còn trong service list. CLI aiven-client/avn.exe đã gỡ. Render đã gỡ DB_URL/DB_USERNAME/DB_PASSWORD/SPRING_PROFILES_ACTIVE và aiven-ca.pem; giữ Turso và secrets nghiệp vụ.
+-18tests local và1test Turso remote riêng đã qua. Chưa nghiệm thu Google login/mail thật hoặc một giao dịch PayOS tiền thật. Ghi chú dưới đây là trạng thái chuẩn bị trước cutover; chi tiết hiện hành: [TURSO_MIGRATION.md](docs/TURSO_MIGRATION.md).
 
 - Người dùng đã đăng nhập Turso dothanh và chọn viết lại backend TypeScript, giữ Angular. Đã tạo exe-webapp trên plan Free/overages disabled. Backup Aiven + phục hồi SQLite qua;37bảng/27dòng nghiệp vụ đã import/đối chiếu từng trường trên Turso, không đưa Flyway history vào schema mới. Source còn nhận ghi nên phải đồng bộ cuối trước cutover.
 - Hono/SDKlibSQL/jose/bcryptjs/PayOS SDK thay runtime Spring Boot; giữ API, kiểm tra JWT/version/CSRF/proxy, OAuthPKCE, content/admin/feedback/SSE, inbox/ledger/kho và đối soát. Docker/CI chuyển sang Node24; source Java giữ làm lịch sử.

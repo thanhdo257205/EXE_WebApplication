@@ -6,7 +6,7 @@ Website board game **Chưa Giàu Đã Lớn — Nhà Này Hơi Báo!**
 
 Backend mới nằm trong `backend/server/`: **TypeScript trên Node.js24, Hono, SDK libSQL/Turso**, giữ frontend Angular và các đường dẫn API. Dockerfile/CI đã chuyển sang runtime mới; source Spring Boot và migration PostgreSQL được giữ để tham chiếu lịch sử. Trạng thái triển khai thực tế xem [PROGRESS.md](PROGRESS.md), không suy ra đã deploy từ việc có source.
 
-Đã sao lưu Aiven và phục hồi thử sang SQLite; bản sao Turso đối chiếu từng trường của37bảng/27dòng nghiệp vụ khớp snapshot.18tests local qua;1test remote riêng đã qua, gồm giao dịch đồng thời trên database Turso dùng riêng cho kiểm thử và HMAC PayOS thật với khóa thử. Không tạo thanh toán thật trong kiểm thử. Chuyển production/xóa Aiven chỉ sau khi đồng bộ cuối và xác minh.
+Đã chuyển production sang Turso Free ở runtime33946db, giữ Angular và URL website. Snapshot cuối37bảng/27dòng nghiệp vụ đã đối chiếu từng trường/FK;18tests local và1test Turso remote riêng qua. Smoke live xác nhận đúng commit, database health, API tài khoản/đơn hàng/admin và các chốt bảo vệ thanh toán; không tạo thanh toán thật. Dịch vụ/database Aiven và CLI cũ đã gỡ sau xác minh; backup riêng vẫn giữ ngoài Git.
 
 Chạy backend local:
 

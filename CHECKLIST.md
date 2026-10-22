@@ -9,8 +9,8 @@ Cập nhật: 2026-10-22 (Asia/Saigon).
 - [x] TURSO-AUTH — Tài khoản dothanh đăng nhập CLI; plan Free/starter, overages disabled.
 - [x] AIVEN-BACKUP — include_secrets=true đúng API lấy credential; pg_dump/đọc archive và phục hồi SQLite/FK/integrity qua. Source vẫn cần snapshot cuối trước cutover.
 - [x] TURSO-CANDIDATE — Schema/data37bảng27dòng đối chiếu từng trường;18tests local qua;1test remote riêng đã qua gồm remote Turso concurrency và local production-mode read smoke.
-- [ ] TURSO-MIGRATE — Chuyển schema/code/dữ liệu, kiểm thử transaction/kho/thanh toán, deploy và xác minh.
-- [ ] AIVEN-REMOVE — Xóa exe-web-pg/defaultdb sau khi xác minh chuyển đổi; hiện vẫn giữ dịch vụ.
+- [x] TURSO-MIGRATE — Backend TypeScript/runtime33946db Live; snapshot cuối37bảng/27dòng đối chiếu từng trường/FK qua. CI main39792465000 thành công; smoke live và tài khoản/đơn hàng/admin/CSRF/đối soát qua. Không tạo thanh toán thật.
+- [x] AIVEN-REMOVE — Xóa exe-web-pg/defaultdb sau smoke live: DELETE200/GET404, không còn trong service list; CLI đã gỡ. Dọn bốn biến PostgreSQL/Spring và cert Aiven khỏi Render; backup giữ riêng ngoài Git.
 
 ## Tài nguyên PostgreSQL/backend (2026-10-22)
 

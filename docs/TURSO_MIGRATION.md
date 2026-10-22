@@ -4,6 +4,12 @@ Ngày2026-10-22. Người dùng chọn Turso Free và chấp thuận viết lạ
 
 ## Trạng thái xác minh
 
+**Cutover hoàn tất:** runtime `33946db1048a3c98ed04ff4bd41329a19180e5e0` đã Live trên Render, website https://exe-webapp.pages.dev dùng Turso. CI main39792465000 thành công. Smoke live xác nhận static routes, đúng commit/storage=turso, health truy vấn DB, origin/proxy guards, cấu hình PayOS và từ chối webhook không chữ ký. Các API đọc tài khoản/đơn hàng/dashboard/notifications/catalog/CSRF qua200; tác vụ đối soát nội bộ qua200, checked2. Không tạo thanh toán thật; Google login và gửi mail thật chưa nghiệm thu.
+
+Aiven `exe-web-pg` (gồm `defaultdb`) đã xóa lúc2026-10-22T14:12:50UTC: DELETE200, GET404, service list không còn tên này. CLI aiven-client/avn.exe đã gỡ. Render đã lưu bỏ DB_URL/DB_USERNAME/DB_PASSWORD/SPRING_PROFILES_ACTIVE và secret file aiven-ca.pem. Backup PostgreSQL cuối, manifest/SHA256, snapshot Turso sau cutover và xác nhận xóa giữ riêng tại `C:\Users\dotha\.codex\backups\exe-web-aiven-cutover-20261022`; không có secrets/dữ liệu riêng trong Git.
+
+Các mốc chuẩn bị sau đây được giữ để truy vết:
+
 - Turso CLI v1.0.34 trong Ubuntu WSL; tài khoản dothanh đăng nhập thành công. Personal plan hiển thị starter/free, overages disabled;5GB/500triệu dòng đọc/10triệu dòng ghi mỗi tháng.
 - Database nghiệp vụ `exe-webapp`, libSQL ổn định, Tokyo. Không dùng engine concurrent writes early preview cho thanh toán. Render hiện tại ở Singapore; độ trễ còn phụ thuộc vị trí này.
 - Aiven source: `exe-web-pg`/`defaultdb`, PostgreSQL18.6. Đã tạo pg_dump custom,114241bytes,260dòng TOC; SHA256 `ffea212030541e147ef3de3653bd06a8709379f7de08a43b4d3bf16aa23af78a`. Đọc toàn bộ archive thành SQL qua, TLS verify-full. Dump không chứa password kết nối nhưng chứa dữ liệu tài khoản/đơn hàng nên lưu riêng ngoài repo.
@@ -13,7 +19,8 @@ Ngày2026-10-22. Người dùng chọn Turso Free và chấp thuận viết lạ
 - Production-mode smoke local đọc được tài khoản/đơn hàng/catalog/dashboard trên dữ liệu Turso đã chuyển; health/info/config qua, proxy guard403 và cookie CSRF Secure/HttpOnly. Chưa nghiệm thu đăng nhập Google hoặc gửi mail thật sau chuyển đổi.
 - Render đã lưu bổ sung TURSO_DATABASE_URL/TURSO_AUTH_TOKEN/NODE_ENV/PUBLIC_ORIGIN bằng Save only; chưa redeploy ở thời điểm ghi trạng thái này. Secrets/Render export/backup nằm ngoài Git; token database tách platform login token.
 - Đã gỡ aiven-client4.18.0 của Python3.14 và avn.exe. Đã cài PostgreSQL client18.6 trong WSL để backup; không cài server. API Aiven có secret redaction mặc định: tham số chính thức include_secrets=true giải quyết lấy credential, không đổi/reset password production.
-- Chưa xóa Aiven; chỉ xóa sau CI, đồng bộ cuối, deploy và smoke live. Trạng thái cuối cùng cập nhật trong PROGRESS.md.
+- Snapshot cuối đã khóa ghi Aiven và chụp lại:38bảng/38dòng gồm Flyway history;37bảng/27dòng nghiệp vụ đã đồng bộ lại Turso và đối chiếu từng trường. Source default_transaction_read_only=on đã kiểm tra bằng kết nối độc lập. Archive cuối SHA256 `ee5b411a5a623ee89dd6bff05027ed06979823cc913d35918b2e8215446a68ed`, lưu ngoài repo.
+- PR#7 merge vào33946db; CI nhánh39791744737 và CI main39792465000 thành công cả Angular/gateway/API/container512MB. Job deploy CD39793081090 thành công lúc14:10UTC, gồm đúng backend runtime, publish Pages và production smoke. Smoke local production cũng đã qua trước khi xóa Aiven. Trạng thái cuối cùng cập nhật trong PROGRESS.md.
 
 ## Kiến trúc và khác biệt kỹ thuật
 
