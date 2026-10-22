@@ -4,6 +4,13 @@
 
 ## Cập nhật gần nhất
 
+### Tối ưu backend Turso + Column Spread 6 thẻ ngẫu nhiên — 2026-10-22, local
+
+- **Backend (`backend/server`)**: (1) route đọc công khai (`/content/*`, `/shop/products`, `/payments/config`, `/auth/*config|csrf`) không còn tra bảng `app_users` mỗi request; route cần đăng nhập vẫn kiểm tra tài khoản/auth_version; (2) `cache.ts` cache trong tiến trình 30s cho `/content/*` (mỗi app một instance, không cache lỗi, dedupe request đồng thời, xóa khi mọi ghi admin thành công); (3) `batchRead` gom nhiều SELECT thành 1 lần gọi Turso (budget các loại, snapshot, shop/products), bỏ transaction đọc không cần cho release bất biến; (4) header `Server-Timing` và log request ≥1s (chỉ method/route, không query/body/ID).
+- Test: `npm run check` qua; `npm test` 23 pass/1 skip (test Turso thật cần DB riêng), thêm `cache.test.ts` (3) và 2 test API (cache + xóa khi ghi admin, đọc công khai bỏ lookup). Sửa test thư reset thất bại để chịu được `TRANSACTION_ACTIVE` khi poll song song trên DB bộ nhớ một kết nối (race trong test, không ảnh hưởng production remote). **Chưa đo trên production, chưa deploy** (sau merge CD sẽ deploy lên Render).
+- **Frontend Column Spread**: theo yêu cầu "chỉ ~6 thẻ ngẫu nhiên": pool 9 poster, mỗi chu kỳ 8s bốc ngẫu nhiên 6 thẻ khác nhau (`pickSlots`, 2 thẻ/cột, không lặp thứ tự cũ), vẽ 6 thay vì 12 slot; DPR cap hạ 2→1,5 (poster gốc chỉ 360px hiển thị ~500 CSS px nên DPR cao không thêm chi tiết), cảm ứng 1,25, máy giật 1; trong lúc cuộn trang canvas giới hạn ~30fps (nghỉ 150ms sau cuộn). Engine `spread-columns.js` giữ nguyên.
+- Xác minh: frontend 158/158 tests, build qua; Chromium dsf3: canvas 1877px (=1251×1,5) desktop, 488px mobile, 1251px khi low; ~720 lần `drawImage`/2s với 6 thẻ; ảnh xem được 2 thẻ/cột sắc nét, 0 pageerror. Chưa đo FPS/độ khựng trên máy thật; chưa deploy.
+
 ### Backend TypeScript / Turso — đã chạy production, 2026-10-22
 
 - Runtime `33946db1048a3c98ed04ff4bd41329a19180e5e0` đã Live trên Render; website giữ https://exe-webapp.pages.dev. CI main39792465000 và job deploy CD39793081090 thành công (gồm publish Pages và production smoke). Smoke production xác nhận đúng commit/storage=turso, health query DB, public routes, origin/proxy guards và PayOS guards. Đọc tài khoản, đơn hàng, dashboard, notifications và CSRF qua200; đối soát nội bộ qua200/checked2, không tạo thanh toán thật.

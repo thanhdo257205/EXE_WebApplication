@@ -1,4 +1,8 @@
-# Hiệu năng frontend — cập nhật 2026-10-21
+# Hiệu năng frontend — cập nhật 2026-10-22
+
+## Column Spread 6 thẻ + cuộn mượt hơn; backend đọc ít lần gọi mạng — local, mới nhất
+
+Spread: 9 poster, mỗi chu kỳ chọn ngẫu nhiên 6 (2/cột); DPR cap 1,5 (cảm ứng 1,25, low 1); ~30fps khi đang cuộn trang. Backend: bỏ user lookup ở route công khai, cache 30s `/content/*` (xóa khi ghi admin), gom SELECT bằng batch (1 lần gọi Turso), Server-Timing + log ≥1s. Chưa đo trên thiết bị thật/production.
 
 ## Column Spread theo `perf-tier` và DPR — local, mới nhất
 
