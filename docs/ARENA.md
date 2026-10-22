@@ -20,7 +20,7 @@ Bản thử nghiệm, cập nhật 2026-10-22 (đã merge PR #9, CD thành công
 | `arena-renderer.ts` | WebGPU: texture array poster + mipmap tự sinh, 1 draw instanced (storage buffer ≤2048 instance), HDR `rgba16float`, bloom nửa độ phân giải, tone-map ACES |
 | `arena-shaders.ts` | WGSL: thẻ SDF bo góc, ánh kim (holo) theo góc nhìn, lưng thẻ procedural, bóng mềm, thanh HP, đồng xu, hạt cộng sáng |
 | `arena-math.ts` | Ma trận/camera/chiếu điểm; camera tự lùi để toàn sân lọt khung ở mọi tỉ lệ |
-| `arena-tutorial.ts` | Hướng dẫn từng bước: 12 bước theo ván thật (tự tiến khi người chơi làm đúng, bước "manual" chờ bấm Tiếp, tự bỏ qua bước không khả thi, bước riêng khi phải chọn Pokémon thay thế) |
+| `arena-tutorial.ts` | Hướng dẫn từng bước: 16 bước theo ván thật (tự tiến khi người chơi làm đúng, bước "manual" chờ bấm Tiếp, tự bỏ qua bước không khả thi, bước riêng khi phải chọn Pokémon thay thế) |
 | `arena.page.*` | Trang Angular: canvas, vòng lặp vẽ, con trỏ, nút điều khiển, nhật ký |
 
 ## Thiết kế bàn chơi
@@ -30,8 +30,8 @@ Bản thử nghiệm, cập nhật 2026-10-22 (đã merge PR #9, CD thành công
 
 ## Hướng dẫn người chơi mới
 - Lần đầu vào `/san-dau` hướng dẫn tự mở (cờ `arena-tutorial-v1` trong `localStorage`, bọc try/catch); ván hướng dẫn ép người chơi đi trước. Nút "Hướng dẫn"/"Thoát hướng dẫn" mở lại hoặc đóng bất cứ lúc nào, "Bỏ qua hướng dẫn" luôn có.
-- Bước hiện tại hiển thị ở khung "Hướng dẫn" dưới sân và nhấn mạnh trong cảnh: thẻ tay cần bấm (quầng vàng), khu vực liên quan (ô sáng), nút cần bấm (viền nhấp nháy). Không chặn thao tác: làm khác thứ tự thì hướng dẫn tự bắt kịp.
-- Nội dung: giới thiệu sân → đặt Pokémon Chiến đấu → băng ghế → Sẵn sàng → HP/Năng lượng → gắn Năng lượng → tấn công/kết thúc lượt → điểm yếu → rút lui và Giải thưởng → hoàn tất.
+- Bước hiện tại là **hộp thoại ngay trên bàn chơi**, có đuôi trỏ và vòng sáng nhấp nháy chỉ vào đúng chỗ đang nói tới (ô Chiến đấu, băng ghế, chồng Bài/Bỏ, Giải thưởng, thanh HP, thẻ trong tay; với bước bấm nút thì trỏ xuống thanh nút dưới sân). Hộp tự chọn phía trên/dưới điểm chỉ và luôn nằm trong sân. Khi chỉ vào thẻ tay đã chọn, vòng chuyển sang ô Chiến đấu. Trong cảnh còn có quầng vàng quanh thẻ cần bấm, ô sáng cho khu vực liên quan và nút cần bấm viền nhấp nháy. Khi không có cảnh 3D (chế độ chữ) hộp hiển thị dưới khu điều khiển. Khi bắt đầu hướng dẫn, trang tự cuộn để sân nằm trọn trong khung nhìn. Không chặn thao tác: làm khác thứ tự thì hướng dẫn tự bắt kịp.
+- Nội dung (16 bước): chào mừng → tour sân từng khu vực (bàn máy, Chiến đấu, băng ghế, Bài/Bỏ, Giải thưởng) → băng ghế → Sẵn sàng → HP/Năng lượng → gắn Năng lượng → tấn công/kết thúc lượt → điểm yếu → rút lui → hoàn tất.
 
 ## Điều khiển
 - Chuột/cảm ứng: bấm thẻ Pokémon trong tay → bấm lần nữa (hoặc "Đặt xuống bàn") để đặt; bấm Năng lượng → bấm Pokémon của bạn để gắn; "Rút lui" → bấm Pokémon băng ghế; nút đòn đánh bên dưới. Rê chuột/chạm vào thẻ để xem chi tiết. `Esc` hủy chọn.

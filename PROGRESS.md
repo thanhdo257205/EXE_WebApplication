@@ -4,6 +4,12 @@
 
 ## Cập nhật gần nhất
 
+### Hướng dẫn chỉ trực tiếp trên bàn chơi — 2026-10-22, local
+
+- Theo phản hồi "hướng dẫn đặt dưới khó nhìn, muốn hộp thoại chỉ vào từng chỗ trên bàn": hộp hướng dẫn chuyển vào trong sân, có đuôi trỏ + vòng sáng chỉ vào khu vực/thẻ/thanh HP/nút đang nói tới (`CoachAnchor` tính từ toạ độ thế giới qua `scene.zoneWorld/hpWorld/cardWorld`); phần giới thiệu sân tách thành 5 bước theo từng khu vực (tổng 16 bước). Chế độ chữ vẫn dùng khung dưới điều khiển.
+- Bố cục trang gọn lại: tiêu đề nhỏ một hàng, đoạn mô tả chuyển xuống dưới sân, chiều cao sân `100svh − 300px` để cả sân và thanh nút vừa một màn hình; hướng dẫn tự cuộn sân vào khung nhìn. Sửa nhãn khu vực chồng nhau (BĂNG GHẾ/GIẢI).
+- Xác minh: frontend 214/214 tests; Chromium + SwiftShader: sân nằm trọn trong khung 1280×900, hộp hiển thị trong sân. CSS trang arena ~8,5 kB (cảnh báo budget 6 kB, dưới ngưỡng lỗi 10 kB). Chưa xem trên GPU thật sau deploy.
+
 ### Gỡ logo cũ, thay logo tạm — 2026-10-22, local
 
 - Theo yêu cầu: bỏ logo "SÂN TRƯỜNG", chưa có logo mới nên dùng **logo tạm**: huy hiệu chữ "N" (Anton, vàng chanh trên nền tối, bo góc) thuần CSS ở header, màn mở trang và chân trang; `favicon.svg`, `favicon.ico` và `apple-touch-icon.png` sinh lại cùng kiểu. Đã xóa `logo-96.webp`/`logo-256.webp`; không còn tham chiếu logo cũ trong code (mục logo trong lịch sử bên dưới chỉ còn là ghi chép cũ).

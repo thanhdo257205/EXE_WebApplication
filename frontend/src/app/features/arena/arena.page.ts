@@ -1,4 +1,5 @@
 import { afterNextRender, Component, DestroyRef, ElementRef, inject, signal, viewChild } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { PERF_TIER_EVENT } from '../../shared/utils/perf-tier';
 import { ENERGY_RGB, ARENA_POKEMON, type CostType } from './arena-cards';
@@ -6,6 +7,7 @@ import { ArenaController, inspect, type Inspect, type Presenter } from './arena-
 import type { Action } from './arena-engine';
 import { ArenaRenderer, loadPosterBitmaps, WebGpuUnavailableError, type ArenaQuality } from './arena-renderer';
 import { ArenaScene, type Pick, type Popup } from './arena-scene';
+import type { Vec3 } from './arena-math';
 import { Tutorial, type TutorialView } from './arena-tutorial';
 import { INSTANCE_FLOATS } from './arena-shaders';
 import { buildView, type ArenaView } from './arena-view';
@@ -24,6 +26,7 @@ const SLOW_FRAME_MS = 26;
 interface PopupView { id: number; text: string; kind: Popup['kind']; x: number; y: number }
 
 const TUTORIAL_KEY = 'arena-tutorial-v1';
+interface CoachAnchor { mode: 'above' | 'below' | 'center'; ring: boolean; x: number; y: number; left: number; width: number; vertical: number; tailX: number }
 interface LabelView { text: string; x: number; y: number; align: string; side: number }
 
 const textPresenter: Presenter = { reset: () => undefined, present: () => 0.35 };
@@ -32,7 +35,7 @@ const textPresenter: Presenter = { reset: () => undefined, present: () => 0.35 }
 @Component({
   selector: 'app-arena-page',
   standalone: true,
-  imports: [RouterLink],
+  imports: [RouterLink, NgTemplateOutlet],
   templateUrl: './arena.page.html',
   styleUrl: './arena.page.css',
 })
@@ -52,6 +55,8 @@ export class ArenaPage {
   readonly popups = signal<PopupView[]>([]);
   readonly coach = signal<TutorialView | null>(null);
   readonly labels = signal<LabelView[]>([]);
+  /** Vị trí hộp hướng dẫn trên sân (null khi không có bước hoặc chưa đo được sân). */
+  readonly coachAnchor = signal<CoachAnchor | null>(null);
   readonly quality = signal<QualityLevel>('high');
   readonly qualityLabel = () => QUALITY[this.quality()].label;
   readonly energyColor = (label: string) => this.energyCss[label] ?? '#cfd2c8';
@@ -83,6 +88,8 @@ export class ArenaPage {
   private cleanups: (() => void)[] = [];
   private destroyed = false;
   private readonly tutorial = new Tutorial();
+  private stageSize = { w: 0, h: 0 };
+  private frameCount = 0;
   private guideUids: ReadonlySet<number> = new Set();
   private guideZones: ReadonlySet<string> = new Set();
 
@@ -133,7 +140,9 @@ export class ArenaPage {
       const dpr = Math.min(window.devicePixelRatio || 1, QUALITY[this.quality()].dprCap);
       this.renderer.resize(rect.width * dpr, rect.height * dpr);
       this.scene.resize(rect.width, rect.height);
+      this.stageSize = { w: rect.width, h: rect.height };
       this.updateLabels();
+      this.updateCoachAnchor();
       this.wake();
     };
     let pending = 0;
@@ -174,6 +183,7 @@ export class ArenaPage {
     this.ctl.tick(now);
     this.scene.setUi({ selected: this.selectedUid(), targets: this.targetSet(), hover: this.hoverUid, guide: this.guideUids, guideZones: this.guideZones, pointer: this.pointer });
     this.scene.update(dt);
+    if (this.coach() && ++this.frameCount % 8 === 0) this.updateCoachAnchor();
     const count = this.scene.fill(this.instances);
     const cam = this.scene.cameraNow;
     this.renderer.render({ viewProj: cam.viewProj, eye: cam.eye, light: [0.3, -0.5, 1], time: now, aspect: this.scene.aspect.value, instances: this.instances, count });
@@ -328,6 +338,14 @@ export class ArenaPage {
     if (tutorial) this.tutorial.start(); else this.tutorial.stop();
     this.ctl.start(undefined, tutorial ? { first: 0 } : {});
     this.refresh();
+    if (tutorial) this.revealStage();
+  }
+
+  /** Cuộn để sân nằm trọn trong khung nhìn (dưới thanh header) khi bắt đầu hướng dẫn. */
+  private revealStage(): void {
+    if (typeof window === 'undefined' || this.state() === 'text') return;
+    const top = this.stageRef().nativeElement.getBoundingClientRect().top;
+    if (Math.abs(top - 84) > 24) window.scrollBy({ top: top - 84, behavior: this.reduced ? 'auto' : 'smooth' });
   }
 
   // ---------- Hướng dẫn từng bước ----------
@@ -348,7 +366,8 @@ export class ArenaPage {
     }
     this.guideUids = new Set(uids);
     this.guideZones = new Set(step?.zones ?? []);
-    this.labelsBig.set(step?.id === 'board');
+    this.labelsBig.set(!!step && step.id.startsWith('tour-'));
+    this.updateCoachAnchor();
   }
   readonly labelsBig = signal(false);
 
@@ -363,6 +382,38 @@ export class ArenaPage {
     if (!step?.button) return false;
     const target = step.button === 'attack' && (this.ctl.displayed.turnNumber === 1 || !view?.attacks.some(a => a.enabled)) ? 'end' : step.button;
     return target === button;
+  }
+
+  /** Điểm thế giới mà bước hiện tại chỉ vào; null nếu không chỉ vào đâu trên bàn. */
+  private resolveTarget(target: string): Vec3 | null {
+    const me = this.ctl.displayed.sides[0], selected = this.selectedUid();
+    if (target.startsWith('zone:')) { const [, side, zone] = target.split(':'); return this.scene.zoneWorld(Number(side) as 0 | 1, zone); }
+    if (target.startsWith('hp:')) return this.scene.hpWorld(Number(target.slice(3)) as 0 | 1);
+    if (target === 'hand-pokemon' || target === 'hand-energy') {
+      const kind = target === 'hand-pokemon' ? 'pokemon' : 'energy';
+      if (selected !== null && me.hand.some(c => c.uid === selected && c.kind === kind)) return this.scene.zoneWorld(0, 'active');
+      const card = me.hand.find(c => c.kind === kind);
+      return card ? this.scene.cardWorld(card.uid) : null;
+    }
+    return null;
+  }
+
+  private updateCoachAnchor(): void {
+    const step = this.coach(), { w, h } = this.stageSize;
+    if (!step || !w || !h) { if (this.coachAnchor()) this.coachAnchor.set(null); return; }
+    const width = Math.min(380, w - 16);
+    let next: CoachAnchor;
+    const world = step.target === 'button' || step.target === 'center' ? null : this.resolveTarget(step.target);
+    const at = world ? this.scene.toScreen(world) : null;
+    if (step.target === 'button') next = { mode: 'above', ring: false, x: w / 2, y: h, left: (w - width) / 2, width, vertical: 12, tailX: width / 2 };
+    else if (!at) next = { mode: 'center', ring: false, x: w / 2, y: h / 2, left: (w - width) / 2, width, vertical: h / 2, tailX: width / 2 };
+    else {
+      const x = Math.min(w - 20, Math.max(20, at[0])), y = Math.min(h - 20, Math.max(20, at[1])), above = y > h * 0.5;
+      const left = Math.min(w - width - 8, Math.max(8, x - width / 2));
+      next = { mode: above ? 'above' : 'below', ring: true, x, y, left, width, vertical: above ? h - y + 40 : y + 40, tailX: Math.min(width - 28, Math.max(28, x - left)) };
+    }
+    const cur = this.coachAnchor();
+    if (!cur || cur.mode !== next.mode || cur.ring !== next.ring || Math.abs(cur.x - next.x) > 1.5 || Math.abs(cur.y - next.y) > 1.5 || Math.abs(cur.left - next.left) > 1.5 || cur.width !== next.width || Math.abs(cur.vertical - next.vertical) > 1.5) this.coachAnchor.set(next);
   }
 
   private updateLabels(): void {
