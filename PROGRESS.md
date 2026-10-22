@@ -4,6 +4,12 @@
 
 ## Cập nhật gần nhất
 
+### Gỡ logo cũ, thay logo tạm — 2026-10-22, local
+
+- Theo yêu cầu: bỏ logo "SÂN TRƯỜNG", chưa có logo mới nên dùng **logo tạm**: huy hiệu chữ "N" (Anton, vàng chanh trên nền tối, bo góc) thuần CSS ở header, màn mở trang và chân trang; `favicon.svg`, `favicon.ico` và `apple-touch-icon.png` sinh lại cùng kiểu. Đã xóa `logo-96.webp`/`logo-256.webp`; không còn tham chiếu logo cũ trong code (mục logo trong lịch sử bên dưới chỉ còn là ghi chép cũ).
+- Xác minh: frontend 214/214 tests, build qua; Chromium xem header/loader/footer, không có request lỗi. Local, chưa commit/deploy lúc viết.
+- Việc tiếp theo: khi có logo thật, thay ba chỗ `.brand-logo` (global-bar), `.boot-logo` (index.html), `.footer-logo` (app.html) bằng ảnh và thay `public/favicon.*`, `apple-touch-icon.png`.
+
 ### Sân đấu: bàn chơi đẹp hơn + hướng dẫn từng bước — 2026-10-22, local → PR
 
 - Theo yêu cầu "bàn chơi hơi đơn điệu, thêm hướng dẫn từng bước cho người mới": viết lại shader bàn (gỗ + thảm có viền vàng, khung vùng chơi, biểu tượng giữa sân), quầng sáng lượt chơi, đốm sáng trôi, nhãn khu vực; thêm `arena-tutorial.ts` (12 bước theo ván thật, nhấn mạnh thẻ/khu vực/nút trong cảnh), nút "Hướng dẫn", cờ `arena-tutorial-v1`. Engine `newGame` nhận `{ first }` để ép người chơi đi trước khi hướng dẫn. Chi tiết ở [docs/ARENA.md](docs/ARENA.md).
