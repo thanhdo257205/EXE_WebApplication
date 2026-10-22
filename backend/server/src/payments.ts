@@ -2,7 +2,7 @@ import { z } from 'zod';
 import type { Client, Transaction, InStatement } from '@libsql/client';
 import { PayOS } from '@payos/node';
 import { readFileSync } from 'node:fs';
-import { all, one, scalar, execute, transaction, uuid, now, at, fail, type Executor, type Row } from './db.ts';
+import { all, one, scalar, execute, transaction, batchRead, uuid, now, at, fail, type Executor, type Row } from './db.ts';
 import { authorize, requireActor, digest, type Api, type Actor } from './auth.ts';
 
 export interface Provider {
@@ -200,11 +200,14 @@ export class Payments {
 }
 
 export function paymentRoutes(app: Api, db: Client, payments: Payments) {
-  app.get('/api/v1/shop/products', async c => c.json(await transaction(db, async tx => {
-    const rows = await all(tx, "SELECT p.id,p.slug,p.name,p.description_markdown,(SELECT image_url FROM product_images WHERE product_id=p.id ORDER BY sort_order LIMIT 1) AS image_url FROM products p WHERE p.status='ACTIVE' ORDER BY p.created_at,p.slug");
-    const variants = await all(tx, 'SELECT v.*,COALESCE(b.on_hand-b.reserved,0)>0 AS available FROM product_variants v LEFT JOIN inventory_balances b ON b.variant_id=v.id WHERE v.enabled=1 ORDER BY v.price_amount,v.sku');
-    return rows.map(p => ({ id: p.id, slug: p.slug, name: p.name, description: p.description_markdown, imageUrl: p.image_url, variants: variants.filter(v => v.product_id === p.id).map(v => ({ id: v.id, sku: v.sku, name: v.name, priceAmount: v.price_amount, available: Boolean(v.available) })) })).filter(p => p.variants.length);
-  }, 'read')));
+  // Price/availability change with orders: no cache, but both reads share one Turso round trip.
+  app.get('/api/v1/shop/products', async c => {
+    const [rows, variants] = await batchRead(db, [
+      { sql: "SELECT p.id,p.slug,p.name,p.description_markdown,(SELECT image_url FROM product_images WHERE product_id=p.id ORDER BY sort_order LIMIT 1) AS image_url FROM products p WHERE p.status='ACTIVE' ORDER BY p.created_at,p.slug" },
+      { sql: 'SELECT v.*,COALESCE(b.on_hand-b.reserved,0)>0 AS available FROM product_variants v LEFT JOIN inventory_balances b ON b.variant_id=v.id WHERE v.enabled=1 ORDER BY v.price_amount,v.sku' },
+    ]);
+    return c.json(rows.map(p => ({ id: p.id, slug: p.slug, name: p.name, description: p.description_markdown, imageUrl: p.image_url, variants: variants.filter(v => v.product_id === p.id).map(v => ({ id: v.id, sku: v.sku, name: v.name, priceAmount: v.price_amount, available: Boolean(v.available) })) })).filter(p => p.variants.length));
+  });
   app.get('/api/v1/payments/config', c => c.json({ provider: 'PAYOS', enabled: Boolean(payments.provider) }));
   app.post('/api/v1/checkout', async c => c.json(await payments.checkout(requireActor(c), checkoutSchema.parse(await c.req.json()))));
   app.get('/api/v1/orders', async c => {

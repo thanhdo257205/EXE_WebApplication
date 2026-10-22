@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { Client, InValue } from '@libsql/client';
-import { all, one, scalar, execute, transaction, uuid, now, camel, page, fail, type Executor, type Row } from './db.ts';
+import { all, one, scalar, execute, transaction, batchRead, uuid, now, camel, page, fail, type Executor, type Row } from './db.ts';
+import { PUBLIC_TTL_MS, type Cache } from './cache.ts';
 import { authorize, requireActor, type Api, type Actor } from './auth.ts';
 
 export const kinds = {
@@ -24,16 +25,24 @@ async function release(db: Executor, id?: string, publicOnly = false): Promise<R
   if (publicOnly) return one(db, `SELECT id,version_label,title,published_at,version FROM content_releases WHERE ${id ? "id=? AND status IN ('PUBLISHED','ARCHIVED')" : "current_slot=1 AND status='PUBLISHED'"} AND published_at IS NOT NULL`, id ? [id] : []);
   return one(db, 'SELECT * FROM content_releases WHERE id=?', [id!]);
 }
-async function budget(db: Executor, id: string, selected = Object.keys(kinds) as Kind[]) {
+const budgetStatement = (id: string, kind: Kind) => {
+  const k = kinds[kind]; const cols = k.columns.filter(c => !c.endsWith('_id') && !['copies_in_deck', 'sort_order'].includes(c));
+  return { sql: `SELECT COUNT(*) AS n,COALESCE(SUM(${cols.map(c => `COALESCE(length(${c}),0)`).join('+')}),0) AS chars FROM ${k.revision} WHERE release_id=?`, args: [id] as InValue[] };
+};
+function checkBudget(rows: Row[]) {
   // Same count/text budget as the previous backend. Never fetch bodies before this check.
   let count = 0, text = 0;
-  for (const kind of selected) {
-    const k = kinds[kind]; const cols = k.columns.filter(c => !c.endsWith('_id') && !['copies_in_deck', 'sort_order'].includes(c));
-    const row = await one(db, `SELECT COUNT(*) AS n,COALESCE(SUM(${cols.map(c => `COALESCE(length(${c}),0)`).join('+')}),0) AS chars FROM ${k.revision} WHERE release_id=?`, [id]);
-    count += Number(row.n); text += Number(row.chars);
-  }
+  for (const row of rows) { count += Number(row.n); text += Number(row.chars); }
   if (count > 2000 || text > 500000) return fail(413, 'CONTENT_TOO_LARGE');
 }
+async function budget(db: Executor, id: string, selected = Object.keys(kinds) as Kind[]) {
+  const rows: Row[] = [];
+  for (const kind of selected) rows.push(await one(db, budgetStatement(id, kind).sql, [id]));
+  checkBudget(rows);
+}
+/** Public path: all kinds counted in one Turso round trip. */
+const publicBudget = async (db: Client, id: string, selected = Object.keys(kinds) as Kind[]) =>
+  checkBudget((await batchRead(db, selected.map(kind => budgetStatement(id, kind)))).map(rows => rows[0]));
 async function audit(db: Executor, actor: Actor, action: string, kind: string, entity: string, id: string, version: number) {
   await execute(db, "INSERT INTO audit_events(id,actor_id,action,entity_type,entity_id,outcome,details_redacted) VALUES (?,?,?,?,?,'SUCCESS',?)", [uuid(), actor.id, action, kind, entity, `releaseId=${id};version=${version}`]);
 }
@@ -56,38 +65,49 @@ const writes = {
 const releaseWrite = z.object({ title: z.string().trim().min(1).max(200), releaseNotes: optionalText(10000) });
 const createRelease = releaseWrite.extend({ versionLabel: z.string().max(40).regex(/^[A-Za-z0-9][A-Za-z0-9._-]*$/) });
 
-export function contentRoutes(app: Api, db: Client) {
-  app.get('/api/v1/content/release', async c => c.json(camel(await release(db, optionalId.parse(c.req.query('releaseId')), true))));
-  app.get('/api/v1/content/snapshot', async c => c.json(await transaction(db, async tx => {
-    const r = await release(tx, optionalId.parse(c.req.query('releaseId')), true); await budget(tx, r.id);
-    const content: Row = {};
-    for (const kind of Object.keys(kinds) as Kind[]) content[kind] = (await all(tx, baseSelect(kind) + ' WHERE r.release_id=? ORDER BY r.sort_order,i.id', [r.id])).map(camel);
+export function contentRoutes(app: Api, db: Client, cache: Cache) {
+  const cached = cache.cached;
+  // Public content is read-only and published releases are immutable: serve it from a short in-process cache
+  // (cleared on admin writes) and keep cold reads to the fewest Turso round trips.
+  const publicKey = (c: { req: { url: string } }) => { const u = new URL(c.req.url); return u.pathname + u.search; };
+  app.get('/api/v1/content/release', async c => c.json(await cached(publicKey(c), PUBLIC_TTL_MS,
+    async () => camel(await release(db, optionalId.parse(c.req.query('releaseId')), true)))));
+  app.get('/api/v1/content/snapshot', async c => c.json(await cached(publicKey(c), PUBLIC_TTL_MS, async () => {
+    const r = await release(db, optionalId.parse(c.req.query('releaseId')), true); await publicBudget(db, r.id);
+    const names = Object.keys(kinds) as Kind[];
+    const rows = await batchRead(db, names.map(kind => ({ sql: baseSelect(kind) + ' WHERE r.release_id=? ORDER BY r.sort_order,i.id', args: [r.id] })));
+    const content: Row = {}; names.forEach((kind, i) => { content[kind] = rows[i].map(camel); });
     return { schemaVersion: 1, release: camel(r), content };
-  }, 'read')));
-  app.get('/api/v1/content/:kind', async c => c.json(await transaction(db, async tx => {
+  })));
+  app.get('/api/v1/content/:kind', async c => {
     const kind = kindOf(c.req.param('kind')), k = kinds[kind]; const q = querySchema.parse({ size: 12, ...c.req.query() });
     const set = optionalId.parse(c.req.query('cardSetId')), character = optionalId.parse(c.req.query('characterId')), type = pageType.optional().parse(c.req.query('pageType'));
     if (((set || character) && kind !== 'cards') || (type && kind !== 'wiki-pages')) return fail(400, 'INVALID_QUERY');
-    const r = await release(tx, optionalId.parse(c.req.query('releaseId')), true); await budget(tx, r.id, [kind]);
-    let where = ' WHERE r.release_id=?'; const args: InValue[] = [r.id];
-    for (const [column, value] of [['r.card_set_id', set], ['r.character_id', character], ['i.page_type', type]]) if (value) { where += ` AND ${column}=?`; args.push(value); }
-    const metadata = await all(tx, `SELECT i.id,i.slug,${kind === 'wiki-pages' ? "'' AS code" : 'i.code'},r.sort_order,r.${k.label} AS label FROM ${k.identity} i JOIN ${k.revision} r ON r.${k.fk}=i.id` + where, args);
-    const search = normalize(q.q);
-    const sorted = metadata.map((row): Row => ({ ...row, normalized: normalize(row.label) })).filter(row => !search || normalize(`${row.label}`).includes(search) || normalize(row.slug).includes(search) || normalize(row.code).includes(search))
-      .sort((a, b) => a.sort_order - b.sort_order || (a.normalized < b.normalized ? -1 : a.normalized > b.normalized ? 1 : 0) || a.id.localeCompare(b.id));
-    const selected = sorted.slice(q.page * q.size, (q.page + 1) * q.size); let items: Row[] = [];
-    if (selected.length) {
-      const rows = await all(tx, baseSelect(kind) + ` WHERE r.release_id=? AND i.id IN (${selected.map(() => '?')})`, [r.id, ...selected.map(v => v.id)]);
-      const byId = new Map(rows.map(row => [row.id, camel(row)])); items = selected.map(row => byId.get(row.id)!);
-    }
-    return { release: camel(r), result: page(items, q.page, q.size, sorted.length) };
-  }, 'read')));
-  for (const suffix of ['by-id/:id', ':slug']) app.get(`/api/v1/content/:kind/${suffix}`, async c => c.json(await transaction(db, async tx => {
+    return c.json(await cached(publicKey(c), PUBLIC_TTL_MS, async () => {
+      const r = await release(db, optionalId.parse(c.req.query('releaseId')), true); await publicBudget(db, r.id, [kind]);
+      let where = ' WHERE r.release_id=?'; const args: InValue[] = [r.id];
+      for (const [column, value] of [['r.card_set_id', set], ['r.character_id', character], ['i.page_type', type]]) if (value) { where += ` AND ${column}=?`; args.push(value); }
+      const metadata = await all(db, `SELECT i.id,i.slug,${kind === 'wiki-pages' ? "'' AS code" : 'i.code'},r.sort_order,r.${k.label} AS label FROM ${k.identity} i JOIN ${k.revision} r ON r.${k.fk}=i.id` + where, args);
+      const search = normalize(q.q);
+      const sorted = metadata.map((row): Row => ({ ...row, normalized: normalize(row.label) })).filter(row => !search || normalize(`${row.label}`).includes(search) || normalize(row.slug).includes(search) || normalize(row.code).includes(search))
+        .sort((a, b) => a.sort_order - b.sort_order || (a.normalized < b.normalized ? -1 : a.normalized > b.normalized ? 1 : 0) || a.id.localeCompare(b.id));
+      const selected = sorted.slice(q.page * q.size, (q.page + 1) * q.size); let items: Row[] = [];
+      if (selected.length) {
+        const rows = await all(db, baseSelect(kind) + ` WHERE r.release_id=? AND i.id IN (${selected.map(() => '?')})`, [r.id, ...selected.map(v => v.id)]);
+        const byId = new Map(rows.map(row => [row.id, camel(row)])); items = selected.map(row => byId.get(row.id)!);
+      }
+      return { release: camel(r), result: page(items, q.page, q.size, sorted.length) };
+    }));
+  });
+  for (const suffix of ['by-id/:id', ':slug']) app.get(`/api/v1/content/:kind/${suffix}`, async c => {
     const kind = kindOf(c.req.param('kind')); const id = c.req.param('id'); const slug = c.req.param('slug');
     if (id) z.string().uuid().parse(id); else z.string().max(160).regex(/^[a-zA-Z0-9_-]+$/).parse(slug);
-    const r = await release(tx, optionalId.parse(c.req.query('releaseId')), true);
-    return { release: camel(r), item: camel(await one(tx, baseSelect(kind) + ` WHERE r.release_id=? AND i.${id ? 'id' : 'slug'}=?`, [r.id, id || slug!])) };
-  }, 'read')));
+    const releaseId = optionalId.parse(c.req.query('releaseId'));
+    return c.json(await cached(publicKey(c), PUBLIC_TTL_MS, async () => {
+      const r = await release(db, releaseId, true);
+      return { release: camel(r), item: camel(await one(db, baseSelect(kind) + ` WHERE r.release_id=? AND i.${id ? 'id' : 'slug'}=?`, [r.id, id || slug!])) };
+    }));
+  });
 
   app.use('/api/v1/admin/*', async (c, next) => { requireActor(c, true); await next(); });
   app.get('/api/v1/admin/dashboard', async c => c.json(await transaction(db, async tx => ({ asOf: now(), releases: {
