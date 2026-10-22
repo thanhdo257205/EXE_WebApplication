@@ -2,6 +2,16 @@
 
 Cập nhật: 2026-10-22 (Asia/Saigon).
 
+## Chuyển sang Turso Free (2026-10-22)
+
+- [x] TURSO-CLI — Cài Turso CLI v1.0.34 trong Ubuntu WSL, kiểm tra phiên bản thành công.
+- [x] AIVEN-CLI-REMOVE — Gỡ aiven-client4.18.0; package Python3.14 và launcher avn.exe không còn.
+- [x] TURSO-AUTH — Tài khoản dothanh đăng nhập CLI; plan Free/starter, overages disabled.
+- [x] AIVEN-BACKUP — include_secrets=true đúng API lấy credential; pg_dump/đọc archive và phục hồi SQLite/FK/integrity qua. Source vẫn cần snapshot cuối trước cutover.
+- [x] TURSO-CANDIDATE — Schema/data37bảng27dòng đối chiếu từng trường;18tests local qua;1test remote riêng đã qua gồm remote Turso concurrency và local production-mode read smoke.
+- [ ] TURSO-MIGRATE — Chuyển schema/code/dữ liệu, kiểm thử transaction/kho/thanh toán, deploy và xác minh.
+- [ ] AIVEN-REMOVE — Xóa exe-web-pg/defaultdb sau khi xác minh chuyển đổi; hiện vẫn giữ dịch vụ.
+
 ## Tài nguyên PostgreSQL/backend (2026-10-22)
 
 - [x] DB-RESOURCE-LOCAL — Public list tải body đúng trang, pattern normalize dùng lại; prod idle timeout60s và cleanup session15phút. Maven verify/JAR qua,85pass/47PostgreSQL skipped; regression body36000/~288000 ký tự và hết hạn session qua. Code/docs gộp trong đợt phát hành GitHub22/10; CI/CD chưa xác nhận.
