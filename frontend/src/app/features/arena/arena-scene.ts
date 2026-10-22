@@ -394,12 +394,37 @@ export class ArenaScene {
     for (const s of [0, 1] as Side[]) {
       const sign = s === 0 ? -1 : 1, dir = s === 0 ? -1 : 1, align = s === 0 ? 'right' as const : 'left' as const;
       out.push({ text: 'CHIẾN ĐẤU', world: [dir * (BOARD.active.w / 2 + 0.3), sign * BOARD.active.y, 0.02], align, side: s });
-      out.push({ text: 'BĂNG GHẾ', world: [dir * (BOARD.bench.dx + BOARD.bench.w / 2 + 0.3), sign * BOARD.bench.y, 0.02], align, side: s });
+      out.push({ text: 'BĂNG GHẾ', world: [dir * (BOARD.bench.dx + BOARD.bench.w / 2 + 0.3), sign * (BOARD.bench.y - 1.1), 0.02], align, side: s });
       out.push({ text: 'BÀI', world: [BOARD.deck.x * -sign, sign * (BOARD.deck.y + 1.3), 0.02], align: 'center', side: s });
       out.push({ text: 'BỎ', world: [BOARD.deck.x * -sign, sign * (BOARD.discard.y + 1.3), 0.02], align: 'center', side: s });
-      out.push({ text: 'GIẢI', world: [(s === 0 ? BOARD.prize.x : -BOARD.prize.x), sign * (BOARD.prize.y + 2 * BOARD.prize.dy + 1.1), 0.02], align: 'center', side: s });
+      out.push({ text: 'GIẢI', world: [(s === 0 ? -1 : 1) * (Math.abs(BOARD.prize.x) + 1.3), sign * (BOARD.prize.y + BOARD.prize.dy), 0.02], align: 'center', side: s });
     }
     return out;
+  }
+
+  /** Điểm thế giới ở giữa một khu vực của một bên (dùng để hộp hướng dẫn chỉ vào). */
+  zoneWorld(side: Side, zone: string): Vec3 {
+    const sign = side === 0 ? -1 : 1;
+    switch (zone) {
+      case 'active': return [BOARD.active.x, sign * BOARD.active.y, 0.3];
+      case 'bench': return [0, sign * BOARD.bench.y, 0.3];
+      case 'deck': return [BOARD.deck.x * -sign, sign * BOARD.deck.y, 0.3];
+      case 'discard': return [BOARD.deck.x * -sign, sign * BOARD.discard.y, 0.3];
+      case 'prize': return [(side === 0 ? BOARD.prize.x : -BOARD.prize.x), sign * (BOARD.prize.y + BOARD.prize.dy), 0.3];
+      default: return [0, 0, 0.3];
+    }
+  }
+
+  /** Thanh HP của Pokémon Chiến đấu một bên (điểm ngay trên mép trên thẻ). */
+  hpWorld(side: Side): Vec3 {
+    const sign = side === 0 ? -1 : 1;
+    return [BOARD.active.x, sign * BOARD.active.y + (BOARD.active.w * CARD_ASPECT) / 2 + 0.2, 0.3];
+  }
+
+  /** Vị trí hiện tại của một thẻ (null nếu chưa có). */
+  cardWorld(uid: number): Vec3 | null {
+    const v = this.visuals.get(uid);
+    return v ? [v.pose.x, v.pose.y, v.pose.z + 0.2] : null;
   }
 
   /** Vị trí màn hình (px CSS) của một điểm thế giới — dùng đặt số sát thương/nhãn DOM. */

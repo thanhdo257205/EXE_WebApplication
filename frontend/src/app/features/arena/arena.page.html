@@ -1,8 +1,8 @@
 <section class="arena" (keydown)="onKey($event)">
-  <a routerLink="/" class="back-link">← Về căn nhà</a>
-  <p class="eyebrow">Sân đấu mô phỏng · bản thử nghiệm</p>
-  <h1 class="display">Đấu thẻ với máy</h1>
-  <p class="lead">Ván đấu rút gọn theo kiểu Pokémon TCG với 9 thẻ mẫu: mỗi bên 24 lá, lấy đủ 3 Giải thưởng để thắng. Cảnh 3D được vẽ trực tiếp bằng WebGPU, không dùng thư viện.</p>
+  <header class="page-head">
+    <div><p class="eyebrow">Sân đấu mô phỏng · bản thử nghiệm</p><h1 class="display">Đấu thẻ với máy</h1></div>
+    <a routerLink="/" class="back-link">← Về căn nhà</a>
+  </header>
 
   @if (state() === 'text' || state() === 'lost') {
     <p class="notice" role="status">
@@ -26,6 +26,20 @@
             <span class="zone" [class.foe]="label.side === 1" [class.right]="label.align === 'right'" [class.left]="label.align === 'left'" [style.left.px]="label.x" [style.top.px]="label.y">{{ label.text }}</span>
           }
         </div>
+        @if (state() === 'ready') {
+          @if (coach(); as step) {
+            @if (coachAnchor(); as a) {
+              @if (a.ring) { <i class="coach-ring" aria-hidden="true" [style.left.px]="a.x" [style.top.px]="a.y"></i> }
+              <section class="coach bubble" role="region" aria-label="Hướng dẫn từng bước" aria-live="polite"
+                [class.above]="a.mode === 'above'" [class.below]="a.mode === 'below'" [class.center]="a.mode === 'center'"
+                [style.left.px]="a.left" [style.width.px]="a.width"
+                [style.top.px]="a.mode === 'above' ? null : a.vertical" [style.bottom.px]="a.mode === 'above' ? a.vertical : null"
+                [style.--tail]="a.tailX + 'px'">
+                <ng-container *ngTemplateOutlet="coachBody; context: { $implicit: step }" />
+              </section>
+            }
+          }
+        }
         <div class="popups" aria-hidden="true">
           @for (popup of popups(); track popup.id) {
             <span [class]="'popup ' + popup.kind" [style.left.px]="popup.x" [style.top.px]="popup.y">{{ popup.text }}</span>
@@ -43,17 +57,12 @@
       </div>
 
       @if (view(); as v) {
-        @if (coach(); as step) {
-          <section class="coach" role="region" aria-label="Hướng dẫn từng bước" aria-live="polite">
-            <p class="coach-step">Hướng dẫn · bước {{ step.index + 1 }}/{{ step.total }}</p>
-            <h2 class="coach-title">{{ step.title }}</h2>
-            <p class="coach-text">{{ step.text }}</p>
-            <div class="coach-actions">
-              @if (step.manual) { <button type="button" class="primary" (click)="coachNext()">{{ step.nextLabel ?? 'Tiếp' }}</button> }
-              <button type="button" class="link" (click)="skipTutorial()">Bỏ qua hướng dẫn</button>
-            </div>
-            <i class="coach-bar"><b [style.width.%]="((step.index + 1) / step.total) * 100"></b></i>
-          </section>
+        @if (state() !== 'ready') {
+          @if (coach(); as step) {
+            <section class="coach" role="region" aria-label="Hướng dẫn từng bước" aria-live="polite">
+              <ng-container *ngTemplateOutlet="coachBody; context: { $implicit: step }" />
+            </section>
+          }
         }
 
         <div class="statusbar">
@@ -149,6 +158,8 @@
     </aside>
   </div>
 
+  <p class="lead below">Ván đấu rút gọn theo kiểu Pokémon TCG với 9 thẻ mẫu: mỗi bên 24 lá, lấy đủ 3 Giải thưởng để thắng. Cảnh 3D được vẽ trực tiếp bằng WebGPU, không dùng thư viện.</p>
+
   <details class="rules">
     <summary>Luật chơi rút gọn</summary>
     <ul>
@@ -165,3 +176,14 @@
     <a href="/assets/cards/pokemon/ATTRIBUTION.md" target="_blank" rel="noopener">ghi nhận nguồn</a>.
   </p>
 </section>
+
+<ng-template #coachBody let-step>
+  <p class="coach-step">Hướng dẫn · bước {{ step.index + 1 }}/{{ step.total }}</p>
+  <h2 class="coach-title">{{ step.title }}</h2>
+  <p class="coach-text">{{ step.text }}</p>
+  <div class="coach-actions">
+    @if (step.manual) { <button type="button" class="primary" (click)="coachNext()">{{ step.nextLabel ?? 'Tiếp' }}</button> }
+    <button type="button" class="link" (click)="skipTutorial()">Bỏ qua hướng dẫn</button>
+  </div>
+  <i class="coach-bar"><b [style.width.%]="((step.index + 1) / step.total) * 100"></b></i>
+</ng-template>

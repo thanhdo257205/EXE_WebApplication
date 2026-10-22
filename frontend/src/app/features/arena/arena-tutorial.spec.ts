@@ -20,10 +20,14 @@ describe('Tutorial', () => {
     const tutorial = new Tutorial(); tutorial.start();
 
     expect(tutorial.current(game, ctx())!.id).toBe('welcome');
-    tutorial.next(game); expect(tutorial.current(game, ctx())!.id).toBe('board');
+    for (const id of ['tour-foe', 'tour-active', 'tour-bench', 'tour-deck', 'tour-prize']) {
+      tutorial.next(game);
+      const tour = tutorial.current(game, ctx())!;
+      expect(tour.id).toBe(id); expect(tour.target).toMatch(/^zone:/);   // mỗi bước giới thiệu chỉ vào một khu vực trên bàn
+    }
     tutorial.next(game);
     const place = tutorial.current(game, ctx())!;
-    expect(place.id).toBe('place-active'); expect(place.cards).toBe('hand-pokemon'); expect(place.manual).toBe(false);
+    expect(place.id).toBe('place-active'); expect(place.cards).toBe('hand-pokemon'); expect(place.manual).toBe(false); expect(place.target).toBe('hand-pokemon');
 
     game = apply(game, { t: 'place', hand: game.sides[0].hand.findIndex(c => c.kind === 'pokemon') }, rng, 0).game;
     expect(tutorial.current(game, ctx())!.id).toBe('place-bench');   // tự qua khi đã có Pokémon Chiến đấu
@@ -59,7 +63,7 @@ describe('Tutorial', () => {
     // Người chơi đặt Pokémon và bấm Sẵn sàng ngay, trước khi hướng dẫn kịp tới bước đó.
     game = apply(game, { t: 'place', hand: game.sides[0].hand.findIndex(c => c.kind === 'pokemon') }, rng, 0).game;
     game = apply(game, { t: 'ready' }, rng, 0).game;
-    tutorial.next(game); tutorial.next(game);                    // welcome, board
+    for (let i = 0; i < 6; i++) tutorial.next(game);              // welcome + 5 bước giới thiệu sân
     expect(['hp']).toContain(tutorial.current(game, ctx())!.id);   // đặt/Sẵn sàng đã xong → nhảy tới bước kế tiếp hợp lệ
   });
 
@@ -70,7 +74,7 @@ describe('Tutorial', () => {
     game = apply(game, { t: 'ready' }, rng, 0).game;
     game.turnNumber = 3; game.attached = true;
     const tutorial = new Tutorial(); tutorial.start();
-    for (let i = 0; i < 6; i++) { const step = tutorial.current(game, ctx(true, true))!; if (step.id === 'attack') break; if (step.manual) tutorial.next(game); }
+    for (let i = 0; i < 14; i++) { const step = tutorial.current(game, ctx(true, true))!; if (step.id === 'attack') break; if (step.manual) tutorial.next(game); }
     expect(tutorial.current(game, ctx(true, true))!.text).toContain('bấm để tấn công');
     expect(tutorial.current(game, ctx(true, false))!.text).toContain('Chưa đủ Năng lượng');
   });
@@ -81,7 +85,7 @@ describe('Tutorial', () => {
     game = apply(game, { t: 'place', hand: game.sides[0].hand.findIndex(c => c.kind === 'pokemon') }, rng, 0).game;
     game = apply(game, { t: 'ready' }, rng, 0).game;
     const tutorial = new Tutorial(); tutorial.start();
-    tutorial.next(game); tutorial.next(game);
+    for (let i = 0; i < 6; i++) tutorial.next(game);
     expect(tutorial.current(game, ctx())!.id).toBe('hp');
     const real = game.phase;
     game.phase = 'promote'; game.pending = [0];

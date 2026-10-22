@@ -70,8 +70,8 @@ describe('ArenaPage (chế độ chữ khi không có WebGPU)', () => {
     expect(coach()?.textContent).toContain('Chào mừng');
     expect(internals.ctl.game.turn).toBe(0);                       // hướng dẫn ép người chơi đi trước
     (coach()!.querySelector('.primary') as HTMLButtonElement).click(); await settle();
-    expect(coach()?.textContent).toContain('Làm quen với sân');
-    (coach()!.querySelector('.primary') as HTMLButtonElement).click(); await settle();
+    expect(coach()?.textContent).toContain('Bàn của máy');
+    for (let i = 0; i < 5; i++) { (coach()!.querySelector('.primary') as HTMLButtonElement).click(); await settle(); }   // tour sân: Chiến đấu, băng ghế, bài, giải thưởng
     expect(coach()?.textContent).toContain('Đặt Pokémon Chiến đấu');
     expect(coach()!.querySelector('.primary')).toBeNull();          // bước tự động: không có nút "Tiếp"
     const index = internals.ctl.game.sides[0].hand.findIndex(card => card.kind === 'pokemon');
@@ -90,7 +90,7 @@ describe('ArenaPage (chế độ chữ khi không có WebGPU)', () => {
     expect(root().querySelector('.coach')).toBeNull();
     buttons('.controls .chip').find(b => b.textContent?.trim() === 'Hướng dẫn')!.click(); await settle();
     expect(root().querySelector('.coach')?.textContent).toContain('Chào mừng');
-    for (let i = 0; i < 2; i++) (root().querySelector('.coach .primary') as HTMLButtonElement).click(), await settle();
+    for (let i = 0; i < 6; i++) { (root().querySelector('.coach .primary') as HTMLButtonElement).click(); await settle(); }
     const index = internals.ctl.game.sides[0].hand.findIndex(card => card.kind === 'pokemon');
     buttons('.a11y-list button')[index].click(); await settle();
     buttons('.controls .chip').find(b => b.textContent?.includes('Đặt xuống bàn'))!.click();
