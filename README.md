@@ -34,7 +34,7 @@ Column Spread local xáo ảnh ngẫu nhiên lúc mở và mỗi vòng8s khi bà
 
 Column Spread homepage hiện dùng9 poster Pokémon mới cho12 slot (lặp3 ảnh), giữ tỷ lệ dọc và nhịp chuyển động cũ. Ảnh được tải theo viewport/giải mã async/dedup; không tải texture lớn hoặc GLB cho hiệu ứng này.118 frontend tests và production build/prerender qua, browser desktop/mobile/pause/reduced/offscreen kiểm tra thành công. Thay đổi mới vẫn local, chưa push/deploy; [chi tiết tối ưu](docs/PERFORMANCE.md).
 
-Bản bổ sung ngày2026-10-22: [sân đấu mô phỏng thẻ bài `/san-dau`](docs/ARENA.md) — đấu có luật với máy bằng 9 thẻ Pokémon mẫu, vẽ bằng WebGPU thuần (không thư viện), có chế độ chữ khi thiếu WebGPU; đã merge và CD thành công, chưa xác nhận trực tiếp trên production.
+Bản bổ sung ngày2026-10-22: [sân đấu mô phỏng thẻ bài `/san-dau`](docs/ARENA.md) — đấu có luật với máy bằng 9 thẻ Pokémon mẫu, vẽ bằng WebGPU thuần (không thư viện), có hướng dẫn từng bước cho người mới, bàn chơi thiết kế riêng, chế độ chữ khi thiếu WebGPU; đã merge, CD thành công và chủ dự án xác nhận chơi được trên Chrome (production).
 
 Bản bổ sung ngày2026-10-21: [thư viện thẻ2D và viewer3D](docs/CARD_LIBRARY_3D.md), dùng model mặc định do người dùng cung cấp, bộ thẻ/lọc từ API public và bản mẫu được gắn nhãn khi chưa có release. Bản local mới thêm9 texture Pokémon từ TCGdex, tổng10 mẫu; dùng chung GLB và mặt sau, chỉ tải texture lớn khi mở viewer.113 frontend tests/build qua; phần9 mẫu mới chưa commit/push/deploy. Bản ứng dụng trước4dca2db đã CI/CD/smoke production thành công. Thử local: http://127.0.0.1:4200/thu-vien, http://127.0.0.1:4200/thu-vien/mau/charizard-3d; URL mẫu cũ pokemon-card-3d vẫn giữ.
 

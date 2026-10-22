@@ -6,6 +6,7 @@ import { ArenaController, inspect, type Inspect, type Presenter } from './arena-
 import type { Action } from './arena-engine';
 import { ArenaRenderer, loadPosterBitmaps, WebGpuUnavailableError, type ArenaQuality } from './arena-renderer';
 import { ArenaScene, type Pick, type Popup } from './arena-scene';
+import { Tutorial, type TutorialView } from './arena-tutorial';
 import { INSTANCE_FLOATS } from './arena-shaders';
 import { buildView, type ArenaView } from './arena-view';
 
@@ -21,6 +22,9 @@ const ACTIVE_WINDOW_SECONDS = 2.2;
 const SLOW_FRAME_MS = 26;
 
 interface PopupView { id: number; text: string; kind: Popup['kind']; x: number; y: number }
+
+const TUTORIAL_KEY = 'arena-tutorial-v1';
+interface LabelView { text: string; x: number; y: number; align: string; side: number }
 
 const textPresenter: Presenter = { reset: () => undefined, present: () => 0.35 };
 
@@ -46,6 +50,8 @@ export class ArenaPage {
   readonly retreating = signal(false);
   readonly hint = signal('');
   readonly popups = signal<PopupView[]>([]);
+  readonly coach = signal<TutorialView | null>(null);
+  readonly labels = signal<LabelView[]>([]);
   readonly quality = signal<QualityLevel>('high');
   readonly qualityLabel = () => QUALITY[this.quality()].label;
   readonly energyColor = (label: string) => this.energyCss[label] ?? '#cfd2c8';
@@ -76,6 +82,9 @@ export class ArenaPage {
   private reduced = false;
   private cleanups: (() => void)[] = [];
   private destroyed = false;
+  private readonly tutorial = new Tutorial();
+  private guideUids: ReadonlySet<number> = new Set();
+  private guideZones: ReadonlySet<string> = new Set();
 
   constructor() {
     afterNextRender(() => void this.boot());
@@ -104,7 +113,7 @@ export class ArenaPage {
     if (!renderer) {
       this.ctl = new ArenaController(textPresenter, () => this.refresh());
       this.state.set('text');
-      this.ctl.start();
+      this.beginGame(!this.tutorialSeen());
       this.startTextLoop();
       return;
     }
@@ -113,7 +122,7 @@ export class ArenaPage {
     void renderer.lost.then(() => { if (this.renderer === renderer) { this.stopLoop(); this.state.set('lost'); } });
     this.state.set('ready');
     this.observe(stage, canvas, media!);
-    this.ctl.start();
+    this.beginGame(!this.tutorialSeen());
     this.startLoop();
   }
 
@@ -124,6 +133,7 @@ export class ArenaPage {
       const dpr = Math.min(window.devicePixelRatio || 1, QUALITY[this.quality()].dprCap);
       this.renderer.resize(rect.width * dpr, rect.height * dpr);
       this.scene.resize(rect.width, rect.height);
+      this.updateLabels();
       this.wake();
     };
     let pending = 0;
@@ -162,7 +172,7 @@ export class ArenaPage {
     const dt = this.lastTs ? Math.min(0.1, now - this.lastTs) : 1 / 60;
     this.lastTs = now; this.lastDraw = now;
     this.ctl.tick(now);
-    this.scene.setUi({ selected: this.selectedUid(), targets: this.targetSet(), hover: this.hoverUid, pointer: this.pointer });
+    this.scene.setUi({ selected: this.selectedUid(), targets: this.targetSet(), hover: this.hoverUid, guide: this.guideUids, guideZones: this.guideZones, pointer: this.pointer });
     this.scene.update(dt);
     const count = this.scene.fill(this.instances);
     const cam = this.scene.cameraNow;
@@ -211,6 +221,7 @@ export class ArenaPage {
     const selected = this.selectedUid();
     if (selected !== null && !hand.some(card => card.uid === selected)) this.selectedUid.set(null);
     if (!this.ctl.canAct()) this.retreating.set(false);
+    this.refreshCoach();
     this.refreshInspect();
     this.wake();
   }
@@ -308,7 +319,58 @@ export class ArenaPage {
     if (reason) { this.flash(reason); return; }
     this.selectedUid.set(null); this.retreating.set(true); this.flash('Chọn Pokémon trên băng ghế để đổi lên Chiến đấu.');
   }
-  newGame(): void { this.selectedUid.set(null); this.retreating.set(false); this.pinnedUid = null; this.hoverUid = null; this.popups.set([]); this.ctl.start(); }
+  newGame(): void { this.tutorial.stop(); this.beginGame(false); }
+  startTutorial(): void { this.beginGame(true); }
+
+  /** Bắt đầu ván mới; chế độ hướng dẫn ép người chơi đi trước để có đủ các bước (gắn Năng lượng, tấn công). */
+  private beginGame(tutorial: boolean): void {
+    this.selectedUid.set(null); this.retreating.set(false); this.pinnedUid = null; this.hoverUid = null; this.popups.set([]); this.hint.set('');
+    if (tutorial) this.tutorial.start(); else this.tutorial.stop();
+    this.ctl.start(undefined, tutorial ? { first: 0 } : {});
+    this.refresh();
+  }
+
+  // ---------- Hướng dẫn từng bước ----------
+  private tutorialSeen(): boolean { try { return localStorage.getItem(TUTORIAL_KEY) === '1'; } catch { return false; } }
+  private markTutorialSeen(): void { try { localStorage.setItem(TUTORIAL_KEY, '1'); } catch { /* chế độ riêng tư: bỏ qua */ } }
+
+  private refreshCoach(): void {
+    const game = this.ctl.displayed, view = this.view();
+    const step = this.tutorial.active && view ? this.tutorial.current(game, { canAct: view.canAct, canAttack: view.attacks.some(a => a.enabled) }) : null;
+    this.coach.set(step);
+    if (this.tutorial.completed) this.markTutorialSeen();
+    const me = game.sides[0], canAct = !!view?.canAct;
+    const uids: number[] = [];
+    if (step && canAct) {
+      if (step.cards === 'hand-pokemon') uids.push(...me.hand.filter(c => c.kind === 'pokemon').map(c => c.uid));
+      else if (step.cards === 'hand-energy' && !game.attached) uids.push(...me.hand.filter(c => c.kind === 'energy').map(c => c.uid));
+      else if (step.cards === 'bench') uids.push(...me.bench.map(b => b.uid));
+    }
+    this.guideUids = new Set(uids);
+    this.guideZones = new Set(step?.zones ?? []);
+    this.labelsBig.set(step?.id === 'board');
+  }
+  readonly labelsBig = signal(false);
+
+  coachNext(): void {
+    if (this.tutorial.next(this.ctl.displayed)) this.markTutorialSeen();
+    this.refresh();
+  }
+  skipTutorial(): void { this.tutorial.stop(); this.markTutorialSeen(); this.refresh(); }
+  /** Nút được nhấn mạnh trong bước hướng dẫn hiện tại ("attack" đổi thành "end" khi chưa đánh được). */
+  guided(button: 'ready' | 'attack' | 'end' | 'retreat'): boolean {
+    const step = this.coach(), view = this.view();
+    if (!step?.button) return false;
+    const target = step.button === 'attack' && (this.ctl.displayed.turnNumber === 1 || !view?.attacks.some(a => a.enabled)) ? 'end' : step.button;
+    return target === button;
+  }
+
+  private updateLabels(): void {
+    this.labels.set(this.scene.zoneLabels().flatMap(label => {
+      const at = this.scene.toScreen(label.world);
+      return at ? [{ text: label.text, x: at[0], y: at[1], align: label.align, side: label.side }] : [];
+    }));
+  }
   reload(): void { location.reload(); }
   cancel(): void { this.selectedUid.set(null); this.retreating.set(false); this.pinnedUid = null; this.hint.set(''); this.refresh(); }
 

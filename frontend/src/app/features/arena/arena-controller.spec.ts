@@ -88,6 +88,14 @@ describe('ArenaController', () => {
     }
   });
 
+  it('chế độ hướng dẫn ép người chơi đi trước nhưng giữ nguyên chuỗi ngẫu nhiên (bộ bài giống nhau)', () => {
+    const a = setup(31).ctl.game, presenter = new FakePresenter(), b = new ArenaController(presenter, () => undefined, 31);
+    b.start(31, { first: 0 });
+    expect(b.game.turn).toBe(0);
+    expect(b.game.sides[0].hand.map(c => c.uid)).toEqual(a.sides[0].hand.map(c => c.uid));
+    expect(b.log.join(' ')).toContain('Bạn đi trước.');
+  });
+
   it('ván mới xóa nhật ký và hàng đợi', () => {
     const { ctl, presenter } = setup(7);
     ctl.act({ t: 'place', hand: ctl.game.sides[0].hand.findIndex(c => c.kind === 'pokemon') });

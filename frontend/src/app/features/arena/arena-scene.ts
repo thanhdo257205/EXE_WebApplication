@@ -17,6 +17,10 @@ export interface UiState {
   /** uid các Pokémon hợp lệ để chọn (đích gắn Năng lượng, ứng viên rút lui/lên Chiến đấu). */
   targets: ReadonlySet<number>;
   hover: number | null;
+  /** Thẻ cần nhấn mạnh trong bước hướng dẫn (quầng vàng nhấp nháy). */
+  guide: ReadonlySet<number>;
+  /** Khu vực cần nhấn mạnh: "side:zone", ví dụ "0:active", "0:bench", "1:prize". */
+  guideZones: ReadonlySet<string>;
   /** Vị trí con trỏ trong khung hình, -1..1 (dùng để nghiêng thẻ cho hiệu ứng ánh kim). */
   pointer: readonly [number, number];
 }
@@ -29,12 +33,12 @@ interface Visual {
   inPlay: InPlay | null; hp: number; hpTarget: number; orb: boolean; attachTo: number; attachSlot: number; attachCount: number;
   lunge: { dx: number; dy: number; start: number; dur: number } | null; shake: number; glow: [number, number, number, number];
 }
-interface Particle { x: number; y: number; z: number; vx: number; vy: number; vz: number; life: number; max: number; size: number; r: number; g: number; b: number; glow: number }
+interface Particle { ambient?: boolean; x: number; y: number; z: number; vx: number; vy: number; vz: number; life: number; max: number; size: number; r: number; g: number; b: number; glow: number }
 interface Timer { at: number; run: () => void }
 
 export const CARD_ASPECT = 495 / 360;
 const MAX_PARTICLES = 420;
-const BOARD = {
+export const BOARD = {
   active: { x: 0, y: 1.85, w: 2.3 }, bench: { y: 5.0, w: 1.7, dx: 2.75 }, hand: { y: 8.15, w: 2.0 },
   deck: { x: 6.0, y: 3.5, w: 1.4 }, discard: { x: 6.0, y: 0.7, w: 1.4 }, prize: { x: -6.0, y: 0.8, w: 1.1, dy: 1.5 },
 } as const;
@@ -54,7 +58,7 @@ export class ArenaScene {
   private timers: Timer[] = [];
   private clock = 0;
   private game: Game | null = null;
-  private ui: UiState = { selected: null, targets: new Set(), hover: null, pointer: [0, 0] };
+  private ui: UiState = { selected: null, targets: new Set(), hover: null, guide: new Set(), guideZones: new Set(), pointer: [0, 0] };
   private camera: Camera = makeCamera(16 / 9);
   private shakeAmp = 0;
   private coin: { start: number; dur: number; heads: boolean; x: number; y: number } | null = null;
@@ -63,6 +67,8 @@ export class ArenaScene {
   private prizeVisuals: Visual[][] = [[], []];
   private rngState = 1;
   private moving = true;
+  private turnGlow: [number, number] = [0, 0];
+  private ambientCount = 0;
 
   constructor(private readonly options: { reducedMotion: boolean; particles: boolean }) {}
 
@@ -74,7 +80,7 @@ export class ArenaScene {
 
   /** Đặt lại toàn bộ cảnh theo trạng thái (dùng khi bắt đầu ván mới): thẻ xuất hiện ngay tại chồng bài. */
   reset(game: Game): void {
-    this.visuals.clear(); this.prizeVisuals = [[], []]; this.timers = []; this.particles = []; this.coin = null; this.shakeAmp = 0;
+    this.visuals.clear(); this.prizeVisuals = [[], []]; this.timers = []; this.particles = []; this.ambientCount = 0; this.coin = null; this.shakeAmp = 0;
     this.game = null;
     this.sync(game, true);
   }
@@ -280,7 +286,7 @@ export class ArenaScene {
   }
 
   private spawn(x: number, y: number, z: number, vx: number, vy: number, vz: number, life: number, size: number, r: number, g: number, b: number, glow: number): void {
-    if (this.particles.length >= MAX_PARTICLES) this.particles.shift();
+    if (this.particles.length >= MAX_PARTICLES) { const old = this.particles.find(p => !p.ambient); if (old) this.particles.splice(this.particles.indexOf(old), 1); else return; }
     this.particles.push({ x, y, z, vx, vy, vz, life, max: life, size, r, g, b, glow });
   }
 
@@ -293,7 +299,7 @@ export class ArenaScene {
       if (due.length) { this.timers = this.timers.filter(timer => timer.at > this.clock); due.forEach(timer => timer.run()); }
     }
     const rate = this.options.reducedMotion ? 22 : 9, k = ease(rate, dt), ui = this.ui;
-    let moving = this.timers.length > 0 || this.particles.length > 0 || this.coin !== null || this.shakeAmp > 0.002;
+    let moving = this.timers.length > 0 || this.particles.length > this.ambientCount || this.coin !== null || this.shakeAmp > 0.002;
     this.order.length = 0;
     for (const v of this.visuals.values()) {
       const tgt = { ...v.target };
@@ -325,6 +331,7 @@ export class ArenaScene {
       let glow: [number, number, number, number] = [0, 0, 0, 0];
       if (v.inPlay?.shielded) glow = [0.3, 0.8, 1, 0.8];
       else if (v.inPlay?.paralyzed) glow = [1, 0.9, 0.2, 0.7];
+      if (ui.guide.has(v.uid)) glow = [1, 0.8, 0.22, 0.65 + 0.35 * Math.sin(this.clock * 5)];
       if (ui.targets.has(v.uid)) glow = [0.55, 1, 0.3, 1];
       if (v.uid === ui.selected) glow = [1, 0.95, 0.6, 1];
       else if (hover) glow = [1, 1, 1, 0.6];
@@ -336,10 +343,23 @@ export class ArenaScene {
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i];
       p.life -= dt;
-      if (p.life <= 0) { this.particles.splice(i, 1); continue; }
+      if (p.life <= 0) { if (p.ambient) this.ambientCount--; this.particles.splice(i, 1); continue; }
+      if (p.ambient) { p.x += (p.vx + Math.sin(this.clock * 0.7 + p.z * 9) * 0.05) * dt; p.y += p.vy * dt; p.z += p.vz * dt; continue; }
       p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; p.vz -= 5 * dt; p.vx *= 1 - dt * 1.4; p.vy *= 1 - dt * 1.4;
       if (p.z < 0.05) { p.z = 0.05; p.vz *= -0.3; }
     }
+    // Đốm sáng trôi chậm quanh bàn (chỉ khi bật hạt và không giảm chuyển động).
+    if (this.options.particles && !this.options.reducedMotion) {
+      while (this.ambientCount < 26 && this.rand() < 0.5) {
+        const life = 5 + this.rand() * 5;
+        this.particles.push({ ambient: true, x: (this.rand() - 0.5) * 17, y: (this.rand() - 0.5) * 20, z: 0.4 + this.rand() * 2.2, vx: (this.rand() - 0.5) * 0.18, vy: (this.rand() - 0.5) * 0.18, vz: 0.1 + this.rand() * 0.14, life, max: life, size: 0.07 + this.rand() * 0.1, r: 0.7, g: 1, b: 0.55, glow: 0.45 });
+        this.ambientCount++;
+      }
+    }
+    // Quầng sáng lượt chơi chuyển mượt giữa hai nửa sân.
+    const g = this.game;
+    const active: Side | null = !g || g.phase === 'over' ? null : g.phase === 'setup' ? 0 : g.phase === 'promote' ? (g.pending[0] ?? null) : g.turn;
+    for (const s of [0, 1] as const) this.turnGlow[s] = lerp(this.turnGlow[s], active === s ? 1 : 0, ease(3, dt));
     this.shakeAmp = Math.max(0, this.shakeAmp - dt * 1.1);
     if (this.coin && this.clock - this.coin.start > this.coin.dur + 0.55) this.coin = null;
     // camera + polygon pick cache
@@ -368,6 +388,20 @@ export class ArenaScene {
     return null;
   }
 
+  /** Điểm neo nhãn tên khu vực (toạ độ thế giới) cho lớp DOM phủ lên cảnh. */
+  zoneLabels(): { text: string; world: Vec3; align: 'left' | 'right' | 'center'; side: Side }[] {
+    const out: { text: string; world: Vec3; align: 'left' | 'right' | 'center'; side: Side }[] = [];
+    for (const s of [0, 1] as Side[]) {
+      const sign = s === 0 ? -1 : 1, dir = s === 0 ? -1 : 1, align = s === 0 ? 'right' as const : 'left' as const;
+      out.push({ text: 'CHIẾN ĐẤU', world: [dir * (BOARD.active.w / 2 + 0.3), sign * BOARD.active.y, 0.02], align, side: s });
+      out.push({ text: 'BĂNG GHẾ', world: [dir * (BOARD.bench.dx + BOARD.bench.w / 2 + 0.3), sign * BOARD.bench.y, 0.02], align, side: s });
+      out.push({ text: 'BÀI', world: [BOARD.deck.x * -sign, sign * (BOARD.deck.y + 1.3), 0.02], align: 'center', side: s });
+      out.push({ text: 'BỎ', world: [BOARD.deck.x * -sign, sign * (BOARD.discard.y + 1.3), 0.02], align: 'center', side: s });
+      out.push({ text: 'GIẢI', world: [(s === 0 ? BOARD.prize.x : -BOARD.prize.x), sign * (BOARD.prize.y + 2 * BOARD.prize.dy + 1.1), 0.02], align: 'center', side: s });
+    }
+    return out;
+  }
+
   /** Vị trí màn hình (px CSS) của một điểm thế giới — dùng đặt số sát thương/nhãn DOM. */
   toScreen(world: Vec3): [number, number] | null { return project(this.camera.viewProj, world, this.screen.width, this.screen.height); }
 
@@ -388,12 +422,17 @@ export class ArenaScene {
     // Ô đặt thẻ (viền nét đứt): sáng lên khi là đích hợp lệ.
     const slot = (x: number, y: number, w: number, lit: number, color: readonly [number, number, number]) =>
       put(KIND.slot, x, y, 0.012, 0, 0, 0, w + 0.18, w * CARD_ASPECT + 0.18, 0, 1, lit, 0, 0, 0, color[0], color[1], color[2], 1);
+    const zones = this.ui.guideZones;
     for (const s of [0, 1] as Side[]) {
       const sign = s === 0 ? -1 : 1, col: readonly [number, number, number] = s === 0 ? [0.6, 0.95, 0.3] : [0.55, 0.7, 0.85];
-      slot(0, sign * BOARD.active.y, BOARD.active.w, 0, col);
-      for (let i = 0; i < RULES.bench; i++) slot((i - (RULES.bench - 1) / 2) * BOARD.bench.dx, sign * BOARD.bench.y, BOARD.bench.w, 0, col);
-      slot(BOARD.deck.x * -sign, sign * BOARD.deck.y, BOARD.deck.w, 0, col);
-      slot(BOARD.deck.x * -sign, sign * BOARD.discard.y, BOARD.discard.w, 0, col);
+      const lit = (zone: string) => (zones.has(`${s}:${zone}`) ? 1 : 0);
+      // Quầng sáng nửa sân của bên đang tới lượt.
+      if (this.turnGlow[s] > 0.01) put(KIND.glow, 0, sign * 4.6, 0.014, 0, 0, 0, 15.5, 9.4, 0, 1, this.turnGlow[s] * 0.2, 0, 0, 3.6, col[0], col[1], col[2], 1);
+      slot(0, sign * BOARD.active.y, BOARD.active.w, lit('active'), col);
+      for (let i = 0; i < RULES.bench; i++) slot((i - (RULES.bench - 1) / 2) * BOARD.bench.dx, sign * BOARD.bench.y, BOARD.bench.w, lit('bench'), col);
+      slot(BOARD.deck.x * -sign, sign * BOARD.deck.y, BOARD.deck.w, lit('deck'), col);
+      slot(BOARD.deck.x * -sign, sign * BOARD.discard.y, BOARD.discard.w, lit('discard'), col);
+      for (let i = 0; i < RULES.prizes; i++) { const pz = this.prizePose(s, i); slot(pz.x, pz.y, BOARD.prize.w, lit('prize'), col); }
     }
     // Bóng đổ.
     for (const v of this.order) {
@@ -439,7 +478,8 @@ export class ArenaScene {
     // Hạt sáng (cộng sáng) vẽ sau cùng.
     for (const p of this.particles) {
       const k = p.life / p.max;
-      put(KIND.particle, p.x, p.y, p.z, 0, 0, 0, p.size * (0.5 + k), p.size * (0.5 + k), 0, k, p.glow, 0, 0, 0, p.r, p.g, p.b, 1);
+      const a = p.ambient ? Math.min(1, Math.min(k, 1 - k) * 4) * 0.7 : k;
+      put(KIND.particle, p.x, p.y, p.z, 0, 0, 0, p.size * (p.ambient ? 1 : 0.5 + k), p.size * (p.ambient ? 1 : 0.5 + k), 0, a, p.glow, 0, 0, 0, p.r, p.g, p.b, 1);
     }
     return n;
   }
