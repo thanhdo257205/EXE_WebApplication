@@ -60,6 +60,11 @@ export const routes: Routes = [
     loadComponent: () => import('./features/public-content/public-content.page').then(m => m.PublicContentPage),
   },
   {
+    path: 'san-dau',
+    title: 'Sân đấu mô phỏng — Nhà Này Hơi Báo!',
+    loadComponent: () => import('./features/arena/arena.page').then(m => m.ArenaPage),
+  },
+  {
     path: 'thu-vien/mau/:slug',
     title: 'Trải nghiệm thẻ 3D — Nhà Này Hơi Báo!',
     data: { kind: 'cards', sample: true, heading: 'Thẻ minh họa 3D' },

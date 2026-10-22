@@ -1,0 +1,148 @@
+<section class="arena" (keydown)="onKey($event)">
+  <a routerLink="/" class="back-link">← Về căn nhà</a>
+  <p class="eyebrow">Sân đấu mô phỏng · bản thử nghiệm</p>
+  <h1 class="display">Đấu thẻ với máy</h1>
+  <p class="lead">Ván đấu rút gọn theo kiểu Pokémon TCG với 9 thẻ mẫu: mỗi bên 24 lá, lấy đủ 3 Giải thưởng để thắng. Cảnh 3D được vẽ trực tiếp bằng WebGPU, không dùng thư viện.</p>
+
+  @if (state() === 'text' || state() === 'lost') {
+    <p class="notice" role="status">
+      @if (state() === 'lost') { Thiết bị đồ họa vừa bị ngắt kết nối. }
+      @else { {{ unsupportedReason() }} }
+      Bạn vẫn chơi được bằng chế độ chữ bên dưới; để xem cảnh 3D hãy dùng bản mới của Chrome, Edge, Safari 26 trở lên hoặc Firefox trên Windows.
+      @if (state() === 'lost') { <button type="button" class="chip" (click)="reload()">Tải lại trang</button> }
+    </p>
+  }
+
+  <div class="layout">
+    <div class="stage-col">
+      <div class="stage" #stage data-lenis-prevent [hidden]="state() === 'text'">
+        <canvas #canvas
+          role="img"
+          aria-label="Sân đấu thẻ bài 3D. Thông tin ván đấu và các nút điều khiển nằm ngay bên dưới."
+          (pointermove)="onPointerMove($event)" (pointerdown)="onPointerDown($event)" (pointerleave)="onPointerLeave()"></canvas>
+        @if (state() === 'loading') { <p class="overlay" aria-live="polite">Đang dựng sân đấu…</p> }
+        <div class="popups" aria-hidden="true">
+          @for (popup of popups(); track popup.id) {
+            <span [class]="'popup ' + popup.kind" [style.left.px]="popup.x" [style.top.px]="popup.y">{{ popup.text }}</span>
+          }
+        </div>
+        @if (view(); as v) {
+          @if (v.over && state() === 'ready') {
+            <div class="result" role="dialog" aria-label="Kết quả ván đấu">
+              <p class="result-title">{{ v.winner === 0 ? 'Bạn thắng!' : 'Máy thắng' }}</p>
+              <p class="result-reason">{{ v.reason }}</p>
+              <button type="button" class="primary" (click)="newGame()">Chơi ván mới</button>
+            </div>
+          }
+        }
+      </div>
+
+      @if (view(); as v) {
+        <div class="statusbar">
+          <p class="status" role="status" aria-live="polite">{{ v.status }}</p>
+          <p class="hint" aria-live="polite">{{ hint() }}</p>
+        </div>
+
+        <div class="controls" role="group" aria-label="Hành động">
+          @if (v.canReady) { <button type="button" class="primary" (click)="ready()">Sẵn sàng — bắt đầu trận</button> }
+          @for (move of v.attacks; track move.index) {
+            <button type="button" class="attack" [disabled]="!move.enabled" [attr.title]="move.reason ?? move.text" (click)="attack(move.index)">
+              <strong>{{ move.name }}</strong><span>{{ move.cost }} · {{ move.damage }}</span>
+            </button>
+          }
+          <button type="button" class="chip" [disabled]="!v.canAct || v.over" [attr.aria-pressed]="retreating()" (click)="toggleRetreat()">{{ retreating() ? 'Huỷ rút lui' : 'Rút lui' }}</button>
+          @if (selectedIsPokemon()) { <button type="button" class="chip" (click)="placeSelected()">Đặt xuống bàn</button> }
+          <button type="button" class="chip" [disabled]="!v.canEnd" (click)="endTurn()">Kết thúc lượt</button>
+          <span class="grow"></span>
+          <button type="button" class="chip" (click)="newGame()">Ván mới</button>
+          @if (state() === 'ready') { <button type="button" class="chip" (click)="cycleQuality()" title="Đồ họa tự hạ khi máy yếu">Đồ họa: {{ qualityLabel() }}</button> }
+        </div>
+
+        <div class="a11y-list" [class.visible]="state() === 'text'">
+          <h2 class="h3">Tay bài của bạn</h2>
+          <ul>
+            @for (card of v.hand; track card.uid) {
+              <li><button type="button" [attr.aria-pressed]="selectedUid() === card.uid" (click)="clickHand(card.index)">{{ card.label }}</button></li>
+            }
+          </ul>
+          @if (mode(); as mode) {
+            <h2 class="h3">{{ mode === 'attach' ? 'Gắn Năng lượng cho' : mode === 'retreat' ? 'Rút lui, đổi lên Chiến đấu' : 'Chọn Pokémon Chiến đấu mới' }}</h2>
+            <ul>
+              @if (mode === 'attach' && v.active) { <li><button type="button" (click)="clickTarget(v.active)">{{ v.active.label }}</button></li> }
+              @for (item of v.bench; track item.uid) { <li><button type="button" (click)="clickTarget(item)">{{ item.label }}</button></li> }
+            </ul>
+          }
+        </div>
+      }
+    </div>
+
+    <aside class="side" aria-label="Thông tin ván đấu">
+      @if (view(); as v) {
+        <section class="panel board" aria-label="Bảng theo dõi">
+          @for (side of [v.board[1], v.board[0]]; track side.name) {
+            <div class="board-side">
+              <h2 class="h3">{{ side.name }} <small>Giải thưởng còn {{ side.prizesLeft }} · bài còn {{ side.deck }} · tay {{ side.hand }}</small></h2>
+              <ul>
+                @if (side.active; as pk) {
+                  <li class="pk active"><strong>{{ pk.name }}</strong>
+                    @if (pk.hp) { <span class="hp"><i [style.width.%]="(pk.hpLeft / pk.hp) * 100"></i></span><span class="hpnum">{{ pk.hpLeft }}/{{ pk.hp }}</span> }
+                    @for (e of pk.energy; track $index) { <b class="dot" [style.background]="energyColor(e)" [attr.title]="e"></b> }
+                    @for (st of pk.status; track st) { <em>{{ st }}</em> }
+                  </li>
+                }
+                @for (pk of side.bench; track pk.uid) {
+                  <li class="pk"><span>{{ pk.name }}</span>
+                    @if (pk.hp) { <span class="hpnum">{{ pk.hpLeft }}/{{ pk.hp }}</span> }
+                    @for (e of pk.energy; track $index) { <b class="dot" [style.background]="energyColor(e)" [attr.title]="e"></b> }
+                    @for (st of pk.status; track st) { <em>{{ st }}</em> }
+                  </li>
+                }
+              </ul>
+            </div>
+          }
+        </section>
+      }
+
+      <section class="panel inspect" aria-label="Xem thẻ" aria-live="polite">
+        @if (inspected(); as card) {
+          <h2 class="h3">{{ card.name }} @if (card.code) { <small>{{ card.code }}</small> }</h2>
+          @if (card.hp) {
+            <p class="meta">HP {{ card.hpLeft }}/{{ card.hp }} · Hệ {{ card.typeLabel }} · Yếu: {{ card.weakness ?? 'không' }} · Rút lui: {{ card.retreat }}</p>
+            @if (card.energy.length) { <p class="meta">Năng lượng: @for (e of card.energy; track $index) { <b class="dot" [style.background]="energyColor(e.label)"></b> } {{ card.energy.length }}</p> }
+            @if (card.status.length) { <p class="meta warn">{{ card.status.join(', ') }}</p> }
+            <ul class="moves">
+              @for (move of card.attacks; track move.attack.name) {
+                <li><strong>{{ move.attack.name }}</strong> <span>{{ move.costLabel }} · {{ move.attack.damage || '—' }}</span>@if (move.attack.text) { <small>{{ move.attack.text }}</small> }</li>
+              }
+            </ul>
+          }
+        } @else {
+          <p class="meta">Rê chuột (hoặc chạm) vào một thẻ để xem chi tiết.</p>
+        }
+      </section>
+
+      <section class="panel log" aria-label="Nhật ký trận đấu">
+        <h2 class="h3">Nhật ký</h2>
+        <ol aria-live="off">
+          @for (line of log(); track $index) { <li>{{ line }}</li> }
+        </ol>
+      </section>
+    </aside>
+  </div>
+
+  <details class="rules">
+    <summary>Luật chơi rút gọn</summary>
+    <ul>
+      <li>Mỗi bên có 24 lá: 9 Pokémon (Charizard, Blastoise, Venusaur, Mewtwo, Pikachu, Bulbasaur, Charmander, Squirtle, Eevee) và 15 Năng lượng. Rút 5 lá đầu; không có Pokémon thì chia lại.</li>
+      <li>Đặt 1 Pokémon Chiến đấu và tối đa 3 Pokémon lên băng ghế, rồi bấm "Sẵn sàng". Mỗi bên có 3 Giải thưởng.</li>
+      <li>Mỗi lượt: rút 1 lá → đặt Pokémon (tùy ý) → gắn tối đa 1 Năng lượng → rút lui tối đa 1 lần (bỏ số Năng lượng bằng chi phí rút lui) → tấn công hoặc kết thúc lượt. Tấn công xong là hết lượt. Người đi trước không tấn công ở lượt đầu.</li>
+      <li>Điểm yếu nhân đôi sát thương. Hạ gục Pokémon đối thủ thì lấy 1 Giải thưởng; đối thủ phải chọn Pokémon mới. Thắng khi lấy đủ 3 Giải thưởng, đối thủ hết Pokémon trên bàn, hoặc hết bài để rút.</li>
+      <li>Không có tiến hóa, thẻ Huấn luyện viên, Pokémon Power hay Độc/Bỏng/Ngủ — đây là bản mô phỏng đơn giản hóa, không thay thế luật chính thức.</li>
+    </ul>
+  </details>
+
+  <p class="legal">
+    Sản phẩm mô phỏng phi thương mại do người hâm mộ làm, không liên kết với hay được bảo trợ bởi The Pokémon Company, Nintendo, Creatures hoặc GAME FREAK. Tên Pokémon và hình thẻ thuộc về chủ sở hữu tương ứng; xem nguồn ảnh tại
+    <a href="/assets/cards/pokemon/ATTRIBUTION.md" target="_blank" rel="noopener">ghi nhận nguồn</a>.
+  </p>
+</section>

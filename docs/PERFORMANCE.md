@@ -1,5 +1,10 @@
 # Hiệu năng frontend — cập nhật 2026-10-22
 
+## Sân đấu WebGPU `/san-dau` — local, mới nhất
+
+- Một draw instanced cho toàn cảnh (≤2048 instance, storage buffer ghi mỗi khung), HDR `rgba16float` + bloom nửa độ phân giải (2 vòng Gauss tách trục) + tone-map; poster 9 lớp texture array có mipmap sinh một lần. Chọn thẻ bằng chiếu 4 góc ra màn hình, không đọc GPU.
+- Điều tiết: 60 fps khi có chuyển động/tương tác, ~20 fps khi đứng yên, dừng khi tab ẩn/canvas ngoài khung nhìn; DPR cap 2/1,5/1,25 theo mức đồ họa; tự hạ mức khi trung vị khung >26 ms hai cửa sổ 90 khung. Chi tiết và hạn chế (chưa đo GPU thật) ở [ARENA.md](ARENA.md).
+
 ## Column Spread 6 thẻ + cuộn mượt hơn; backend đọc ít lần gọi mạng — local, mới nhất
 
 Spread: 9 poster, mỗi chu kỳ chọn ngẫu nhiên 6 (2/cột); DPR cap 1,5 (cảm ứng 1,25, low 1); ~30fps khi đang cuộn trang. Backend: bỏ user lookup ở route công khai, cache 30s `/content/*` (xóa khi ghi admin), gom SELECT bằng batch (1 lần gọi Turso), Server-Timing + log ≥1s. Chưa đo trên thiết bị thật/production.

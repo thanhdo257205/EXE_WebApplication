@@ -30,8 +30,9 @@ export class GlobalBarComponent implements OnInit {
       { label: 'Quyền riêng tư', path: '/chinh-sach-quyen-rieng-tu', description: 'Cách thông tin của bạn được bảo vệ.' },
       { label: 'Điều khoản sử dụng', path: '/dieu-khoan-su-dung', description: 'Những điều cần biết khi dùng website.' },
     ] },
-    { id: 'cards', label: 'Thẻ bài', path: '/thu-vien', activePaths: ['/thu-vien'], children: [
+    { id: 'cards', label: 'Thẻ bài', path: '/thu-vien', activePaths: ['/thu-vien', '/san-dau'], children: [
       { label: 'Thư viện thẻ', path: '/thu-vien', description: 'Tra cứu thẻ và hiệu ứng đã phát hành.' },
+      { label: 'Sân đấu mô phỏng', path: '/san-dau', description: 'Đấu thẻ với máy, vẽ bằng WebGPU.' },
       { label: 'Hồ sơ cư dân', path: '/cu-dan', description: 'Tìm hiểu nhân vật và kỹ năng.' },
     ] },
     { id: 'guide', label: 'Cách chơi', path: '/cach-choi', activePaths: ['/cach-choi', '/quy-nha'], children: [
