@@ -8,9 +8,9 @@ Cập nhật: 2026-10-22 (Asia/Saigon).
 - [x] ARENA-RENDERER — Renderer WebGPU thuần (texture array + mip, instancing, HDR + bloom + ACES); shader biên dịch và vẽ đúng trên Chromium + SwiftShader.
 - [x] ARENA-PAGE — Trang `/san-dau`, controller, bảng theo dõi, nhật ký, trợ năng bàn phím, chế độ chữ khi thiếu WebGPU, mức đồ họa tự hạ; 205 frontend tests/build qua.
 - [x] ARENA-DOCS — `docs/ARENA.md`, PROGRESS, README.
-- [ ] ARENA-DEVICE — Đo FPS/GPU và xem hình trên thiết bị thật (Chrome/Edge/Safari/Android) sau khi phát hành.
+- [ ] ARENA-DEVICE — Đo FPS/GPU và xem hình trên thiết bị thật; mới có xác nhận chơi được trên Chrome, còn Edge/Safari/Firefox/Android và số đo FPS chưa có.
 - [x] ARENA-RELEASE — PR #9 merge (`c956503`), CI main và CD 39809170745 thành công gồm smoke production.
-- [ ] ARENA-PROD-VERIFY — Mở `/san-dau` trên production bằng trình duyệt có WebGPU; sandbox hiện bị chặn host `exe-webapp.pages.dev` nên chưa xác nhận.
+- [x] ARENA-PROD-VERIFY — Chủ dự án mở `/san-dau` trên production bằng Chrome và chơi được (2026-10-22, tự báo cáo; chưa có số FPS/GPU). Sandbox vẫn bị chặn host `exe-webapp.pages.dev` nên tôi không tự kiểm tra được.
 - [ ] ARENA-IP — Quyết định thay ảnh thẻ bằng nội dung gốc trước khi thương mại hóa (ảnh hiện thuộc The Pokémon Company).
 
 ## Chuyển sang Turso Free (2026-10-22)

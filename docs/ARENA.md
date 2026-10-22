@@ -1,6 +1,6 @@
 # Sân đấu mô phỏng thẻ bài (`/san-dau`)
 
-Bản thử nghiệm, cập nhật 2026-10-22 (đã merge PR #9 và CD thành công; chưa xác nhận trực tiếp trên production). Đấu **có luật với máy** theo kiểu Pokémon TCG rút gọn, dùng 9 thẻ Pokémon mẫu đã có (không gồm thẻ Hoàng Nam). Cảnh 3D vẽ bằng **WebGPU thuần — không thêm thư viện nào**.
+Bản thử nghiệm, cập nhật 2026-10-22 (đã merge PR #9, CD thành công, chủ dự án xác nhận chơi được trên Chrome (production)). Đấu **có luật với máy** theo kiểu Pokémon TCG rút gọn, dùng 9 thẻ Pokémon mẫu đã có (không gồm thẻ Hoàng Nam). Cảnh 3D vẽ bằng **WebGPU thuần — không thêm thư viện nào**.
 
 ## Luật rút gọn
 - Mỗi bên 24 lá: 9 Pokémon + 15 Năng lượng (4 Lửa, 3 Nước, 4 Cỏ, 2 Điện, 2 Tâm linh). Tay 5 lá (không có Pokémon thì chia lại), 3 Giải thưởng, băng ghế tối đa 3.
