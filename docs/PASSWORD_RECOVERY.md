@@ -1,3 +1,5 @@
+> Cập nhật chuyển đổi2026-10-22: backend TypeScript/Turso ở `backend/server/` thay Spring Boot/PostgreSQL. Các đường dẫn API/nghiệp vụ giữ nguyên; chi tiết runtime, giao dịch, OAuth và trạng thái triển khai mới xem [TURSO_MIGRATION.md](TURSO_MIGRATION.md). Các hướng dẫn Java/Aiven bên dưới là lịch sử trước chuyển đổi.
+
 # Khôi phục mật khẩu và JWT
 
 Cập nhật 2026-10-20. Code hiện có trong commit local 96d2b01; live Render được kiểm tra vẫn 3c66908. Render đã có RESEND_API_KEY, sender thử, PASSWORD_RESET_ENABLED=true và public origin đúng; đã bổ sung JWT_SECRET ngẫu nhiên và đọc lại xác minh. Chưa gửi email từ backend thật hoặc xác minh domain gửi mail.

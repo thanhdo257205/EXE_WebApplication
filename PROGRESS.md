@@ -4,6 +4,18 @@
 
 ## Cập nhật gần nhất
 
+### Backend TypeScript / Turso — đang chuẩn bị cutover, 2026-10-22
+
+- Người dùng đã đăng nhập Turso dothanh và chọn viết lại backend TypeScript, giữ Angular. Đã tạo exe-webapp trên plan Free/overages disabled. Backup Aiven + phục hồi SQLite qua;37bảng/27dòng nghiệp vụ đã import/đối chiếu từng trường trên Turso, không đưa Flyway history vào schema mới. Source còn nhận ghi nên phải đồng bộ cuối trước cutover.
+- Hono/SDKlibSQL/jose/bcryptjs/PayOS SDK thay runtime Spring Boot; giữ API, kiểm tra JWT/version/CSRF/proxy, OAuthPKCE, content/admin/feedback/SSE, inbox/ledger/kho và đối soát. Docker/CI chuyển sang Node24; source Java giữ làm lịch sử.
+-18tests local qua;1test remote riêng đã qua gồm checkout tranh sản phẩm cuối, retry/webhook đồng thời trên Turso thật, rollbackFK và HMACPayOS với khóa thử. Provider nghiệp vụ là mock. Production-mode local smoke đọc tài khoản/đơn hàng/dashboard qua. Render đã Save only4biến mới; chưa redeploy/xóa Aiven tại mốc này. Chi tiết, giới hạn và rollback: [TURSO_MIGRATION.md](docs/TURSO_MIGRATION.md).
+
+
+### Chuẩn bị Turso Free và gỡ Aiven CLI — 2026-10-22
+
+- Đã cài Turso CLI v1.0.34 trong Ubuntu WSL; chưa đăng nhập, người dùng đang đăng ký Free. Đã gỡ `aiven-client`4.18.0 của Python3.14 user-install; xác minh package/launcher không còn.
+- Xác nhận Aiven `exe-web-pg`/`defaultdb`, PostgreSQL18.6, RUNNING, free-1-1gb. Đã cài client PostgreSQL18.6 trong WSL để backup; API Aiven trả password bị che, dump bị từ chối nên chưa có backup hợp lệ. Không reset password production. Chưa tạo DB Turso, đổi runtime, commit/push/deploy hoặc xóa Aiven. Xóa dịch vụ sau khi sao lưu/chuyển đổi/xác minh. Chi tiết: [TURSO_MIGRATION.md](docs/TURSO_MIGRATION.md).
+
 ### Giảm tải PostgreSQL/backend — đợt phát hành GitHub 2026-10-22
 
 - Điều tra bằng CLI xác nhận Aiven Free 1 GB đang RUNNING; metric 24 giờ tới13:58: RAM đỉnh95,05%, cuối63,10%, disk12,65%. Chưa xác định tác nhân OOM; không suy ra cảnh báo connection closed là nguyên nhân. Chi tiết và giới hạn bằng chứng: [RESOURCE_USAGE.md](docs/RESOURCE_USAGE.md).

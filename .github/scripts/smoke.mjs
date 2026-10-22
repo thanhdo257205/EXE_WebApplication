@@ -18,7 +18,8 @@ assert.equal((await get(`${origin}/api/v1/info`)).status, 403, 'Missing browser 
 assert.equal((await get(`${origin}/api/v1/info`, { Origin: 'https://example.org' })).status, 403, 'Foreign origin');
 assert.equal((await get(`${process.env.BACKEND_ORIGIN}/api/v1/info`)).status, 403, 'Direct backend guard');
 const health = await get(`${process.env.BACKEND_ORIGIN}/actuator/health`);
-assert.equal(health.status, 200, 'Backend and PostgreSQL health');
+assert.equal(health.status, 200, 'Backend and Turso health');
+assert.equal(body.storage, 'turso', 'Migrated storage');
 assert.equal((await health.json()).status, 'UP');
 const paymentConfig = await get(`${origin}/api/v1/payments/config`, { Origin: origin });
 assert.equal(paymentConfig.status, 200, 'Payment configuration');

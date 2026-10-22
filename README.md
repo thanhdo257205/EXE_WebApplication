@@ -2,6 +2,28 @@
 
 Website board game **Chưa Giàu Đã Lớn — Nhà Này Hơi Báo!**
 
+## Chuyển đổi backend sang Turso — 2026-10-22
+
+Backend mới nằm trong `backend/server/`: **TypeScript trên Node.js24, Hono, SDK libSQL/Turso**, giữ frontend Angular và các đường dẫn API. Dockerfile/CI đã chuyển sang runtime mới; source Spring Boot và migration PostgreSQL được giữ để tham chiếu lịch sử. Trạng thái triển khai thực tế xem [PROGRESS.md](PROGRESS.md), không suy ra đã deploy từ việc có source.
+
+Đã sao lưu Aiven và phục hồi thử sang SQLite; bản sao Turso đối chiếu từng trường của37bảng/27dòng nghiệp vụ khớp snapshot.18tests local qua;1test remote riêng đã qua, gồm giao dịch đồng thời trên database Turso dùng riêng cho kiểm thử và HMAC PayOS thật với khóa thử. Không tạo thanh toán thật trong kiểm thử. Chuyển production/xóa Aiven chỉ sau khi đồng bộ cuối và xác minh.
+
+Chạy backend local:
+
+```powershell
+cd backend/server
+npm ci
+npm start
+```
+
+Mặc định dùng SQLite local (file được gitignore), không cần cloud hoặc JDK. Remote/production cần `TURSO_DATABASE_URL`, token database, `JWT_SECRET` và `ORIGIN_PROXY_SECRET`; tham khảo `.env.example`. Giữ secrets ngoài Git. Frontend chạy `npm start` trong `frontend/` như trước.
+
+Chi tiết kiến trúc, import/verify, cutover và rollback: [TURSO_MIGRATION.md](docs/TURSO_MIGRATION.md). Hướng dẫn backend: [backend/README.md](backend/README.md).
+
+## Lịch sử trước chuyển đổi Turso
+
+Các ghi chú và lệnh Spring Boot/Aiven dưới đây mô tả stack cũ. Dùng phần hướng dẫn TypeScript ở trên cho backend mới; trạng thái từng lần phát hành cũ được giữ làm lịch sử.
+
 ## Công nghệ và trạng thái
 
 Bản local mới áp dụng [liquid glass cho nút toàn giao diện](docs/LIQUID_GLASS_CONTROLS.md), gồm public/auth/catalog/3D/mobile/admin. Dùng pointer delegation dùng chung, không loop hoặc blur trên từng nút khi idle;127frontend tests/build và browser fixture đã qua. Chưa commit/push/deploy bản nút kính mới.

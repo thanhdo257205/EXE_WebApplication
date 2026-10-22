@@ -1,3 +1,5 @@
+> Cập nhật chuyển đổi2026-10-22: backend TypeScript/Turso ở `backend/server/` thay Spring Boot/PostgreSQL. Các đường dẫn API/nghiệp vụ giữ nguyên; chi tiết runtime, giao dịch, OAuth và trạng thái triển khai mới xem [TURSO_MIGRATION.md](TURSO_MIGRATION.md). Các hướng dẫn Java/Aiven bên dưới là lịch sử trước chuyển đổi.
+
 # Thông báo quản trị qua SSE
 
 Đợt triển khai local 2026-10-20. Phạm vi: chuông thông báo cho ADMIN khi nhận **phản hồi người chơi mới**. Chưa gửi email, chưa thông báo cho CUSTOMER, chưa có sự kiện thanh toán/kho/đơn hàng. Không đổi dịch vụ hoặc gói cloud; chưa push/deploy/kiểm thử production trong đợt này.
