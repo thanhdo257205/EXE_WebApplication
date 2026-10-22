@@ -208,7 +208,7 @@ html[data-perf='low'] .mobile-drawer {
   transition: transform .85s cubic-bezier(.65, 0, .35, 1);
 }
 #boot-curtain.leave { transform: translateY(-105%); }
-#boot-curtain .boot-logo { width: 112px; height: 112px; border-radius: 22px; box-shadow: 0 0 0 1px #f3f1ea26; }
+#boot-curtain .boot-logo { display: grid; place-items: center; width: 112px; height: 112px; border-radius: 22px; background: #141618; box-shadow: 0 0 0 1px #dafa7666; color: #dafa76; font: 400 68px/1 var(--font-display, Anton, Impact, sans-serif); }
 #boot-curtain .boot-mark { display: grid; gap: .1em; text-align: center; font-weight: 900; font-size: clamp(30px, 6vw, 60px); line-height: 1; letter-spacing: -.03em; }
 #boot-curtain .boot-mark em { font-family: Fraunces, Georgia, serif; font-weight: 700; color: #dafa76; }
 #boot-curtain .boot-track { width: 10rem; height: 1px; overflow: hidden; border-radius: 999px; background: #f3f1ea33; }
