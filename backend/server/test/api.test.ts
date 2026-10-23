@@ -239,3 +239,52 @@ test('public reads skip the per-request user lookup but protected routes still v
   assert.equal((await f.request('GET', '/api/v1/shop/products', undefined, f.user)).status, 200);
   assert.equal((await f.request('GET', '/api/v1/orders', undefined, f.user)).status, 401);
 });
+
+test('address book: CRUD is owner-only, first address is default, one default at a time, limit enforced', async t => {
+  const f = await fixture(); t.after(() => f.db.close());
+  const input = (extra: Record<string, unknown> = {}) => ({ label: 'Nhà', recipientName: 'Khách thử', phone: '0901234567', addressLine: '12 Đường Thử', ward: 'Phường 1', district: 'Quận 1', province: 'TP. Hồ Chí Minh', ...extra });
+  assert.equal((await f.request('GET', '/api/v1/addresses', undefined, null)).status, 401);
+  assert.deepEqual(await (await f.request('GET', '/api/v1/addresses')).json(), []);
+
+  const first = await f.request('POST', '/api/v1/addresses', input()); assert.equal(first.status, 201);
+  const a = await first.json(); assert.equal(a.isDefault, true); assert.equal(a.province, 'TP. Hồ Chí Minh');
+  const b = await (await f.request('POST', '/api/v1/addresses', input({ label: 'Cơ quan', addressLine: '34 Đường Mẫu' }))).json(); assert.equal(b.isDefault, false);
+  const c = await (await f.request('POST', '/api/v1/addresses', input({ label: 'Quê', isDefault: true }))).json(); assert.equal(c.isDefault, true);
+  let listed = await (await f.request('GET', '/api/v1/addresses')).json();
+  assert.equal(listed.filter((x: any) => x.isDefault).length, 1); assert.equal(listed[0].id, c.id);
+
+  // Người khác không thấy/sửa/xóa được địa chỉ của mình.
+  assert.deepEqual(await (await f.request('GET', '/api/v1/addresses', undefined, f.other)).json(), []);
+  assert.equal((await f.request('PUT', `/api/v1/addresses/${a.id}`, input(), f.other)).status, 404);
+  assert.equal((await f.request('DELETE', `/api/v1/addresses/${a.id}`, undefined, f.other)).status, 404);
+  assert.equal((await f.request('POST', `/api/v1/addresses/${a.id}/default`, undefined, f.other)).status, 404);
+
+  const edited = await (await f.request('PUT', `/api/v1/addresses/${b.id}`, input({ addressLine: '56 Đường Sửa', label: null }))).json();
+  assert.equal(edited.addressLine, '56 Đường Sửa'); assert.equal(edited.label, null); assert.equal(edited.isDefault, false);
+
+  listed = await (await f.request('POST', `/api/v1/addresses/${a.id}/default`)).json();
+  assert.equal(listed.find((x: any) => x.isDefault).id, a.id);
+  listed = await (await f.request('DELETE', `/api/v1/addresses/${a.id}`)).json();   // xóa mặc định → địa chỉ mới nhất còn lại thành mặc định
+  assert.equal(listed.length, 2); assert.equal(listed.filter((x: any) => x.isDefault).length, 1);
+
+  for (let i = 0; i < 8; i++) assert.equal((await f.request('POST', '/api/v1/addresses', input({ label: `Thêm ${i}` }))).status, 201);
+  assert.equal((await f.request('POST', '/api/v1/addresses', input())).status, 409);   // tối đa 10 địa chỉ
+});
+
+test('address book rejects invalid input, requires CSRF and keeps the checkout snapshot independent', async t => {
+  const f = await fixture(); t.after(() => f.db.close());
+  const valid = { recipientName: 'Khách thử', phone: '0901234567', addressLine: '12 Đường Thử', province: 'Hà Nội' };
+  for (const bad of [{ ...valid, phone: 'abc' }, { ...valid, recipientName: '   ' }, { ...valid, province: '' }, { ...valid, addressLine: 'x'.repeat(501) }, {}]) {
+    assert.equal((await f.request('POST', '/api/v1/addresses', bad)).status, 400);
+  }
+  assert.equal((await f.request('POST', '/api/v1/addresses', valid, f.user, { 'X-XSRF-TOKEN': 'wrong' })).status, 403);
+  assert.equal((await f.request('GET', `/api/v1/addresses/not-a-uuid`)).status, 404);
+
+  const saved = await (await f.request('POST', '/api/v1/addresses', valid)).json();
+  // Đơn hàng lưu bản chụp địa chỉ lúc mua: sửa/xóa sổ địa chỉ sau đó không đổi đơn cũ.
+  const order = await (await f.request('POST', '/api/v1/checkout', { idempotencyKey: 'a'.repeat(20), items: [{ variantId: f.variant, quantity: 1 }], recipientName: saved.recipientName, recipientPhone: saved.phone, addressLine: saved.addressLine, province: saved.province, note: null })).json();
+  await f.request('PUT', `/api/v1/addresses/${saved.id}`, { ...valid, addressLine: '99 Đường Mới' });
+  await f.request('DELETE', `/api/v1/addresses/${saved.id}`);
+  const row = await one(f.db, 'SELECT shipping_address_line,shipping_province FROM orders WHERE id=?', [order.id]);
+  assert.equal(row.shipping_address_line, '12 Đường Thử'); assert.equal(row.shipping_province, 'Hà Nội');
+});

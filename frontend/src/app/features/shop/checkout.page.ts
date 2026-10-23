@@ -7,6 +7,8 @@ import { finalize, timer } from 'rxjs';
 import { AuthService } from '../../core/auth/auth.service';
 import { formatVnd, ShopOrder, ShopProduct, ShopService, ShopVariant } from '../../core/shop/shop.service';
 import { RiseHeadingDirective } from '../../shared/motion/rise-heading.directive';
+import { Address, fullAddressLine } from '../../core/shop/address.service';
+import { AddressBookComponent } from '../../shared/components/address-book/address-book.component';
 
 const POLL_MS = 5_000;
 
@@ -23,7 +25,7 @@ export function checkoutErrorMessage(error: unknown): string {
 @Component({
   selector: 'app-checkout-page',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, RiseHeadingDirective],
+  imports: [ReactiveFormsModule, RouterLink, RiseHeadingDirective, AddressBookComponent],
   templateUrl: './checkout.page.html',
   styleUrl: './checkout.page.css',
 })
@@ -45,11 +47,9 @@ export class CheckoutPage {
   readonly notice = signal<string | null>(null);
   readonly price = formatVnd;
 
+  /** Địa chỉ giao hàng đang chọn trong sổ địa chỉ (null khi chưa có địa chỉ nào). */
+  readonly address = signal<Address | null>(null);
   readonly form = this.fb.nonNullable.group({
-    recipientName: ['', [Validators.required, Validators.maxLength(120)]],
-    recipientPhone: ['', [Validators.required, Validators.pattern(/^[+0-9 ()-]{8,32}$/)]],
-    addressLine: ['', [Validators.required, Validators.maxLength(500)]],
-    province: ['', [Validators.required, Validators.maxLength(120)]],
     note: ['', [Validators.maxLength(1000)]],
   });
 
@@ -58,10 +58,6 @@ export class CheckoutPage {
 
   constructor() {
     effect(() => this.loadProduct(this.variant()));
-    effect(() => {
-      const user = this.auth.currentUser();
-      if (user && !this.form.controls.recipientName.value) this.form.controls.recipientName.setValue(user.displayName);
-    });
     this.destroyRef.onDestroy(() => { this.polling = false; });
   }
 
@@ -85,11 +81,15 @@ export class CheckoutPage {
   get loginQuery() { return { returnUrl: `/gio-hang?variant=${this.variant() ?? ''}` }; }
 
   submit() {
-    const variant = this.selected();
+    const variant = this.selected(), address = this.address();
     if (!variant || this.submitting()) return;
+    if (!address) { this.error.set('Hãy thêm hoặc chọn địa chỉ giao hàng trước khi thanh toán.'); return; }
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
     const value = this.form.getRawValue();
-    const input = { ...value, note: value.note.trim() || null };
+    const input = {
+      recipientName: address.recipientName, recipientPhone: address.phone, addressLine: fullAddressLine(address), province: address.province,
+      note: value.note.trim() || null,
+    };
     const fingerprint = JSON.stringify([variant.id, input]);
     // Giữ nguyên khóa khi thử lại cùng dữ liệu (tránh tạo đơn trùng); đổi dữ liệu thì cần khóa mới.
     if (this.idempotency?.fingerprint !== fingerprint) this.idempotency = { fingerprint, key: crypto.randomUUID() };

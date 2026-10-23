@@ -19,6 +19,12 @@ Cập nhật: 2026-10-22 (Asia/Saigon).
 - [x] ARENA-PROD-VERIFY — Chủ dự án mở `/san-dau` trên production bằng Chrome và chơi được (2026-10-22, tự báo cáo; chưa có số FPS/GPU). Sandbox vẫn bị chặn host `exe-webapp.pages.dev` nên tôi không tự kiểm tra được.
 - [ ] ARENA-IP — Quyết định thay ảnh thẻ bằng nội dung gốc trước khi thương mại hóa (ảnh hiện thuộc The Pokémon Company).
 
+## Sổ địa chỉ giao hàng (2026-10-23)
+
+- [x] ADDR-API — CRUD địa chỉ + mặc định, owner-only, giới hạn 10, CSRF; 2 test backend mới.
+- [x] ADDR-UI — Component sổ địa chỉ, trang `/dia-chi`, link header/menu; trang thanh toán chọn địa chỉ, chưa có thì nhập ngay rồi mua; 12 test frontend mới.
+- [ ] ADDR-PROD — Thử trên production: thêm/sửa/xóa địa chỉ và mua bằng địa chỉ đã lưu (cần deploy).
+
 ## Chuyển sang Turso Free (2026-10-22)
 
 - [x] TURSO-CLI — Cài Turso CLI v1.0.34 trong Ubuntu WSL, kiểm tra phiên bản thành công.

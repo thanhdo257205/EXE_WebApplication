@@ -4,6 +4,12 @@
 
 ## Cập nhật gần nhất
 
+### Sổ địa chỉ giao hàng — 2026-10-23, local → PR
+
+- Theo yêu cầu "user nhập địa chỉ, mua chỉ cần chọn; chưa có địa chỉ thì vào phần nhập rồi mua": backend thêm `addresses.ts` (CRUD + mặc định, tối đa 10, chỉ chủ sở hữu, dùng bảng `user_addresses` sẵn có); frontend thêm `AddressService`, component dùng chung `app-address-book`, trang `/dia-chi`, link "Địa chỉ" ở header/menu di động; trang thanh toán chọn địa chỉ (mặc định chọn sẵn, nút mua khóa tới khi có địa chỉ, chưa có thì mở sẵn form). Đơn vẫn lưu bản chụp địa chỉ; code PayOS/checkout không đổi. Chi tiết: [docs/ADDRESS_BOOK.md](docs/ADDRESS_BOOK.md).
+- Xác minh: backend 22 test (thêm 2), `tsc` qua; frontend 226 test (thêm 12), build qua; Chromium + API giả lập xem cả hai luồng, body checkout đúng. Chưa thử với backend production; đây không phải kiểm tra thanh toán thật.
+- Việc tiếp theo: sau deploy thử thêm/sửa/xóa địa chỉ và một đơn thật bằng địa chỉ đã lưu; cân nhắc trang lịch sử đơn (SHOP-03) và chọn địa chỉ cho đơn nhiều sản phẩm.
+
 ### PayOS: webhook thật đã về — 2026-10-23, tự báo cáo
 
 - Chủ dự án chạy thử thanh toán thật trên production và báo PayOS đã gửi webhook thật tới backend. Đây là xác nhận của người dùng; phiên này không có quyền xem log/DB production nên chưa tự kiểm tra.

@@ -55,19 +55,12 @@
             </div>
           } @else {
             <form class="form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
-              <h2>Thông tin giao hàng</h2>
-              <label>Họ và tên<input formControlName="recipientName" autocomplete="name" maxlength="120" /></label>
-              @if (form.controls.recipientName.touched && form.controls.recipientName.invalid) { <p class="field-error">Vui lòng nhập họ tên.</p> }
-              <label>Số điện thoại<input formControlName="recipientPhone" autocomplete="tel" inputmode="tel" maxlength="32" /></label>
-              @if (form.controls.recipientPhone.touched && form.controls.recipientPhone.invalid) { <p class="field-error">Số điện thoại gồm 8–32 ký tự số, +, khoảng trắng hoặc dấu ngoặc.</p> }
-              <label>Địa chỉ nhận hàng<input formControlName="addressLine" autocomplete="street-address" maxlength="500" placeholder="Số nhà, đường, phường/xã, quận/huyện" /></label>
-              @if (form.controls.addressLine.touched && form.controls.addressLine.invalid) { <p class="field-error">Vui lòng nhập địa chỉ.</p> }
-              <label>Tỉnh / Thành phố<input formControlName="province" autocomplete="address-level1" maxlength="120" /></label>
-              @if (form.controls.province.touched && form.controls.province.invalid) { <p class="field-error">Vui lòng nhập tỉnh/thành phố.</p> }
-              <label>Ghi chú (không bắt buộc)<textarea formControlName="note" rows="3" maxlength="1000"></textarea></label>
+              <h2>Địa chỉ giao hàng</h2>
+              <app-address-book [selectable]="true" (selection)="address.set($event); error.set(null)" />
+              <label>Ghi chú cho đơn (không bắt buộc)<textarea formControlName="note" rows="3" maxlength="1000"></textarea></label>
               @if (error()) { <p class="field-error" role="alert">{{ error() }}</p> }
-              <button class="cta submit" type="submit" [disabled]="submitting()">{{ submitting() ? 'Đang tạo mã thanh toán…' : 'Thanh toán ' + price(selected()!.priceAmount) }}</button>
-              <p class="hint">Bạn sẽ nhận mã QR thanh toán từ PayOS ngay sau khi bấm nút.</p>
+              <button class="cta submit" type="submit" [disabled]="submitting() || !address()">{{ submitting() ? 'Đang tạo mã thanh toán…' : address() ? 'Thanh toán ' + price(selected()!.priceAmount) : 'Nhập địa chỉ để thanh toán' }}</button>
+              <p class="hint">Bạn sẽ nhận mã QR thanh toán từ PayOS ngay sau khi bấm nút. Địa chỉ được lưu vào sổ địa chỉ để lần sau chỉ cần chọn.</p>
             </form>
           }
         </div>
