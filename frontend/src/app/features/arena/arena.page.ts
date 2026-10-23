@@ -88,6 +88,8 @@ export class ArenaPage {
   private cleanups: (() => void)[] = [];
   private destroyed = false;
   private readonly tutorial = new Tutorial();
+  /** Số lượt lúc người chơi bấm tấn công (null nếu chưa tấn công trong ván hướng dẫn). */
+  private attackTurn: number | null = null;
   private stageSize = { w: 0, h: 0 };
   private frameCount = 0;
   private guideUids: ReadonlySet<number> = new Set();
@@ -320,7 +322,10 @@ export class ArenaPage {
     this.pinnedUid = uid; this.refreshInspect();
   }
 
-  attack(index: number): void { this.act({ t: 'attack', index }); }
+  attack(index: number): void {
+    const turn = this.ctl.displayed.turnNumber;
+    if (this.act({ t: 'attack', index })) this.attackTurn = turn;
+  }
   endTurn(): void { this.act({ t: 'end' }); }
   ready(): void { this.act({ t: 'ready' }); }
   toggleRetreat(): void {
@@ -335,6 +340,7 @@ export class ArenaPage {
   /** Bắt đầu ván mới; chế độ hướng dẫn ép người chơi đi trước để có đủ các bước (gắn Năng lượng, tấn công). */
   private beginGame(tutorial: boolean): void {
     this.selectedUid.set(null); this.retreating.set(false); this.pinnedUid = null; this.hoverUid = null; this.popups.set([]); this.hint.set('');
+    this.attackTurn = null;
     if (tutorial) this.tutorial.start(); else this.tutorial.stop();
     this.ctl.start(undefined, tutorial ? { first: 0 } : {});
     this.refresh();
@@ -354,7 +360,13 @@ export class ArenaPage {
 
   private refreshCoach(): void {
     const game = this.ctl.displayed, view = this.view();
-    const step = this.tutorial.active && view ? this.tutorial.current(game, { canAct: view.canAct, canAttack: view.attacks.some(a => a.enabled) }) : null;
+    const selectedUid = this.selectedUid();
+    const selectedCard = selectedUid === null ? undefined : game.sides[0].hand.find(c => c.uid === selectedUid);
+    // Đòn đánh chỉ tính là "đã xong" khi cảnh đã trình bày xong lượt tấn công (lượt đổi hoặc ván kết thúc/chờ chọn thay thế).
+    const attacked = this.attackTurn !== null && (game.turnNumber !== this.attackTurn || game.phase === 'over' || game.phase === 'promote');
+    const step = this.tutorial.active && view
+      ? this.tutorial.current(game, { canAct: view.canAct, canAttack: view.attacks.some(a => a.enabled), selected: selectedCard?.kind ?? null, attacked })
+      : null;
     this.coach.set(step);
     if (this.tutorial.completed) this.markTutorialSeen();
     const me = game.sides[0], canAct = !!view?.canAct;

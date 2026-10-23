@@ -4,6 +4,12 @@
 
 ## Cập nhật gần nhất
 
+### Sân đấu: sửa thẻ tay che ô + hướng dẫn tới đòn tấn công đầu tiên — 2026-10-23, local → PR
+
+- Phản hồi người dùng: chọn lá thứ 3 (Năng lượng) thì lá nâng lên che mất Pokémon phía trên nên không gắn được, và chưa hiểu cách chơi. **Sửa**: thẻ tay được rê/chọn chỉ phóng nhẹ + quầng sáng, không còn nhấc về phía băng ghế; khi đang chọn đích, `pickAt` ưu tiên Pokémon hợp lệ dù thẻ tay chồng lên; dời tay bài xuống 0,25 đơn vị để có khoảng cách với băng ghế (camera fit lại).
+- **Hướng dẫn** (nay 18 bước): thêm bước "Năng lượng dùng để làm gì?" (nêu chi phí đòn đánh thật), bước gắn Năng lượng 2 nhịp (chọn thẻ → bấm Pokémon, hộp tự đổi điểm chỉ), bước "tấn công đầu tiên" thích ứng theo tình huống (lượt 1 kết thúc lượt, chờ máy, đủ Năng lượng → chỉ nút đòn đánh, thiếu → gắn thêm/kết thúc lượt) và bước xem kết quả trên thanh HP; chỉ sang mẹo khi người chơi thật sự đã tấn công.
+- Xác minh: frontend 215/215 tests (mới: pick ưu tiên đích, thẻ tay không dịch y, luồng hướng dẫn tới đòn tấn công); Chromium + SwiftShader xem thẻ Năng lượng được chọn nằm gọn trong vùng tay. Chưa thử hướng dẫn trọn vẹn trên GPU thật/production.
+
 ### Hướng dẫn chỉ trực tiếp trên bàn chơi — 2026-10-22, local
 
 - Theo phản hồi "hướng dẫn đặt dưới khó nhìn, muốn hộp thoại chỉ vào từng chỗ trên bàn": hộp hướng dẫn chuyển vào trong sân, có đuôi trỏ + vòng sáng chỉ vào khu vực/thẻ/thanh HP/nút đang nói tới (`CoachAnchor` tính từ toạ độ thế giới qua `scene.zoneWorld/hpWorld/cardWorld`); phần giới thiệu sân tách thành 5 bước theo từng khu vực (tổng 16 bước). Chế độ chữ vẫn dùng khung dưới điều khiển.
