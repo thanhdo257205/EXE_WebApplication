@@ -191,7 +191,7 @@ export class HeroScene {
     this.pushBox(root, open);
 
     // --- Thẻ trong hộp: bay lên xòe quạt khi cuộn ---
-    const rise = easeInOut(span(p, 0.38, 0.8));
+    const rise = easeInOut(span(p, 0.3, 0.72));
     const away = easeIn2(span(p, 0.84, 1));
     for (let i = 0; i < INNER; i++) {
       const o = i - (INNER - 1) / 2;
