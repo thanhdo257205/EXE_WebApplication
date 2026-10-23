@@ -1,0 +1,33 @@
+.popups{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.popup{position:absolute;transform:translate(-50%,-50%);font-family:var(--font-display,'Anton',Impact,sans-serif);font-size:clamp(22px,3.4vw,40px);letter-spacing:.02em;color:#ffd7cf;text-shadow:0 2px 12px #000,0 0 18px #ff4a2a;animation:rise 1.45s cubic-bezier(.16,1,.3,1) forwards;white-space:nowrap}
+.popup.weak{color:#ffe9a0;text-shadow:0 2px 12px #000,0 0 22px #ffb300;font-size:clamp(28px,4.4vw,52px)}
+.popup.heal{color:#c9ffd2;text-shadow:0 2px 12px #000,0 0 18px #3ee26a}
+.popup.coin{color:#fff3c4}
+.popup.ko{color:#fff;font-size:clamp(30px,5vw,60px)}
+@keyframes rise{0%{opacity:0;transform:translate(-50%,-30%) scale(.7)}12%{opacity:1;transform:translate(-50%,-60%) scale(1.12)}70%{opacity:1}100%{opacity:0;transform:translate(-50%,-190%) scale(1)}}
+@media(prefers-reduced-motion:reduce){.popup{animation:none}}
+.labels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.zone{position:absolute;transform:translate(-50%,-50%);font-size:10px;font-weight:600;letter-spacing:.2em;color:#b9f26a;opacity:.5;text-shadow:0 1px 6px #000;white-space:nowrap}
+.zone.foe{color:#8fb8ff}.zone.right{transform:translate(-100%,-50%)}.zone.left{transform:translate(0,-50%)}
+.labels.big .zone{opacity:1;font-size:12px}
+@media(max-width:680px){.labels:not(.big){display:none}}
+.coach{position:relative;margin:14px 0 0;padding:16px 18px 20px;border:1px solid #dafa76;border-radius:16px;background:#141b10;box-shadow:0 0 0 4px #dafa7614}
+.coach-step{margin:0;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#dafa76}
+.coach-title{margin:6px 0 4px;font-size:18px}.coach-text{margin:0;color:#d9dcd0;line-height:1.65;font-size:14.5px;max-width:78ch}
+.coach-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:12px}
+.link{background:none;border:0;color:#8f9289;text-decoration:underline;font-size:13px;padding:8px 4px;min-height:44px}.link:hover{color:#f3f1ea}
+.coach-bar{position:absolute;left:18px;right:18px;bottom:8px;height:3px;border-radius:9px;background:#f3f1ea1a;overflow:hidden}.coach-bar b{display:block;height:100%;background:#dafa76;transition:width .4s}
+.guided{outline:2px solid #dafa76;outline-offset:3px;animation:glow 1.2s ease-in-out infinite}
+@keyframes glow{50%{outline-color:#dafa7633;box-shadow:0 0 18px #dafa76aa}}
+@media(prefers-reduced-motion:reduce){.guided{animation:none}}
+.bubble{position:absolute;z-index:4;margin:0;padding:10px 13px 17px;background:#10170dee;box-shadow:0 10px 30px #000a,0 0 0 4px #dafa7614;animation:pop .35s cubic-bezier(.16,1,.3,1)}
+.bubble.center{transform:translateY(-50%)}
+.bubble .coach-title{margin:4px 0 2px;font-size:15px}.bubble .coach-text{font-size:12.5px;line-height:1.5}.bubble .coach-actions{margin-top:8px}.bubble .primary,.bubble .link{min-height:36px;padding-block:6px}
+.bubble::after{content:'';position:absolute;left:var(--tail);width:14px;height:14px;margin-left:-7px;background:#10170d;border:solid #dafa76;border-width:0 1px 1px 0}
+.bubble.above::after{bottom:-8px;transform:rotate(45deg)}
+.bubble.below::after{top:-8px;transform:rotate(225deg)}
+.bubble.center::after{display:none}
+.coach-ring{position:absolute;z-index:3;width:60px;height:60px;margin:-30px 0 0 -30px;border:3px solid #dafa76;border-radius:50%;box-shadow:0 0 18px #dafa76aa;pointer-events:none;animation:ping 1.3s ease-out infinite}
+@keyframes ping{0%{transform:scale(.6);opacity:1}100%{transform:scale(1.25);opacity:.15}}
+@keyframes pop{0%{opacity:0;scale:.92}100%{opacity:1;scale:1}}
+@media(prefers-reduced-motion:reduce){.bubble,.coach-ring{animation:none}}

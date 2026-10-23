@@ -4,6 +4,13 @@
 
 ## Cập nhật gần nhất
 
+### Tối ưu giao diện điện thoại + nút chơi ở chân trang + xoay ngang khi chơi — 2026-10-23, local → PR
+
+- Kiểm tra tự động 21 trang ở 390×844 (Chromium, thiết bị cảm ứng, API giả lập): **tất cả trang công khai bị tràn ngang 140px** do thanh đầu trang (Quản trị/Địa chỉ/Đăng xuất chen mất nút menu và giỏ hàng), trang admin tràn do tiêu đề + huy hiệu + tên + nút Thoát. **Sửa**: header công khai ≤1000px chỉ còn logo, giỏ hàng, nút menu (Quản trị/Địa chỉ/Đăng xuất chuyển vào menu di động); header admin ≤900px ẩn huy hiệu/hồ sơ/Thoát (Đăng xuất chuyển xuống sidebar), ≤520px ẩn chữ tiêu đề; mục tiêu chạm tối thiểu 40–44px trên màn cảm ứng (nút menu, link back/footer/switch, input, filter, nút sidebar). Sau sửa: scrollWidth = 390 trên mọi trang; bảng admin vẫn cuộn ngang trong khung riêng (đúng ý).
+- Theo yêu cầu: nút "Chơi đấu thẻ với máy" ở chân trang (+ mục trong menu di động); điện thoại cầm dọc bị chặn bằng màn "xoay ngang" trước khi chơi, cầm ngang dùng toàn màn hình. Chi tiết ở [docs/ARENA.md](docs/ARENA.md). Tách CSS trang arena thành 2 file để dưới ngưỡng 10 kB; sửa chữ "PostgreSQL Aiven" lỗi thời trong sidebar admin.
+- Xác minh: frontend 227/227 tests; build qua; ảnh chụp mobile (header công khai, menu di động, header admin, màn xoay ngang, sân ở chế độ ngang). **Chưa thử trên điện thoại thật** (xoay máy thật, `screen.orientation.lock`, iOS Safari); chưa xem bố cục từng trang admin khi có dữ liệu thật (API giả lập trả rỗng).
+- Việc tiếp theo: thử trên điện thoại thật; rà bố cục chi tiết từng trang admin/shop với dữ liệu thật; cỡ chữ nhỏ (<12px) còn ở vài chỗ.
+
 ### Sổ địa chỉ giao hàng — 2026-10-23, local → PR
 
 - Theo yêu cầu "user nhập địa chỉ, mua chỉ cần chọn; chưa có địa chỉ thì vào phần nhập rồi mua": backend thêm `addresses.ts` (CRUD + mặc định, tối đa 10, chỉ chủ sở hữu, dùng bảng `user_addresses` sẵn có); frontend thêm `AddressService`, component dùng chung `app-address-book`, trang `/dia-chi`, link "Địa chỉ" ở header/menu di động; trang thanh toán chọn địa chỉ (mặc định chọn sẵn, nút mua khóa tới khi có địa chỉ, chưa có thì mở sẵn form). Đơn vẫn lưu bản chụp địa chỉ; code PayOS/checkout không đổi. Chi tiết: [docs/ADDRESS_BOOK.md](docs/ADDRESS_BOOK.md).

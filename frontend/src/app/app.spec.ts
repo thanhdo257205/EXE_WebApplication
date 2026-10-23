@@ -19,6 +19,8 @@ describe('App shell', () => {
     const element = fixture.nativeElement as HTMLElement;
     expect(element.querySelector('main#main')).toBeTruthy();
     expect(element.querySelector('a[href="/thu-vien"]')).toBeTruthy();
+    const play = element.querySelector('footer a.footer-play');
+    expect(play?.getAttribute('href')).toBe('/san-dau'); expect(play?.textContent).toContain('Chơi đấu thẻ');
     fixture.componentInstance.toggleMobileMenu(); fixture.detectChanges();
     expect(element.querySelector('#public-mobile-menu a[href="/chinh-sach-quyen-rieng-tu"]')).toBeTruthy();
     expect(element.querySelector('#public-mobile-menu a[href="/dieu-khoan-su-dung"]')).toBeTruthy();

@@ -243,3 +243,12 @@ html.lenis, html.lenis body { height: auto; }
 .display .rise-line { margin-top: calc((1.34 - var(--lh, .98)) * -1em); }
 .display .rise-line:first-child { margin-top: calc((1.34 - var(--lh, .98)) * -.5em); }
 .display .rise-line:last-child { margin-bottom: calc((1.34 - var(--lh, .98)) * -.5em); }
+
+/* Sân đấu trên điện thoại cầm ngang: dùng toàn bộ màn hình, ẩn header/footer của site */
+html[data-arena-focus] app-global-bar, html[data-arena-focus] .public-footer, html[data-arena-focus] .skip-link { display: none !important; }
+/* Mục tiêu chạm đủ lớn trên màn cảm ứng */
+@media (pointer: coarse) {
+  .back-link, .text-link, .footer-links a, .footer-meta a, .switch-link, .terms-link, .scroll-link, .metric-link, .filter-btn { display: inline-flex; align-items: center; min-height: 40px; }
+  input:not([type=checkbox]):not([type=radio]):not([type=range]), select { min-height: 44px; }
+  .admin-sidebar button { min-width: 44px; min-height: 44px; }
+}

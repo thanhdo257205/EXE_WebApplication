@@ -21,7 +21,11 @@
             <span class="font-bold text-slate-100 text-sm">{{ user.displayName }}</span>
           </div>
           <span class="text-xs text-[#dafa76]">Cư dân ({{ user.role }})</span>
-          <a routerLink="/dia-chi" (click)="toggleMobileMenu()" class="block mt-2 text-xs text-slate-300 underline">Sổ địa chỉ giao hàng</a>
+          <div class="flex flex-wrap gap-x-4 gap-y-1 mt-2">
+            @if (user.role === 'ADMIN') { <a routerLink="/admin" (click)="toggleMobileMenu()" class="inline-flex items-center min-h-[40px] text-xs text-slate-300 underline">Quản trị</a> }
+            <a routerLink="/dia-chi" (click)="toggleMobileMenu()" class="inline-flex items-center min-h-[40px] text-xs text-slate-300 underline">Sổ địa chỉ giao hàng</a>
+            <button type="button" (click)="logout()" class="inline-flex items-center min-h-[40px] text-xs text-slate-300 underline">Đăng xuất</button>
+          </div>
         </div>
       } @else {
         <div class="flex items-center gap-2 mb-3">
@@ -58,6 +62,10 @@
         <app-morph-icon name="cards" [size]="18" color="#dafa76"></app-morph-icon>
         <span>Thư viện thẻ (148 thẻ)</span>
       </a>
+      <a routerLink="/san-dau" (click)="toggleMobileMenu()" class="drawer-link flex items-center gap-3">
+        <app-morph-icon name="cards" [size]="18" color="#dafa76"></app-morph-icon>
+        <span>Sân đấu thẻ với máy</span>
+      </a>
       <a routerLink="/quy-nha" (click)="toggleMobileMenu()" class="drawer-link flex items-center gap-3">
         <app-morph-icon name="fund" [size]="18" color="#dafa76"></app-morph-icon>
         <span>Mô phỏng Quỹ nhà</span>
@@ -81,7 +89,7 @@
   </main>
   @if (!isAdminRoute()) {
     <footer class="public-footer">
-      <div class="footer-sign"><span class="footer-logo" aria-hidden="true">N</span><a routerLink="/" class="footer-brand display">Nhà này hơi báo!</a><p class="eyebrow">Chưa Giàu Đã Lớn · Cùng nhà, cùng chơi</p></div>
+      <div class="footer-sign"><span class="footer-logo" aria-hidden="true">N</span><a routerLink="/" class="footer-brand display">Nhà này hơi báo!</a><p class="eyebrow">Chưa Giàu Đã Lớn · Cùng nhà, cùng chơi</p><a routerLink="/san-dau" class="footer-play">Chơi đấu thẻ với máy <span aria-hidden="true">→</span></a></div>
       <nav class="footer-links" aria-label="Liên kết chân trang"><a routerLink="/cach-choi">Cách chơi</a><a routerLink="/thu-vien">Thư viện thẻ</a><a routerLink="/cau-chuyen">Câu chuyện</a></nav>
       <div class="footer-meta"><a routerLink="/chinh-sach-quyen-rieng-tu">Quyền riêng tư</a><a routerLink="/dieu-khoan-su-dung">Điều khoản</a><p>© 2026 Nhà Này Hơi Báo!</p></div>
     </footer>

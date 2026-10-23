@@ -13,10 +13,12 @@ describe('ArenaPage (chế độ chữ khi không có WebGPU)', () => {
   const settle = async () => { await fixture.whenStable(); fixture.detectChanges(); };
 
   const store = new Map<string, string>();
+  let portrait = false;
   beforeEach(async () => {
     store.clear();
     vi.stubGlobal('localStorage', { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v) });
-    vi.stubGlobal('matchMedia', () => Object.assign(new EventTarget(), { matches: false }));
+    portrait = false;
+    vi.stubGlobal('matchMedia', (query: string) => Object.assign(new EventTarget(), { matches: portrait && query.includes('orientation: portrait') }));
     vi.stubGlobal('requestAnimationFrame', () => 1);
     TestBed.configureTestingModule({ providers: [provideRouter([])] });
     fixture = TestBed.createComponent(ArenaPage);
@@ -109,5 +111,24 @@ describe('ArenaPage (chế độ chữ khi không có WebGPU)', () => {
     await vi.waitFor(() => expect(page.state()).toBe('text'));
     await settle();
     expect(root().querySelector('.coach')).toBeNull();
+  });
+
+  it('điện thoại cầm dọc bị chặn bằng màn "xoay ngang"; cầm ngang thì chơi bình thường', async () => {
+    fixture.destroy();
+    portrait = true;
+    fixture = TestBed.createComponent(ArenaPage); page = fixture.componentInstance;
+    fixture.detectChanges();
+    await vi.waitFor(() => expect(page.state()).toBe('text'));
+    await settle();
+    expect(page.portraitPhone()).toBe(true);
+    const gate = root().querySelector('app-rotate-gate');
+    expect(gate?.textContent).toContain('xoay ngang');
+    expect(gate?.querySelector('[role=dialog]')?.getAttribute('aria-modal')).toBe('true');
+    fixture.destroy();
+    portrait = false;
+    fixture = TestBed.createComponent(ArenaPage); page = fixture.componentInstance;
+    fixture.detectChanges(); await vi.waitFor(() => expect(page.state()).toBe('text')); await settle();
+    expect(page.portraitPhone()).toBe(false);
+    expect(root().querySelector('app-rotate-gate')).toBeNull();
   });
 });

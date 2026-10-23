@@ -230,3 +230,16 @@
     padding: 2rem;
   }
 }
+
+.admin-title-text { white-space: nowrap; }
+.admin-menu-btn { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+.sidebar-logout { display: none; width: 100%; margin: 0.5rem 0; padding: 0.75rem; min-height: 44px; border: 1px solid #3b1d24; border-radius: 0.5rem; background: #1a0f13; color: #fca5a5; font-size: 0.8rem; font-weight: 600; }
+@media (max-width: 900px) {
+  .admin-badge, .admin-profile-pill, .admin-logout-btn { display: none !important; }
+  .sidebar-logout { display: block; }
+  .admin-topbar { padding: 0 0.5rem; }
+}
+@media (max-width: 520px) {
+  .admin-title-text { display: none; }
+  .back-to-site-btn { min-width: 44px; min-height: 40px; justify-content: center; }
+}

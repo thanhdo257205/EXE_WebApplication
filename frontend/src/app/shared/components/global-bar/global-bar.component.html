@@ -22,8 +22,8 @@
   </div>
   <div class="header-actions">
     @if (auth.currentUser(); as user) {
-      @if (user.role === 'ADMIN') { <a data-glass-control routerLink="/admin" class="account-link">Quản trị</a> }
-      <a data-glass-control routerLink="/dia-chi" class="account-link">Địa chỉ</a><span class="user-name">{{ user.displayName }}</span><button class="account-link" type="button" (click)="logout()">Đăng xuất</button>
+      @if (user.role === 'ADMIN') { <a data-glass-control routerLink="/admin" class="account-link desk-only">Quản trị</a> }
+      <a data-glass-control routerLink="/dia-chi" class="account-link desk-only">Địa chỉ</a><span class="user-name">{{ user.displayName }}</span><button class="account-link desk-only" type="button" (click)="logout()">Đăng xuất</button>
     } @else { <a data-glass-control routerLink="/dang-nhap" class="account-link">Đăng nhập <app-morph-icon name="arrow-right" [size]="16" color="currentColor" /></a> }
     <a routerLink="/gio-hang" appLiquidGlass class="cart-link" aria-label="Giỏ hàng"><app-morph-icon name="cart" [size]="20" color="currentColor" /></a>
     <button class="menu-toggle" type="button" (click)="menuToggle.emit()" [attr.aria-label]="isMobileMenuOpen() ? 'Đóng danh mục menu' : 'Mở danh mục menu'" [attr.aria-expanded]="isMobileMenuOpen()" aria-controls="public-mobile-menu"><app-morph-icon [name]="isMobileMenuOpen() ? 'close' : 'menu'" [size]="24" color="currentColor" /></button>

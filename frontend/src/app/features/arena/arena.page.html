@@ -1,4 +1,6 @@
 <section class="arena" (keydown)="onKey($event)">
+  @if (portraitPhone()) { <app-rotate-gate (enter)="enterLandscape()" /> }
+
   <header class="page-head">
     <div><p class="eyebrow">Sân đấu mô phỏng · bản thử nghiệm</p><h1 class="display">Đấu thẻ với máy</h1></div>
     <a routerLink="/" class="back-link">← Về căn nhà</a>
@@ -83,6 +85,7 @@
           <span class="grow"></span>
           <button type="button" class="chip" (click)="coach() ? skipTutorial() : startTutorial()">{{ coach() ? 'Thoát hướng dẫn' : 'Hướng dẫn' }}</button>
           <button type="button" class="chip" (click)="newGame()">Ván mới</button>
+          <a routerLink="/" class="chip exit">Thoát</a>
           @if (state() === 'ready') { <button type="button" class="chip" (click)="cycleQuality()" title="Đồ họa tự hạ khi máy yếu">Đồ họa: {{ qualityLabel() }}</button> }
         </div>
 
