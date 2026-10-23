@@ -4,14 +4,21 @@
 
 ## Cập nhật gần nhất
 
-### Tối ưu giao diện điện thoại + nút chơi ở chân trang + xoay ngang khi chơi — 2026-10-23, local → PR
+### Giao diện theo bộ prompt: lấp chỗ trống + đổi giao diện trang quản trị — 2026-10-23, đã push nhánh `claude/wonderful-hypatia-8x6sul`, chưa mở PR
+
+- Theo yêu cầu "frontend còn trống/đơn điệu, tham khảo file prompt và áp dụng; đổi cả giao diện trang quản trị": thêm bộ class dùng chung (`kit-pill`, `kit-bracket`, `kit-row`, `kit-card`, `kit-ghost`), `appCountUp`, `app-explore-cards`; trang chủ thêm khu "Trong nhà có gì" + số liệu đếm lên + hàng CTA; `/cach-choi`, `/cau-chuyen`, 404 có mục lục "Đang biên soạn" (không bịa luật) + thẻ dẫn sang khu vực đang chạy; **`/quy-nha` có máy tính Quỹ Nhà Chung chạy thật** (4 cư dân, Hóa đơn 8 Tiền, Thiếu/Đủ/Dư); trạng thái trống Thư viện/Wiki/Cư dân, Cửa hàng (ảnh giữ chỗ + 3 bước mua), thẻ đăng nhập tối, menu tài khoản desktop, footer mới. Admin: bỏ bảng màu xanh dương, đổi sang nền tối ấm + xanh chanh + tiêu đề Anton, sidebar đánh số, thẻ số liệu khung góc, bảng hàng chờ cuộn ngang trên điện thoại; sửa chữ "PostgreSQL 18 · Aiven" lỗi thời. Chi tiết: [docs/design/FRONTEND_REDESIGN.md](docs/design/FRONTEND_REDESIGN.md#bộ-thành-phần-từ-bộ-prompt--giao-diện-quản-trị-mới-2026-10-23).
+- Lỗi phát hiện khi tự kiểm: route không khai báo `chapters` làm input thành `undefined` → template lỗi, trang `/quy-nha` trắng nửa dưới. Đã sửa bằng transform mặc định và thêm spec.
+- Xác minh: frontend 232/232 tests (mới: máy tính quỹ, trang khung thiếu dữ liệu route, menu tài khoản); build qua (chỉ cảnh báo budget 6 kB đã có, không file nào chạm 10 kB); ảnh Chromium 1440px (trang chủ, cách chơi, quỹ nhà, thư viện, cửa hàng, đăng nhập, admin, admin/thẻ, admin/đơn) và 390px (không tràn ngang). API giả lập trả rỗng — **chưa xem với dữ liệu thật**, chưa thử trên điện thoại thật.
+- Việc tiếp theo: mở PR + merge khi chủ dự án đồng ý; sau deploy xem lại trên production; khi có nội dung luật/câu chuyện thật thì thay mục lục "Đang biên soạn".
+
+### Tối ưu giao diện điện thoại + nút chơi ở chân trang + xoay ngang khi chơi — 2026-10-23, đã merge (PR #16)
 
 - Kiểm tra tự động 21 trang ở 390×844 (Chromium, thiết bị cảm ứng, API giả lập): **tất cả trang công khai bị tràn ngang 140px** do thanh đầu trang (Quản trị/Địa chỉ/Đăng xuất chen mất nút menu và giỏ hàng), trang admin tràn do tiêu đề + huy hiệu + tên + nút Thoát. **Sửa**: header công khai ≤1000px chỉ còn logo, giỏ hàng, nút menu (Quản trị/Địa chỉ/Đăng xuất chuyển vào menu di động); header admin ≤900px ẩn huy hiệu/hồ sơ/Thoát (Đăng xuất chuyển xuống sidebar), ≤520px ẩn chữ tiêu đề; mục tiêu chạm tối thiểu 40–44px trên màn cảm ứng (nút menu, link back/footer/switch, input, filter, nút sidebar). Sau sửa: scrollWidth = 390 trên mọi trang; bảng admin vẫn cuộn ngang trong khung riêng (đúng ý).
 - Theo yêu cầu: nút "Chơi đấu thẻ với máy" ở chân trang (+ mục trong menu di động); điện thoại cầm dọc bị chặn bằng màn "xoay ngang" trước khi chơi, cầm ngang dùng toàn màn hình. Chi tiết ở [docs/ARENA.md](docs/ARENA.md). Tách CSS trang arena thành 2 file để dưới ngưỡng 10 kB; sửa chữ "PostgreSQL Aiven" lỗi thời trong sidebar admin.
 - Xác minh: frontend 227/227 tests; build qua; ảnh chụp mobile (header công khai, menu di động, header admin, màn xoay ngang, sân ở chế độ ngang). **Chưa thử trên điện thoại thật** (xoay máy thật, `screen.orientation.lock`, iOS Safari); chưa xem bố cục từng trang admin khi có dữ liệu thật (API giả lập trả rỗng).
 - Việc tiếp theo: thử trên điện thoại thật; rà bố cục chi tiết từng trang admin/shop với dữ liệu thật; cỡ chữ nhỏ (<12px) còn ở vài chỗ.
 
-### Sổ địa chỉ giao hàng — 2026-10-23, local → PR
+### Sổ địa chỉ giao hàng — 2026-10-23, đã merge (PR #15)
 
 - Theo yêu cầu "user nhập địa chỉ, mua chỉ cần chọn; chưa có địa chỉ thì vào phần nhập rồi mua": backend thêm `addresses.ts` (CRUD + mặc định, tối đa 10, chỉ chủ sở hữu, dùng bảng `user_addresses` sẵn có); frontend thêm `AddressService`, component dùng chung `app-address-book`, trang `/dia-chi`, link "Địa chỉ" ở header/menu di động; trang thanh toán chọn địa chỉ (mặc định chọn sẵn, nút mua khóa tới khi có địa chỉ, chưa có thì mở sẵn form). Đơn vẫn lưu bản chụp địa chỉ; code PayOS/checkout không đổi. Chi tiết: [docs/ADDRESS_BOOK.md](docs/ADDRESS_BOOK.md).
 - Xác minh: backend 22 test (thêm 2), `tsc` qua; frontend 226 test (thêm 12), build qua; Chromium + API giả lập xem cả hai luồng, body checkout đúng. Chưa thử với backend production; đây không phải kiểm tra thanh toán thật.

@@ -1,0 +1,29 @@
+app-admin-theme{display:none}
+/* Màu chữ/nền Tailwind (bảng màu xanh dương cũ) → tông ấm của site */
+.admin-app-root .text-sky-400,.admin-app-root .text-sky-300,.admin-app-root .hover\:text-sky-300:hover{color:#dafa76}
+.admin-app-root .bg-sky-400{background-color:#dafa76}
+.admin-app-root .bg-sky-950\/50,.admin-app-root .bg-sky-950\/80{background-color:#dafa7614}
+.admin-app-root .border-sky-800\/40,.admin-app-root .border-sky-500\/30{border-color:#dafa7640}
+.admin-app-root .text-slate-100{color:#f3f1ea}.admin-app-root .text-slate-200{color:#e6e4dc}.admin-app-root .text-slate-300{color:#c9c7bf}
+.admin-app-root .text-slate-400{color:#a6aaa3}.admin-app-root .text-slate-500{color:#8f9289}
+.admin-app-root .border-slate-800{border-color:#f3f1ea1a}
+.admin-app-root .bg-slate-900{background-color:#16181a}.admin-app-root .bg-slate-900\/40{background-color:#16181a66}.admin-app-root .bg-slate-900\/60{background-color:#16181a99}.admin-app-root .bg-slate-950\/60{background-color:#0b0c0d99}
+.admin-app-root .text-purple-400{color:#ffacc9}.admin-app-root .bg-purple-950\/50{background-color:#ffacc914}.admin-app-root .border-purple-800\/40{border-color:#ffacc940}
+/* Tiêu đề: Anton viết hoa như phần công khai */
+.admin-app-root .admin-main-viewport :is(.page-title,.section-title){font-family:var(--font-display);font-weight:400;text-transform:uppercase;letter-spacing:0;line-height:1.05;font-size:clamp(30px,3.4vw,48px);margin-top:.5rem}
+.admin-app-root .admin-main-viewport :is(.queue-title,.panel-title){font-family:var(--font-display);font-weight:400;text-transform:uppercase;letter-spacing:.01em;font-size:clamp(20px,1.8vw,26px)}
+.admin-app-root .admin-main-viewport :is(.metric-value,.stat-val){font-family:var(--font-display);font-weight:400;font-size:clamp(30px,2.6vw,40px);letter-spacing:.01em}
+.admin-app-root .admin-main-viewport .metric-label{letter-spacing:.2em;font-size:10px}
+/* Thẻ số liệu: khung góc kẻ (KIMI) */
+.admin-app-root .admin-main-viewport .metric-card{border-radius:4px;border-color:#f3f1ea14;--kc:#f3f1ea4d;background:
+  linear-gradient(var(--kc),var(--kc)) left top/12px 1.5px no-repeat,linear-gradient(var(--kc),var(--kc)) left top/1.5px 12px no-repeat,
+  linear-gradient(var(--kc),var(--kc)) right top/12px 1.5px no-repeat,linear-gradient(var(--kc),var(--kc)) right top/1.5px 12px no-repeat,
+  linear-gradient(var(--kc),var(--kc)) left bottom/12px 1.5px no-repeat,linear-gradient(var(--kc),var(--kc)) left bottom/1.5px 12px no-repeat,
+  linear-gradient(var(--kc),var(--kc)) right bottom/12px 1.5px no-repeat,linear-gradient(var(--kc),var(--kc)) right bottom/1.5px 12px no-repeat,#121415}
+.admin-app-root .admin-main-viewport .metric-card:hover{--kc:#dafa76;border-color:#dafa7633}
+/* Khối/bảng: bo nhỏ, viền mảnh */
+.admin-app-root :is(.queue-section,.panel-box,.mock-notice-card,.admin-notice-bar){border-radius:6px}
+.admin-app-root :is(.filter-btn,.refresh-btn,.primary-action-btn,.relogin-btn){border-radius:999px}
+.admin-app-root ::selection{background:#dafa76;color:#183c2b}
+/* Bảng hàng chờ trên điện thoại: giữ độ rộng tối thiểu, cuộn ngang trong khung thay vì bóp chữ thành cột hẹp */
+@media(max-width:700px){.admin-app-root .admin-main-viewport .queue-table{min-width:620px}}

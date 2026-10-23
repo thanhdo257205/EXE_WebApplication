@@ -34,8 +34,8 @@ h1 { position: absolute; z-index: 10; inset: auto 0 clamp(24px, 3.4vw, 56px); di
 .scroll-link:hover { color: var(--ed-ink); }
 
 /* ===== Section chung ===== */
-.story, .card-section, .numbers, .closing { padding: var(--section) var(--gutter); }
-.story h2, .card-section h2, .numbers h2, .closing h2 { margin-top: 1.5rem; font-size: clamp(44px, 6.4vw, 104px); line-height: .96; }
+.story, .card-section, .rooms, .numbers, .closing { padding: var(--section) var(--gutter); }
+.story h2, .card-section h2, .rooms h2, .numbers h2, .closing h2 { margin-top: 1.5rem; font-size: clamp(44px, 6.4vw, 104px); line-height: .96; }
 .lead { margin-top: 2rem; max-width: 46ch; font-size: clamp(17px, 1.5vw, 22px); line-height: 1.5; color: var(--ed-muted); }
 
 /* ===== Cách chơi: 12 cột, danh sách đánh số ===== */
@@ -64,23 +64,7 @@ h1 { position: absolute; z-index: 10; inset: auto 0 clamp(24px, 3.4vw, 56px); di
 .artwork-note { color: var(--ed-muted); text-align: center; font-size: 11px; padding-top: 22px; line-height: 1.7; }
 .artwork-note a { text-decoration: underline; }
 
-/* ===== Con số ===== */
-.numbers { border-top: 1px solid var(--ed-line); }
-.numbers dl { display: grid; grid-template-columns: repeat(4, 1fr); margin-top: 64px; border-top: 1px solid var(--ed-line); }
-.numbers dl > div { display: flex; flex-direction: column-reverse; justify-content: flex-end; gap: 16px; padding: 48px 0 48px 32px; border-bottom: 1px solid var(--ed-line); border-left: 1px solid var(--ed-line); }
-.numbers dl > div:first-child { padding-left: 0; border-left: 0; }
-.numbers dd { font-size: clamp(64px, 8vw, 128px); line-height: 1; transition: color .25s; }
-.numbers dl > div:hover dd { color: var(--ed-accent); }
-.numbers dt { max-width: 20ch; font-size: 14px; letter-spacing: .14em; text-transform: uppercase; color: var(--ed-muted); }
-
-/* ===== Phần kết ===== */
-.closing { position: relative; overflow: hidden; border-top: 1px solid var(--ed-line); }
-.closing > * { position: relative; z-index: 1; }
-.closing h2 { max-width: 14ch; font-size: clamp(54px, 8vw, 136px); }
-.ghost-word { position: absolute; z-index: 0; right: -2%; bottom: -8%; font-family: var(--font-display); font-size: clamp(120px, 28vw, 460px); line-height: .8; text-transform: uppercase; white-space: nowrap; color: transparent; -webkit-text-stroke: 1.5px #f3f1ea17; pointer-events: none; user-select: none; }
-.big-link { display: inline-flex; align-items: baseline; gap: 16px; margin-top: 48px; font-size: clamp(28px, 4.2vw, 64px); font-weight: 600; letter-spacing: -.01em; transition: transform .35s cubic-bezier(.16, 1, .3, 1), color .25s; }
-.big-link span { color: var(--ed-accent); }
-.big-link:hover { transform: translateX(14px); color: var(--ed-accent); }
+/* Con số, phòng trong nhà và phần kết: xem home-sections.css */
 
 /* ===== Tablet / mobile ===== */
 @media (max-width: 1000px) {
@@ -95,9 +79,6 @@ h1 { position: absolute; z-index: 10; inset: auto 0 clamp(24px, 3.4vw, 56px); di
   .principles { margin-top: 48px; }
   .section-head { flex-direction: column; align-items: flex-start; margin-bottom: 40px; }
   .head-side { justify-items: start; text-align: left; }
-  .numbers dl { grid-template-columns: repeat(2, 1fr); }
-  .numbers dl > div { padding: 32px 0 32px 24px; }
-  .numbers dl > div:nth-child(odd) { padding-left: 0; border-left: 0; }
   .card-section app-column-spread { margin: 0 calc(var(--gutter) * -1); }
 }
 @media (max-width: 520px) {

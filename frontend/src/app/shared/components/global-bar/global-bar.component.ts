@@ -10,7 +10,7 @@ import { LiquidGlassDirective } from '../../motion/liquid-glass.directive';
   standalone: true,
   imports: [LiquidGlassDirective, RouterLink, MorphIconComponent],
   templateUrl: './global-bar.component.html',
-  styleUrl: './global-bar.component.css',
+  styleUrls: ['./global-bar.component.css', './account-menu.css'],
   host: { '(document:keydown.escape)': 'dismissSubmenu($event)', '(document:pointerdown)': 'outsidePointer($event)', '(window:resize)': 'closeSubmenu()' },
 })
 export class GlobalBarComponent implements OnInit {
@@ -20,6 +20,7 @@ export class GlobalBarComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
   readonly currentPath = signal(this.router.url.split('?')[0]);
   readonly openGroup = signal<string | null>(null);
+  readonly accountOpen = signal(false);
   private closeTimer?: ReturnType<typeof setTimeout>;
   private focusTimer?: ReturnType<typeof setTimeout>;
   private returnFocus?: HTMLElement;
@@ -76,13 +77,18 @@ export class GlobalBarComponent implements OnInit {
     this.cancelClose(); clearTimeout(this.focusTimer); this.openGroup.set(id);
     this.focusTimer = setTimeout(() => this.element.querySelector<HTMLElement>(`#submenu-${id} a`)?.focus(), 0);
   }
+  initial(name: string): string { return (name.trim()[0] ?? '?').toUpperCase(); }
+  toggleAccount(): void { this.closeSubmenu(); this.accountOpen.update(open => !open); }
+  closeAccount(): void { this.accountOpen.set(false); }
   dismissSubmenu(event: Event): void {
+    if (this.accountOpen()) { this.closeAccount(); this.element.querySelector<HTMLElement>('.account-trigger')?.focus(); return; }
     if (!this.openGroup()) return;
     event.preventDefault();
     const trigger = this.returnFocus ?? this.element.querySelector<HTMLElement>(`[data-nav-trigger="${this.openGroup()}"]`);
     this.closeSubmenu(); trigger?.focus(); this.returnFocus = undefined;
   }
   outsidePointer(event: Event): void {
+    if (this.accountOpen() && event.target instanceof Node && !this.element.querySelector('.account')?.contains(event.target)) this.closeAccount();
     if (this.openGroup() && event.target instanceof Node && !this.element.querySelector('.nav-cluster')?.contains(event.target)) this.closeSubmenu();
   }
   onNavFocusOut(event: FocusEvent): void {
@@ -96,7 +102,7 @@ export class GlobalBarComponent implements OnInit {
     this.auth.loadCurrentUser().subscribe({ error: () => {} });
     this.router.events.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(event => {
       if (event instanceof NavigationEnd) {
-        this.currentPath.set(event.urlAfterRedirects.split('?')[0]); this.closeSubmenu();
+        this.currentPath.set(event.urlAfterRedirects.split('?')[0]); this.closeSubmenu(); this.closeAccount();
       }
     });
   }

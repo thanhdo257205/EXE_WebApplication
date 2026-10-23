@@ -110,3 +110,34 @@ Latest cursor sizing refinement: user feedback found the26px ghost too large bes
 All five header groups now expose existing child routes, including privacy/terms in Discover. Primary labels remain direct links; separate chevron buttons have disclosure state. Hover opens on fine pointers, panel padding and a160ms leave delay bridge travel to child links. ArrowDown opens/focuses the first child; Escape restores the trigger, outside/focus leave/navigation/resize dismiss, and touch can tap the button. Mobile drawer gains legal links. These are ordinary navigation links, not ARIA application menus.
 
 The dropdown is a sibling of the clipped rail so its surface and focus are not cut off; a single current panel is rendered with a dark glass rim/fill and no extra backdrop blur. The lens remains on the open parent while hovering its panel. Active grouping now includes legal/story/residents under Discover and cart under Shop; auth stays unselected. There are no invented routes or newly complete commerce flows.96 tests/build and local browser hover/focus/Escape/outside/mobile/touch/no-overflow/no-pageerror checks pass; no deployment. See PUBLIC_NAVIGATION.md.
+
+## Bộ thành phần từ bộ prompt + giao diện quản trị mới (2026-10-23)
+
+Theo yêu cầu "nhiều chỗ còn trống/đơn điệu, tham khảo file prompt và áp dụng, đổi cả trang quản trị". Lấy kỹ thuật từ các prompt Lumora (nút pill có huy hiệu mũi tên, hàng dịch vụ đánh số tô nền khi hover, footer hàng CTA + cột link + thanh pháp lý + chữ nền khổng lồ, thẻ portfolio tối), KIMI (khung 4 góc kẻ, hàng meta), Baseline (dải số liệu, chữ ma), Ascend (lưới thẻ tính năng, mô hình giao diện thu nhỏ). Không sao chép nội dung/thương hiệu của prompt; mọi chữ trên trang là nội dung có thật của site.
+
+**Bộ class dùng chung** (cuối `src/styles.css`):
+
+| Class | Dùng cho |
+| --- | --- |
+| `.kit-pill` (+ `.ghost`), `.kit-arrow` | Nút CTA viên thuốc, mũi tên tròn xoay khi hover |
+| `.kit-bracket` | Khung 4 góc kẻ bằng background (không thêm phần tử). Biến `--kc` màu góc, `--kl` dài, `--kw` dày, `--kbg` nền (lớp cuối phải là màu) |
+| `.kit-rows` / `.kit-row` (+ `.kit-num`, `.kit-tag`) | Danh sách đánh số, hover tô xanh chanh từ dưới lên |
+| `.kit-card` (+ `.kit-meta`, `.kit-foot`) | Thẻ tối kiểu portfolio dẫn sang khu vực khác |
+| `.kit-ghost` | Chữ nền viền mảnh khổng lồ |
+
+Thành phần mới: `CountUpDirective` (`appCountUp`, đếm từ 0 khi vào khung nhìn; giữ số thật khi thiếu JS/reduced motion), `ExploreCardsComponent` (`app-explore-cards`, lấy từ `shared/explore-links.ts`, tự bỏ khu vực đang đứng), `FundCalculatorComponent` (`app-fund-calculator`).
+
+**Trang công khai**
+
+- Trang chủ: thêm khu "Trong nhà có gì" (thẻ Sân đấu nổi bật có bàn đấu thu nhỏ bằng CSS + 4 thẻ phòng), dải số liệu trong khung góc có đếm lên và chú thích, phần kết thành hàng CTA (Chơi thử / Mua hộp game / Câu chuyện). CSS mới ở `home-sections.css`.
+- Trang khung (`/cach-choi`, `/quy-nha`, `/cau-chuyen`, 404): phần đầu có hàng meta (khu vực/trạng thái/số phần) và chữ nền; route data mới `section`, `chapters` (mục lục, gắn nhãn "Đang biên soạn" — không viết luật chưa có), `tool`. Input tùy chọn có transform vì binding đặt input về `undefined` khi route thiếu khóa (lỗi này đã làm trắng trang `/quy-nha` khi thử, có spec chặn lại).
+- `/quy-nha`: **máy tính Quỹ Nhà Chung chạy thật** đúng mô tả route — 4 cư dân góp 0–8 Tiền, đối chiếu Hóa đơn 8 Tiền ra Thiếu/Đủ/Dư, thanh tiến độ có vạch hóa đơn, `aria-live` đọc kết quả.
+- Thư viện/Wiki/Cư dân khi trống hoặc chưa có bản phát hành: khung góc + tiêu đề Anton + thẻ dẫn sang khu vực đã hoạt động.
+- Cửa hàng: hàng thông tin (thanh toán/giao hàng/trạng thái), ảnh giữ chỗ dạng hộp game khi sản phẩm chưa có ảnh, khu "Cách mua" 3 bước theo luồng thật (giỏ → sổ địa chỉ → QR PayOS).
+- Đăng nhập/đăng ký/khôi phục: thẻ màu kem đổi sang nền tối có khung góc; ô nhập tối, viền sáng xanh chanh khi focus; khối giới thiệu xanh chanh giữ nguyên.
+- Header desktop: cụm Quản trị/Địa chỉ/tên/Đăng xuất gom vào **menu tài khoản** (avatar chữ cái, đóng bằng Escape trả focus, bấm ra ngoài, điều hướng). Di động vẫn dùng menu toàn màn hình như trước.
+- Footer: hàng CTA, khối thương hiệu + 4 cột (Khám phá, Thẻ & luật, Chơi & mua, Pháp lý), thanh pháp lý có "Lên đầu trang", chữ nền "Hơi báo!". CSS ở `app-footer.css`.
+
+**Trang quản trị**: bỏ bảng màu xanh dương. `admin-layout-brand.css` (logo N, tiêu đề Anton, nút viên thuốc, sidebar đánh số với mục đang mở tô xanh chanh, ẩn nút menu trên desktop), `AdminThemeComponent` (`ViewEncapsulation.None`, mọi selector dưới `.admin-app-root`, chỉ nạp cùng chunk admin) ghi đè class Tailwind sky/slate sang tông ấm, tiêu đề trang/khối dùng Anton, thẻ số liệu có khung góc; bảng hàng chờ trên điện thoại giữ tối thiểu 620px và cuộn ngang trong khung. Màu hex trong CSS/template admin được đổi theo một bảng ánh xạ (nền xanh đen → đen ấm, sky → xanh chanh, slate → xám ấm); token kính `admin-mode` trong `glass-controls.css` cũng chuyển sang xanh chanh. Sửa chữ "PostgreSQL 18 · Aiven" lỗi thời trên thẻ hạ tầng thành "Turso · libSQL".
+
+**Giới hạn**: chưa kiểm với dữ liệu thật (API giả lập trả rỗng); ảnh mobile của các thẻ có `appReveal` chụp toàn trang có thể còn ẩn vì script chụp không cuộn; CSS `home.page.css`, `public-content.page.css`, `global-bar.component.css`, `admin-dashboard.page.css` vẫn trên mức cảnh báo 6 kB (dưới ngưỡng lỗi 10 kB, đã có từ trước).

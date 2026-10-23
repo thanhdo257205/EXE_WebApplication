@@ -47,17 +47,17 @@ import { AdminNotificationsService } from '../../../core/admin/admin-notificatio
     }
   `,
   styles: `
-    :host { position:relative; font-size:.8125rem; color:#e2e8f0; }
+    :host { position:relative; font-size:.8125rem; color:#e6e4dc; }
     .notification-trigger { display:inline-flex; align-items:center; gap:5px; white-space:nowrap; }
     @media(max-width:640px) { .trigger-label { display:none; } }
     button,a { cursor:pointer; } button { color:inherit; background:#15263a; border:1px solid #39506b; border-radius:6px; padding:6px 9px; }
     button:disabled { opacity:.5; cursor:default; } a { color:#bae6fd; text-decoration:underline; }
     section { position:absolute; right:0; top:calc(100% + 12px); width:min(360px,calc(100vw - 32px)); max-height:70vh; overflow:auto; background:#0f1b2b; border:1px solid #39506b; border-radius:10px; padding:16px; z-index:60; box-shadow:0 12px 40px #0008; }
     .panel-heading,nav { display:flex; align-items:center; justify-content:space-between; gap:8px; }
-    .connection,.read-label,time { color:#94a3b8; font-size:.75rem; } p { margin:12px 0; }
+    .connection,.read-label,time { color:#a6aaa3; font-size:.75rem; } p { margin:12px 0; }
     ul { list-style:none; padding:0; margin:0 0 12px; } li { padding:12px 0; border-bottom:1px solid #26384d; display:grid; gap:6px; }
     li button { justify-self:start; } .unread a { font-weight:700; } nav { margin:12px 0; }
-    :focus-visible { outline:2px solid #38bdf8; outline-offset:3px; }
+    :focus-visible { outline:2px solid #dafa76; outline-offset:3px; }
   `,
 })
 export class AdminNotificationBellComponent {

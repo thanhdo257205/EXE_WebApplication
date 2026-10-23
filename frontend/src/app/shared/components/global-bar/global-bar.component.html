@@ -22,8 +22,20 @@
   </div>
   <div class="header-actions">
     @if (auth.currentUser(); as user) {
-      @if (user.role === 'ADMIN') { <a data-glass-control routerLink="/admin" class="account-link desk-only">Quản trị</a> }
-      <a data-glass-control routerLink="/dia-chi" class="account-link desk-only">Địa chỉ</a><span class="user-name">{{ user.displayName }}</span><button class="account-link desk-only" type="button" (click)="logout()">Đăng xuất</button>
+      <div class="account desk-only">
+        <button type="button" class="account-trigger" data-glass-control (click)="toggleAccount()" [attr.aria-expanded]="accountOpen()" aria-controls="account-menu" aria-haspopup="true">
+          <span class="account-avatar" aria-hidden="true">{{ initial(user.displayName) }}</span><span class="account-name">{{ user.displayName }}</span><span class="account-chevron" aria-hidden="true">▾</span>
+        </button>
+        @if (accountOpen()) {
+          <div id="account-menu" class="account-menu kit-bracket">
+            <p class="account-head"><span>Đang đăng nhập</span><strong>{{ user.displayName }}</strong>@if (user.role === 'ADMIN') {<em>Quản trị viên</em>}</p>
+            @if (user.role === 'ADMIN') { <a routerLink="/admin" (click)="closeAccount()">Trang quản trị <span aria-hidden="true">↗</span></a> }
+            <a routerLink="/dia-chi" (click)="closeAccount()">Sổ địa chỉ <span aria-hidden="true">↗</span></a>
+            <a routerLink="/gio-hang" (click)="closeAccount()">Giỏ hàng <span aria-hidden="true">↗</span></a>
+            <button type="button" class="account-logout" (click)="closeAccount(); logout()">Đăng xuất</button>
+          </div>
+        }
+      </div>
     } @else { <a data-glass-control routerLink="/dang-nhap" class="account-link">Đăng nhập <app-morph-icon name="arrow-right" [size]="16" color="currentColor" /></a> }
     <a routerLink="/gio-hang" appLiquidGlass class="cart-link" aria-label="Giỏ hàng"><app-morph-icon name="cart" [size]="20" color="currentColor" /></a>
     <button class="menu-toggle" type="button" (click)="menuToggle.emit()" [attr.aria-label]="isMobileMenuOpen() ? 'Đóng danh mục menu' : 'Mở danh mục menu'" [attr.aria-expanded]="isMobileMenuOpen()" aria-controls="public-mobile-menu"><app-morph-icon [name]="isMobileMenuOpen() ? 'close' : 'menu'" [size]="24" color="currentColor" /></button>

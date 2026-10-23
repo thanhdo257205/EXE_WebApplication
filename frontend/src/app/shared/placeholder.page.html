@@ -1,5 +1,40 @@
-<section class="page-intro"><a routerLink="/" class="back-link">← Về căn nhà</a><h1 class="display">{{ heading() }}</h1><p>{{ description() }}</p></section>
+<section class="page-intro">
+  <span class="kit-ghost intro-ghost" aria-hidden="true">{{ section() }}</span>
+  <a routerLink="/" class="back-link">← Về căn nhà</a>
+  <h1 class="display">{{ heading() }}</h1>
+  <div class="intro-foot">
+    <p>{{ description() }}</p>
+    <dl class="meta">
+      <div><dt>Khu vực</dt><dd>{{ section() }}</dd></div>
+      <div><dt>Trạng thái</dt><dd>{{ notFound() ? 'Không có trang này' : tool() ? 'Dùng thử được' : 'Đang biên soạn' }}</dd></div>
+      @if (chapters().length) {<div><dt>Mục lục</dt><dd>{{ chapters().length }} phần</dd></div>}
+    </dl>
+  </div>
+</section>
+
+@if (tool() === 'fund') {
+  <section class="block" aria-labelledby="tool-title">
+    <div class="block-head"><p class="eyebrow">Thử ngay</p><h2 id="tool-title" class="display">Góp quỹ.<br><em>Đếm tiền.</em></h2><p>Bấm + hoặc − để đổi số Tiền mỗi cư dân góp. Tổng góp được đối chiếu với Hóa đơn 8 Tiền để biết quỹ đang Thiếu, Đủ hay Dư.</p></div>
+    <app-fund-calculator />
+  </section>
+}
+
 @if (heading().includes('thẻ')) {
   <section class="preview" aria-label="Trưng bày thẻ minh họa"><app-column-spread /><p>Ảnh Pokémon TCG minh họa chuyển động, nguồn <a href="https://tcgdex.net" target="_blank" rel="noopener noreferrer">TCGdex</a>; không phải bộ thẻ của Nhà Này Hơi Báo!</p></section>
 }
-<section class="coming-content"><div><h2 class="display">Nhà đang<br><em>sắp xếp một chút.</em></h2><p>Nội dung khu vực này đang được hoàn thiện. Bạn có thể tiếp tục khám phá câu chuyện và các khu vực khác của căn nhà.</p></div><nav aria-label="Tiếp tục khám phá"><a routerLink="/cau-chuyen">Câu chuyện căn nhà <span aria-hidden="true">↗</span></a><a routerLink="/cach-choi">Hướng dẫn cách chơi <span aria-hidden="true">↗</span></a><a routerLink="/thu-vien">Thư viện thẻ bài <span aria-hidden="true">↗</span></a></nav></section>
+
+@if (chapters().length) {
+  <section class="block chapters" aria-labelledby="chapters-title">
+    <div class="block-head"><p class="eyebrow">Mục lục</p><h2 id="chapters-title" class="display">Nhà đang<br><em>sắp xếp một chút.</em></h2><p>Nội dung chi tiết của từng phần đang được biên soạn và sẽ lên trang khi nhóm phát hành bản chính thức.</p></div>
+    <ol class="kit-rows">
+      @for (chapter of chapters(); track chapter; let i = $index) {
+        <li class="kit-row" tabindex="0" [appReveal]="i * 80"><span class="kit-num">{{ i < 9 ? '0' : '' }}{{ i + 1 }}</span><div><h3>{{ chapter }}</h3></div><span class="kit-tag">Đang biên soạn</span></li>
+      }
+    </ol>
+  </section>
+}
+
+<section class="block explore" aria-labelledby="explore-title">
+  <div class="explore-head"><div><p class="eyebrow">{{ notFound() ? 'Đi đường khác' : 'Trong lúc chờ' }}</p><h2 id="explore-title" class="display">Ghé phòng<br>khác trong nhà.</h2></div><a routerLink="/" class="kit-pill ghost">Về trang chủ <span class="kit-arrow" aria-hidden="true">→</span></a></div>
+  <app-explore-cards [count]="tool() ? 4 : 3" />
+</section>

@@ -106,34 +106,35 @@ button:disabled {
 .app-container:not(.admin-mode) .auth-page-container .main-title { color: #f3f1ea; font-size: clamp(35px, 5vw, 60px); line-height: 1.15; letter-spacing: -.035em; }
 .app-container:not(.admin-mode) .auth-page-container .subtitle { color: #a6aaa3; font-size: 14px; line-height: 1.8; max-width: 60ch; margin-top: 16px; }
 .app-container:not(.admin-mode) .auth-page-container .card-badge { display: none; }
-.app-container:not(.admin-mode) .wiki-canvas-card { background: #fffcf4; padding: 32px; border: 0; border-radius: 16px; box-shadow: none; }
-.app-container:not(.admin-mode) .canvas-header { border-color: #183c2b30; }
-.app-container:not(.admin-mode) .left-tag { color: #395b48; }
-.app-container:not(.admin-mode) .right-tag { color: #395b48; }
-.app-container:not(.admin-mode) .canvas-footer { border-color: #183c2b30; color: #395b48; }
-.app-container:not(.admin-mode) .prototype-label { color: #6d3c18; }
+.app-container:not(.admin-mode) .wiki-canvas-card { --kbg: radial-gradient(80% 60% at 100% 0, #dafa760f, transparent 60%), #121415; padding: 32px; border: 1px solid #f3f1ea14; border-radius: 4px; box-shadow: 0 40px 80px -40px #000; }
+.app-container:not(.admin-mode) .canvas-header { border-color: #f3f1ea1a; }
+.app-container:not(.admin-mode) .left-tag { color: #8f9289; }
+.app-container:not(.admin-mode) .right-tag { color: #dafa76; }
+.app-container:not(.admin-mode) .canvas-footer { border-color: #f3f1ea1a; color: #8f9289; }
+.app-container:not(.admin-mode) .prototype-label { color: #ffacc9; }
 .app-container:not(.admin-mode) .auth-page-container .auth-info-panel { background: #dafa76; color: #183c2b; border: 0; border-radius: 12px; padding: 28px; }
 .app-container:not(.admin-mode) .auth-page-container .info-heading { color: #183c2b; font-size: 30px; line-height: 1.25; letter-spacing: -.03em; }
 .app-container:not(.admin-mode) .auth-page-container :is(.info-text,.perk-item,.switch-auth-box,.mobile-switch) { color: #395b48; font-size: 13px; line-height: 1.8; }
 .app-container:not(.admin-mode) .auth-page-container .info-badge { color: #183c2b; background: transparent; border: 0; padding: 0; }
 .app-container:not(.admin-mode) .auth-page-container .switch-auth-box { background: #edffb0; border: 0; border-radius: 12px; }
-.app-container:not(.admin-mode) .auth-page-container :is(.switch-link,.forgot-link,.recovery-links a,.resend-link) { color: #7e2a50; text-decoration: underline; text-underline-offset: 4px; }
-.app-container:not(.admin-mode) .auth-page-container .form-label { color: #183c2b; font-size: 13px; }
-.app-container:not(.admin-mode) .auth-page-container .input-wrapper { background: #f7f2e5; border-color: #a2b39c; border-radius: 10px; min-height: 48px; }
-.app-container:not(.admin-mode) .auth-page-container .input-wrapper:focus-within { border-color: #183c2b; }
-.app-container:not(.admin-mode) .auth-page-container .form-input { color: #183c2b; caret-color: #a13b64; font-size: 14px; }
-.app-container:not(.admin-mode) .auth-page-container .form-input::placeholder { color: #56705b; }
+.app-container:not(.admin-mode) .auth-page-container :is(.switch-link,.forgot-link,.recovery-links a,.resend-link) { color: #dafa76; text-decoration: underline; text-underline-offset: 4px; }
+.app-container:not(.admin-mode) .auth-page-container .auth-info-panel .switch-link { color: #7e2a50; }
+.app-container:not(.admin-mode) .auth-page-container .form-label { color: #e6e4dc; font-size: 13px; }
+.app-container:not(.admin-mode) .auth-page-container .input-wrapper { background: #0b0c0d; border-color: #f3f1ea2e; border-radius: 10px; min-height: 48px; }
+.app-container:not(.admin-mode) .auth-page-container .input-wrapper:focus-within { border-color: #dafa76; box-shadow: 0 0 0 3px #dafa7626; }
+.app-container:not(.admin-mode) .auth-page-container .form-input { color: #f3f1ea; caret-color: #dafa76; font-size: 14px; }
+.app-container:not(.admin-mode) .auth-page-container .form-input::placeholder { color: #6f726b; }
 .app-container:not(.admin-mode) .auth-page-container .submit-btn { background: #dafa76; color: #183c2b; border-radius: 32px; padding: 15px 22px; }
 .app-container:not(.admin-mode) .auth-page-container .submit-btn { box-shadow: none; border-color: transparent; }
 .app-container:not(.admin-mode) .auth-page-container .submit-btn:hover:not(:disabled) { background: #e6fb9d; }
-.app-container:not(.admin-mode) .auth-page-container .google-btn { background: #fffcf4; color: #183c2b; border: 1px solid #a2b39c; border-radius: 32px; padding: 14px; }
-.app-container:not(.admin-mode) .auth-page-container .google-btn:hover { background: #f7f2e5; }
-.app-container:not(.admin-mode) .auth-page-container :is(.divider-text,.form-options,.toggle-pwd-btn) { color: #395b48; }
-.app-container:not(.admin-mode) .auth-page-container .divider-line { background: #a2b39c; }
-.app-container:not(.admin-mode) .auth-page-container :is(.error-banner,.field-error) { color: #94233c; }
-.app-container:not(.admin-mode) .auth-page-container .error-banner { background: #ffe8e9; border-color: #f1a5b1; }
-.app-container:not(.admin-mode) .auth-page-container .connection-status { color: #395b48; }
-.app-container:not(.admin-mode) .auth-page-container .success-banner { color: #183c2b; background: #e6f5c8; border-color: #a2b39c; }
+.app-container:not(.admin-mode) .auth-page-container .google-btn { background: transparent; color: #f3f1ea; border: 1px solid #f3f1ea38; border-radius: 32px; padding: 14px; }
+.app-container:not(.admin-mode) .auth-page-container .google-btn:hover { background: #f3f1ea0f; border-color: #dafa76; }
+.app-container:not(.admin-mode) .auth-page-container :is(.divider-text,.form-options,.toggle-pwd-btn) { color: #8f9289; }
+.app-container:not(.admin-mode) .auth-page-container .divider-line { background: #f3f1ea1f; }
+.app-container:not(.admin-mode) .auth-page-container :is(.error-banner,.field-error) { color: #ff9b8a; }
+.app-container:not(.admin-mode) .auth-page-container .error-banner { background: #ff9b8a14; border-color: #ff9b8a55; }
+.app-container:not(.admin-mode) .auth-page-container .connection-status { color: #8f9289; }
+.app-container:not(.admin-mode) .auth-page-container .success-banner { color: #dafa76; background: #dafa7614; border-color: #dafa7655; }
 .app-container:not(.admin-mode) .legal-document { color: #d9dcd5; background: #141618; border: 1px solid #f3f1ea1f; border-radius: 16px; }
 .app-container:not(.admin-mode) .legal-document :is(h1,h2) { color: #f3f1ea; }
 .app-container:not(.admin-mode) .legal-document header p { color: #a6aaa3; }
@@ -248,7 +249,44 @@ html.lenis, html.lenis body { height: auto; }
 html[data-arena-focus] app-global-bar, html[data-arena-focus] .public-footer, html[data-arena-focus] .skip-link { display: none !important; }
 /* Mục tiêu chạm đủ lớn trên màn cảm ứng */
 @media (pointer: coarse) {
-  .back-link, .text-link, .footer-links a, .footer-meta a, .switch-link, .terms-link, .scroll-link, .metric-link, .filter-btn { display: inline-flex; align-items: center; min-height: 40px; }
+  .back-link, .text-link, .footer-top, .switch-link, .terms-link, .scroll-link, .metric-link, .filter-btn { display: inline-flex; align-items: center; min-height: 40px; }
   input:not([type=checkbox]):not([type=radio]):not([type=range]), select { min-height: 44px; }
   .admin-sidebar button { min-width: 44px; min-height: 44px; }
 }
+
+/* ===== Bộ thành phần dùng chung (tham khảo bộ prompt Lumora / KIMI / Baseline) ===== */
+/* Nút viên thuốc kèm huy hiệu mũi tên tròn */
+.kit-pill { display: inline-flex; align-items: center; gap: .9rem; min-height: 48px; padding: .35rem .4rem .35rem 1.35rem; border-radius: 999px; background: var(--ed-accent); color: #183c2b; font-size: 14px; font-weight: 700; border: 1px solid transparent; transition: transform .25s cubic-bezier(.16,1,.3,1), background-color .25s; }
+.kit-pill > .kit-arrow { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 999px; background: #183c2b; color: var(--ed-accent); transition: transform .3s cubic-bezier(.16,1,.3,1); }
+.kit-pill:hover { transform: translateY(-2px); }
+.kit-pill:hover > .kit-arrow { transform: rotate(-45deg); }
+.kit-pill.ghost { background: transparent; color: var(--ed-ink); border-color: var(--ed-line-strong); }
+.kit-pill.ghost > .kit-arrow { background: var(--ed-ink); color: var(--ed-bg); }
+/* Khung có 4 góc kẻ (KIMI bracket panel) — không cần thêm phần tử */
+.kit-bracket { --kc: var(--ed-accent); --kl: 14px; --kw: 1.5px; position: relative; background:
+  linear-gradient(var(--kc), var(--kc)) left top / var(--kl) var(--kw) no-repeat, linear-gradient(var(--kc), var(--kc)) left top / var(--kw) var(--kl) no-repeat,
+  linear-gradient(var(--kc), var(--kc)) right top / var(--kl) var(--kw) no-repeat, linear-gradient(var(--kc), var(--kc)) right top / var(--kw) var(--kl) no-repeat,
+  linear-gradient(var(--kc), var(--kc)) left bottom / var(--kl) var(--kw) no-repeat, linear-gradient(var(--kc), var(--kc)) left bottom / var(--kw) var(--kl) no-repeat,
+  linear-gradient(var(--kc), var(--kc)) right bottom / var(--kl) var(--kw) no-repeat, linear-gradient(var(--kc), var(--kc)) right bottom / var(--kw) var(--kl) no-repeat,
+  var(--kbg, #ffffff05); }
+/* Hàng đánh số, hover tô nền từ dưới lên (Lumora services) */
+.kit-rows { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--ed-line-strong); }
+.kit-row { position: relative; display: grid; grid-template-columns: 4.5rem 1fr auto; gap: 1.5rem; align-items: center; padding: 1.6rem 1rem; border-bottom: 1px solid var(--ed-line-strong); color: var(--ed-ink); isolation: isolate; overflow: hidden; }
+.kit-row::before { content: ''; position: absolute; inset: 0; z-index: -1; background: var(--ed-accent); transform: scaleY(0); transform-origin: bottom; transition: transform .45s cubic-bezier(.16,1,.3,1); }
+.kit-row:hover::before, .kit-row:focus-visible::before { transform: scaleY(1); }
+.kit-row:hover, .kit-row:focus-visible { color: #183c2b; }
+.kit-row .kit-num { font-family: var(--font-display); font-size: 28px; color: var(--ed-muted); transition: color .3s; }
+.kit-row:hover .kit-num { color: #183c2b; }
+.kit-row h3 { margin: 0; font-family: var(--font-display); font-weight: 400; text-transform: uppercase; font-size: clamp(24px, 2.6vw, 38px); line-height: 1.1; }
+.kit-row p { margin: .35rem 0 0; font-size: 14px; line-height: 1.7; opacity: .75; max-width: 60ch; }
+.kit-row .kit-tag { font-size: 11px; letter-spacing: .18em; text-transform: uppercase; border: 1px solid currentColor; border-radius: 999px; padding: .35rem .8rem; white-space: nowrap; opacity: .8; }
+@media (max-width: 640px) { .kit-row { grid-template-columns: 2.5rem 1fr; padding: 1.25rem .5rem; gap: 1rem; } .kit-row .kit-tag { grid-column: 2; justify-self: start; } }
+/* Thẻ tối kiểu portfolio: meta trên, tiêu đề lớn, mô tả, chân thẻ */
+.kit-card { display: flex; flex-direction: column; gap: 1rem; padding: 1.75rem; min-height: 100%; border-radius: 1.25rem; background: #131516; border: 1px solid var(--ed-line); color: var(--ed-ink); transition: border-color .3s, transform .3s cubic-bezier(.16,1,.3,1); }
+a.kit-card:hover { border-color: var(--ed-accent); transform: translateY(-4px); }
+.kit-card .kit-meta { display: flex; justify-content: space-between; gap: 1rem; font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: var(--ed-muted); }
+.kit-card h3 { margin: 0; font-family: var(--font-display); font-weight: 400; text-transform: uppercase; font-size: clamp(26px, 2.4vw, 36px); line-height: 1.08; }
+.kit-card p { margin: 0; font-size: 14px; line-height: 1.75; color: #c9c7bf; }
+.kit-card .kit-foot { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 1rem; font-size: 13px; font-weight: 700; color: var(--ed-accent); }
+/* Chữ nền khổng lồ (watermark) */
+.kit-ghost { position: absolute; pointer-events: none; user-select: none; font-family: var(--font-display); text-transform: uppercase; line-height: .8; color: transparent; -webkit-text-stroke: 1px #f3f1ea14; white-space: nowrap; }

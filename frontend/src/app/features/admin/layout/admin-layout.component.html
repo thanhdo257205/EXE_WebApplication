@@ -1,4 +1,5 @@
 <div class="admin-app-root">
+  <app-admin-theme />
   <!-- Top Admin Bar -->
   <header class="admin-topbar">
     <div class="flex items-center gap-3">
@@ -11,12 +12,12 @@
         <app-morph-icon name="menu" [size]="20" color="currentColor"></app-morph-icon>
       </button>
 
-      <a routerLink="/admin" class="flex items-center gap-2 text-slate-100 hover:text-sky-300 font-bold tracking-wider text-sm transition-colors">
-        <app-morph-icon name="shield" [size]="20" color="#38bdf8"></app-morph-icon>
-        <span class="admin-title-text">NNHB · QUẢN TRỊ VIÊN</span>
+      <a routerLink="/admin" class="admin-brand">
+        <span class="admin-logo" aria-hidden="true">N</span>
+        <span class="admin-title-text">Nhà này hơi báo!</span>
       </a>
 
-      <span class="admin-badge">ADMIN CONSOLE</span>
+      <span class="admin-badge">Quản trị</span>
     </div>
 
     <!-- Right Header Actions -->
@@ -35,7 +36,7 @@
       <!-- Current Admin Profile -->
       @if (auth.currentUser(); as user) {
         <div class="admin-profile-pill">
-          <app-morph-icon name="user" [size]="15" color="#38bdf8"></app-morph-icon>
+          <span class="profile-avatar" aria-hidden="true">{{ (user.displayName.trim()[0] || '?').toUpperCase() }}</span>
           <span class="font-semibold text-xs text-slate-200 truncate max-w-[120px]">{{ user.displayName }}</span>
           <span class="role-tag">{{ user.role }}</span>
         </div>
@@ -57,7 +58,7 @@
     <!-- Sidebar Navigation -->
     <aside class="admin-sidebar" [class.mobile-open]="sidebarOpen()">
       <div class="sidebar-header">
-        <span class="sidebar-title">DANH MỤC QUẢN TRỊ</span>
+        <span class="sidebar-title">Danh mục quản trị</span>
         <button type="button" (click)="toggleSidebar()" class="lg:hidden text-slate-400 hover:text-white p-1">
           <app-morph-icon name="close" [size]="18" color="currentColor"></app-morph-icon>
         </button>
@@ -72,6 +73,7 @@
             (click)="sidebarOpen.set(false)"
             class="nav-link-item group"
           >
+            <span class="nav-index" aria-hidden="true">{{ $index < 9 ? '0' : '' }}{{ $index + 1 }}</span>
             <app-morph-icon [name]="item.icon" [size]="18" color="currentColor" class="nav-icon"></app-morph-icon>
             <span class="nav-label">{{ item.label }}</span>
             @if (item.badge) {

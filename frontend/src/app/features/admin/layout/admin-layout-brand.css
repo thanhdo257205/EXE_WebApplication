@@ -1,0 +1,32 @@
+/* Thương hiệu, điều hướng và chi tiết theo ngôn ngữ site (logo N, Anton, xanh chanh) */
+.admin-topbar { height: 3.5rem; background: #0b0c0dee; backdrop-filter: blur(10px); border-bottom-color: #f3f1ea14; }
+.admin-brand { display: flex; align-items: center; gap: .65rem; color: #f3f1ea; transition: color .2s; }
+.admin-brand:hover { color: #dafa76; }
+.admin-logo { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 9px; background: #dafa76; color: #183c2b; font: 400 20px/1 var(--font-display, Anton, Impact, sans-serif); }
+.admin-title-text { font: 400 19px/1 var(--font-display, Anton, Impact, sans-serif); text-transform: uppercase; letter-spacing: .01em; }
+.admin-badge { border-radius: 999px; padding: .2rem .65rem; font-size: .625rem; letter-spacing: .2em; text-transform: uppercase; font-weight: 600; }
+.back-to-site-btn, .admin-profile-pill, .admin-logout-btn { border-radius: 999px; min-height: 36px; }
+.back-to-site-btn { background: transparent; border-color: #f3f1ea2e; color: #c9c7bf; }
+.back-to-site-btn:hover { background: #dafa7614; border-color: #dafa76; color: #f3f1ea; }
+.admin-profile-pill { padding: .2rem .7rem .2rem .2rem; background: transparent; border-color: #f3f1ea2e; }
+.profile-avatar { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 999px; background: #dafa76; color: #183c2b; font: 400 15px/1 var(--font-display, Anton, Impact, sans-serif); }
+.role-tag { color: #dafa76; background: #dafa7614; border-radius: 999px; letter-spacing: .12em; }
+.admin-logout-btn { padding: .375rem .9rem; color: #ff9b8a; border-color: #ff9b8a55; }
+.admin-logout-btn:hover { background: #ff9b8a14; border-color: #ff9b8a; }
+.admin-body-layout { margin-top: 3.5rem; }
+.admin-sidebar { top: 3.5rem; background: #0e1011; border-right-color: #f3f1ea14; padding: 1.25rem .75rem; }
+.sidebar-header { border-bottom-color: #f3f1ea14; }
+.sidebar-title { font-size: 10px; font-weight: 500; letter-spacing: .22em; text-transform: uppercase; color: #8f9289; display: flex; align-items: center; gap: .6rem; }
+.sidebar-title::before { content: ''; width: .45rem; height: .45rem; border-radius: 999px; background: #dafa76; }
+.nav-link-item { position: relative; gap: .7rem; padding: .6rem .75rem; border-radius: 10px; color: #a6aaa3; border-left: 0 !important; overflow: hidden; }
+.nav-index { width: 1.4rem; font-size: 10px; font-weight: 600; letter-spacing: .08em; color: #6f726b; font-variant-numeric: tabular-nums; transition: color .2s; }
+.nav-link-item:hover { background: #f3f1ea0a; color: #f3f1ea; }
+.nav-link-item.active-nav-item { background: #dafa76; color: #183c2b; font-weight: 700; }
+.nav-link-item.active-nav-item .nav-index { color: #183c2b; }
+.nav-link-item.active-nav-item .nav-badge { background: #183c2b; color: #dafa76; }
+.sidebar-footer { border-top-color: #f3f1ea14; }
+.system-status-indicator { color: #dafa76; }
+.status-dot { background: #dafa76; box-shadow: 0 0 8px #dafa76; }
+.admin-main-viewport { background: radial-gradient(60% 40% at 100% 0, #dafa760a, transparent 70%); }
+@media (max-width: 520px) { .admin-logo { width: 30px; height: 30px; font-size: 18px; } }
+@media (min-width: 1024px) { .admin-menu-btn { display: none; } }

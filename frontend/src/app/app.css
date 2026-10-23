@@ -110,24 +110,8 @@
 .drawer-link:hover { background:#26292b; color:#e6fb9d; }
 @media(min-width:1001px) { .mobile-drawer,.mobile-overlay { display:none; } }
 
-/* Footer chữ ký + menu di động toàn màn hình (ngôn ngữ editorial) */
-.public-footer { display:grid; grid-template-columns:repeat(12,1fr); gap:40px var(--gutter,40px); padding:clamp(48px,6vw,96px) var(--gutter,40px) 40px; background:#0b0c0d; color:#f3f1ea; border-top:1px solid #f3f1ea1a; }
-.footer-sign { grid-column:span 6; }
-.footer-brand { display:block; font-size:clamp(44px,6vw,96px); }
-.footer-sign .eyebrow { margin-top:20px; }
-.footer-links { grid-column:span 3; display:grid; align-content:start; gap:12px; font-size:15px; color:#8f9289; }
-.footer-meta { grid-column:span 3; display:grid; align-content:start; justify-items:end; gap:12px; font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:#8f9289; }
-.footer-meta p { margin:8px 0 0; }
-.footer-links a, .footer-meta a { position:relative; width:fit-content; transition:color .25s; }
-.footer-links a:hover, .footer-meta a:hover { color:#f3f1ea; }
-.footer-links a::before { content:''; display:inline-block; width:0; height:1px; margin-right:0; background:#dafa76; vertical-align:middle; transition:width .3s, margin .3s; }
-.footer-links a:hover::before { width:1.5rem; margin-right:.6rem; }
+/* Menu di động toàn màn hình (ngôn ngữ editorial); footer: xem app-footer.css */
 .mobile-drawer { inset:80px 0 0 0; top:80px; width:100%; overflow-y:auto; background:#0b0c0d; border:0; border-top:1px solid #f3f1ea1a; z-index:60; padding:28px var(--gutter,24px) 48px; backdrop-filter:none; }
 .mobile-drawer .drawer-link { padding:8px 0; border-radius:0; font-family:var(--font-display); font-size:clamp(30px,9vw,52px); line-height:1.05; text-transform:uppercase; letter-spacing:-.01em; font-weight:400; }
 .mobile-drawer .drawer-link app-morph-icon { display:none; }
 .mobile-drawer .drawer-link:hover { background:transparent; color:#dafa76; }
-@media(max-width:800px) { .public-footer { display:flex; flex-direction:column; gap:32px; } .footer-meta { justify-items:start; } }
-.footer-logo { display:grid; place-items:center; width:88px; height:88px; margin-bottom:24px; border-radius:18px; background:#141618; box-shadow:0 0 0 1px #dafa7666; color:#dafa76; font:400 54px/1 var(--font-display,Anton,Impact,sans-serif); }
-
-.footer-play { display:inline-flex; align-items:center; gap:10px; margin-top:20px; padding:14px 24px; min-height:44px; border-radius:999px; background:#dafa76; color:#183c2b; font-weight:700; font-size:14px; transition:background .2s; }
-.footer-play:hover { background:#e6fb9d; }
