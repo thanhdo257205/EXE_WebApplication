@@ -129,6 +129,11 @@ export const routes: Routes = [
     loadComponent: () => import('./features/shop/shop.page').then(m => m.ShopPage),
   },
   {
+    path: 'dia-chi',
+    title: 'Sổ địa chỉ — Nhà Này Hơi Báo!',
+    loadComponent: () => import('./features/account/addresses.page').then(m => m.AddressesPage),
+  },
+  {
     path: 'gio-hang',
     title: 'Giỏ hàng & Thanh toán — Nhà Này Hơi Báo!',
     loadComponent: () => import('./features/shop/checkout.page').then(m => m.CheckoutPage),

@@ -21,6 +21,7 @@
             <span class="font-bold text-slate-100 text-sm">{{ user.displayName }}</span>
           </div>
           <span class="text-xs text-[#dafa76]">Cư dân ({{ user.role }})</span>
+          <a routerLink="/dia-chi" (click)="toggleMobileMenu()" class="block mt-2 text-xs text-slate-300 underline">Sổ địa chỉ giao hàng</a>
         </div>
       } @else {
         <div class="flex items-center gap-2 mb-3">

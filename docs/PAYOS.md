@@ -166,3 +166,5 @@ Official references: [Java SDK](https://github.com/payOSHQ/payos-lib-java),
   offers the PayOS `checkoutUrl`. The page polls `GET /api/v1/orders/{id}` every 5 seconds (paused while the tab is
   hidden) and shows success when `paymentStatus` is `PAID`; "Kiểm tra thanh toán" calls `refresh-payment`
   (backend throttles it). The order becomes CONFIRMED only via the signed webhook or reconciliation.
+
+> 2026-10-23: phần thông tin giao hàng ở trang thanh toán nay lấy từ [sổ địa chỉ](ADDRESS_BOOK.md); body `POST /api/v1/checkout` không đổi (vẫn gửi bản chụp tên/SĐT/địa chỉ/tỉnh).

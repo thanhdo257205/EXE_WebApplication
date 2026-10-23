@@ -19,6 +19,12 @@ Cập nhật: 2026-10-22 (Asia/Saigon).
 - [x] ARENA-PROD-VERIFY — Chủ dự án mở `/san-dau` trên production bằng Chrome và chơi được (2026-10-22, tự báo cáo; chưa có số FPS/GPU). Sandbox vẫn bị chặn host `exe-webapp.pages.dev` nên tôi không tự kiểm tra được.
 - [ ] ARENA-IP — Quyết định thay ảnh thẻ bằng nội dung gốc trước khi thương mại hóa (ảnh hiện thuộc The Pokémon Company).
 
+## Sổ địa chỉ giao hàng (2026-10-23)
+
+- [x] ADDR-API — CRUD địa chỉ + mặc định, owner-only, giới hạn 10, CSRF; 2 test backend mới.
+- [x] ADDR-UI — Component sổ địa chỉ, trang `/dia-chi`, link header/menu; trang thanh toán chọn địa chỉ, chưa có thì nhập ngay rồi mua; 12 test frontend mới.
+- [ ] ADDR-PROD — Thử trên production: thêm/sửa/xóa địa chỉ và mua bằng địa chỉ đã lưu (cần deploy).
+
 ## Chuyển sang Turso Free (2026-10-22)
 
 - [x] TURSO-CLI — Cài Turso CLI v1.0.34 trong Ubuntu WSL, kiểm tra phiên bản thành công.
@@ -156,7 +162,7 @@ Cập nhật: 2026-10-22 (Asia/Saigon).
 ## Cửa hàng thử (2026-10-21)
 
 - [x] SHOP-01: V11 seed thẻ Pokémon Hoàng Nam 2.000 ₫, `GET /shop/products`, trang `/cua-hang` và `/gio-hang` (form giao hàng, QR PayOS, poll); tests local qua.
-- [ ] SHOP-02: Sau deploy, thanh toán thật 2.000 ₫ qua PayOS (QR, webhook → CONFIRMED, trừ tồn), xác nhận webhook đã đăng ký; kiểm tra Postgres V11 trên Aiven.
+- [ ] SHOP-02: Sau deploy, thanh toán thật 2.000 ₫ qua PayOS (QR, webhook → CONFIRMED, trừ tồn). 2026-10-23: chủ dự án tự chạy thử và báo PayOS **đã gửi webhook thật** tới backend (tự báo cáo). Còn xác nhận: đơn chuyển CONFIRMED, tồn kho bị trừ đúng 1, đơn không bị xử lý hai lần khi webhook lặp. (Phần Postgres/Aiven đã lỗi thời vì đã chuyển Turso.)
 - [ ] SHOP-03: Giỏ nhiều sản phẩm, quản trị sản phẩm/tồn kho, phí ship thật, trang lịch sử đơn của khách.
 
 ## Tối ưu backend/Spread (2026-10-22)

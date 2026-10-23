@@ -1,0 +1,17 @@
+:host{display:block}
+.book{display:grid;gap:14px}.muted{margin:0;color:#8f9289;font-size:14px;line-height:1.6}
+.list{display:grid;gap:10px;margin:0;padding:0;list-style:none}
+.card{display:grid;gap:8px;padding:14px 16px;border:1px solid #f3f1ea26;border-radius:14px;background:#141618}.card.on{border-color:#dafa76;box-shadow:0 0 0 3px #dafa7618}
+.pick{display:flex;gap:12px;align-items:flex-start;cursor:pointer;font-size:14px}.pick input{margin-top:4px;accent-color:#dafa76}
+.info{display:grid;gap:4px;color:#c9ccc0;line-height:1.5}.info strong{color:#f3f1ea}.tags{display:flex;gap:6px;flex-wrap:wrap}
+em{font-style:normal;font-size:11px;padding:1px 8px;border:1px solid #f3f1ea40;border-radius:99px;color:#8f9289}em.def{color:#183c2b;background:#dafa76;border-color:#dafa76}
+.row{display:flex;gap:6px 14px;flex-wrap:wrap;align-items:center}
+.link{background:none;border:0;padding:6px 2px;color:#8f9289;text-decoration:underline;font-size:13px;min-height:32px}.link:hover{color:#f3f1ea}.link.danger{color:#ff9aa8}
+.form{display:grid;gap:12px;padding:16px;border:1px solid #f3f1ea26;border-radius:14px;background:#101214}.form h3{margin:0;font-size:20px}
+.form label{display:grid;gap:6px;font-size:12px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:#8f9289}
+.form input:not([type=checkbox]){padding:12px 14px;border:1px solid #f3f1ea33;border-radius:12px;background:#141618;color:#f3f1ea;font:inherit;font-size:15px;letter-spacing:0;text-transform:none}
+.form input:focus-visible{outline:2px solid #dafa76;outline-offset:2px}.form .check{display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0;font-size:14px;color:#c9ccc0}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}@media(max-width:520px){.two{grid-template-columns:1fr}}
+.err{margin:0;font-size:12.5px;color:#ff9aa8}
+.cta{padding:13px 22px;border:0;border-radius:999px;background:#dafa76;color:#183c2b;font-weight:700;font-size:14px}.cta:disabled{opacity:.6}
+.ghost{padding:12px 20px;border:1px solid #f3f1ea40;border-radius:999px;color:#f3f1ea;font-size:14px}.ghost:hover{border-color:#dafa76;color:#dafa76}.add{justify-self:start}

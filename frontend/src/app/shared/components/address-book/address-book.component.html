@@ -1,0 +1,62 @@
+<section class="book" aria-label="Địa chỉ giao hàng">
+  @if (loadFailed()) {
+    <p class="err" role="alert">Chưa tải được địa chỉ. <button type="button" class="link" (click)="load()">Thử lại</button></p>
+  } @else if (addresses() === null) {
+    <p class="muted" aria-live="polite">Đang tải địa chỉ…</p>
+  } @else {
+    @if (addresses()!.length === 0 && editing() === 'new') {
+      <p class="muted">Bạn chưa có địa chỉ giao hàng. Hãy nhập địa chỉ bên dưới{{ selectable() ? ' để tiếp tục mua hàng' : '' }}.</p>
+    }
+    @if (addresses()!.length) {
+      <ul class="list" [attr.role]="selectable() ? 'radiogroup' : null" aria-label="Danh sách địa chỉ">
+        @for (a of addresses(); track a.id) {
+          <li class="card" [class.on]="selectable() && selectedId() === a.id">
+            <label class="pick">
+              @if (selectable()) { <input type="radio" name="address" [value]="a.id" [checked]="selectedId() === a.id" (change)="select(a)" /> }
+              <span class="info">
+                <strong>{{ a.recipientName }} · {{ a.phone }}</strong>
+                <span>{{ a.addressLine }}@if (a.ward) {, {{ a.ward }}}@if (a.district) {, {{ a.district }}}, {{ a.province }}</span>
+                <span class="tags">@if (a.label) { <em>{{ a.label }}</em> }@if (a.isDefault) { <em class="def">Mặc định</em> }</span>
+              </span>
+            </label>
+            <span class="row">
+              @if (!a.isDefault) { <button type="button" class="link" (click)="makeDefault(a)">Đặt mặc định</button> }
+              <button type="button" class="link" (click)="edit(a)">Sửa</button>
+              @if (confirmDelete() === a.id) {
+                <button type="button" class="link danger" (click)="remove(a)">Xác nhận xóa</button><button type="button" class="link" (click)="askRemove(a)">Hủy</button>
+              } @else { <button type="button" class="link danger" (click)="askRemove(a)">Xóa</button> }
+            </span>
+          </li>
+        }
+      </ul>
+    }
+
+    @if (editing(); as mode) {
+      <form class="form" [formGroup]="form" (ngSubmit)="save()" novalidate>
+        <h3>{{ mode === 'new' ? 'Thêm địa chỉ mới' : 'Sửa địa chỉ' }}</h3>
+        <label>Tên gợi nhớ (nhà, cơ quan…)<input formControlName="label" maxlength="60" /></label>
+        <label>Họ và tên người nhận<input formControlName="recipientName" autocomplete="name" maxlength="120" /></label>
+        @if (form.controls.recipientName.touched && form.controls.recipientName.invalid) { <p class="err">Vui lòng nhập họ tên.</p> }
+        <label>Số điện thoại<input formControlName="phone" autocomplete="tel" inputmode="tel" maxlength="32" /></label>
+        @if (form.controls.phone.touched && form.controls.phone.invalid) { <p class="err">Số điện thoại gồm 8–32 ký tự số, +, khoảng trắng hoặc dấu ngoặc.</p> }
+        <label>Số nhà, đường<input formControlName="addressLine" autocomplete="address-line1" maxlength="500" /></label>
+        @if (form.controls.addressLine.touched && form.controls.addressLine.invalid) { <p class="err">Vui lòng nhập số nhà, đường.</p> }
+        <div class="two">
+          <label>Phường / Xã<input formControlName="ward" maxlength="120" /></label>
+          <label>Quận / Huyện<input formControlName="district" maxlength="120" /></label>
+        </div>
+        <label>Tỉnh / Thành phố<input formControlName="province" autocomplete="address-level1" maxlength="120" /></label>
+        @if (form.controls.province.touched && form.controls.province.invalid) { <p class="err">Vui lòng nhập tỉnh/thành phố.</p> }
+        <label class="check"><input type="checkbox" formControlName="isDefault" /> Đặt làm địa chỉ mặc định</label>
+        @if (error()) { <p class="err" role="alert">{{ error() }}</p> }
+        <div class="row">
+          <button class="cta" type="submit" [disabled]="saving()">{{ saving() ? 'Đang lưu…' : 'Lưu địa chỉ' }}</button>
+          @if (addresses()!.length) { <button type="button" class="ghost" (click)="cancel()">Hủy</button> }
+        </div>
+      </form>
+    } @else {
+      @if (error()) { <p class="err" role="alert">{{ error() }}</p> }
+      <button type="button" class="ghost add" (click)="openNew()">+ Thêm địa chỉ mới</button>
+    }
+  }
+</section>

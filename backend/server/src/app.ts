@@ -8,6 +8,7 @@ import { createCache } from './cache.ts';
 import { authRoutes, authenticate, same, type ApiEnv, type Config } from './auth.ts';
 import { contentRoutes } from './content.ts';
 import { feedbackRoutes } from './feedback.ts';
+import { addressRoutes } from './addresses.ts';
 import { Payments, paymentRoutes, type Provider } from './payments.ts';
 
 export function createApp(db: Client, config: Config, provider: Provider | null = null, sendMail?: (email: string, url: string) => Promise<void>) {
@@ -62,6 +63,7 @@ export function createApp(db: Client, config: Config, provider: Provider | null 
   authRoutes(app, db, config, sendMail);
   contentRoutes(app, db, cache);
   feedbackRoutes(app, db, config);
+  addressRoutes(app, db);
   const payments = new Payments(db, provider, config.publicOrigin); paymentRoutes(app, db, payments);
   app.notFound(c => c.json({ type: 'about:blank', title: 'Not Found', status: 404 }, 404));
   return { app, payments, cache };
