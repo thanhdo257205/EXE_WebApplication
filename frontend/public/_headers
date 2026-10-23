@@ -6,3 +6,8 @@
   Cache-Control: public, max-age=2592000
 /assets/images/*
   Cache-Control: public, max-age=2592000
+# JS/CSS do Angular build có hash trong tên file (outputHashing: all): nội dung đổi thì tên đổi, nên cache vĩnh viễn được.
+/*.js
+  Cache-Control: public, max-age=31536000, immutable
+/styles-*.css
+  Cache-Control: public, max-age=31536000, immutable

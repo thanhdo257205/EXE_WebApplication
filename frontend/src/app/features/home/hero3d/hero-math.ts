@@ -16,6 +16,21 @@ export const scaling = (s: number): M4 => { const m = identity(); m[0] = m[5] = 
 export function rotX(a: number): M4 { const m = identity(), c = Math.cos(a), s = Math.sin(a); m[5] = c; m[6] = s; m[9] = -s; m[10] = c; return m; }
 export function rotY(a: number): M4 { const m = identity(), c = Math.cos(a), s = Math.sin(a); m[0] = c; m[2] = -s; m[8] = s; m[10] = c; return m; }
 export function rotZ(a: number): M4 { const m = identity(), c = Math.cos(a), s = Math.sin(a); m[0] = c; m[1] = s; m[4] = -s; m[5] = c; return m; }
+/** Phiên bản ghi vào ma trận có sẵn (không cấp phát) cho vòng lặp mỗi khung. `out` không được trùng `a`/`b`. */
+export function mulInto(out: M4, a: M4, b: M4): M4 {
+  for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) {
+    out[c * 4 + r] = a[r] * b[c * 4] + a[4 + r] * b[c * 4 + 1] + a[8 + r] * b[c * 4 + 2] + a[12 + r] * b[c * 4 + 3];
+  }
+  return out;
+}
+export function rotInto(out: M4, axis: 'x' | 'y' | 'z', angle: number): M4 {
+  out.fill(0); out[15] = 1;
+  const c = Math.cos(angle), s = Math.sin(angle);
+  if (axis === 'x') { out[0] = 1; out[5] = c; out[6] = s; out[9] = -s; out[10] = c; }
+  else if (axis === 'y') { out[5] = 1; out[0] = c; out[2] = -s; out[8] = s; out[10] = c; }
+  else { out[10] = 1; out[0] = c; out[1] = s; out[4] = -s; out[5] = c; }
+  return out;
+}
 /** Nhân lần lượt từ trái sang phải: chain(A, B, C) = A·B·C. */
 export const chain = (...ms: M4[]): M4 => ms.reduce((acc, m) => mul(acc, m), identity());
 

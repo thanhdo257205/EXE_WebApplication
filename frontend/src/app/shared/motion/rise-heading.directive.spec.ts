@@ -1,17 +1,10 @@
 import { Component, signal } from '@angular/core';
 import { TestBed, ComponentFixture } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { RiseHeadingDirective } from './rise-heading.directive';
+import { RiseHeadingDirective, springCurve } from './rise-heading.directive';
 
-const engine = vi.hoisted(() => ({ callbacks: [] as ((direction: 'in' | 'out') => void)[], unmounts: 0 }));
-vi.mock('spring-text-engine', async () => {
-  const { createElement, useEffect } = await import('react');
-  return { default: (props: { children: import('react').ReactNode; onTextFullyPlayed: (direction: 'in' | 'out') => void }) => {
-    engine.callbacks.push(props.onTextFullyPlayed);
-    useEffect(() => () => { engine.unmounts++; }, []);
-    return createElement('span', { className: 'engine-test', style: { opacity: 1 } }, props.children);
-  } };
-});
+/** Animation giả: test tự quyết định lúc nào hoàn tất. */
+const anim = vi.hoisted(() => ({ created: [] as { finish: () => void; cancelled: boolean; options: KeyframeAnimationOptions }[] }));
 class Preference extends EventTarget {
   matches = false;
   change(value: boolean) { this.matches = value; this.dispatchEvent(new Event('change')); }
@@ -24,68 +17,94 @@ describe('Heading animation lifecycle', () => {
   let intersect: IntersectionObserverCallback;
   let disconnect: ReturnType<typeof vi.fn>;
   const heading = () => fixture.nativeElement.querySelector('h1') as HTMLElement;
+  const finishAll = () => anim.created.forEach(a => a.finish());
   const start = async () => {
     fixture = TestBed.createComponent(HeadingFixture); fixture.detectChanges();
     intersect([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver);
     await vi.waitFor(() => expect(heading().dataset['riseState']).toBe('running'));
   };
   beforeEach(async () => {
-    engine.callbacks = []; engine.unmounts = 0; media = new Preference(); disconnect = vi.fn();
+    anim.created = []; media = new Preference(); disconnect = vi.fn();
     vi.stubGlobal('matchMedia', () => media);
     vi.stubGlobal('IntersectionObserver', class {
       constructor(callback: IntersectionObserverCallback) { intersect = callback; }
       observe() {} disconnect = disconnect;
     });
-    vi.spyOn(document, 'hidden', 'get').mockReturnValue(false);
+    Element.prototype.animate = function (_keyframes: unknown, options?: number | KeyframeAnimationOptions) {
+      let resolve!: () => void, reject!: (e: unknown) => void;
+      const finished = new Promise<void>((ok, fail) => { resolve = ok; reject = fail; });
+      finished.catch(() => undefined);
+      const record = { cancelled: false, options: options as KeyframeAnimationOptions, finish: () => resolve() };
+      anim.created.push(record);
+      return { finished, cancel: () => { record.cancelled = true; reject(new DOMException('aborted', 'AbortError')); } } as unknown as Animation;
+    };
     await TestBed.configureTestingModule({ imports: [HeadingFixture] }).compileComponents();
   });
-  afterEach(() => { fixture?.destroy(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
-  it('keeps original text without starting the engine before visibility or with reduced motion', async () => {
+  afterEach(() => { fixture?.destroy(); vi.restoreAllMocks(); vi.unstubAllGlobals(); delete (Element.prototype as Partial<Element>).animate; });
+
+  it('keeps original text without animating before visibility or with reduced motion', async () => {
     media.matches = true;
     fixture = TestBed.createComponent(HeadingFixture); fixture.detectChanges();
     intersect([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver);
     await new Promise(resolve => setTimeout(resolve, 20));
-    expect(engine.callbacks).toHaveLength(0);
+    expect(anim.created).toHaveLength(0);
     expect(heading().textContent).toContain('First line');
     media.change(false);
     await vi.waitFor(() => expect(heading().dataset['riseState']).toBe('running'));
   });
-  it('unmounts the engine only after all lines complete and retains the rendered text', async () => {
+
+  it('animates each letter with a stagger, splits words/lines and keeps formatting, then settles', async () => {
     await start();
-    const callbacks = engine.callbacks.slice(-2);
-    callbacks[0]('in'); await new Promise(resolve => setTimeout(resolve, 10));
-    expect(engine.unmounts).toBe(0);
-    callbacks[1]('in');
+    const render = heading().querySelector('.rise-render')!;
+    expect(render.getAttribute('aria-hidden')).toBe('true');
+    expect(render.querySelectorAll('.rise-line')).toHaveLength(2);
+    expect(render.querySelectorAll('.line-word')).toHaveLength(4);
+    expect(render.querySelector('em')?.textContent).toBe('Secondline');
+    expect(anim.created).toHaveLength('FirstlineSecondline'.length);
+    expect(anim.created[3].options.delay).toBe(90);
+    expect(heading().querySelector('.rise-source')?.textContent).toBe('First lineSecond line');
+    finishAll();
     await vi.waitFor(() => expect(heading().dataset['riseState']).toBe('settled'));
-    expect(engine.unmounts).toBe(2);
-    expect(heading().querySelector('.rise-render')?.textContent).toContain('First line');
-    expect(heading().querySelector('.rise-render em')?.textContent).toBe('Second line');
-    const callbackCount = engine.callbacks.length;
+    const count = anim.created.length;
     media.change(true); media.change(false);
     expect(heading().dataset['riseState']).toBe('settled');
-    expect(engine.callbacks.length).toBe(callbackCount);
+    expect(anim.created.length).toBe(count);
     fixture.componentInstance.text.set('Updated title'); fixture.detectChanges();
     await vi.waitFor(() => expect(heading().dataset['riseState']).toBe('running'));
-    expect(heading().querySelector('.rise-render')?.textContent).toContain('Updated title');
+    expect(heading().querySelector('.rise-render')?.textContent).toContain('Updatedtitle');
   });
-  it('settles a title changed mid-animation without waiting on callbacks from the old text', async () => {
-    await start(); const previous = engine.callbacks.slice(-2);
+
+  it('settles a title changed mid-animation without waiting on the old animations', async () => {
+    await start();
+    const previous = [...anim.created];
     fixture.componentInstance.text.set('Changed during entrance'); fixture.detectChanges();
-    await vi.waitFor(() => expect(heading().querySelector('.rise-render')?.textContent).toContain('Changed during entrance'));
-    previous.forEach(callback => callback('in'));
+    await vi.waitFor(() => expect(heading().querySelector('.rise-render')?.textContent).toContain('Changedduringentrance'));
+    expect(previous.every(a => a.cancelled)).toBe(true);
     await new Promise(resolve => setTimeout(resolve, 10));
     expect(heading().dataset['riseState']).toBe('running');
-    engine.callbacks.slice(-2).forEach(callback => callback('in'));
+    anim.created.slice(previous.length).forEach(a => a.finish());
     await vi.waitFor(() => expect(heading().dataset['riseState']).toBe('settled'));
   });
-  it('ignores stale completion callbacks after reduced motion and after route teardown', async () => {
-    await start(); const callbacks = [...engine.callbacks];
+
+  it('clears the visual layer on reduced motion and stops on teardown', async () => {
+    await start();
     media.change(true);
-    callbacks.forEach(callback => callback('in'));
+    finishAll();
     await new Promise(resolve => setTimeout(resolve, 20));
     expect(heading().classList.contains('rise-active')).toBe(false);
     expect(heading().querySelector('.rise-render')?.childNodes.length).toBe(0);
-    fixture.destroy(); callbacks.forEach(callback => callback('in'));
+    fixture.destroy();
     expect(disconnect).toHaveBeenCalled();
+  });
+
+  it('turns the 220/22 spring into a linear() curve that ends at 1 with a small overshoot', () => {
+    const { easing, duration } = springCurve();
+    const values = easing.slice(7, -1).split(', ').map(Number);
+    expect(values[0]).toBe(0);
+    expect(values.at(-1)).toBe(1);
+    expect(Math.max(...values)).toBeGreaterThan(1);
+    expect(Math.max(...values)).toBeLessThan(1.05);
+    expect(duration).toBeGreaterThan(500);
+    expect(duration).toBeLessThan(800);
   });
 });

@@ -167,3 +167,5 @@ Chủ dự án thấy đợt "bộ thành phần" chưa đủ khác biệt và c
 **Chuyển trang**: `withViewTransitions({ skipInitialTransition: true })`; CSS ở cuối `styles.css` (trang cũ lùi lên mờ dần, trang mới mở từ dưới lên; `app-global-bar` có `view-transition-name` riêng nên đứng yên; tắt khi reduced motion).
 
 **Giới hạn**: chưa đo hiệu năng trên GPU thật; bộ nhớ texture hero ~35 MB (có mipmap) — trên máy yếu có thể cần giảm kích thước lớp; ảnh thẻ trên hộp là minh họa, không phải nội dung luật.
+
+**Tối ưu sau đó (2026-10-23)**: hero vẽ tối đa ~60 khung/giây, độ phân giải tự hạ/nâng theo thời gian khung, không cấp phát mảng mới cho thẻ/hạt mỗi khung, texture vẽ không tạo tác vụ dài; heading Rise & Settle chuyển sang Web Animations (bỏ React). Chi tiết số đo ở [PERFORMANCE.md](../PERFORMANCE.md#tối-ưu-giữ-nguyên-hiệu-ứng--2026-10-23-hiện-trạng-mới-nhất).

@@ -4,13 +4,21 @@
 
 ## Cập nhật gần nhất
 
-### Hero hộp game 3D WebGPU + đầu trang con chung + chuyển trang — 2026-10-23, đã push nhánh `claude/wonderful-hypatia-8x6sul`, chưa mở PR
+### Tối ưu hiệu năng, giữ nguyên hiệu ứng — 2026-10-23, đã push nhánh `claude/wonderful-hypatia-8x6sul`, chưa mở PR
+
+- Đo trước: trang chủ tải 824 kB JS (React + react-dom + spring-text-engine ~280 kB chỉ để làm chữ tiêu đề trồi lên), font từ Google (304 kB, 2 kết nối ngoài), long task 128 + 98 ms, và **vòng rAF chạy liên tục khi trang đứng yên** (Lenis 60/s; react-spring 128–256/s giữa trang).
+- Sửa: heading Rise & Settle viết lại bằng Web Animations API (cùng lò xo 220/22, stagger 30 ms), gỡ 4 dependency React; Lenis chỉ chạy rAF khi đang cuộn; Be Vietnam Pro tự host (vietnamese + latin, preload 400); cache immutable cho JS/CSS có hash; hero 3D giới hạn ~60 khung/giây, độ phân giải thích ứng, không cấp phát mảng mỗi khung, vẽ texture nhường luồng chính. Chi tiết: [docs/PERFORMANCE.md](docs/PERFORMANCE.md#tối-ưu-giữ-nguyên-hiệu-ứng--2026-10-23-hiện-trạng-mới-nhất).
+- Đo sau (Chromium local, không WebGPU): JS 531 kB, font 238 kB, long task 74 + 49 ms, rAF khi đứng yên 0–11/giây. Ảnh chụp: hero 3D giống hệt trước khi tối ưu; chữ tiêu đề vẫn trồi lên từng ký tự.
+- Xác minh: frontend 239/239 tests (spec heading viết lại theo WAAPI; thêm test Lenis dừng khi đứng yên); build qua. Chưa đo trên thiết bị thật; header cache chưa xác minh sau deploy.
+
+### Hero hộp game 3D WebGPU + đầu trang con chung + chuyển trang — 2026-10-23, đã merge (PR #18) và CD thành công
 
 - Lý do: chủ dự án thấy đợt trước "chưa đột phá"; đợt trước chỉ lấy linh kiện giao diện, khung trang giữ nguyên. Chủ dự án chọn hướng **hộp game 3D kiểu Soda** và phạm vi **trang chủ + khung các trang con**.
 - Trang chủ: hero thành cảnh WebGPU thuần (không thêm thư viện) — hộp game có nắp, vách, lòng hộp; nghiêng theo chuột; 9 thẻ bay quanh bị con trỏ đẩy ra; bong bóng bay lên và quầng sáng theo màu chủ đề. Cuộn trong đoạn hero ghim (250svh) thì nắp lật mở, 5 thẻ bay khỏi hộp xòe quạt rồi bay ra; đổi chủ đề thì nền đổi màu mượt, hộp xoay 720° có nhòe, đổi mặt hộp ở đỉnh vòng xoay, thẻ thu vào giữa rồi bung ra (theo thông số prompt Soda). Mã cảnh nạp lười (chunk ~30 kB) sau khi trang hiển thị; texture vẽ bằng Canvas 2D (mặt hộp 3 chủ đề, 12 mặt thẻ theo bộ thẻ minh họa có sẵn). Không có WebGPU / reduced motion / máy đã hạ cấp → giữ hero CSS cũ, không ghim.
 - Trang con: component `app-page-hero` dùng chung (nền gradient theo màu khu vực, bong bóng, 3 lá thẻ nổi nghiêng theo chuột, chữ nền) cho `/cach-choi`, `/quy-nha`, `/cau-chuyen`, 404, Thư viện/Wiki/Cư dân (cả trang chi tiết), Cửa hàng, Sổ địa chỉ. Đổi route có hiệu ứng chuyển trang (View Transitions API; trình duyệt không hỗ trợ thì đổi tức thì; header đứng yên).
 - Xác minh: frontend 237/237 tests (mới: cảnh hộp 4, đầu trang con 1); build qua; Chromium + SwiftShader WebGPU chụp hero ở 1440px và 390px (đóng, đang mở nắp, thẻ xòe, đổi chủ đề giữa vòng xoay) bằng cách đọc ngược texture canvas; bản dự phòng không WebGPU xem đúng; chuyển 5 route liên tiếp không lỗi console. **Chưa đo FPS/GPU trên máy thật**, chưa thử Safari/Firefox/Android thật; SwiftShader chạy chậm nên không dùng để đánh giá hiệu năng.
-- Việc tiếp theo: mở PR khi chủ dự án đồng ý; sau deploy mở trang chủ trên Chrome/Edge thật để xem độ mượt và độ nét texture.
+- GitHub/deploy: chủ dự án mở và merge PR #18 (`481faae`); CI main và CD 39974809368 thành công (2026-10-23 15:04 UTC). Phiên này chưa xem trên production.
+- Chủ dự án xem ảnh: "khá đẹp rồi", yêu cầu tối ưu hiệu năng nhưng giữ hiệu ứng → mục ở trên.
 
 ### Giao diện theo bộ prompt: lấp chỗ trống + đổi giao diện trang quản trị — 2026-10-23, đã merge (PR #17) và CD thành công
 
