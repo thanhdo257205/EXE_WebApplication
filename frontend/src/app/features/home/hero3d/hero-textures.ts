@@ -43,14 +43,29 @@ function fitText(ctx: Ctx, text: string, font: (px: number) => string, maxWidth:
   return px;
 }
 
+/** Mẫu nhiễu hạt giấy 128×128 tạo một lần; mỗi lớp chỉ tô một lần bằng pattern thay vì hàng nghìn fillRect. */
+let grainTile: Surface | null = null;
 function grain(ctx: Ctx, w: number, h: number, alpha: number, seed = 1): void {
-  let a = seed;
-  const rnd = () => ((a = (a * 16807) % 2147483647) / 2147483647);
-  ctx.save();
-  for (let i = 0; i < (w * h) / 90; i++) {
-    ctx.fillStyle = rnd() > 0.5 ? `rgba(255,255,255,${alpha})` : `rgba(0,0,0,${alpha * 1.4})`;
-    ctx.fillRect(rnd() * w, rnd() * h, 1.5, 1.5);
+  if (!grainTile) {
+    const tile = surface(128, 128), data = tile.ctx.createImageData(128, 128);
+    let a = 7;
+    const rnd = () => ((a = (a * 16807) % 2147483647) / 2147483647);
+    for (let i = 0; i < 128 * 128; i++) {
+      if (rnd() > 0.05) continue; // ~5% điểm có hạt, xấp xỉ mật độ bản vẽ fillRect cũ
+      const light = rnd() > 0.5, o = i * 4;
+      data.data[o] = data.data[o + 1] = data.data[o + 2] = light ? 255 : 0;
+      data.data[o + 3] = 255;
+    }
+    tile.ctx.putImageData(data, 0, 0);
+    grainTile = tile.canvas;
   }
+  const pattern = ctx.createPattern(grainTile as CanvasImageSource, 'repeat');
+  if (!pattern) return;
+  ctx.save();
+  ctx.globalAlpha = alpha * 1.2;
+  ctx.translate((seed * 37) % 128, (seed * 53) % 128); // lệch mẫu theo lớp để các mặt không giống hệt nhau
+  ctx.fillStyle = pattern;
+  ctx.fillRect(-128, -128, w + 256, h + 256);
   ctx.restore();
 }
 
@@ -198,16 +213,20 @@ export async function buildHeroTextures(houseUrl: string, signal?: AbortSignal):
     if (response.ok) house = await createImageBitmap(await response.blob());
   } catch (error) { if (signal?.aborted) throw error; }
   const frontW = 616, frontH = 794; // tỉ lệ mặt nắp (2.45 × 3.15)
-  const big: Surface[] = [
-    ...HERO_THEMES.map((_, i) => layer(BIG_SIZE, frontW, frontH, (ctx, w, h) => drawFront(ctx, w, h, i, house))),
-    layer(BIG_SIZE, 600, 775, drawBottom),
-    layer(BIG_SIZE, 600, 775, drawInside),
-  ];
+  // Nhường luồng chính giữa các lớp: tổng thời gian vẽ không đổi nhưng không tạo một tác vụ dài chặn cuộn/nhập liệu.
+  const yieldToMain = () => new Promise<void>(resolve => setTimeout(resolve, 0));
+  const big: Surface[] = [];
+  for (let i = 0; i < HERO_THEMES.length; i++) { big.push(layer(BIG_SIZE, frontW, frontH, (ctx, w, h) => drawFront(ctx, w, h, i, house))); await yieldToMain(); }
+  big.push(layer(BIG_SIZE, 600, 775, drawBottom), layer(BIG_SIZE, 600, 775, drawInside));
+  await yieldToMain();
   const small: Surface[] = [
     layer(SMALL_SIZE, 1200, 98, (ctx, w, h) => drawStrip(ctx, w, h, 'NHÀ NÀY HƠI BÁO!', '#0e2a1f', '#dafa76')),
     layer(SMALL_SIZE, 1200, 295, (ctx, w, h) => drawStrip(ctx, w, h, 'CHƯA GIÀU ĐÃ LỚN', '#123526', '#e8e6dd')),
-    ...Array.from({ length: CARD_COUNT }, (_, i) => layer(SMALL_SIZE, 500, 700, (ctx, w, h) => drawCard(ctx, w, h, i))),
   ];
+  for (let i = 0; i < CARD_COUNT; i++) {
+    small.push(layer(SMALL_SIZE, 500, 700, (ctx, w, h) => drawCard(ctx, w, h, i)));
+    if (i % 3 === 2) { await yieldToMain(); if (signal?.aborted) throw new DOMException('aborted', 'AbortError'); }
+  }
   house?.close();
   return { big, small };
 }

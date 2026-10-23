@@ -1,4 +1,4 @@
-import { backOut, chain, clamp01, dir, easeIn2, easeInOut, easeOut3, lerp, M4, mul, perspective, point, project, rotX, rotY, rotZ, scaling, seeded, span, translate, V3, viewFrom } from './hero-math';
+import { backOut, chain, clamp01, dir, easeIn2, easeInOut, easeOut3, identity, lerp, M4, mul, mulInto, perspective, point, project, rotInto, rotX, rotY, rotZ, scaling, seeded, span, translate, V3, viewFrom } from './hero-math';
 
 /**
  * Cảnh hộp game 3D ở hero trang chủ (logic thuần, không đụng GPU/DOM để kiểm thử được).
@@ -87,6 +87,8 @@ export class HeroScene {
   private fromTheme = 0;
   private switchAt = -1;
   private lastTime = 0;
+  private camKey = -1;
+  private viewProj: M4 = identity();
   /** Lớp mặt hộp đang hiển thị (đổi ở đỉnh vòng xoay). */
   frontTheme = 0;
   /** Bộ thẻ đang hiển thị (đổi khi thẻ đã thu vào giữa). */
@@ -137,8 +139,8 @@ export class HeroScene {
     // Màn dọc (điện thoại): hộp nhỏ hơn và hạ xuống khoảng trống giữa phần chữ và bộ chọn chủ đề.
     const compact = aspect < 0.8;
     const camZ = Math.max(10.5, (compact ? 3.0 : 2.1) / (tanHalf * aspect));
-    const proj = perspective(fov, aspect, 0.5, 60);
-    const viewProj = mul(proj, viewFrom(0, 0, camZ));
+    if (this.camKey !== aspect) { this.camKey = aspect; this.viewProj = mul(perspective(fov, aspect, 0.5, 60), viewFrom(0, 0, camZ)); }
+    const viewProj = this.viewProj;
     const eye: V3 = [0, 0, camZ];
     const light: V3 = [-5.5, 6.5, 9];
     const p = clamp01(input.scroll);
@@ -203,7 +205,7 @@ export class HeroScene {
       let pos: V3 = [lerp(inBox[0], fan[0], ri), lerp(inBox[1], fan[1], ri), lerp(inBox[2], fan[2], ri)];
       pos = [lerp(pos[0], out[0], away), lerp(pos[1], out[1], away), lerp(pos[2], out[2], away)];
       if (rise <= 0.001) continue; // còn nằm trong hộp đóng: không vẽ
-      const basis = chain(rotZ(-o * 0.16 * ri), rotX(lerp(pitch, 0, ri)), rotY(lerp(yaw, 0, ri) + away * o * 0.6));
+      const basis = this.orient('z', -o * 0.16 * ri, 'x', lerp(pitch, 0, ri), 'y', lerp(yaw, 0, ri) + away * o * 0.6);
       const card = this.cardLayer(i * 2 + 1);
       this.pushCard(pos, basis, 1.15, card, theme, 0.9);
     }
@@ -240,7 +242,7 @@ export class HeroScene {
       } else if (gather < 0) s = f.size * (1 - gather * 0.3); // vượt nhẹ khi bung ra
       const fade = 1 - easeIn2(span(p, 0.55, 0.95));
       if (fade <= 0.01 || s <= 0.02) return;
-      const basis = chain(rotZ(Math.cos(phase) * 0.1 + f.spin), rotY(f.angle + i), rotX(0.2 * Math.sin(phase * 0.5)));
+      const basis = this.orient('z', Math.cos(phase) * 0.1 + f.spin, 'y', f.angle + i, 'x', 0.2 * Math.sin(phase * 0.5));
       this.pushCard(pos, basis, s * fade, this.cardLayer(i), theme, 0.6);
     });
     const solids: [number, number] = [0, this.count];
@@ -254,7 +256,7 @@ export class HeroScene {
         const y = ((q.y + t * q.speed) % range) - range / 2;
         const x = q.x * Math.min(1.2, 0.5 + aspect * 0.35) + Math.sin(t * 0.6 + q.drift) * 0.25;
         const life = Math.sin(((y + range / 2) / range) * Math.PI);
-        this.pushParticle([x, y, q.z], q.size, theme, life * (0.35 + 0.65 * q.phase));
+        this.pushParticle(x, y, q.z, q.size, theme, life * (0.35 + 0.65 * q.phase));
       }
     }
     return { viewProj, eye, light, theme, instances: this.instances, solids, glows: [glowFirst, this.count - glowFirst], blur };
@@ -303,18 +305,36 @@ export class HeroScene {
     this.face(hinge, [lw, 0, rz], [0, lh, 0], [0, 0, lid / 2], LAYER.lidRim, ins);
   }
 
+  /** Ghi thẳng vào mảng instance: trục ngang/dọc là cột 0/1 của ma trận hướng (không tạo mảng tạm). */
   private pushCard(pos: V3, basis: M4, size: number, layer: number, theme: V3, foil: number): void {
-    const w = size * 0.5, h = size * 0.7;
-    this.push(KIND.card, pos, dir(basis, [w, 0, 0]), dir(basis, [0, h, 0]), layer, -1, [theme[0], theme[1], theme[2], 1], [1, foil, 0, 0.09]);
+    if (this.count >= MAX_INSTANCES) return;
+    const w = size * 0.5, h = size * 0.7, o = this.count++ * INST_FLOATS, a = this.instances;
+    a[o] = pos[0]; a[o + 1] = pos[1]; a[o + 2] = pos[2]; a[o + 3] = KIND.card;
+    a[o + 4] = basis[0] * w; a[o + 5] = basis[1] * w; a[o + 6] = basis[2] * w; a[o + 7] = layer;
+    a[o + 8] = basis[4] * h; a[o + 9] = basis[5] * h; a[o + 10] = basis[6] * h; a[o + 11] = -1;
+    a[o + 12] = theme[0]; a[o + 13] = theme[1]; a[o + 14] = theme[2]; a[o + 15] = 1;
+    a[o + 16] = 1; a[o + 17] = foil; a[o + 18] = 0; a[o + 19] = 0.09;
+  }
+
+  /** Ma trận hướng = R1·R2·R3 ghi vào bộ đệm dùng lại (mỗi khung có ~14 thẻ, tránh tạo hàng chục mảng mới). */
+  private readonly scratch = [identity(), identity(), identity(), identity(), identity()];
+  private orient(a1: 'x' | 'y' | 'z', v1: number, a2: 'x' | 'y' | 'z', v2: number, a3: 'x' | 'y' | 'z', v3: number): M4 {
+    const [m1, m2, m3, tmp, out] = this.scratch;
+    rotInto(m1, a1, v1); rotInto(m2, a2, v2); rotInto(m3, a3, v3);
+    return mulInto(out, mulInto(tmp, m1, m2), m3);
   }
 
   private pushHalo(pos: V3, size: number, theme: V3, strength: number): void {
     this.push(KIND.halo, pos, [size, 0, 0], [0, size, 0], 0, -1, [theme[0], theme[1], theme[2], 1], [strength, 0, 0, 0]);
   }
 
-  private pushParticle(pos: V3, size: number, theme: V3, alpha: number): void {
-    if (alpha <= 0.01) return;
-    const c = [lerp(1, theme[0], 0.45), lerp(1, theme[1], 0.45), lerp(1, theme[2], 0.45), 1];
-    this.push(KIND.particle, pos, [size, 0, 0], [0, size, 0], 0, -1, c, [alpha, 0, 0, 0]);
+  private pushParticle(x: number, y: number, z: number, size: number, theme: V3, alpha: number): void {
+    if (alpha <= 0.01 || this.count >= MAX_INSTANCES) return;
+    const o = this.count++ * INST_FLOATS, a = this.instances;
+    a[o] = x; a[o + 1] = y; a[o + 2] = z; a[o + 3] = KIND.particle;
+    a[o + 4] = size; a[o + 5] = 0; a[o + 6] = 0; a[o + 7] = 0;
+    a[o + 8] = 0; a[o + 9] = size; a[o + 10] = 0; a[o + 11] = -1;
+    a[o + 12] = lerp(1, theme[0], 0.45); a[o + 13] = lerp(1, theme[1], 0.45); a[o + 14] = lerp(1, theme[2], 0.45); a[o + 15] = 1;
+    a[o + 16] = alpha; a[o + 17] = 0; a[o + 18] = 0; a[o + 19] = 0;
   }
 }

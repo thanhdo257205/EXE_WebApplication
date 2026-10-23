@@ -174,6 +174,9 @@ Cập nhật: 2026-10-22 (Asia/Saigon).
 - [ ] HERO-3D-02: Đo FPS/GPU và độ nét hero 3D trên máy thật (Chrome/Edge desktop, Android); thử Safari/Firefox; chỉnh DPR/hạt nếu giật.
 - [x] PAGE-HERO-01: Đầu trang con dùng chung `app-page-hero` cho trang khung, thư viện/wiki/cư dân, cửa hàng, sổ địa chỉ; spec + ảnh desktop/mobile local (2026-10-23).
 - [x] NAV-VT-01: Hiệu ứng chuyển trang bằng View Transitions API (header đứng yên, tắt khi reduced motion); chuyển 5 route không lỗi console (2026-10-23).
+- [x] PERF-ANIM-01: Heading Rise & Settle chuyển sang Web Animations, gỡ React/react-dom/spring-text-engine; Lenis chỉ chạy rAF khi cuộn; đo lại rAF đứng yên 0–11/giây, JS 824→531 kB (local, 2026-10-23).
+- [x] PERF-FONT-01: Tự host Be Vietnam Pro (vietnamese + latin), bỏ kết nối Google Fonts; font 304→238 kB (local, 2026-10-23).
+- [ ] PERF-CACHE-01: Xác minh sau deploy rằng `/*.js` và `/styles-*.css` trả `Cache-Control: public, max-age=31536000, immutable`.
 
 ## Cửa hàng thử (2026-10-21)
 

@@ -170,3 +170,25 @@ Edge QA local: catalog0 requestGLB, detail1; idle700ms không có WebGL draw m�
 - Mỗi khung: một `writeBuffer` (≤ ~150 instance × 80 byte) và một render pass MSAA 4× (2 lệnh draw). Vòng rAF dừng khi hero khuất màn hình (IntersectionObserver) hoặc tab ẩn.
 - DPR tối đa 1,75 (cảm ứng 1,5); khi `perf-tier` hạ xuống `low`: DPR 1 và tắt bong bóng. Texture ~35 MB GPU (có mipmap).
 - Chưa đo FPS trên máy thật (SwiftShader trong sandbox quá chậm để đánh giá).
+
+## Tối ưu giữ nguyên hiệu ứng — 2026-10-23 (hiện trạng mới nhất)
+
+Đo bằng Chromium headless trên bản build local (`perf.cjs`/`raf.cjs` trong scratchpad: đếm byte theo loại, long task lúc tải, `requestAnimationFrame` mỗi giây theo nguồn, `Performance.getMetrics`). Các mục cũ phía trên là lịch sử.
+
+| Chỉ số trang chủ (không WebGPU) | Trước | Sau |
+| --- | --- | --- |
+| JS tải về | 824 kB | 531 kB |
+| Font tải về | 304 kB (Google Fonts, 18 file) | 238 kB (tự host, 12 file + Anton/Fraunces) |
+| Long task khi tải | 128 ms + 98 ms | 74 ms + 49 ms |
+| rAF/giây khi đứng yên ở đầu trang | 60 (Lenis) | 0 |
+| rAF/giây khi đứng yên giữa/cuối trang | 128–256 (Lenis + react-spring) | 0–11 |
+
+Thay đổi:
+
+1. **Heading Rise & Settle không dùng React**: `RiseHeadingDirective` dựng lớp hiển thị bằng DOM thuần và chạy Web Animations (opacity/transform trên compositor) với đường cong lò xo 220/22 tính sẵn thành `linear()` (fallback `cubic-bezier` nếu trình duyệt chưa hỗ trợ); vẫn stagger 30 ms/ký tự, trồi 24 px trong khung `.line-word`. Gỡ `react`, `react-dom`, `@react-spring/web`, `spring-text-engine` và type tương ứng (~280 kB JS lazy). Trước đó engine giữ vòng rAF ~130 lần/giây kể cả khi chữ đã đứng yên.
+2. **Lenis không còn `autoRaf`**: vòng rAF chỉ chạy khi có wheel/touch/phím/pointer/scroll/click và tự dừng sau ~12 khung đứng yên.
+3. **Be Vietnam Pro tự host** (`public/assets/fonts/be-vietnam-pro.css`, giấy phép OFL kèm theo): chỉ bộ vietnamese + latin (bỏ latin-ext vì "đ ư ơ" đã nằm trong bộ vietnamese nhưng trùng dải nên trình duyệt tải cả hai); preload weight 400; không còn kết nối tới `fonts.googleapis.com`/`fonts.gstatic.com` và stylesheet chặn hiển thị bên ngoài.
+4. **Cache JS/CSS có hash**: `public/_headers` thêm `/*.js` và `/styles-*.css` với `max-age=31536000, immutable` (tên file có hash nên an toàn). Chưa xác minh header sau deploy.
+5. **Hero 3D**: vẽ tối đa ~60 khung/giây trên màn 120/144 Hz; độ phân giải thích ứng (hạ 15%/nấc tới 55% khi khung >24 ms kéo dài, nâng lại khi ổn định); ngân sách ~3,6 triệu điểm ảnh nội bộ; vị trí đoạn ghim lưu sẵn (không đọc layout mỗi khung); thẻ/hạt ghi thẳng vào mảng instance, ma trận hướng dùng bộ đệm, ma trận camera cache theo tỉ lệ khung; hạt giấy texture dùng một pattern 128×128 thay hàng chục nghìn `fillRect`, vẽ texture nhường luồng chính giữa các lớp.
+
+Chưa đo trên thiết bị thật; số "task ms/s" trong headless phần lớn là raster phần mềm nên không dùng để kết luận.
