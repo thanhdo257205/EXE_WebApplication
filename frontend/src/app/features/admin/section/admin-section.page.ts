@@ -5,6 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { SlicePipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../../../core/auth/auth.service';
+import { CardImageUploadComponent } from '../card-image-upload/card-image-upload.component';
 import { MorphIconComponent } from '../../../shared/components/morph-icon/morph-icon.component';
 import { MorphIconName } from '../../../shared/components/morph-icon/icons';
 import {
@@ -29,7 +30,7 @@ export interface SectionMeta {
 @Component({
   selector: 'app-admin-section',
   standalone: true,
-  imports: [RiseHeadingDirective, RouterLink, FormsModule, SlicePipe, MorphIconComponent],
+  imports: [RiseHeadingDirective, RouterLink, FormsModule, SlicePipe, MorphIconComponent, CardImageUploadComponent],
   templateUrl: './admin-section.page.html',
   styleUrl: './admin-section.page.css',
 })

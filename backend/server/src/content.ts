@@ -51,6 +51,7 @@ const rule = z.enum(['CONFIRMED', 'NEEDS_REVIEW']);
 const pageType = z.enum(['STORY', 'RULE', 'GUIDE', 'FAQ', 'DEVLOG']);
 const image = z.string().max(2048).refine(value => {
   if (value.startsWith('/assets/') && !value.includes('..') && !value.includes('\\')) return true;
+  if (/^\/media\/cards\/[a-f0-9]{64}\.(png|jpg|webp)$/.test(value)) return true; // ảnh đã tải lên R2 qua /admin/media/card-image
   try { const u = new URL(value); return u.protocol === 'https:' && !u.username && !u.password; } catch { return false; }
 }).nullable().optional().default(null);
 const common = z.object({ expectedVersion: z.number().int().nonnegative(), entityId: z.string().uuid().nullable().optional(), slug: z.string().max(160).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/), sortOrder: z.number().int().min(0).max(100000).nullable().optional().transform(v => v ?? 0) });

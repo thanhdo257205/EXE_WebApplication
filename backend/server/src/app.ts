@@ -9,9 +9,10 @@ import { authRoutes, authenticate, same, type ApiEnv, type Config } from './auth
 import { contentRoutes } from './content.ts';
 import { feedbackRoutes } from './feedback.ts';
 import { addressRoutes } from './addresses.ts';
+import { mediaRoutes, MAX_IMAGE_BYTES, type MediaStore } from './media.ts';
 import { Payments, paymentRoutes, type Provider } from './payments.ts';
 
-export function createApp(db: Client, config: Config, provider: Provider | null = null, sendMail?: (email: string, url: string) => Promise<void>) {
+export function createApp(db: Client, config: Config, provider: Provider | null = null, sendMail?: (email: string, url: string) => Promise<void>, media: MediaStore | null = null) {
   const app = new Hono<ApiEnv>();
   const cache = createCache();
   app.onError((error, c) => {
@@ -43,7 +44,7 @@ export function createApp(db: Client, config: Config, provider: Provider | null 
     if (ms >= 1000) console.warn('Slow API request', { method: c.req.method, path: c.req.path.replace(/[0-9a-f]{8}-[0-9a-f-]{27}/gi, ':id'), status: c.res.status, ms });
   });
   app.use('/api/*', async (c, next) => {
-    const length = c.req.path === '/api/v1/payments/payos/webhook' ? 16384 : 65536;
+    const length = c.req.path === '/api/v1/payments/payos/webhook' ? 16384 : c.req.path === '/api/v1/admin/media/card-image' ? MAX_IMAGE_BYTES : 65536;
     return bodyLimit({ maxSize: length, onError: () => fail(413, 'REQUEST_TOO_LARGE') })(c, next);
   });
   app.get('/actuator/health', async c => { await scalar(db, 'SELECT 1'); return c.json({ status: 'UP' }); });
@@ -62,6 +63,7 @@ export function createApp(db: Client, config: Config, provider: Provider | null 
   });
   authRoutes(app, db, config, sendMail);
   contentRoutes(app, db, cache);
+  mediaRoutes(app, db, media);
   feedbackRoutes(app, db, config);
   addressRoutes(app, db);
   const payments = new Payments(db, provider, config.publicOrigin); paymentRoutes(app, db, payments);

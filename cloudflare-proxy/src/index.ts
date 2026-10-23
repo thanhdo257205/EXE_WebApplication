@@ -1,4 +1,9 @@
 interface Limiter { limit(input: { key: string }): Promise<{ success: boolean }>; }
+/** Phần tối thiểu của R2 binding mà gateway dùng (không kéo cả @cloudflare/workers-types). `body` vắng khi điều kiện If-None-Match khớp. */
+export interface R2BucketLike {
+  get(key: string, options?: { onlyIf?: Headers }): Promise<{ httpEtag: string; size: number; body?: ReadableStream } | null>;
+}
+
 export interface Env {
   PUBLIC_ORIGIN: string;
   BACKEND_ORIGIN: string;
@@ -8,6 +13,28 @@ export interface Env {
   API_LIMITER: Limiter;
   LOGIN_LIMITER: Limiter;
   ACCOUNT_LIMITER: Limiter;
+  /** Bucket R2 chứa ảnh thẻ. Tùy chọn: chưa gắn thì `/media/*` trả 404 và gateway vẫn chạy bình thường. */
+  CARD_IMAGES?: R2BucketLike;
+}
+
+const MEDIA_UPLOAD = '/api/v1/admin/media/card-image';
+const MEDIA_UPLOAD_MAX = 1024 * 1024 + 4096;
+const MEDIA_PATH = /^\/media\/cards\/[a-f0-9]{64}\.(png|jpg|webp)$/;
+const MEDIA_TYPES: Record<string, string> = { png: 'image/png', jpg: 'image/jpeg', webp: 'image/webp' };
+
+/** Ảnh thẻ trên R2: tên file là hash nội dung nên nội dung không bao giờ đổi → cache vĩnh viễn, hỗ trợ ETag/304. */
+async function serveMedia(request: Request, env: Env, pathname: string): Promise<Response> {
+  const hit = MEDIA_PATH.exec(pathname);
+  if (!hit || !env.CARD_IMAGES) return problem(404, 'Not found');
+  const object = await env.CARD_IMAGES.get(pathname.slice(7), { onlyIf: request.headers });
+  if (!object) return problem(404, 'Not found');
+  const headers = new Headers({
+    'Content-Type': MEDIA_TYPES[hit[1]], 'Cache-Control': 'public, max-age=31536000, immutable', 'X-Content-Type-Options': 'nosniff',
+    'Content-Security-Policy': "default-src 'none'; sandbox", 'Cross-Origin-Resource-Policy': 'same-origin', ETag: object.httpEtag,
+  });
+  if (!('body' in object)) return new Response(null, { status: 304, headers });
+  headers.set('Content-Length', String(object.size));
+  return new Response(request.method === 'HEAD' ? null : object.body, { status: 200, headers });
 }
 
 const LOGIN = '/api/v1/auth/login';
@@ -70,6 +97,7 @@ export async function handle(request: Request, env: Env, fetcher: typeof fetch =
     if (!api) {
       if (frontend.origin === publicUrl.origin) return problem(503, 'Static assets must be served by Pages');
       if (!['GET', 'HEAD'].includes(request.method)) return problem(405, 'Method not allowed');
+      if (url.pathname.startsWith('/media/')) return await serveMedia(request, env, url.pathname);
       // Static requests never carry authentication, origin secrets or user-controlled forwarding headers.
       const headers = new Headers();
       for (const name of ['accept', 'accept-language', 'if-none-match', 'if-modified-since']) {
@@ -105,7 +133,7 @@ export async function handle(request: Request, env: Env, fetcher: typeof fetch =
     const recovery = request.method === 'POST' && [FORGOT_PASSWORD, RESET_PASSWORD].includes(url.pathname);
     const authAttempt = (request.method === 'POST' && url.pathname === LOGIN) || url.pathname === OAUTH_START || recovery;
     if (authAttempt && !(await env.LOGIN_LIMITER.limit({ key: `login:${ip}` })).success) return problem(429, 'Too many login attempts', '60');
-    const body = SAFE_METHODS.has(request.method) ? undefined : await readLimitedBody(request, webhook ? 16384 : 65536);
+    const body = SAFE_METHODS.has(request.method) ? undefined : await readLimitedBody(request, webhook ? 16384 : url.pathname === MEDIA_UPLOAD ? MEDIA_UPLOAD_MAX : 65536);
     if (body === null) return problem(413, 'Request too large');
     if (recovery) {
       if (!request.headers.get('Content-Type')?.toLowerCase().startsWith('application/json')) return problem(415, 'JSON required');
