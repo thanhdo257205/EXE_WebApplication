@@ -1,0 +1,24 @@
+/* ===== Hero kiểu Soda: nền gradient theo chủ đề (đổi màu mượt nhờ @property --hero-color), hộp 3D WebGPU ghim khi cuộn ===== */
+.hero { background: radial-gradient(circle at 50% 46%, color-mix(in srgb, var(--hero-color, #dafa76) 30%, #0b0c0d) 0%, color-mix(in srgb, var(--hero-color, #dafa76) 10%, #0b0c0d) 42%, #0b0c0d 82%); transition: --hero-color 1.4s cubic-bezier(.4, 0, .2, 1); }
+.hero-track { position: relative; --p: 0; }
+.hero-track.gpu { height: calc(250svh); }
+.hero-track.gpu .hero { position: sticky; top: 80px; height: calc(100svh - 80px); min-height: 560px; }
+.hero-track.gpu .product-scene { opacity: 0; visibility: hidden; transition: opacity .6s, visibility 0s .6s; }
+/* Chữ lớn nằm sau hộp; khi mở hộp thì chìm xuống. */
+.hero-track.gpu h1 { z-index: 10; opacity: calc(1 - var(--p) * 2.6); transform: translateY(calc(var(--p) * 120px)); }
+.hero-track.gpu .hero-top, .hero-track.gpu .theme-picker { opacity: calc(1 - var(--p) * 4.5); transform: translateY(calc(var(--p) * -90px)); }
+.hero-track[data-open] .hero-top, .hero-track[data-open] .theme-picker { pointer-events: none; }
+.open-caption { position: absolute; z-index: 30; left: 50%; top: clamp(20px, 5vh, 56px); width: min(92vw, 760px); transform: translate(-50%, calc((1 - var(--p)) * -40px)); text-align: center; opacity: clamp(0, calc((var(--p) - .55) * 5), 1); pointer-events: none; }
+.open-caption .eyebrow { justify-content: center; margin: 0 0 12px; }
+.open-caption .display { margin: 0; font-size: clamp(34px, 4.6vw, 72px); line-height: 1; color: var(--ed-ink); text-shadow: 0 6px 40px #0009; }
+.chips { display: inline-flex; gap: 8px; margin-top: 18px; }
+.chips span { padding: 6px 12px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--hero-color) 55%, transparent); background: #0b0c0dcc; font-size: 12px; font-weight: 700; color: var(--hero-color); }
+.scroll-meter { position: absolute; z-index: 30; right: var(--gutter); top: 50%; width: 2px; height: 120px; margin-top: -60px; border-radius: 2px; background: #f3f1ea26; overflow: hidden; }
+.scroll-meter span { display: block; width: 100%; height: calc(var(--p) * 100%); background: var(--hero-color); }
+.hero-track.gpu .scroll-link { opacity: calc(1 - var(--p) * 6); }
+@media (max-width: 700px) { .hero-track.gpu h1, .hero-track.gpu .theme-picker > p, .hero-track.gpu .scroll-link { display: none; } }
+@media (max-width: 1000px) {
+  .hero-track.gpu .hero { min-height: 0; }
+  .scroll-meter { display: none; }
+  .hero-track.gpu .theme-picker { position: absolute; left: var(--gutter); right: var(--gutter); bottom: 64px; }
+}

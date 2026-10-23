@@ -9,7 +9,8 @@ import { RouterLink } from '@angular/router';
 import { ColumnSpreadComponent } from '../../shared/components/column-spread/column-spread.component';
 import { MarqueeComponent } from '../../shared/components/marquee/marquee.component';
 import { MorphIconComponent } from '../../shared/components/morph-icon/morph-icon.component';
-@Component({ selector: 'app-home-page', imports: [CountUpDirective, LiquidGlassDirective, DotGridWarpDirective, RiseHeadingDirective, RevealDirective, RouterLink, ColumnSpreadComponent, MarqueeComponent, MorphIconComponent], templateUrl: './home.page.html', styleUrls: ['./home.page.css', './home-glass.css', './home-sections.css'] })
+import { HeroBoxComponent } from './hero-box.component';
+@Component({ selector: 'app-home-page', imports: [HeroBoxComponent, CountUpDirective, LiquidGlassDirective, DotGridWarpDirective, RiseHeadingDirective, RevealDirective, RouterLink, ColumnSpreadComponent, MarqueeComponent, MorphIconComponent], templateUrl: './home.page.html', styleUrls: ['./home.page.css', './home-glass.css', './home-sections.css', './home-hero3d.css'] })
 export class HomePage {
   readonly marqueeItems = [{ text: 'Chưa giàu đã lớn' }, { text: 'Chia tiền' }, { text: 'Chia việc' }, { text: 'Nhà này hơi báo!' }, { text: 'Chia cả niềm vui' }, { text: 'Rút một thẻ' }];
   readonly stats = [
@@ -21,6 +22,8 @@ export class HomePage {
   /** Các phòng nhỏ bên cạnh thẻ Sân đấu nổi bật. */
   readonly rooms = EXPLORE_LINKS.filter(item => item.link !== '/san-dau');
   readonly selectedTheme = signal(0);
+  /** Cảnh hộp 3D WebGPU đang chạy (false: giữ bản CSS tĩnh). */
+  readonly hero3d = signal(false);
   readonly themes = [
     { name: 'Quỹ nhà chung', line: 'Chia tiền. Chia việc. Chia cả niềm vui.', color: '#dafa76', ink: '#183c2b', card: '/assets/cards/card-01.svg' },
     { name: 'Chuyện cùng nhà', line: 'Ở chung một nhà, chẳng ngày nào giống nhau.', color: '#ffacc9', ink: '#4f203c', card: '/assets/cards/card-02.svg' },

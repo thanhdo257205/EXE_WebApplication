@@ -254,6 +254,9 @@ html[data-arena-focus] app-global-bar, html[data-arena-focus] .public-footer, ht
   .admin-sidebar button { min-width: 44px; min-height: 44px; }
 }
 
+/* Màu chủ đề hero chuyển mượt (gradient nền nội suy được) */
+@property --hero-color { syntax: '<color>'; inherits: true; initial-value: #dafa76; }
+
 /* ===== Bộ thành phần dùng chung (tham khảo bộ prompt Lumora / KIMI / Baseline) ===== */
 /* Nút viên thuốc kèm huy hiệu mũi tên tròn */
 .kit-pill { display: inline-flex; align-items: center; gap: .9rem; min-height: 48px; padding: .35rem .4rem .35rem 1.35rem; border-radius: 999px; background: var(--ed-accent); color: #183c2b; font-size: 14px; font-weight: 700; border: 1px solid transparent; transition: transform .25s cubic-bezier(.16,1,.3,1), background-color .25s; }

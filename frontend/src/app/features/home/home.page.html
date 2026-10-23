@@ -1,5 +1,7 @@
 <div class="home-world" [style.--world-accent]="themes[selectedTheme()].color">
+<div class="hero-track" #heroTrack [class.gpu]="hero3d()">
 <section class="hero" appDotGridWarp [style.--hero-color]="themes[selectedTheme()].color" [style.--hero-ink]="themes[selectedTheme()].ink" aria-labelledby="hero-title">
+  <app-hero-box [track]="heroTrack" [theme]="selectedTheme()" (active)="hero3d.set($event)" />
   <div class="hero-top">
     <ul class="roles display" aria-label="Chia tiền, chia việc, chia niềm vui, chơi chung"><li>Chia tiền</li><li>Chia việc</li><li>Chia vui</li><li>Chơi chung</li></ul>
     <div class="hero-intro"><p>Một board game về sống chung, những hóa đơn và cả đống chuyện bất ngờ.</p><a routerLink="/cach-choi" class="primary-cta" appLiquidGlass>Khám phá cách chơi <app-morph-icon name="arrow-right" [size]="20" color="currentColor" /></a></div>
@@ -15,8 +17,13 @@
   </div>
   <h1 id="hero-title" class="display">Nhà này<br>hơi báo!</h1>
   <div class="theme-picker" role="group" aria-label="Đổi chủ đề trưng bày"><p aria-live="polite">{{ themes[selectedTheme()].line }}</p><div class="theme-options">@for (theme of themes; track theme.name; let i = $index) {<button appLiquidGlass type="button" [class.selected]="selectedTheme() === i" [attr.aria-pressed]="selectedTheme() === i" (click)="selectedTheme.set(i)"><img [src]="theme.card" alt="" width="512" height="512" /><span class="theme-name">{{ theme.name }}</span></button>}</div></div>
-  <a href="#cach-choi" class="scroll-link"><span class="scroll-rule" aria-hidden="true"></span>Cuộn để vào nhà</a>
+  @if (hero3d()) {
+    <div class="open-caption" aria-hidden="true"><p class="eyebrow">Mở hộp</p><p class="display">Mỗi lá thẻ,<br>một chuyện nhà.</p><span class="chips"><span>148 thẻ</span><span>8 cư dân</span><span>1 căn nhà</span></span></div>
+    <span class="scroll-meter" aria-hidden="true"><span></span></span>
+  }
+  <a href="#cach-choi" class="scroll-link"><span class="scroll-rule" aria-hidden="true"></span>{{ hero3d() ? 'Cuộn để mở hộp' : 'Cuộn để vào nhà' }}</a>
 </section>
+</div>
 
 <app-marquee [items]="marqueeItems" aria-hidden="true" />
 
