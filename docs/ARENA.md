@@ -34,6 +34,11 @@ Bản thử nghiệm, cập nhật 2026-10-22 (đã merge PR #9, CD thành công
 - Nội dung (18 bước): chào mừng → tour sân từng khu vực (bàn máy, Chiến đấu, băng ghế, Bài/Bỏ, Giải thưởng) → đặt Pokémon Chiến đấu → băng ghế → Sẵn sàng → HP/Năng lượng → "Năng lượng dùng để làm gì?" (nêu chi phí đòn đánh thật của Pokémon của bạn) → gắn Năng lượng (2 nhịp: chọn thẻ, rồi bấm Pokémon; hộp tự chuyển điểm chỉ) → **tấn công đầu tiên** → xem kết quả trên thanh HP → điểm yếu → rút lui → hoàn tất.
 - Bước "tấn công đầu tiên" bám tình huống thật: lượt 1 nhắc kết thúc lượt (người đi trước không được tấn công), chờ máy, rồi ở lượt bạn: đủ Năng lượng → chỉ nút đòn đánh; thiếu mà còn thẻ Năng lượng → hướng dẫn gắn thêm; hết cách → kết thúc lượt để lượt sau thử lại. Hướng dẫn chỉ sang các mẹo khi người chơi thật sự đã tấn công.
 
+## Điện thoại
+- Thiết bị cảm ứng cầm **dọc** (màn ≤900px) bị chặn bằng màn "Hãy xoay ngang điện thoại" (`rotate-gate.component.ts`, có nút "Toàn màn hình & xoay ngang" — thử `requestFullscreen` + `screen.orientation.lock('landscape')`, chỉ Chrome Android hỗ trợ; iOS thì tự xoay). Trong lúc chặn, vòng vẽ dừng; xoay ngang là chơi tiếp, ván không mất.
+- Cầm **ngang** (chiều cao ≤520px): ẩn header/footer của site (`html[data-arena-focus]`), ẩn tiêu đề/mô tả, sân cao `100svh − 112px`, thanh nút gọn và có nút "Thoát" về trang chủ.
+- Trang chủ có nút "Chơi đấu thẻ với máy" ở chân trang và mục "Sân đấu thẻ với máy" trong menu di động.
+
 ## Điều khiển
 - Chuột/cảm ứng: bấm thẻ Pokémon trong tay → bấm lần nữa (hoặc "Đặt xuống bàn") để đặt; bấm Năng lượng → bấm Pokémon của bạn để gắn; "Rút lui" → bấm Pokémon băng ghế; nút đòn đánh bên dưới. Rê chuột/chạm vào thẻ để xem chi tiết. `Esc` hủy chọn.
 - Bàn phím/trình đọc màn hình: danh sách nút "Tay bài của bạn" và danh sách đích (ẩn bằng cách thị giác, hiện khi focus) dùng chung logic với chuột; trạng thái ở `role=status`.

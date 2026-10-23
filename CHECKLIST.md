@@ -2,6 +2,13 @@
 
 Cập nhật: 2026-10-22 (Asia/Saigon).
 
+## Giao diện điện thoại (2026-10-23)
+
+- [x] MOBILE-OVERFLOW — Hết tràn ngang trên 21 trang ở 390px (header công khai/admin); mục tiêu chạm ≥40px trên màn cảm ứng.
+- [x] ARENA-FOOTER-CTA — Nút "Chơi đấu thẻ với máy" ở chân trang + menu di động.
+- [x] ARENA-ROTATE-GATE — Điện thoại cầm dọc bị chặn bằng màn xoay ngang; cầm ngang dùng toàn màn hình.
+- [ ] MOBILE-DEVICE — Thử trên điện thoại thật (iOS/Android): xoay máy, toàn màn hình, từng trang admin/shop với dữ liệu thật.
+
 ## Sân đấu mô phỏng WebGPU (2026-10-22)
 
 - [x] ARENA-ENGINE — Engine luật rút gọn bất biến + AI; 18 test gồm 300 ván máy-với-máy không có nước sai luật.

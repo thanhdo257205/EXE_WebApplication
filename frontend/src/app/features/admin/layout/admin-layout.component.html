@@ -5,7 +5,7 @@
       <button
         type="button"
         (click)="toggleSidebar()"
-        class="lg:hidden text-slate-300 hover:text-white p-1.5 focus:outline-none"
+        class="admin-menu-btn lg:hidden text-slate-300 hover:text-white p-1.5 focus:outline-none"
         aria-label="Mở menu quản trị"
       >
         <app-morph-icon name="menu" [size]="20" color="currentColor"></app-morph-icon>
@@ -13,7 +13,7 @@
 
       <a routerLink="/admin" class="flex items-center gap-2 text-slate-100 hover:text-sky-300 font-bold tracking-wider text-sm transition-colors">
         <app-morph-icon name="shield" [size]="20" color="#38bdf8"></app-morph-icon>
-        <span>NNHB · QUẢN TRỊ VIÊN</span>
+        <span class="admin-title-text">NNHB · QUẢN TRỊ VIÊN</span>
       </a>
 
       <span class="admin-badge">ADMIN CONSOLE</span>
@@ -86,7 +86,8 @@
           <span class="status-dot"></span>
           <span>Hệ thống: Bình thường</span>
         </div>
-        <p class="build-info">Phiên bản: V2 · PostgreSQL Aiven</p>
+        <button type="button" class="sidebar-logout" (click)="logout()">Đăng xuất ({{ auth.currentUser()?.displayName }})</button>
+        <p class="build-info">Phiên bản: V2 · Turso (libSQL)</p>
       </div>
     </aside>
 

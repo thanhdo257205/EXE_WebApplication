@@ -85,6 +85,11 @@ export class App implements OnDestroy {
     this.mobileMenuOpen.update(v => !v);
   }
 
+  logout() {
+    const done = () => { this.auth.currentUser.set(null); this.mobileMenuOpen.set(false); void this.router.navigateByUrl('/dang-nhap'); };
+    this.auth.logout().subscribe({ next: done, error: done });
+  }
+
   closeMobileMenu() {
     this.mobileMenuOpen.set(false);
   }

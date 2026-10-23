@@ -9,6 +9,7 @@ import { ArenaRenderer, loadPosterBitmaps, WebGpuUnavailableError, type ArenaQua
 import { ArenaScene, type Pick, type Popup } from './arena-scene';
 import type { Vec3 } from './arena-math';
 import { Tutorial, type TutorialView } from './arena-tutorial';
+import { RotateGateComponent } from './rotate-gate.component';
 import { INSTANCE_FLOATS } from './arena-shaders';
 import { buildView, type ArenaView } from './arena-view';
 
@@ -35,9 +36,9 @@ const textPresenter: Presenter = { reset: () => undefined, present: () => 0.35 }
 @Component({
   selector: 'app-arena-page',
   standalone: true,
-  imports: [RouterLink, NgTemplateOutlet],
+  imports: [RouterLink, NgTemplateOutlet, RotateGateComponent],
   templateUrl: './arena.page.html',
-  styleUrl: './arena.page.css',
+  styleUrls: ['./arena.page.css', './arena-coach.css'],
 })
 export class ArenaPage {
   private readonly destroyRef = inject(DestroyRef);
@@ -57,6 +58,8 @@ export class ArenaPage {
   readonly labels = signal<LabelView[]>([]);
   /** Vị trí hộp hướng dẫn trên sân (null khi không có bước hoặc chưa đo được sân). */
   readonly coachAnchor = signal<CoachAnchor | null>(null);
+  /** Điện thoại đang cầm dọc: chặn chơi cho tới khi xoay ngang. */
+  readonly portraitPhone = signal(false);
   readonly quality = signal<QualityLevel>('high');
   readonly qualityLabel = () => QUALITY[this.quality()].label;
   readonly energyColor = (label: string) => this.energyCss[label] ?? '#cfd2c8';
@@ -109,6 +112,7 @@ export class ArenaPage {
     if (lowTier) { this.quality.set('low'); this.autoQuality = false; }
     this.scene.setOptions({ reducedMotion: this.reduced, particles: QUALITY[this.quality()].particles });
     this.scene.popup = popup => this.showPopup(popup);
+    this.watchOrientation();
     this.ctl = new ArenaController(this.scene, () => this.refresh());
 
     let renderer: ArenaRenderer | null = null;
@@ -170,8 +174,8 @@ export class ArenaPage {
   // ---------- Vòng lặp vẽ ----------
   private startLoop(): void { this.running = true; this.lastTs = 0; this.schedule(); }
   private stopLoop(): void { this.running = false; if (this.raf) cancelAnimationFrame(this.raf); this.raf = 0; }
-  private schedule(): void { if (!this.raf && this.running && this.visible && !document.hidden) this.raf = requestAnimationFrame(this.frame); }
-  private syncLoop(): void { if (this.running && this.visible && !document.hidden) { this.lastTs = 0; this.schedule(); } else if (this.raf) { cancelAnimationFrame(this.raf); this.raf = 0; } }
+  private schedule(): void { if (!this.raf && this.running && this.visible && !document.hidden && !this.portraitPhone()) this.raf = requestAnimationFrame(this.frame); }
+  private syncLoop(): void { if (this.running && this.visible && !document.hidden && !this.portraitPhone()) { this.lastTs = 0; this.schedule(); } else if (this.raf) { cancelAnimationFrame(this.raf); this.raf = 0; } }
   private wake(): void { this.activeUntil = performance.now() / 1000 + ACTIVE_WINDOW_SECONDS; this.schedule(); }
 
   private readonly frame = (ts: number): void => {
@@ -426,6 +430,34 @@ export class ArenaPage {
     }
     const cur = this.coachAnchor();
     if (!cur || cur.mode !== next.mode || cur.ring !== next.ring || Math.abs(cur.x - next.x) > 1.5 || Math.abs(cur.y - next.y) > 1.5 || Math.abs(cur.left - next.left) > 1.5 || cur.width !== next.width || Math.abs(cur.vertical - next.vertical) > 1.5) this.coachAnchor.set(next);
+  }
+
+  /**
+   * Điện thoại cầm dọc → hiện màn "xoay ngang" và dừng vẽ; cầm ngang → dùng toàn bộ chiều cao (ẩn header/footer của site).
+   * Chỉ áp dụng cho thiết bị cảm ứng; máy tính và máy tính bảng lớn không bị chặn.
+   */
+  private watchOrientation(): void {
+    if (typeof matchMedia !== 'function') return;
+    const portrait = matchMedia('(orientation: portrait) and (max-width: 900px) and (pointer: coarse)');
+    const landscapePhone = matchMedia('(orientation: landscape) and (max-height: 520px) and (pointer: coarse)');
+    const root = document.documentElement;
+    const apply = () => {
+      this.portraitPhone.set(portrait.matches);
+      if (landscapePhone.matches) root.dataset['arenaFocus'] = 'true'; else delete root.dataset['arenaFocus'];
+      if (portrait.matches) { if (this.raf) { cancelAnimationFrame(this.raf); this.raf = 0; } } else { this.lastTs = 0; this.schedule(); }
+      setTimeout(() => this.applyResize(), 0);
+    };
+    apply();
+    portrait.addEventListener?.('change', apply); landscapePhone.addEventListener?.('change', apply);
+    this.cleanups.push(() => { portrait.removeEventListener?.('change', apply); landscapePhone.removeEventListener?.('change', apply); delete root.dataset['arenaFocus']; });
+  }
+
+  /** Thử vào toàn màn hình rồi khóa hướng ngang (Chrome Android); iOS/trình duyệt khác không hỗ trợ thì người dùng tự xoay máy. */
+  async enterLandscape(): Promise<void> {
+    try {
+      await document.documentElement.requestFullscreen?.();
+      await (screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> }).lock?.('landscape');
+    } catch { /* không hỗ trợ: bỏ qua */ }
   }
 
   private updateLabels(): void {
