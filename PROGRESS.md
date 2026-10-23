@@ -4,11 +4,19 @@
 
 ## Cập nhật gần nhất
 
-### Tối ưu hiệu năng, giữ nguyên hiệu ứng — 2026-10-23, đã push nhánh `claude/wonderful-hypatia-8x6sul`, chưa mở PR
+### Ảnh thẻ trên Cloudflare R2 — 2026-10-23, local (chưa commit lúc viết)
+
+- Theo yêu cầu "thử lưu thẻ trên cloud bằng R2" (đã giải thích không lưu ảnh trong DB, chỉ lưu đường dẫn): backend `media.ts` (tải ảnh admin, nhận diện PNG/JPEG/WebP theo byte, ≤1 MiB, khóa theo hash, ký SigV4 bằng `node:crypto`, audit), gateway phục vụ `/media/cards/<hash>` từ R2 binding tùy chọn (cache immutable, ETag/304) và nâng giới hạn thân cho đường tải ảnh, validator `artworkUrl` chấp nhận `/media/cards/...`, admin có khối tải ảnh (nén WebP trên trình duyệt). Chi tiết và các bước cấu hình: [docs/R2_CARD_IMAGES.md](docs/R2_CARD_IMAGES.md).
+- Xác minh: backend 31 test pass (mới 6: byte magic, cấu hình, chữ ký SigV4 đối chiếu phép tính độc lập, PUT có ký, quyền/loại/dung lượng/audit, 503); gateway 27 test pass (mới 2); frontend 243 test pass (mới 4); tsc cả ba gói và build Angular qua. **Chưa thử với R2 thật** (chưa có bucket/khóa trong môi trường này; không ghi khóa vào repo).
+- Hạn chế: admin chưa có form sửa thẻ (khối tải ảnh trả đường dẫn để dán vào `artworkUrl`); hero 3D/Sân đấu/thẻ mẫu vẫn dùng dữ liệu cứng; binding `CARD_IMAGES` chưa thêm vào `wrangler.jsonc` vì thêm trước khi có bucket sẽ làm CD lỗi.
+- Việc tiếp theo: chủ dự án tạo bucket + token + biến Render + binding (xem tài liệu), thử tải một ảnh thật; làm form CRUD thẻ; chuyển hero/Sân đấu sang đọc thẻ từ API.
+
+### Tối ưu hiệu năng, giữ nguyên hiệu ứng — 2026-10-23, đã merge (PR #19) và CD thành công
 
 - Đo trước: trang chủ tải 824 kB JS (React + react-dom + spring-text-engine ~280 kB chỉ để làm chữ tiêu đề trồi lên), font từ Google (304 kB, 2 kết nối ngoài), long task 128 + 98 ms, và **vòng rAF chạy liên tục khi trang đứng yên** (Lenis 60/s; react-spring 128–256/s giữa trang).
 - Sửa: heading Rise & Settle viết lại bằng Web Animations API (cùng lò xo 220/22, stagger 30 ms), gỡ 4 dependency React; Lenis chỉ chạy rAF khi đang cuộn; Be Vietnam Pro tự host (vietnamese + latin, preload 400); cache immutable cho JS/CSS có hash; hero 3D giới hạn ~60 khung/giây, độ phân giải thích ứng, không cấp phát mảng mỗi khung, vẽ texture nhường luồng chính. Chi tiết: [docs/PERFORMANCE.md](docs/PERFORMANCE.md#tối-ưu-giữ-nguyên-hiệu-ứng--2026-10-23-hiện-trạng-mới-nhất).
 - Đo sau (Chromium local, không WebGPU): JS 531 kB, font 238 kB, long task 74 + 49 ms, rAF khi đứng yên 0–11/giây. Ảnh chụp: hero 3D giống hệt trước khi tối ưu; chữ tiêu đề vẫn trồi lên từng ký tự.
+- GitHub/deploy: PR #19 merge vào `main` (`78507ee`); CI main và CD 39995100853 thành công (2026-10-23 17:28 UTC). Chưa xem production, chưa xác minh header cache.
 - Xác minh: frontend 239/239 tests (spec heading viết lại theo WAAPI; thêm test Lenis dừng khi đứng yên); build qua. Chưa đo trên thiết bị thật; header cache chưa xác minh sau deploy.
 
 ### Hero hộp game 3D WebGPU + đầu trang con chung + chuyển trang — 2026-10-23, đã merge (PR #18) và CD thành công

@@ -177,6 +177,9 @@ Cập nhật: 2026-10-22 (Asia/Saigon).
 - [x] PERF-ANIM-01: Heading Rise & Settle chuyển sang Web Animations, gỡ React/react-dom/spring-text-engine; Lenis chỉ chạy rAF khi cuộn; đo lại rAF đứng yên 0–11/giây, JS 824→531 kB (local, 2026-10-23).
 - [x] PERF-FONT-01: Tự host Be Vietnam Pro (vietnamese + latin), bỏ kết nối Google Fonts; font 304→238 kB (local, 2026-10-23).
 - [ ] PERF-CACHE-01: Xác minh sau deploy rằng `/*.js` và `/styles-*.css` trả `Cache-Control: public, max-age=31536000, immutable`.
+- [x] R2-01: Code tải/phục vụ ảnh thẻ qua R2 (backend + gateway + khối admin), 31/27/243 test qua local (2026-10-23).
+- [ ] R2-02: Tạo bucket + token giới hạn bucket, đặt `R2_*` trên Render, thêm binding `CARD_IMAGES` vào gateway, tải một ảnh thật và xác minh header cache production.
+- [ ] R2-03: Form tạo/sửa thẻ trong admin gắn `artworkUrl`; chuyển hero 3D, Sân đấu và thẻ mẫu sang đọc thẻ từ API (giữ bộ cứng làm dự phòng).
 
 ## Cửa hàng thử (2026-10-21)
 

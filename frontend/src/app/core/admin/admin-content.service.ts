@@ -196,6 +196,22 @@ export class AdminContentService {
   }
 
   /**
+   * POST /api/v1/admin/media/card-image — thân là byte ảnh thô (WebP/PNG/JPEG ≤ 1 MiB). Trả đường dẫn `/media/cards/<hash>.<ext>`
+   * để gán vào `artworkUrl` của thẻ.
+   */
+  uploadCardImage(image: Blob): Observable<{ url: string; bytes: number; contentType: string }> {
+    return this.auth.getCsrf().pipe(
+      switchMap(csrf =>
+        this.http.post<{ url: string; bytes: number; contentType: string }>(`${this.base}/media/card-image`, image, {
+          withCredentials: true,
+          headers: new HttpHeaders({ 'Content-Type': 'application/octet-stream', [csrf.headerName]: csrf.token }),
+        })
+      ),
+      catchError(err => this.handleError(err))
+    );
+  }
+
+  /**
    * GET /api/v1/admin/content/releases/{release}
    */
   getRelease(releaseId: string): Observable<AdminRelease> {

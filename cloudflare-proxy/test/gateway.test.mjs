@@ -248,3 +248,37 @@ test('browser headers can be forged: they are a filter, not authentication', asy
   const request = browser('/api/v1/auth/me', { headers: { 'User-Agent': 'PostmanRuntime/7' } });
   assert.equal((await handle(request, environment(), async () => new Response('{}', { status: 401 }))).status, 401);
 });
+
+const HASH = 'a'.repeat(64);
+function bucket(objects = {}) {
+  return { async get(key, options) {
+    const o = objects[key]; if (!o) return null;
+    const etag = '"etag-1"';
+    if (options?.onlyIf?.get('If-None-Match') === etag) return { httpEtag: etag, size: o.length };
+    return { httpEtag: etag, size: o.length, body: new Response(o).body };
+  } };
+}
+
+test('ảnh thẻ /media phục vụ từ R2: cache immutable, 304, chỉ đúng dạng hash, không qua backend/Pages', async () => {
+  const env = environment({ CARD_IMAGES: bucket({ [`cards/${HASH}.webp`]: new Uint8Array([1, 2, 3]) }) });
+  const get = (path, headers = {}) => handle(new Request(ORIGIN + path, { headers }), env, noUpstream);
+  const ok = await get(`/media/cards/${HASH}.webp`);
+  assert.equal(ok.status, 200);
+  assert.equal(ok.headers.get('Content-Type'), 'image/webp');
+  assert.equal(ok.headers.get('Cache-Control'), 'public, max-age=31536000, immutable');
+  assert.equal(ok.headers.get('X-Content-Type-Options'), 'nosniff');
+  assert.match(ok.headers.get('Content-Security-Policy'), /sandbox/);
+  assert.deepEqual([...new Uint8Array(await ok.arrayBuffer())], [1, 2, 3]);
+  assert.equal((await get(`/media/cards/${HASH}.webp`, { 'If-None-Match': '"etag-1"' })).status, 304);
+  assert.equal((await get(`/media/cards/${'b'.repeat(64)}.webp`)).status, 404);
+  for (const bad of ['/media/cards/../secret.png', `/media/cards/${HASH}.svg`, '/media/other/x.png', `/media/cards/${HASH}.webp/x`]) assert.equal((await get(bad)).status, 404, bad);
+  assert.equal((await handle(new Request(ORIGIN + `/media/cards/${HASH}.webp`, { method: 'POST' }), env, noUpstream)).status, 405);
+  assert.equal((await handle(new Request(ORIGIN + `/media/cards/${HASH}.webp`), environment(), noUpstream)).status, 404); // chưa gắn bucket
+});
+
+test('đường tải ảnh admin cho phép thân tới ~1 MiB, các API khác vẫn giới hạn 64 KiB', async () => {
+  const send = (path, size) => handle(browser(path, { method: 'POST', body: new Uint8Array(size), headers: { Origin: ORIGIN, 'Content-Type': 'application/octet-stream' } }), environment(), async () => Response.json({ ok: true }, { status: 201 }));
+  assert.equal((await send('/api/v1/admin/media/card-image', 900 * 1024)).status, 201);
+  assert.equal((await send('/api/v1/admin/media/card-image', 1024 * 1024 + 8192)).status, 413);
+  assert.equal((await send('/api/v1/admin/content/releases', 100 * 1024)).status, 413);
+});
