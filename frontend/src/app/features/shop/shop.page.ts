@@ -1,12 +1,12 @@
 import { Component, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { RiseHeadingDirective } from '../../shared/motion/rise-heading.directive';
+import { PageHeroComponent } from '../../shared/components/page-hero/page-hero.component';
 import { formatVnd, ShopProduct, ShopService } from '../../core/shop/shop.service';
 
 @Component({
   selector: 'app-shop-page',
   standalone: true,
-  imports: [RouterLink, RiseHeadingDirective],
+  imports: [RouterLink, PageHeroComponent],
   templateUrl: './shop.page.html',
   styleUrl: './shop.page.css',
 })

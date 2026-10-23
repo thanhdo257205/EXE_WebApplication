@@ -1,0 +1,12 @@
+<span class="ph-ghost" aria-hidden="true">{{ ghost() || eyebrow() || heading() }}</span>
+<span class="ph-bubbles" aria-hidden="true">@for (b of bubbles; track $index) {<i [style.left.%]="b.x" [style.width.px]="b.size" [style.height.px]="b.size" [style.animation-duration.s]="b.dur" [style.animation-delay.s]="b.delay"></i>}</span>
+<div class="ph-copy">
+  @if (backLink(); as link) { <a [routerLink]="link" class="ph-back">{{ backLabel() }}</a> }
+  @if (eyebrow()) { <p class="eyebrow">{{ eyebrow() }}</p> }
+  <h1 riseHeading class="display">{{ heading() }}</h1>
+  @if (description()) { <p class="ph-lead">{{ description() }}</p> }
+  <ng-content />
+</div>
+<div class="ph-stage" aria-hidden="true">
+  @for (src of cards(); track src; let i = $index) { <img [src]="src" alt="" width="512" height="512" [class]="'ph-card c' + i" /> }
+</div>

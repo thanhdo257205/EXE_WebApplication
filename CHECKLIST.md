@@ -170,6 +170,10 @@ Cập nhật: 2026-10-22 (Asia/Saigon).
 - [x] ADMIN-UI-01: Đổi giao diện quản trị sang ngôn ngữ site (nền tối ấm, xanh chanh, Anton, sidebar đánh số, thẻ khung góc, bảng cuộn ngang trên mobile); build/ảnh local qua (2026-10-23).
 - [ ] ADMIN-UI-02: Xem lại giao diện quản trị với dữ liệu thật trên production (bảng, form, trạng thái lỗi) và trên điện thoại thật.
 - [ ] CONTENT-05: Thay mục lục "Đang biên soạn" ở `/cach-choi`, `/cau-chuyen` bằng nội dung luật/cốt truyện đã duyệt.
+- [x] HERO-3D-01: Hero trang chủ hộp game 3D WebGPU (nắp mở theo cuộn, thẻ bay/đẩy theo con trỏ, đổi chủ đề xoay 720°), nạp lười, dự phòng CSS; 4 test cảnh + ảnh SwiftShader 1440/390px local (2026-10-23).
+- [ ] HERO-3D-02: Đo FPS/GPU và độ nét hero 3D trên máy thật (Chrome/Edge desktop, Android); thử Safari/Firefox; chỉnh DPR/hạt nếu giật.
+- [x] PAGE-HERO-01: Đầu trang con dùng chung `app-page-hero` cho trang khung, thư viện/wiki/cư dân, cửa hàng, sổ địa chỉ; spec + ảnh desktop/mobile local (2026-10-23).
+- [x] NAV-VT-01: Hiệu ứng chuyển trang bằng View Transitions API (header đứng yên, tắt khi reduced motion); chuyển 5 route không lỗi console (2026-10-23).
 
 ## Cửa hàng thử (2026-10-21)
 

@@ -1,42 +1,21 @@
+<app-page-hero
+  [heading]="selected() ? itemName(selected()!) : heading()"
+  [description]="selected() ? subtitle(selected()!) : description()"
+  [eyebrow]="kindLabel()"
+  [tone]="tone()"
+  [backLink]="selected() ? listLink() : '/'"
+  [backLabel]="selected() ? '← Quay lại danh sách' : '← Về căn nhà'"
+>
+  @if (releaseLabel()) {
+    <p class="release-note">
+      Đang xem {{ releaseLabel() }}
+      @if (source() === 'snapshot') {
+        <span> · bản lưu tĩnh</span>
+      }
+    </p>
+  }
+</app-page-hero>
 <section class="reader-shell">
-  <header class="reader-heading">
-    @if (selected()) {
-      <a
-        class="back-link"
-        [routerLink]="[
-          kind() === 'wiki-pages' ? '/wiki' : kind() === 'characters' ? '/cu-dan' : '/thu-vien',
-        ]"
-        >← Quay lại danh sách</a
-      >
-    } @else {
-      <a class="back-link" routerLink="/">← Về căn nhà</a>
-    }
-    @if (selected(); as item) {
-      <h1 riseHeading class="display">{{ itemName(item) }}</h1>
-      <p>
-        {{
-          isCard(item)
-            ? item.code
-            : isWiki(item)
-              ? item.summary
-              : isCharacter(item)
-                ? item.code
-                : ''
-        }}
-      </p>
-    } @else {
-      <h1 riseHeading class="display">{{ heading() }}</h1>
-      <p>{{ description() }}</p>
-    }
-    @if (releaseLabel()) {
-      <p class="release-note">
-        Đang xem {{ releaseLabel() }}
-        @if (source() === 'snapshot') {
-          <span> · bản lưu tĩnh</span>
-        }
-      </p>
-    }
-  </header>
 
   @if (selected(); as item) {
     <article class="detail-sheet" [class.card-detail]="isCard(item)">

@@ -141,3 +141,29 @@ Thành phần mới: `CountUpDirective` (`appCountUp`, đếm từ 0 khi vào kh
 **Trang quản trị**: bỏ bảng màu xanh dương. `admin-layout-brand.css` (logo N, tiêu đề Anton, nút viên thuốc, sidebar đánh số với mục đang mở tô xanh chanh, ẩn nút menu trên desktop), `AdminThemeComponent` (`ViewEncapsulation.None`, mọi selector dưới `.admin-app-root`, chỉ nạp cùng chunk admin) ghi đè class Tailwind sky/slate sang tông ấm, tiêu đề trang/khối dùng Anton, thẻ số liệu có khung góc; bảng hàng chờ trên điện thoại giữ tối thiểu 620px và cuộn ngang trong khung. Màu hex trong CSS/template admin được đổi theo một bảng ánh xạ (nền xanh đen → đen ấm, sky → xanh chanh, slate → xám ấm); token kính `admin-mode` trong `glass-controls.css` cũng chuyển sang xanh chanh. Sửa chữ "PostgreSQL 18 · Aiven" lỗi thời trên thẻ hạ tầng thành "Turso · libSQL".
 
 **Giới hạn**: chưa kiểm với dữ liệu thật (API giả lập trả rỗng); ảnh mobile của các thẻ có `appReveal` chụp toàn trang có thể còn ẩn vì script chụp không cuộn; CSS `home.page.css`, `public-content.page.css`, `global-bar.component.css`, `admin-dashboard.page.css` vẫn trên mức cảnh báo 6 kB (dưới ngưỡng lỗi 10 kB, đã có từ trước).
+
+## Hero hộp game 3D + đầu trang con + chuyển trang (2026-10-23, đợt 2)
+
+Chủ dự án thấy đợt "bộ thành phần" chưa đủ khác biệt và chọn hướng **hộp game 3D kiểu Soda** (prompt 1: vật thể 3D nghiêng theo chuột, vật thể bay bị con trỏ đẩy, bong bóng, đổi "hương vị" thì xoay 720° + đổi texture ở đỉnh + thu/bung vật thể) cho trang chủ và khung chung cho các trang con.
+
+**Kiến trúc hero** (`features/home/hero3d/`, nạp lười qua `HeroBoxComponent`):
+
+| File | Vai trò |
+| --- | --- |
+| `hero-math.ts` | Ma trận 4×4, chiếu, easing (`backOut` như GSAP), số ngẫu nhiên có seed |
+| `hero-scene.ts` | Logic thuần, test được: hộp = khay 5 mặt + nắp 5 mặt quay quanh bản lề; 9 thẻ bay, 5 thẻ trong hộp; tiến độ cuộn → mở nắp/xòe thẻ; dòng thời gian đổi chủ đề; xuất mảng instance (5 × vec4 mỗi quad) |
+| `hero-textures.ts` | Vẽ texture bằng Canvas 2D: mặt nắp theo 3 chủ đề (ảnh căn nhà, chữ Anton, logo N), đáy, lòng hộp, gờ/vách, 12 mặt thẻ (nội dung bộ thẻ minh họa có sẵn) |
+| `hero-shaders.ts` | WGSL: vật thể đặc (đèn điểm, gờ sáng, foil thẻ, mặt sau thẻ vẽ thủ tục theo màu chủ đề) và nhóm cộng sáng (quầng, bong bóng) |
+| `hero-renderer.ts` | WebGPU: 2 mảng texture (mặt hộp 768×992, nhỏ 384×538, có mipmap), depth + MSAA 4× + alpha-to-coverage, canvas trong suốt premultiplied để nền CSS đổi màu phía sau |
+| `hero-runtime.ts` | Vòng rAF, con trỏ, tiến độ cuộn (ghi `--p` và `data-open` lên `.hero-track`), dừng khi khuất màn/tab ẩn, DPR tối đa 1,75 (cảm ứng 1,5, máy hạ cấp 1 và tắt hạt) |
+
+- Đoạn hero ghim 250svh chỉ bật khi cảnh 3D đã vẽ khung đầu (`.hero-track.gpu`); chữ và bộ chọn chủ đề mờ dần theo `--p`, chú thích "Mỗi lá thẻ, một chuyện nhà." hiện khi nắp đã mở. Màu nền chuyển mượt nhờ `@property --hero-color` (styles.css).
+- Bài học: phản xạ Blinn với đèn hướng trên mặt phẳng tạo lớp sáng phủ đều làm hộp bạc màu → dùng đèn điểm và giảm phản xạ.
+- Dự phòng: không có `navigator.gpu`/adapter, `prefers-reduced-motion` hoặc `data-perf="low"` → không nạp cảnh, giữ hộp CSS cũ, không ghim. Mất GPU giữa chừng → trả lại bản CSS.
+- Kiểm tra ảnh: Chromium + SwiftShader; ảnh canvas lấy bằng `copyTextureToBuffer` sau mỗi submit rồi thay canvas bằng ảnh đó để chụp đúng thứ tự lớp.
+
+**Đầu trang con** (`shared/components/page-hero`): nền radial theo màu khu vực (`tone`: lime/pink/blue/orange), 16 bong bóng CSS cố định (khớp SSR), 3 lá thẻ minh họa nổi nghiêng theo chuột (CSS 3D), chữ nền khổng lồ, `ng-content` cho hàng meta. Dùng ở trang khung (route data `tone`), thư viện/wiki/cư dân (kể cả chi tiết), cửa hàng, sổ địa chỉ.
+
+**Chuyển trang**: `withViewTransitions({ skipInitialTransition: true })`; CSS ở cuối `styles.css` (trang cũ lùi lên mờ dần, trang mới mở từ dưới lên; `app-global-bar` có `view-transition-name` riêng nên đứng yên; tắt khi reduced motion).
+
+**Giới hạn**: chưa đo hiệu năng trên GPU thật; bộ nhớ texture hero ~35 MB (có mipmap) — trên máy yếu có thể cần giảm kích thước lớp; ảnh thẻ trên hộp là minh họa, không phải nội dung luật.

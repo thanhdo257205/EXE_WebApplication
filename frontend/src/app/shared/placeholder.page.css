@@ -1,16 +1,7 @@
 :host{display:block;background:#0b0c0d;color:#f3f1ea}
-.page-intro{position:relative;overflow:hidden;padding:48px var(--gutter) 56px;background:#dafa76;color:#183c2b}
-.intro-ghost{right:-2vw;bottom:-3vw;font-size:clamp(120px,22vw,340px);-webkit-text-stroke:1.5px #183c2b26}
-.back-link{position:relative;display:inline-block;margin-bottom:40px;font-size:12px;font-weight:500;letter-spacing:.22em;text-transform:uppercase}
-h1,h2{font-family:var(--font-display,'Anton',Impact,sans-serif);font-weight:400;text-transform:uppercase;letter-spacing:-.01em}
-h1{position:relative;font-size:clamp(56px,9vw,150px);line-height:1;max-width:1100px;margin:0 0 40px}
+h2{font-family:var(--font-display,'Anton',Impact,sans-serif);font-weight:400;text-transform:uppercase;letter-spacing:-.01em}
 h2{font-size:clamp(40px,5vw,84px);line-height:1.02;margin:0 0 20px}
 h2 em{font-family:Fraunces,Georgia,serif;font-weight:700;text-transform:none}
-.intro-foot{position:relative;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:40px;align-items:end;border-top:1px solid #183c2b40;padding-top:24px}
-.intro-foot>p{font-size:16px;line-height:1.9;max-width:62ch;margin:0}
-.meta{display:flex;gap:28px;margin:0;justify-content:flex-end;flex-wrap:wrap}
-.meta dt{font-size:10px;letter-spacing:.2em;text-transform:uppercase;opacity:.7}
-.meta dd{margin:6px 0 0;font-size:14px;font-weight:700}
 .block{padding:var(--section) var(--gutter) 0}
 .block-head{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px 64px;align-items:end;margin-bottom:48px}
 .block-head .eyebrow{grid-column:1/-1;margin:0}
@@ -20,5 +11,8 @@ h2 em{font-family:Fraunces,Georgia,serif;font-weight:700;text-transform:none}
 .explore{padding-bottom:var(--section)}
 .explore-head{display:flex;justify-content:space-between;align-items:end;gap:24px;margin-bottom:40px;flex-wrap:wrap}
 .explore-head h2{margin:12px 0 0}
-@media(max-width:800px){.intro-foot,.block-head{grid-template-columns:1fr}.meta{justify-content:flex-start}}
-@media(max-width:700px){.page-intro{padding-top:30px}.back-link{margin-bottom:28px}h1{margin-bottom:28px}}
+@media(max-width:800px){.block-head{grid-template-columns:1fr}}
+
+.meta{display:flex;gap:32px;flex-wrap:wrap;margin:32px 0 0;padding-top:20px;border-top:1px solid #f3f1ea1f}
+.meta dt{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#8f9289}
+.meta dd{margin:6px 0 0;font-size:14px;font-weight:700}
