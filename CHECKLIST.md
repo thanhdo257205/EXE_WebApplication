@@ -11,6 +11,8 @@ Cập nhật: 2026-10-22 (Asia/Saigon).
 - [x] ARENA-TABLE-DESIGN — Bàn gỗ + thảm, quầng sáng lượt, đốm sáng, nhãn khu vực; xem bằng Chromium + SwiftShader.
 - [x] ARENA-TUTORIAL — Hướng dẫn từng bước (nay 16 bước), nhấn mạnh trong cảnh, mở lại bằng nút; 9 test mới (tutorial + page).
 - [x] ARENA-TUTORIAL-INLINE — Hộp hướng dẫn chỉ trực tiếp trên bàn (đuôi trỏ + vòng sáng), tour sân từng khu vực, bố cục vừa một màn hình.
+- [x] ARENA-HAND-OVERLAP — Thẻ tay được chọn không che Pokémon; đích hợp lệ luôn bấm được khi đang gắn Năng lượng.
+- [x] ARENA-TUTORIAL-ATTACK — Hướng dẫn tới đòn tấn công đầu tiên, giải thích Năng lượng/chi phí, gắn Năng lượng 2 nhịp.
 - [ ] ARENA-TUTORIAL-USER — Cho người mới thử hướng dẫn trên production và chỉnh lời/độ dài theo phản hồi.
 - [ ] ARENA-DEVICE — Đo FPS/GPU và xem hình trên thiết bị thật; mới có xác nhận chơi được trên Chrome, còn Edge/Safari/Firefox/Android và số đo FPS chưa có.
 - [x] ARENA-RELEASE — PR #9 merge (`c956503`), CI main và CD 39809170745 thành công gồm smoke production.

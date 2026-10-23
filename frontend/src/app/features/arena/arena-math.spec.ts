@@ -33,7 +33,7 @@ describe('arena-math', () => {
   it('camera tự lùi để mọi điểm của sân lọt khung ở nhiều tỉ lệ màn hình', () => {
     for (const aspect of [0.56, 0.75, 1, 1.6, 2.4]) {
       const { viewProj } = makeCamera(aspect);
-      for (const corner of [[-7.2, 7, 0.3], [7.2, 7, 0.3], [-7.2, -9.4, 0.9], [7.2, -9.4, 0.9]] as const) {
+      for (const corner of [[-7.2, 7, 0.3], [7.2, 7, 0.3], [-7.2, -9.7, 0.9], [7.2, -9.7, 0.9]] as const) {
         const s = project(viewProj, corner, 1000, 1000)!;
         expect(s[0]).toBeGreaterThan(0); expect(s[0]).toBeLessThan(1000);
         expect(s[1]).toBeGreaterThan(0); expect(s[1]).toBeLessThan(1000);

@@ -39,7 +39,7 @@ interface Timer { at: number; run: () => void }
 export const CARD_ASPECT = 495 / 360;
 const MAX_PARTICLES = 420;
 export const BOARD = {
-  active: { x: 0, y: 1.85, w: 2.3 }, bench: { y: 5.0, w: 1.7, dx: 2.75 }, hand: { y: 8.15, w: 2.0 },
+  active: { x: 0, y: 1.85, w: 2.3 }, bench: { y: 5.0, w: 1.7, dx: 2.75 }, hand: { y: 8.4, w: 2.0 },
   deck: { x: 6.0, y: 3.5, w: 1.4 }, discard: { x: 6.0, y: 0.7, w: 1.4 }, prize: { x: -6.0, y: 0.8, w: 1.1, dy: 1.5 },
 } as const;
 const ease = (rate: number, dt: number) => 1 - Math.exp(-rate * dt);
@@ -315,10 +315,10 @@ export class ArenaScene {
       const hover = v.uid === ui.hover && v.pickable;
       if (hover) {
         tgt.z += 0.5; tgt.w *= v.zone === 'hand' ? 1.12 : 1.06;
-        if (v.zone === 'hand') { tgt.y += 0.7; tgt.rx = 0.28; tgt.rz = 0; }
+        if (v.zone === 'hand') tgt.rz = 0; // nghiêng thẳng lại nhưng KHÔNG nhấc lên phía bàn: tránh che Pokémon bên trên
         tgt.rx += -ui.pointer[1] * 0.2; tgt.rz += 0; tgt.ry += ui.pointer[0] * 0.22 * (v.face ? 1 : 0);
       }
-      if (v.uid === ui.selected) { tgt.y += (v.side === 0 ? 1 : -1) * 0.9; tgt.z += 0.6; tgt.rx = 0.3; }
+      if (v.uid === ui.selected) { tgt.z += 0.6; tgt.w *= 1.1; } // phóng nhẹ + quầng sáng; không nhấc vào vùng băng ghế
       const dist = Math.hypot(tgt.x - v.pose.x, tgt.y - v.pose.y);
       if (dist > 0.004 || Math.abs(tgt.alpha - v.pose.alpha) > 0.004 || Math.abs(tgt.z - v.pose.z) > 0.004 || v.lunge || v.flash > 0 || v.shake > 0) moving = true;
       for (const key of POSE_KEYS) v.pose[key] = lerp(v.pose[key], tgt[key], key === 'alpha' ? Math.min(1, k * 1.4) : k);
@@ -371,10 +371,16 @@ export class ArenaScene {
 
   /** Tóm tắt Pokémon/thẻ dưới con trỏ (từ cuối danh sách vẽ = nằm trên cùng). */
   pickAt(px: number, py: number): Pick | null {
+    // Khi đang chọn đích (gắn Năng lượng, rút lui, thay thế) ưu tiên các đích hợp lệ dù thẻ trong tay đang chồng lên chúng.
+    if (this.ui.targets.size) { const hit = this.hitTest(px, py, this.ui.targets); if (hit) return hit; }
+    return this.hitTest(px, py, null);
+  }
+
+  private hitTest(px: number, py: number, only: ReadonlySet<number> | null): Pick | null {
     const { width, height } = this.screen, vp = this.camera.viewProj;
     for (let i = this.order.length - 1; i >= 0; i--) {
       const v = this.order[i];
-      if (!v.pickable || v.pose.alpha < 0.6) continue;
+      if (!v.pickable || v.pose.alpha < 0.6 || (only && !only.has(v.uid))) continue;
       const h = v.pose.w * CARD_ASPECT;
       const polygon: [number, number][] = [];
       let behind = false;

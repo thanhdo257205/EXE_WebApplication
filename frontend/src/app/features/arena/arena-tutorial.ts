@@ -1,3 +1,4 @@
+import { ENERGY_LABEL, type CostType } from './arena-cards';
 import { RULES, type Game } from './arena-engine';
 
 /** Nút trên giao diện được nhấn mạnh trong một bước hướng dẫn. */
@@ -28,7 +29,14 @@ export interface TutorialContext {
   canAct: boolean;
   /** Có đòn đánh nào đang dùng được không. */
   canAttack: boolean;
+  /** Loại thẻ trong tay mà người chơi đang chọn. */
+  selected: 'pokemon' | 'energy' | null;
+  /** Người chơi đã thực hiện ít nhất một đòn tấn công trong ván hướng dẫn. */
+  attacked: boolean;
 }
+
+/** Các trường của bước có thể đổi theo trạng thái ván đấu (lời khuyên thích ứng). */
+type StepOverride = Partial<Pick<TutorialStep, 'title' | 'target' | 'cards' | 'zones' | 'button'>> & { text?: string };
 
 interface StepDef extends Omit<TutorialStep, 'text' | 'title'> {
   title: string;
@@ -37,7 +45,21 @@ interface StepDef extends Omit<TutorialStep, 'text' | 'title'> {
   done?: (game: Game, ctx: TutorialContext, anchorTurn: number) => boolean;
   /** Bỏ qua hẳn bước này khi true (điều kiện để thực hiện không còn/không có). */
   skip?: (game: Game, ctx: TutorialContext) => boolean;
+  /** Ghi đè nội dung/điểm chỉ theo tình huống hiện tại. */
+  dyn?: (game: Game, ctx: TutorialContext) => StepOverride;
 }
+
+const costText = (cost: readonly CostType[]): string => {
+  const counts = new Map<CostType, number>();
+  for (const c of cost) counts.set(c, (counts.get(c) ?? 0) + 1);
+  return [...counts].map(([type, n]) => `${n} ${ENERGY_LABEL[type]}`).join(' + ');
+};
+/** Mô tả đòn đánh của Pokémon Chiến đấu: "Scratch cần 1 Vô sắc (10 sát thương)". */
+const attackSummary = (game: Game): string => {
+  const active = game.sides[0].active;
+  if (!active) return '';
+  return active.def.attacks.map(a => `${a.name} cần ${costText(a.cost)}${a.damage ? ` (${a.damage} sát thương)` : ''}`).join('; ');
+};
 
 const mine = (game: Game) => game.sides[0];
 const hasHandPokemon = (game: Game) => mine(game).hand.some(card => card.kind === 'pokemon');
@@ -94,20 +116,40 @@ const STEPS: StepDef[] = [
     text: () => 'Thanh màu phía trên thẻ là HP còn lại (xanh → vàng → đỏ); những quả cầu màu dưới thẻ là Năng lượng đã gắn. Số chính xác nằm ở "Bảng theo dõi" bên phải. Pokémon hết HP sẽ bị hạ gục.',
   },
   {
-    id: 'attach', title: 'Bước 4 · Gắn Năng lượng', manual: false, cards: 'hand-energy', zones: ['0:active'], button: null, target: 'hand-energy',
-    text: () => 'Mỗi lượt bạn được gắn 1 Năng lượng. Bấm một thẻ Năng lượng đang sáng vàng, rồi bấm Pokémon của bạn để gắn. Đòn đánh cần đủ Năng lượng đúng hệ; ô "Vô sắc" dùng loại nào cũng được.',
+    id: 'energy-intro', title: 'Năng lượng dùng để làm gì?', manual: true, cards: 'none', zones: ['0:active'], button: null, target: 'zone:0:active',
+    text: game => {
+      const active = mine(game).active;
+      return `Muốn tấn công, Pokémon phải có đủ Năng lượng đã gắn. ${active ? `Pokémon của bạn là ${active.def.name}: ${attackSummary(game)}.` : ''} "Vô sắc" dùng thẻ Năng lượng loại nào cũng được; các hệ còn lại phải đúng loại. Hiện đã gắn ${active?.energy.length ?? 0}.`;
+    },
+  },
+  {
+    id: 'attach', title: 'Bước 4 · Gắn Năng lượng', manual: false, cards: 'hand-energy', zones: [], button: null, target: 'hand-energy',
+    text: () => 'Mỗi lượt gắn được 1 Năng lượng. Bấm một thẻ Năng lượng đang sáng vàng ở mép dưới để chọn nó.',
+    dyn: (_game, ctx) => ctx.selected === 'energy'
+      ? { title: 'Bước 4 · Chọn Pokémon để gắn', text: 'Thẻ Năng lượng đã được chọn (nâng lên). Giờ bấm Pokémon Chiến đấu của bạn (chỗ có vòng sáng) để gắn. Đừng bấm vào thẻ khác: Năng lượng sẽ hiện thành quả cầu dưới Pokémon.', target: 'zone:0:active', cards: 'none', zones: ['0:active'] }
+      : {},
     done: game => game.attached || game.phase !== 'main' || game.turn !== 0,
     skip: game => game.phase === 'main' && game.turn === 0 && !game.attached && !hasHandEnergy(game),
   },
   {
-    id: 'attack', title: 'Bước 5 · Tấn công hoặc kết thúc lượt', manual: false, cards: 'none', zones: ['1:active'], button: 'attack', target: 'button',
-    text: (game, ctx) => game.turnNumber === 1
-      ? 'Người đi trước không được tấn công ở lượt đầu, nên hãy bấm "Kết thúc lượt" bên dưới sân. Từ lượt sau bạn sẽ có nút đòn đánh sáng lên khi đủ Năng lượng.'
-      : ctx.canAttack
-        ? 'Nút đòn đánh bên dưới sân đã sáng lên: bấm để tấn công Pokémon của máy. Tấn công xong là hết lượt.'
-        : 'Chưa đủ Năng lượng cho đòn nào (xem chi phí trên nút). Hãy bấm "Kết thúc lượt"; lượt sau gắn thêm Năng lượng rồi tấn công.',
-    done: (game, _ctx, anchor) => game.turnNumber !== anchor || game.phase === 'over' || game.phase === 'promote',
-    skip: game => game.phase === 'over',
+    id: 'first-attack', title: 'Bước 5 · Tấn công!', manual: false, cards: 'none', zones: [], button: null, target: 'center',
+    text: () => 'Hãy thực hiện đòn tấn công đầu tiên.',
+    dyn: (game, ctx) => {
+      if (game.phase !== 'main' || game.turn !== 0 || !ctx.canAct) return { title: 'Chờ tới lượt bạn…', text: 'Máy đang đi lượt của nó. Khi tới lượt bạn, mình sẽ hướng dẫn bạn tấn công.', target: 'center' };
+      if (game.turnNumber === 1) return { title: 'Kết thúc lượt đầu', text: 'Người đi trước không được tấn công ở lượt đầu. Bấm "Kết thúc lượt" bên dưới sân để sang lượt của máy; lượt sau bạn sẽ được tấn công!', target: 'button', button: 'end' };
+      if (ctx.canAttack) return { title: 'Bước 5 · Tấn công!', text: 'Pokémon của bạn đã đủ Năng lượng. Bấm một nút đòn đánh bên dưới sân (đang nhấp nháy) để tấn công Pokémon Chiến đấu của máy. Tấn công xong là hết lượt.', target: 'button', button: 'attack', zones: ['1:active'] };
+      if (!game.attached && hasHandEnergy(game)) {
+        return ctx.selected === 'energy'
+          ? { title: 'Gắn thêm Năng lượng', text: 'Bấm Pokémon Chiến đấu của bạn (chỗ có vòng sáng) để gắn thẻ Năng lượng vừa chọn.', target: 'zone:0:active', zones: ['0:active'] }
+          : { title: 'Gắn thêm Năng lượng', text: `Chưa đủ Năng lượng để đánh (${attackSummary(game)}). Bấm một thẻ Năng lượng sáng vàng, rồi bấm Pokémon Chiến đấu để gắn thêm.`, target: 'hand-energy', cards: 'hand-energy' };
+      }
+      return { title: 'Chưa đủ Năng lượng', text: `Chưa đủ Năng lượng cho đòn nào (${attackSummary(game)}). Bấm "Kết thúc lượt"; lượt sau bạn rút thêm bài, gắn Năng lượng rồi tấn công.`, target: 'button', button: 'end' };
+    },
+    done: (game, ctx) => ctx.attacked || game.phase === 'over',
+  },
+  {
+    id: 'after-attack', title: 'Đòn đầu tiên!', manual: true, cards: 'none', zones: ['1:active'], button: null, target: 'hp:1',
+    text: () => 'Bạn vừa tấn công! Xem thanh HP của Pokémon máy giảm đi, con số sát thương hiện ngay trên thẻ. Pokémon nào hết HP bị hạ gục và bạn lấy 1 Giải thưởng. Máy cũng sẽ phản công, hãy theo dõi HP của bạn.',
   },
   {
     id: 'weakness', title: 'Điểm yếu', manual: true, cards: 'none', zones: [], button: null, target: 'center',
@@ -122,6 +164,8 @@ const STEPS: StepDef[] = [
     text: () => 'Bạn đã nắm vòng chơi: đặt → gắn Năng lượng → tấn công. Hạ gục đủ 3 Pokémon của máy là thắng. Hãy tiếp tục ván này, hoặc bấm "Ván mới" bất cứ lúc nào. Muốn xem lại hướng dẫn thì bấm nút "Hướng dẫn".',
   },
 ];
+
+const READY_INDEX = STEPS.findIndex(step => step.id === 'ready');
 
 /** Bước đặc biệt khi người chơi phải chọn Pokémon thay thế (xen vào bất kỳ lúc nào). */
 const PROMOTE_STEP: TutorialStep = {
@@ -160,7 +204,7 @@ export class Tutorial {
   /** Bước hiện tại sau khi tự tiến theo trạng thái; null khi hướng dẫn không chạy/đã xong. */
   current(game: Game, ctx: TutorialContext): TutorialView | null {
     if (!this.running) return null;
-    if (game.phase === 'promote' && game.pending[0] === 0 && this.index > 8) return { ...PROMOTE_STEP, index: this.index, total: STEPS.length };
+    if (game.phase === 'promote' && game.pending[0] === 0 && this.index >= READY_INDEX) return { ...PROMOTE_STEP, index: this.index, total: STEPS.length };
     for (let guard = 0; guard < STEPS.length && this.index < STEPS.length; guard++) {
       const step = STEPS[this.index];
       const skip = step.skip?.(game, ctx) ?? false;
@@ -170,7 +214,10 @@ export class Tutorial {
       this.anchorTurn = game.turnNumber;
     }
     if (this.index >= STEPS.length) { this.running = false; this.finished = true; return null; }
-    const step = STEPS[this.index];
-    return { id: step.id, title: step.title, text: step.text(game, ctx), manual: step.manual, cards: step.cards, zones: step.zones, button: step.button, target: step.target, nextLabel: step.nextLabel, index: this.index, total: STEPS.length };
+    const step = STEPS[this.index], over = step.dyn?.(game, ctx) ?? {};
+    return {
+      id: step.id, title: over.title ?? step.title, text: over.text ?? step.text(game, ctx), manual: step.manual, cards: over.cards ?? step.cards,
+      zones: over.zones ?? step.zones, button: over.button ?? step.button, target: over.target ?? step.target, nextLabel: step.nextLabel, index: this.index, total: STEPS.length,
+    };
   }
 }

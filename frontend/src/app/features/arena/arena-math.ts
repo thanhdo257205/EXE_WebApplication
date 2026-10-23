@@ -39,7 +39,7 @@ export function project(viewProj: Mat4, p: Vec3, width: number, height: number):
 }
 export interface Camera { eye: Vec3; target: Vec3; fovY: number; viewProj: Mat4 }
 /** Các điểm phải luôn lọt khung hình (bàn đấu + tay bài hai bên). */
-const FIT_POINTS: readonly Vec3[] = [[-7.2, 7.0, 0.3], [7.2, 7.0, 0.3], [-7.2, -9.4, 0.9], [7.2, -9.4, 0.9], [-4.6, -9.8, 0.9], [4.6, -9.8, 0.9]];
+const FIT_POINTS: readonly Vec3[] = [[-7.2, 7.0, 0.3], [7.2, 7.0, 0.3], [-7.2, -9.7, 0.9], [7.2, -9.7, 0.9], [-4.6, -10.1, 0.9], [4.6, -10.1, 0.9]];
 const CAMERA_DIR = normalize([0, -9.2, 11.4]);
 const CAMERA_FOV = (36 * Math.PI) / 180;
 const fitCache = new Map<number, number>();

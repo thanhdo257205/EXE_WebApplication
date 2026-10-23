@@ -83,6 +83,28 @@ describe('ArenaScene', () => {
     expect(alpha(a, ca)).toBeGreaterThanOrEqual(alpha(b, cb));
   });
 
+  it('thẻ trong tay được chọn/rê chuột không nhấc vào vùng băng ghế và đích hợp lệ luôn chọn được', () => {
+    const scene = makeScene();
+    const rng = mulberry32(12);
+    const ctl = new ArenaController(scene, () => undefined, 12);
+    ctl.start(12);
+    settle(scene);
+    for (let i = 0; i < 2; i++) { ctl.act({ t: 'place', hand: ctl.game.sides[0].hand.findIndex(c => c.kind === 'pokemon') }); ctl.tick(i * 10 + 1); ctl.tick(i * 10 + 5); settle(scene, 2); }
+    const game = ctl.displayed, hand = game.sides[0].hand;
+    expect(hand.length).toBeGreaterThan(0);
+    const before = handPosition(scene, hand[0].uid)[1];
+    scene.setUi({ selected: hand[0].uid, targets: new Set(), hover: hand[0].uid, guide: new Set(), guideZones: new Set(), pointer: [0, 0] });
+    settle(scene, 2);
+    expect(Math.abs(handPosition(scene, hand[0].uid)[1] - before)).toBeLessThan(0.05);   // không dịch y về phía băng ghế
+
+    const targets = [game.sides[0].active, ...game.sides[0].bench].filter((p): p is NonNullable<typeof p> => !!p);
+    scene.setUi({ selected: hand[0].uid, targets: new Set(targets.map(t => t.uid)), hover: null, guide: new Set(), guideZones: new Set(), pointer: [0, 0] });
+    for (const target of targets) {
+      const at = scene.toScreen(handPosition(scene, target.uid))!;
+      expect(scene.pickAt(at[0], at[1])?.uid).toBe(target.uid);
+    }
+  });
+
   it('toScreen trả null cho điểm sau camera', () => {
     const scene = makeScene();
     expect(scene.toScreen([0, 0, 0])).not.toBeNull();
