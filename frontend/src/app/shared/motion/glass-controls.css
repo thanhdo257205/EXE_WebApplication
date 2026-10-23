@@ -51,7 +51,7 @@
   --ctrl-glass-focus-ring: #5ab2e7;
   --ctrl-glass-focus-ring-public: #a13b64;
 
-  /* Selected / Active / Expanded accent tokens (lime for public, sky for admin) */
+  /* Selected / Active / Expanded accent tokens (lime cho cả trang công khai và quản trị) */
   --ctrl-glass-accent-bg: #dafa76;
   --ctrl-glass-accent-text: #12281c;
   --ctrl-glass-accent-border: rgba(218, 250, 118, 0.85);
@@ -66,12 +66,12 @@
 
 /* Admin Workspace overrides for semantic accents */
 .app-container.admin-mode {
-  --ctrl-glass-bg-tint: rgba(14, 25, 36, 0.88);
-  --ctrl-glass-bg-hover: rgba(18, 33, 48, 0.94);
-  --ctrl-glass-accent-bg: #38bdf8;
-  --ctrl-glass-accent-text: #041421;
-  --ctrl-glass-accent-border: rgba(56, 189, 248, 0.85);
-  --ctrl-glass-focus-ring: #38bdf8;
+  --ctrl-glass-bg-tint: rgba(22, 24, 26, 0.88);
+  --ctrl-glass-bg-hover: rgba(34, 37, 39, 0.94);
+  --ctrl-glass-accent-bg: #dafa76;
+  --ctrl-glass-accent-text: #12281c;
+  --ctrl-glass-accent-border: rgba(218, 250, 118, 0.85);
+  --ctrl-glass-focus-ring: #dafa76;
 }
 
 /* --------------------------------------------------------------------------
@@ -234,7 +234,7 @@
       135deg,
       rgba(255, 255, 255, 0.4) 0%,
       rgba(255, 255, 255, 0.08) 60%,
-      rgba(56, 189, 248, 0.25) 100%
+      rgba(218, 250, 118, 0.25) 100%
     ) !important;
 }
 
@@ -399,8 +399,8 @@
     --ctrl-glass-danger-hover-bg: #62161f;
   }
   .app-container.admin-mode {
-    --ctrl-glass-bg-tint: #0d1a24;
-    --ctrl-glass-bg-hover: #122130;
+    --ctrl-glass-bg-tint: #16181a;
+    --ctrl-glass-bg-hover: #222527;
   }
   .app-container
     :is(button, input[type="button"], input[type="submit"], input[type="reset"], [role="button"], a[data-glass-control], a.primary-cta, a.submit-btn, a.google-btn, a.action-btn-primary, a.action-btn-secondary, a.cart-link, a.liquid-glass, span.view-3d) {

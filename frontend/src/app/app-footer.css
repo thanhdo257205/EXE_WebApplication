@@ -1,0 +1,27 @@
+/* Footer kiểu Lumora: hàng CTA, khối thương hiệu + 4 cột liên kết, thanh pháp lý, chữ nền khổng lồ */
+.public-footer { position: relative; overflow: hidden; padding: clamp(56px, 7vw, 112px) var(--gutter, 40px) 0; background: #0b0c0d; color: #f3f1ea; border-top: 1px solid #f3f1ea1a; }
+.footer-cta { display: flex; justify-content: space-between; align-items: end; gap: 32px; flex-wrap: wrap; padding-bottom: clamp(40px, 5vw, 72px); border-bottom: 1px solid #f3f1ea1a; }
+.footer-cta-title { margin: 18px 0 0; font-size: clamp(48px, 7vw, 112px); }
+.footer-cta-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.footer-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); gap: 48px; padding: clamp(40px, 5vw, 72px) 0; }
+.footer-logo { display: grid; place-items: center; width: 64px; height: 64px; margin-bottom: 20px; border-radius: 14px; background: #141618; box-shadow: 0 0 0 1px #dafa7666; color: #dafa76; font: 400 40px/1 var(--font-display, Anton, Impact, sans-serif); }
+.footer-brand { display: block; font-size: clamp(36px, 3.6vw, 56px); }
+.footer-sign p { max-width: 36ch; margin: 16px 0 0; font-size: 14px; line-height: 1.75; color: #8f9289; }
+.footer-cols { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; }
+.footer-col-title { margin: 0 0 18px; font-size: 11px; letter-spacing: .22em; text-transform: uppercase; color: #dafa76; }
+.footer-col ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.footer-col a { font-size: 15px; color: #b9b7af; transition: color .25s; }
+.footer-col a::before { content: ''; display: inline-block; width: 0; height: 1px; margin-right: 0; background: #dafa76; vertical-align: middle; transition: width .3s, margin .3s; }
+.footer-col a:hover { color: #f3f1ea; }
+.footer-col a:hover::before { width: 1rem; margin-right: .5rem; }
+.footer-legal { position: relative; z-index: 1; display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; padding: 20px 0; border-top: 1px solid #f3f1ea1a; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: #8f9289; }
+.footer-legal p { margin: 0; }
+.footer-top { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; transition: color .25s; }
+.footer-top:hover { color: #dafa76; }
+.footer-watermark { display: block; margin: 0 0 -.18em; font-family: var(--font-display, Anton, Impact, sans-serif); font-size: clamp(96px, 21vw, 360px); line-height: .9; text-transform: uppercase; text-align: center; white-space: nowrap; color: transparent; -webkit-text-stroke: 1.5px #f3f1ea1f; pointer-events: none; user-select: none; }
+@media (max-width: 1000px) { .footer-main { grid-template-columns: 1fr; } }
+@media (max-width: 640px) {
+  .footer-cols { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px 20px; }
+  .footer-cta-actions, .footer-cta-actions a { width: 100%; justify-content: space-between; }
+  .footer-col a { display: inline-flex; align-items: center; min-height: 36px; }
+}

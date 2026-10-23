@@ -38,16 +38,45 @@
   <p class="artwork-note">Ảnh Pokémon TCG minh họa chuyển động · Nguồn <a href="https://tcgdex.net" target="_blank" rel="noopener noreferrer">TCGdex</a> · Không phải bộ thẻ của Nhà Này Hơi Báo!</p>
 </section>
 
+<section class="rooms" aria-labelledby="rooms-title">
+  <div class="rooms-head"><div><p class="eyebrow">Trong nhà có gì</p><h2 id="rooms-title" class="display">Mỗi phòng<br>một trò vui.</h2></div><p>Những khu vực đã mở cửa: chơi thử với máy, tính quỹ nhà, tra thẻ và đặt mua hộp game.</p></div>
+  <div class="rooms-grid">
+    <a routerLink="/san-dau" class="feature kit-bracket" appReveal>
+      <span class="kit-meta"><span>Sân đấu · WebGPU</span><span>Có hướng dẫn</span></span>
+      <div class="board" aria-hidden="true">
+        <div class="lane foe"><i></i><i></i><i class="act"></i><i></i><i></i></div>
+        <div class="hp"><span style="--w:62%"></span></div>
+        <div class="lane me"><i></i><i class="act glow"></i><i></i><i></i><i></i></div>
+        <div class="hand"><b></b><b></b><b class="up"></b><b></b><b></b></div>
+      </div>
+      <h3 class="display">Chơi đấu thẻ với máy</h3>
+      <p>Bàn đấu 3D có bong bóng hướng dẫn chỉ vào từng chỗ: đặt Pokémon, gắn năng lượng và tung đòn tấn công đầu tiên.</p>
+      <span class="kit-pill">Vào sân đấu <span class="kit-arrow">→</span></span>
+    </a>
+    <ul class="room-cards">
+      @for (item of rooms; track item.link; let i = $index) {
+        <li [appReveal]="i * 90"><a class="kit-card" [routerLink]="item.link"><span class="kit-meta"><span>0{{ i + 2 }}</span><span>{{ item.meta }}</span></span><h3>{{ item.title }}</h3><p>{{ item.text }}</p><span class="kit-foot">{{ item.cta }} <span aria-hidden="true">↗</span></span></a></li>
+      }
+    </ul>
+  </div>
+</section>
+
 <section class="numbers" aria-labelledby="numbers-title">
-  <p class="eyebrow">Con số</p><h2 id="numbers-title" class="display">Căn nhà, đếm được.</h2>
-  <dl>@for (stat of stats; track stat.label; let i = $index) {<div [appReveal]="i * 110"><dd class="display">{{ stat.value }}</dd><dt>{{ stat.label }}</dt></div>}</dl>
+  <div class="numbers-head"><p class="eyebrow">Con số</p><h2 id="numbers-title" class="display">Căn nhà, đếm được.</h2></div>
+  <dl>@for (stat of stats; track stat.label; let i = $index) {<div class="kit-bracket" [appReveal]="i * 110"><dt>{{ stat.label }}</dt><dd class="display" [appCountUp]="stat.value">{{ stat.value }}</dd><span class="stat-note">{{ stat.note }}</span></div>}</dl>
 </section>
 
 <section class="closing" aria-labelledby="closing-title">
   <span class="ghost-word" aria-hidden="true">Hơi báo</span>
-  <p class="eyebrow">Về nhà thôi</p>
-  <h2 id="closing-title" class="display">Đủ bạn rồi?<br>Về nhà thôi!</h2>
-  <p class="lead" appReveal>Rủ hội bạn, rút một thẻ, bắt đầu câu chuyện.</p>
-  <a routerLink="/cau-chuyen" class="big-link" appReveal>Câu chuyện căn nhà <span aria-hidden="true">↗</span></a>
+  <div class="closing-copy">
+    <p class="eyebrow">Về nhà thôi</p>
+    <h2 id="closing-title" class="display">Đủ bạn rồi?<br>Về nhà thôi!</h2>
+    <p class="lead" appReveal>Rủ hội bạn, rút một thẻ, bắt đầu câu chuyện.</p>
+  </div>
+  <div class="closing-actions" appReveal>
+    <a routerLink="/san-dau" class="kit-pill">Chơi thử với máy <span class="kit-arrow" aria-hidden="true">→</span></a>
+    <a routerLink="/cua-hang" class="kit-pill ghost">Mua hộp game <span class="kit-arrow" aria-hidden="true">→</span></a>
+    <a routerLink="/cau-chuyen" class="big-link">Câu chuyện căn nhà <span aria-hidden="true">↗</span></a>
+  </div>
 </section>
 </div>

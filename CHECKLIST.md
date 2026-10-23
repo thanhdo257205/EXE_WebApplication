@@ -165,6 +165,11 @@ Cập nhật: 2026-10-22 (Asia/Saigon).
 - [ ] STYLE-ED-02: Rà ảnh mobile 390px và các trang register/recovery/chi tiết thẻ/wiki/cửa hàng/giỏ hàng sau retheme; sửa độ tương phản nếu có.
 - [x] STYLE-ED-06: Wheel trên viewer 3D không còn cuộn trang (data-lenis-prevent), kiểm bằng Chromium + spec.
 - [ ] STYLE-ED-03: Kiểm tra Lenis với modal, menu mobile, anchor `#the-bai`, pinch/touch trên viewer; đo FPS thiết bị thật.
+- [x] STYLE-KIT-01: Bộ class dùng chung theo bộ prompt (`kit-pill/bracket/row/card/ghost`), `appCountUp`, `app-explore-cards`; trang chủ, trang khung, trạng thái trống, cửa hàng, auth, footer, menu tài khoản desktop; 232 tests/build/ảnh 1440 + 390px local qua (2026-10-23).
+- [x] FUND-01: Máy tính Quỹ Nhà Chung ở `/quy-nha` (4 cư dân, Hóa đơn 8 Tiền, Thiếu/Đủ/Dư) + spec; local qua (2026-10-23).
+- [x] ADMIN-UI-01: Đổi giao diện quản trị sang ngôn ngữ site (nền tối ấm, xanh chanh, Anton, sidebar đánh số, thẻ khung góc, bảng cuộn ngang trên mobile); build/ảnh local qua (2026-10-23).
+- [ ] ADMIN-UI-02: Xem lại giao diện quản trị với dữ liệu thật trên production (bảng, form, trạng thái lỗi) và trên điện thoại thật.
+- [ ] CONTENT-05: Thay mục lục "Đang biên soạn" ở `/cach-choi`, `/cau-chuyen` bằng nội dung luật/cốt truyện đã duyệt.
 
 ## Cửa hàng thử (2026-10-21)
 

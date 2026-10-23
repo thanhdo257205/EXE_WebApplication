@@ -1,3 +1,5 @@
+import { CountUpDirective } from '../../shared/motion/count-up.directive';
+import { EXPLORE_LINKS } from '../../shared/explore-links';
 import { RevealDirective } from '../../shared/motion/reveal.directive';
 import { RiseHeadingDirective } from '../../shared/motion/rise-heading.directive';
 import { DotGridWarpDirective } from '../../shared/motion/dot-grid-warp.directive';
@@ -7,10 +9,17 @@ import { RouterLink } from '@angular/router';
 import { ColumnSpreadComponent } from '../../shared/components/column-spread/column-spread.component';
 import { MarqueeComponent } from '../../shared/components/marquee/marquee.component';
 import { MorphIconComponent } from '../../shared/components/morph-icon/morph-icon.component';
-@Component({ selector: 'app-home-page', imports: [LiquidGlassDirective, DotGridWarpDirective, RiseHeadingDirective, RevealDirective, RouterLink, ColumnSpreadComponent, MarqueeComponent, MorphIconComponent], templateUrl: './home.page.html', styleUrls: ['./home.page.css', './home-glass.css'] })
+@Component({ selector: 'app-home-page', imports: [CountUpDirective, LiquidGlassDirective, DotGridWarpDirective, RiseHeadingDirective, RevealDirective, RouterLink, ColumnSpreadComponent, MarqueeComponent, MorphIconComponent], templateUrl: './home.page.html', styleUrls: ['./home.page.css', './home-glass.css', './home-sections.css'] })
 export class HomePage {
   readonly marqueeItems = [{ text: 'Chưa giàu đã lớn' }, { text: 'Chia tiền' }, { text: 'Chia việc' }, { text: 'Nhà này hơi báo!' }, { text: 'Chia cả niềm vui' }, { text: 'Rút một thẻ' }];
-  readonly stats = [{ value: '148', label: 'Thẻ bài trong thư viện' }, { value: '8', label: 'Cư dân cùng một nhà' }, { value: '3', label: 'Chủ đề trưng bày' }, { value: '1', label: 'Căn nhà chung' }];
+  readonly stats = [
+    { value: 148, label: 'Thẻ bài trong thư viện', note: 'Mở rộng theo từng bản phát hành' },
+    { value: 8, label: 'Cư dân cùng một nhà', note: 'Mỗi người một tính cách' },
+    { value: 3, label: 'Chủ đề trưng bày', note: 'Quỹ nhà · Chuyện nhà · Lượt bạn' },
+    { value: 1, label: 'Căn nhà chung', note: 'Và cả đống chuyện bất ngờ' },
+  ];
+  /** Các phòng nhỏ bên cạnh thẻ Sân đấu nổi bật. */
+  readonly rooms = EXPLORE_LINKS.filter(item => item.link !== '/san-dau');
   readonly selectedTheme = signal(0);
   readonly themes = [
     { name: 'Quỹ nhà chung', line: 'Chia tiền. Chia việc. Chia cả niềm vui.', color: '#dafa76', ink: '#183c2b', card: '/assets/cards/card-01.svg' },

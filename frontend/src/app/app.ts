@@ -14,12 +14,19 @@ import { GlassControlsDirective } from './shared/motion/glass-controls.directive
   standalone: true,
   imports: [RouterLink, RouterOutlet, GlobalBarComponent, MorphIconComponent, GlassControlsDirective],
   templateUrl: './app.html',
-  styleUrl: './app.css',
+  styleUrls: ['./app.css', './app-footer.css'],
   host: { '(document:keydown.escape)': 'closeMobileMenu()' },
 })
 export class App implements OnDestroy {
   readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+
+  readonly footerColumns = [
+    { title: 'Khám phá', links: [{ label: 'Cách chơi', path: '/cach-choi' }, { label: 'Câu chuyện', path: '/cau-chuyen' }, { label: 'Quỹ nhà chung', path: '/quy-nha' }] },
+    { title: 'Thẻ & luật', links: [{ label: 'Thư viện thẻ', path: '/thu-vien' }, { label: 'Wiki luật chơi', path: '/wiki' }, { label: 'Cư dân', path: '/cu-dan' }] },
+    { title: 'Chơi & mua', links: [{ label: 'Sân đấu', path: '/san-dau' }, { label: 'Cửa hàng', path: '/cua-hang' }, { label: 'Giỏ hàng', path: '/gio-hang' }] },
+    { title: 'Pháp lý', links: [{ label: 'Quyền riêng tư', path: '/chinh-sach-quyen-rieng-tu' }, { label: 'Điều khoản', path: '/dieu-khoan-su-dung' }] },
+  ];
 
   readonly mobileMenuOpen = signal(false);
   readonly isAdminRoute = signal(false);

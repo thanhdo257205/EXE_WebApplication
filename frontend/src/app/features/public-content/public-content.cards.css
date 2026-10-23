@@ -172,3 +172,7 @@
     transform: none;
   }
 }
+/* Trạng thái trống/lỗi: khung góc kẻ + tiêu đề display, kèm thẻ dẫn sang khu vực khác */
+.state-panel.kit-bracket{max-width:none;margin:40px 0 24px;padding:clamp(28px,5vw,64px);border:0;--kc:#dafa76aa;--kbg:radial-gradient(90% 120% at 100% 0,#dafa7612,transparent 60%),#121415}
+.state-panel h2{font-family:var(--font-display);font-weight:400;text-transform:uppercase;letter-spacing:-.005em;line-height:1.05}
+.empty-explore{margin-top:56px}.empty-explore .eyebrow{margin:0 0 24px}

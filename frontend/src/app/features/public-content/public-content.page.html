@@ -173,7 +173,7 @@
         <p>Đang mở tủ nội dung…</p>
       </div>
     } @else if (error()) {
-      <div class="state-panel" role="alert">
+      <div class="state-panel kit-bracket" role="alert">
         <h2>
           {{
             unavailable() ? 'Chưa có bản nội dung đã xuất bản' : 'Tạm thời chưa tải được nội dung'
@@ -188,8 +188,11 @@
         </p>
         <button type="button" class="retry-button" (click)="retry()">Thử lại</button>
       </div>
+      @if (unavailable()) {
+        <div class="empty-explore"><p class="eyebrow">Trong lúc chờ, ghé phòng khác</p><app-explore-cards /></div>
+      }
     } @else if (items().length === 0) {
-      <div class="state-panel empty-state">
+      <div class="state-panel empty-state kit-bracket">
         <h2>
           {{ query() || filter() ? 'Chưa tìm thấy mục phù hợp' : 'Tủ này đang chờ bản đầu tiên' }}
         </h2>
@@ -201,6 +204,9 @@
           }}
         </p>
       </div>
+      @if (!query() && !filter()) {
+        <div class="empty-explore"><p class="eyebrow">Trong lúc chờ, ghé phòng khác</p><app-explore-cards /></div>
+      }
     } @else if (kind() === 'cards') {
       <div class="card-grid card-catalog">
         @for (item of items(); track item.id; let i = $index) {

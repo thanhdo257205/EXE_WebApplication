@@ -1,0 +1,28 @@
+<div class="calc kit-bracket">
+  <div class="calc-head">
+    <p class="eyebrow">Mô phỏng tương tác</p>
+    <button type="button" class="reset" (click)="reset()">Đặt lại</button>
+  </div>
+  <ul class="people" aria-label="Số tiền mỗi cư dân góp">
+    @for (name of residents; track name; let i = $index) {
+      <li>
+        <span class="who">{{ name }}</span>
+        <div class="stepper">
+          <button type="button" [attr.aria-label]="'Bớt 1 Tiền của ' + name" [disabled]="paid()[i] === 0" (click)="change(i, -1)">−</button>
+          <output class="display" [attr.aria-label]="name + ' góp ' + paid()[i] + ' Tiền'">{{ paid()[i] }}</output>
+          <button type="button" [attr.aria-label]="'Thêm 1 Tiền cho ' + name" [disabled]="paid()[i] === max" (click)="change(i, 1)">+</button>
+        </div>
+        <span class="coins" aria-hidden="true">@for (c of coins()[i]; track c) {<i></i>}</span>
+      </li>
+    }
+  </ul>
+  <div class="result" [attr.data-status]="status()" aria-live="polite">
+    <dl>
+      <div><dt>Tổng góp</dt><dd class="display">{{ total() }}</dd></div>
+      <div><dt>Hóa đơn</dt><dd class="display">{{ bill }}</dd></div>
+      <div><dt>Kết quả</dt><dd class="display verdict">{{ label() }}</dd></div>
+    </dl>
+    <div class="bar" role="img" [attr.aria-label]="'Tổng góp ' + total() + ' trên hóa đơn ' + bill + ' Tiền'"><span class="fill" [style.width.%]="fill()"></span><span class="mark" [style.left.%]="billMark"></span></div>
+    <p>{{ message() }}</p>
+  </div>
+</div>

@@ -62,3 +62,38 @@ describe('Public navigation disclosures', () => {
     expect(fixture.componentInstance.isActive(['/wiki'])).toBe(false);
   });
 });
+
+describe('Menu tài khoản trên desktop', () => {
+  let fixture: ComponentFixture<GlobalBarComponent>;
+  const element = () => fixture.nativeElement as HTMLElement;
+  beforeEach(async () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: true }));
+    await TestBed.configureTestingModule({
+      imports: [GlobalBarComponent],
+      providers: [provideRouter([{ path: 'dia-chi', component: RouteStub }]),
+        { provide: AuthService, useValue: { currentUser: signal({ id: 'u', email: 'a@b.c', displayName: 'linh', role: 'ADMIN' }), loadCurrentUser: () => of(null), logout: () => of(null) } }],
+    }).compileComponents();
+    fixture = TestBed.createComponent(GlobalBarComponent); fixture.detectChanges();
+  });
+  afterEach(() => { fixture.destroy(); vi.unstubAllGlobals(); });
+  it('gom quản trị, sổ địa chỉ và đăng xuất vào một menu, đóng bằng Escape/bấm ra ngoài/điều hướng', async () => {
+    const trigger = element().querySelector<HTMLButtonElement>('.account-trigger')!;
+    expect(trigger.textContent).toContain('linh');
+    expect(element().querySelector('.account-avatar')?.textContent).toBe('L');
+    expect(element().querySelector('#account-menu')).toBeNull();
+    trigger.click(); fixture.detectChanges();
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    expect(element().querySelector('#account-menu a[href="/admin"]')).toBeTruthy();
+    expect(element().querySelector('#account-menu a[href="/dia-chi"]')).toBeTruthy();
+    expect(element().querySelector('#account-menu .account-logout')).toBeTruthy();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); fixture.detectChanges();
+    expect(element().querySelector('#account-menu')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+    trigger.click(); fixture.detectChanges();
+    document.body.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true })); fixture.detectChanges();
+    expect(element().querySelector('#account-menu')).toBeNull();
+    trigger.click(); fixture.detectChanges();
+    await TestBed.inject(Router).navigateByUrl('/dia-chi'); fixture.detectChanges();
+    expect(fixture.componentInstance.accountOpen()).toBe(false);
+  });
+});

@@ -89,9 +89,20 @@
   </main>
   @if (!isAdminRoute()) {
     <footer class="public-footer">
-      <div class="footer-sign"><span class="footer-logo" aria-hidden="true">N</span><a routerLink="/" class="footer-brand display">Nhà này hơi báo!</a><p class="eyebrow">Chưa Giàu Đã Lớn · Cùng nhà, cùng chơi</p><a routerLink="/san-dau" class="footer-play">Chơi đấu thẻ với máy <span aria-hidden="true">→</span></a></div>
-      <nav class="footer-links" aria-label="Liên kết chân trang"><a routerLink="/cach-choi">Cách chơi</a><a routerLink="/thu-vien">Thư viện thẻ</a><a routerLink="/cau-chuyen">Câu chuyện</a></nav>
-      <div class="footer-meta"><a routerLink="/chinh-sach-quyen-rieng-tu">Quyền riêng tư</a><a routerLink="/dieu-khoan-su-dung">Điều khoản</a><p>© 2026 Nhà Này Hơi Báo!</p></div>
+      <div class="footer-cta">
+        <div><p class="eyebrow">Cùng nhà, cùng chơi</p><p class="footer-cta-title display">Rủ hội bạn<br>về nhà chơi.</p></div>
+        <div class="footer-cta-actions"><a routerLink="/san-dau" class="footer-play kit-pill">Chơi đấu thẻ với máy <span class="kit-arrow" aria-hidden="true">→</span></a><a routerLink="/cua-hang" class="kit-pill ghost">Mua hộp game <span class="kit-arrow" aria-hidden="true">→</span></a></div>
+      </div>
+      <div class="footer-main">
+        <div class="footer-sign"><span class="footer-logo" aria-hidden="true">N</span><a routerLink="/" class="footer-brand display">Nhà này hơi báo!</a><p>Một board game về sống chung, những hóa đơn và cả đống chuyện bất ngờ.</p></div>
+        <nav class="footer-cols" aria-label="Liên kết chân trang">
+          @for (column of footerColumns; track column.title) {
+            <div class="footer-col"><p class="footer-col-title">{{ column.title }}</p><ul>@for (link of column.links; track link.path) {<li><a [routerLink]="link.path">{{ link.label }}</a></li>}</ul></div>
+          }
+        </nav>
+      </div>
+      <div class="footer-legal"><p>© 2026 Nhà Này Hơi Báo! · Chưa Giàu Đã Lớn</p><a href="#main" class="footer-top">Lên đầu trang <span aria-hidden="true">↑</span></a></div>
+      <span class="footer-watermark" aria-hidden="true">Hơi báo!</span>
     </footer>
   }
 </div>

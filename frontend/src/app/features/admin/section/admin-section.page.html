@@ -8,7 +8,7 @@
         <span class="text-xs text-slate-400 uppercase">{{ meta().badge }}</span>
       </div>
       <div class="flex items-center gap-3">
-        <app-morph-icon [name]="meta().icon" [size]="24" color="#38bdf8"></app-morph-icon>
+        <app-morph-icon [name]="meta().icon" [size]="24" color="#dafa76"></app-morph-icon>
         <h1 class="section-title">{{ meta().title }}</h1>
       </div>
       <p class="section-subtitle">{{ meta().subtitle }}</p>
@@ -57,7 +57,7 @@
 
   <!-- Section Disclaimer -->
   <div class="admin-notice-bar">
-    <app-morph-icon name="shield" [size]="18" color="#38bdf8"></app-morph-icon>
+    <app-morph-icon name="shield" [size]="18" color="#dafa76"></app-morph-icon>
     <span class="text-xs text-slate-300">
       Phân hệ quản trị tuân thủ quy chuẩn kiểm soát thay đổi: mọi sửa đổi cần quyền ADMIN, lưu audit log tự động và không cho phép can thiệp SQL thô.
     </span>
@@ -357,7 +357,7 @@
           </div>
         } @else {
           <div class="p-6 bg-slate-900/40 rounded-lg border border-slate-800 text-center my-3">
-            <app-morph-icon name="store" [size]="28" color="#64748b" class="inline-block mb-2"></app-morph-icon>
+            <app-morph-icon name="store" [size]="28" color="#8f9289" class="inline-block mb-2"></app-morph-icon>
             <p class="text-sm font-bold text-slate-300">Chưa có đơn hàng nào phát sinh</p>
             <p class="text-xs text-slate-500 mt-1 max-w-md mx-auto">
               Hệ thống chưa ghi nhận đơn mua hàng thực tế từ người dùng. Các đơn hàng mới sẽ tự động hiển thị tại đây khi khách hàng hoàn tất thanh toán qua PayOS.

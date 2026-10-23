@@ -27,10 +27,11 @@ import {
   findSampleCard,
 } from '../../core/content/default-card';
 import { RiseHeadingDirective } from '../../shared/motion/rise-heading.directive';
+import { ExploreCardsComponent } from '../../shared/components/explore-cards/explore-cards.component';
 
 @Component({
   selector: 'app-public-content-page',
-  imports: [RouterLink, RiseHeadingDirective, CardViewerComponent],
+  imports: [RouterLink, RiseHeadingDirective, CardViewerComponent, ExploreCardsComponent],
   templateUrl: './public-content.page.html',
   styleUrls: [
     './public-content.page.css',

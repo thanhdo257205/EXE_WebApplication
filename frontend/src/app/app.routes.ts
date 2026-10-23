@@ -91,7 +91,7 @@ export const routes: Routes = [
   {
     path: 'cach-choi',
     title: 'Hướng dẫn cách chơi — Nhà Này Hơi Báo!',
-    data: { heading: 'Hướng dẫn cách chơi', description: 'Các bước thiết lập bàn chơi, cấu trúc vòng chơi, giai đoạn Sự Kiện và cách tính điểm thắng cuộc.' },
+    data: { heading: 'Hướng dẫn cách chơi', description: 'Các bước thiết lập bàn chơi, cấu trúc vòng chơi, giai đoạn Sự Kiện và cách tính điểm thắng cuộc.', section: 'Luật chơi', chapters: ['Thiết lập bàn chơi', 'Cấu trúc một vòng chơi', 'Giai đoạn Sự Kiện', 'Cách tính điểm thắng cuộc'] },
     loadComponent: () => import('./shared/placeholder.page').then(m => m.PlaceholderPage),
   },
   {
@@ -114,13 +114,13 @@ export const routes: Routes = [
   {
     path: 'quy-nha',
     title: 'Quỹ Nhà Chung — Nhà Này Hơi Báo!',
-    data: { heading: 'Mô phỏng Quỹ Nhà Chung', description: 'Công cụ tính toán tương tác: Kiểm tra 4 cư dân đóng tiền và đối chiếu với Hóa đơn 8 Tiền (Thiếu, Đủ, Dư).' },
+    data: { heading: 'Mô phỏng Quỹ Nhà Chung', description: 'Công cụ tính toán tương tác: Kiểm tra 4 cư dân đóng tiền và đối chiếu với Hóa đơn 8 Tiền (Thiếu, Đủ, Dư).', section: 'Quỹ nhà', tool: 'fund' },
     loadComponent: () => import('./shared/placeholder.page').then(m => m.PlaceholderPage),
   },
   {
     path: 'cau-chuyen',
     title: 'Câu chuyện căn nhà — Nhà Này Hơi Báo!',
-    data: { heading: 'Câu chuyện căn nhà', description: 'Cốt truyện về những người trẻ lần đầu tập sống chung, bão hóa đơn và những tình huống dở khóc dở cười.' },
+    data: { heading: 'Câu chuyện căn nhà', description: 'Cốt truyện về những người trẻ lần đầu tập sống chung, bão hóa đơn và những tình huống dở khóc dở cười.', section: 'Cốt truyện', chapters: ['Lần đầu tập sống chung', 'Bão hóa đơn', 'Những tình huống dở khóc dở cười'] },
     loadComponent: () => import('./shared/placeholder.page').then(m => m.PlaceholderPage),
   },
   {
@@ -141,7 +141,7 @@ export const routes: Routes = [
   {
     path: '**',
     title: 'Không tìm thấy trang — Nhà Này Hơi Báo!',
-    data: { heading: '404 - Không tìm thấy trang', description: 'Đường dẫn này không tồn tại hoặc đã được thay đổi.' },
+    data: { heading: '404 - Không tìm thấy trang', description: 'Đường dẫn này không tồn tại hoặc đã được thay đổi.', section: 'Lạc đường' },
     loadComponent: () => import('./shared/placeholder.page').then(m => m.PlaceholderPage),
   },
 ];

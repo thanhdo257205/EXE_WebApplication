@@ -18,7 +18,7 @@ Trường: `label?` (≤60), `recipientName` (≤120), `phone` (`^[+0-9 ()-]{8,3
 ## Mua hàng
 - `/gio-hang` hiển thị sổ địa chỉ (chọn bằng radio, mặc định chọn sẵn); nút thanh toán bị khóa tới khi có địa chỉ. Chưa có địa chỉ → mở sẵn form, lưu xong tự chọn.
 - Client vẫn gọi `POST /api/v1/checkout` với `recipientName/recipientPhone/addressLine(+phường, quận)/province` lấy từ địa chỉ đã chọn: **đơn lưu bản chụp**, nên sửa/xóa địa chỉ sau đó không đổi đơn cũ (có test). Logic thanh toán/PayOS không đổi.
-- `/dia-chi` là trang "Sổ địa chỉ" để quản lý địa chỉ trước (link "Địa chỉ" trên header khi đã đăng nhập, và trong menu di động).
+- `/dia-chi` là trang "Sổ địa chỉ" để quản lý địa chỉ trước (mục "Sổ địa chỉ" trong menu tài khoản trên header desktop khi đã đăng nhập, và trong menu di động).
 
 ## Kiểm thử
 Backend `api.test.ts` (22 test, thêm 2): CRUD, quyền chủ sở hữu, một mặc định, giới hạn 10, validate, CSRF, bản chụp đơn. Frontend 226 test (thêm 12: service, component sổ địa chỉ, trang, checkout). Đã chạy trên Chromium với API giả lập: luồng chưa có địa chỉ → nhập → mua, và luồng có địa chỉ lưu → chọn → mua, body checkout đúng. Chưa thử với backend/PayOS thật sau deploy.
