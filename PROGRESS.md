@@ -4,12 +4,21 @@
 
 ## Cập nhật gần nhất
 
-### Giao diện theo bộ prompt: lấp chỗ trống + đổi giao diện trang quản trị — 2026-10-23, đã push nhánh `claude/wonderful-hypatia-8x6sul`, chưa mở PR
+### Hero hộp game 3D WebGPU + đầu trang con chung + chuyển trang — 2026-10-23, đã push nhánh `claude/wonderful-hypatia-8x6sul`, chưa mở PR
+
+- Lý do: chủ dự án thấy đợt trước "chưa đột phá"; đợt trước chỉ lấy linh kiện giao diện, khung trang giữ nguyên. Chủ dự án chọn hướng **hộp game 3D kiểu Soda** và phạm vi **trang chủ + khung các trang con**.
+- Trang chủ: hero thành cảnh WebGPU thuần (không thêm thư viện) — hộp game có nắp, vách, lòng hộp; nghiêng theo chuột; 9 thẻ bay quanh bị con trỏ đẩy ra; bong bóng bay lên và quầng sáng theo màu chủ đề. Cuộn trong đoạn hero ghim (250svh) thì nắp lật mở, 5 thẻ bay khỏi hộp xòe quạt rồi bay ra; đổi chủ đề thì nền đổi màu mượt, hộp xoay 720° có nhòe, đổi mặt hộp ở đỉnh vòng xoay, thẻ thu vào giữa rồi bung ra (theo thông số prompt Soda). Mã cảnh nạp lười (chunk ~30 kB) sau khi trang hiển thị; texture vẽ bằng Canvas 2D (mặt hộp 3 chủ đề, 12 mặt thẻ theo bộ thẻ minh họa có sẵn). Không có WebGPU / reduced motion / máy đã hạ cấp → giữ hero CSS cũ, không ghim.
+- Trang con: component `app-page-hero` dùng chung (nền gradient theo màu khu vực, bong bóng, 3 lá thẻ nổi nghiêng theo chuột, chữ nền) cho `/cach-choi`, `/quy-nha`, `/cau-chuyen`, 404, Thư viện/Wiki/Cư dân (cả trang chi tiết), Cửa hàng, Sổ địa chỉ. Đổi route có hiệu ứng chuyển trang (View Transitions API; trình duyệt không hỗ trợ thì đổi tức thì; header đứng yên).
+- Xác minh: frontend 237/237 tests (mới: cảnh hộp 4, đầu trang con 1); build qua; Chromium + SwiftShader WebGPU chụp hero ở 1440px và 390px (đóng, đang mở nắp, thẻ xòe, đổi chủ đề giữa vòng xoay) bằng cách đọc ngược texture canvas; bản dự phòng không WebGPU xem đúng; chuyển 5 route liên tiếp không lỗi console. **Chưa đo FPS/GPU trên máy thật**, chưa thử Safari/Firefox/Android thật; SwiftShader chạy chậm nên không dùng để đánh giá hiệu năng.
+- Việc tiếp theo: mở PR khi chủ dự án đồng ý; sau deploy mở trang chủ trên Chrome/Edge thật để xem độ mượt và độ nét texture.
+
+### Giao diện theo bộ prompt: lấp chỗ trống + đổi giao diện trang quản trị — 2026-10-23, đã merge (PR #17) và CD thành công
 
 - Theo yêu cầu "frontend còn trống/đơn điệu, tham khảo file prompt và áp dụng; đổi cả giao diện trang quản trị": thêm bộ class dùng chung (`kit-pill`, `kit-bracket`, `kit-row`, `kit-card`, `kit-ghost`), `appCountUp`, `app-explore-cards`; trang chủ thêm khu "Trong nhà có gì" + số liệu đếm lên + hàng CTA; `/cach-choi`, `/cau-chuyen`, 404 có mục lục "Đang biên soạn" (không bịa luật) + thẻ dẫn sang khu vực đang chạy; **`/quy-nha` có máy tính Quỹ Nhà Chung chạy thật** (4 cư dân, Hóa đơn 8 Tiền, Thiếu/Đủ/Dư); trạng thái trống Thư viện/Wiki/Cư dân, Cửa hàng (ảnh giữ chỗ + 3 bước mua), thẻ đăng nhập tối, menu tài khoản desktop, footer mới. Admin: bỏ bảng màu xanh dương, đổi sang nền tối ấm + xanh chanh + tiêu đề Anton, sidebar đánh số, thẻ số liệu khung góc, bảng hàng chờ cuộn ngang trên điện thoại; sửa chữ "PostgreSQL 18 · Aiven" lỗi thời. Chi tiết: [docs/design/FRONTEND_REDESIGN.md](docs/design/FRONTEND_REDESIGN.md#bộ-thành-phần-từ-bộ-prompt--giao-diện-quản-trị-mới-2026-10-23).
 - Lỗi phát hiện khi tự kiểm: route không khai báo `chapters` làm input thành `undefined` → template lỗi, trang `/quy-nha` trắng nửa dưới. Đã sửa bằng transform mặc định và thêm spec.
 - Xác minh: frontend 232/232 tests (mới: máy tính quỹ, trang khung thiếu dữ liệu route, menu tài khoản); build qua (chỉ cảnh báo budget 6 kB đã có, không file nào chạm 10 kB); ảnh Chromium 1440px (trang chủ, cách chơi, quỹ nhà, thư viện, cửa hàng, đăng nhập, admin, admin/thẻ, admin/đơn) và 390px (không tràn ngang). API giả lập trả rỗng — **chưa xem với dữ liệu thật**, chưa thử trên điện thoại thật.
-- Việc tiếp theo: mở PR + merge khi chủ dự án đồng ý; sau deploy xem lại trên production; khi có nội dung luật/câu chuyện thật thì thay mục lục "Đang biên soạn".
+- GitHub/deploy: PR #17 merge vào `main` (`e479d22`); CI main và CD 39962716998 thành công (2026-10-23 13:38 UTC). Phiên này chưa xem lại trên production.
+- Phản hồi chủ dự án sau khi xem: "chưa thấy gì quá đột phá so với bản cũ" → làm tiếp đợt hero 3D bên dưới.
 
 ### Tối ưu giao diện điện thoại + nút chơi ở chân trang + xoay ngang khi chơi — 2026-10-23, đã merge (PR #16)
 

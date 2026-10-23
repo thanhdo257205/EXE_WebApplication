@@ -1,11 +1,7 @@
+<app-page-hero heading="Thẻ sưu tập" eyebrow="Cửa hàng" tone="orange" description="Bản thử nghiệm cửa hàng: đặt mua, nhập thông tin giao hàng và thanh toán bằng mã QR của PayOS.">
+  <dl class="facts"><div><dt>Thanh toán</dt><dd>Mã QR PayOS</dd></div><div><dt>Giao hàng</dt><dd>Theo sổ địa chỉ</dd></div><div><dt>Trạng thái</dt><dd>Bản thử nghiệm</dd></div></dl>
+</app-page-hero>
 <section class="shop">
-  <a routerLink="/" class="back-link">← Về căn nhà</a>
-  <p class="eyebrow">Cửa hàng</p>
-  <h1 class="display">Thẻ sưu tập</h1>
-  <div class="intro">
-    <p class="lead">Bản thử nghiệm cửa hàng: đặt mua, nhập thông tin giao hàng và thanh toán bằng mã QR của PayOS.</p>
-    <dl class="facts"><div><dt>Thanh toán</dt><dd>Mã QR PayOS</dd></div><div><dt>Giao hàng</dt><dd>Theo sổ địa chỉ</dd></div><div><dt>Trạng thái</dt><dd>Bản thử nghiệm</dd></div></dl>
-  </div>
 
   @if (failed()) {
     <div class="state" role="alert"><p>Chưa tải được danh sách sản phẩm.</p><button type="button" (click)="load()">Thử lại</button></div>

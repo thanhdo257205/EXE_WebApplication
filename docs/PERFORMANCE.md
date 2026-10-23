@@ -163,3 +163,10 @@ Menu con chỉ render panel đang mở từ cấu hình route cục bộ. Không
 Danh sách dùng poster WebP lazy; viewer chỉ import Three/OrbitControls/GLTFLoader khi vào viewport chi tiết. Runtime3D lazy639,93kB raw/132,83kB estimated transfer; initial428,79kB/118,47kB (build, không phải mạng đo thực). GLB797764→383984bytes, giữ12 triangles vì geometry đã rất nhẹ. Chỉ nén hai ảnh màu, giữ texture dữ liệu không mất mát; không thêm HDRI/shadow/auto-rotate/damping loop. DPR cap1,5; render một rAF theo input/resize/visibility; abort/dispose khi unmount và poster dự phòng khi lỗi.
 
 Edge QA local: catalog0 requestGLB, detail1; idle700ms không có WebGL draw mới; desktop/mobile390px hoạt động và không overflow. Đo qua instrument drawElements/drawArrays trên canvas viewer, không phải bằng chứng tăng FPS/giảm CPU tổng website. Kịch bản và ảnh trong frontend/output/check-cards-3d.cjs và check-cards-fixture.cjs (ignored).104 tests/build qua; chưa benchmark GPU/touch thiết bị thật. [Thiết kế và asset](CARD_LIBRARY_3D.md).
+
+## Hero 3D WebGPU — 2026-10-23
+
+- Mã cảnh tách chunk lười `hero-runtime` (~30 kB, ~11 kB gzip), chỉ nạp sau `requestIdleCallback` khi trình duyệt có WebGPU, không reduced motion và chưa bị hạ cấp; trang chủ hiển thị bản CSS trước nên không ảnh hưởng LCP.
+- Mỗi khung: một `writeBuffer` (≤ ~150 instance × 80 byte) và một render pass MSAA 4× (2 lệnh draw). Vòng rAF dừng khi hero khuất màn hình (IntersectionObserver) hoặc tab ẩn.
+- DPR tối đa 1,75 (cảm ứng 1,5); khi `perf-tier` hạ xuống `low`: DPR 1 và tắt bong bóng. Texture ~35 MB GPU (có mipmap).
+- Chưa đo FPS trên máy thật (SwiftShader trong sandbox quá chậm để đánh giá).

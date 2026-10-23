@@ -1,6 +1,6 @@
 import { isPlatformBrowser } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, DestroyRef, inject, input, OnInit, PLATFORM_ID, signal } from '@angular/core';
+import { Component, computed, DestroyRef, inject, input, OnInit, PLATFORM_ID, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { catchError, debounceTime, map, merge, of, Subject, switchMap, tap } from 'rxjs';
@@ -26,12 +26,12 @@ import {
   SAMPLE_CARD_SET,
   findSampleCard,
 } from '../../core/content/default-card';
-import { RiseHeadingDirective } from '../../shared/motion/rise-heading.directive';
 import { ExploreCardsComponent } from '../../shared/components/explore-cards/explore-cards.component';
+import { PageHeroComponent, PageTone } from '../../shared/components/page-hero/page-hero.component';
 
 @Component({
   selector: 'app-public-content-page',
-  imports: [RouterLink, RiseHeadingDirective, CardViewerComponent, ExploreCardsComponent],
+  imports: [RouterLink, CardViewerComponent, ExploreCardsComponent, PageHeroComponent],
   templateUrl: './public-content.page.html',
   styleUrls: [
     './public-content.page.css',
@@ -216,6 +216,13 @@ export class PublicContentPage implements OnInit {
   itemName(item: PublicItem): string {
     return 'title' in item ? item.title : item.name;
   }
+  /** Dòng phụ dưới tiêu đề trang chi tiết. */
+  subtitle(item: PublicItem): string {
+    return (this.isWiki(item) ? item.summary : this.isCard(item) || this.isCharacter(item) ? item.code : '') ?? '';
+  }
+  readonly listLink = computed(() => (this.kind() === 'wiki-pages' ? '/wiki' : this.kind() === 'characters' ? '/cu-dan' : '/thu-vien'));
+  readonly kindLabel = computed(() => (this.kind() === 'wiki-pages' ? 'Wiki luật' : this.kind() === 'characters' ? 'Cư dân' : 'Thư viện thẻ'));
+  readonly tone = computed<PageTone>(() => (this.kind() === 'wiki-pages' ? 'lime' : this.kind() === 'characters' ? 'pink' : 'blue'));
   itemLink(item: PublicItem): string[] {
     if (this.kind() === 'cards' && this.demo() && findSampleCard(item.slug)?.id === item.id) {
       return ['/thu-vien/mau', item.slug];

@@ -293,3 +293,13 @@ a.kit-card:hover { border-color: var(--ed-accent); transform: translateY(-4px); 
 .kit-card .kit-foot { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 1rem; font-size: 13px; font-weight: 700; color: var(--ed-accent); }
 /* Chữ nền khổng lồ (watermark) */
 .kit-ghost { position: absolute; pointer-events: none; user-select: none; font-family: var(--font-display); text-transform: uppercase; line-height: .8; color: transparent; -webkit-text-stroke: 1px #f3f1ea14; white-space: nowrap; }
+
+/* Chuyển trang (View Transitions API, trình duyệt không hỗ trợ thì đổi trang tức thì): trang cũ lùi lên mờ dần,
+   trang mới mở từ dưới lên; thanh đầu trang có tên riêng nên đứng yên. */
+app-global-bar { view-transition-name: site-header; }
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(root) { animation: vt-out .38s cubic-bezier(.4, 0, .2, 1) both; }
+  ::view-transition-new(root) { animation: vt-in .62s cubic-bezier(.16, 1, .3, 1) both; }
+}
+@keyframes vt-out { to { opacity: 0; transform: translateY(-28px) scale(.985); } }
+@keyframes vt-in { from { clip-path: inset(100% 0 0 0); } to { clip-path: inset(0 0 0 0); } }
