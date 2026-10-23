@@ -4,6 +4,11 @@
 
 ## Cập nhật gần nhất
 
+### PayOS: webhook thật đã về — 2026-10-23, tự báo cáo
+
+- Chủ dự án chạy thử thanh toán thật trên production và báo PayOS đã gửi webhook thật tới backend. Đây là xác nhận của người dùng; phiên này không có quyền xem log/DB production nên chưa tự kiểm tra.
+- Chưa xác nhận: trạng thái đơn → CONFIRMED, tồn kho trừ đúng 1, xử lý idempotent khi webhook lặp, đối soát. `SHOP-02` giữ chưa tick cho tới khi có các kết quả này.
+
 ### Sân đấu: sửa thẻ tay che ô + hướng dẫn tới đòn tấn công đầu tiên — 2026-10-23, local → PR
 
 - Phản hồi người dùng: chọn lá thứ 3 (Năng lượng) thì lá nâng lên che mất Pokémon phía trên nên không gắn được, và chưa hiểu cách chơi. **Sửa**: thẻ tay được rê/chọn chỉ phóng nhẹ + quầng sáng, không còn nhấc về phía băng ghế; khi đang chọn đích, `pickAt` ưu tiên Pokémon hợp lệ dù thẻ tay chồng lên; dời tay bài xuống 0,25 đơn vị để có khoảng cách với băng ghế (camera fit lại).

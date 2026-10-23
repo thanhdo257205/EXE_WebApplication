@@ -156,7 +156,7 @@ Cập nhật: 2026-10-22 (Asia/Saigon).
 ## Cửa hàng thử (2026-10-21)
 
 - [x] SHOP-01: V11 seed thẻ Pokémon Hoàng Nam 2.000 ₫, `GET /shop/products`, trang `/cua-hang` và `/gio-hang` (form giao hàng, QR PayOS, poll); tests local qua.
-- [ ] SHOP-02: Sau deploy, thanh toán thật 2.000 ₫ qua PayOS (QR, webhook → CONFIRMED, trừ tồn), xác nhận webhook đã đăng ký; kiểm tra Postgres V11 trên Aiven.
+- [ ] SHOP-02: Sau deploy, thanh toán thật 2.000 ₫ qua PayOS (QR, webhook → CONFIRMED, trừ tồn). 2026-10-23: chủ dự án tự chạy thử và báo PayOS **đã gửi webhook thật** tới backend (tự báo cáo). Còn xác nhận: đơn chuyển CONFIRMED, tồn kho bị trừ đúng 1, đơn không bị xử lý hai lần khi webhook lặp. (Phần Postgres/Aiven đã lỗi thời vì đã chuyển Turso.)
 - [ ] SHOP-03: Giỏ nhiều sản phẩm, quản trị sản phẩm/tồn kho, phí ship thật, trang lịch sử đơn của khách.
 
 ## Tối ưu backend/Spread (2026-10-22)
