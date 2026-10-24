@@ -28,7 +28,7 @@ import { AdminNotificationsService } from '../../../core/admin/admin-notificatio
         <ul>
           @for (item of notifications.items(); track item.id) {
             <li [class.unread]="!item.read">
-              <a routerLink="/admin" (click)="notifications.markRead(item); open.set(false)">{{ item.title }}</a>
+              <a [routerLink]="safeHref(item.href)" (click)="notifications.markRead(item); open.set(false)">{{ item.title }}</a>
               <time [attr.datetime]="item.createdAt">{{ item.createdAt | date:'dd/MM HH:mm' }}</time>
               @if (!item.read) { <button type="button" (click)="notifications.markRead(item)">Đánh dấu đã đọc</button> }
               @else { <span class="read-label">Đã đọc</span> }
@@ -53,6 +53,7 @@ import { AdminNotificationsService } from '../../../core/admin/admin-notificatio
     button,a { cursor:pointer; } button { color:inherit; background:#15263a; border:1px solid #39506b; border-radius:6px; padding:6px 9px; }
     button:disabled { opacity:.5; cursor:default; } a { color:#bae6fd; text-decoration:underline; }
     section { position:absolute; right:0; top:calc(100% + 12px); width:min(360px,calc(100vw - 32px)); max-height:70vh; overflow:auto; background:#0f1b2b; border:1px solid #39506b; border-radius:10px; padding:16px; z-index:60; box-shadow:0 12px 40px #0008; }
+    @media(max-width:640px) { section { position:fixed; right:16px; top:64px; } }
     .panel-heading,nav { display:flex; align-items:center; justify-content:space-between; gap:8px; }
     .connection,.read-label,time { color:#a6aaa3; font-size:.75rem; } p { margin:12px 0; }
     ul { list-style:none; padding:0; margin:0 0 12px; } li { padding:12px 0; border-bottom:1px solid #26384d; display:grid; gap:6px; }
@@ -71,6 +72,9 @@ export class AdminNotificationBellComponent {
       const user = this.auth.currentUser();
       untracked(() => { if (user?.role === 'ADMIN') this.notifications.start(user.id); else this.notifications.stop(); });
     });
+  }
+  safeHref(href: string | undefined): string {
+    return href === '/admin/users' ? href : '/admin';
   }
   statusLabel(): string {
     return ({ live:'Đang cập nhật trực tiếp', connecting:'Đang kết nối…', reconnecting:'Đang kết nối lại…',

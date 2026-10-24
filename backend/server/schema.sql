@@ -537,3 +537,16 @@ CREATE TABLE rbac_owner (
     user_id TEXT NOT NULL UNIQUE REFERENCES app_users(id) ON DELETE RESTRICT,
     created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000Z','now'))
 );
+
+-- Registration events use separate storage to preserve existing feedback IDs/read receipts.
+CREATE TABLE admin_registration_notifications (
+    id INTEGER PRIMARY KEY,
+    user_id TEXT NOT NULL UNIQUE REFERENCES app_users(id),
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000Z','now'))
+);
+CREATE TABLE admin_registration_notification_reads (
+    notification_id INTEGER NOT NULL REFERENCES admin_registration_notifications(id),
+    user_id TEXT NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+    read_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000Z','now')),
+    PRIMARY KEY (notification_id,user_id)
+);

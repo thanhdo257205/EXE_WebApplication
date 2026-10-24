@@ -2,6 +2,14 @@
 
 Cập nhật: 2026-10-24 (Asia/Saigon).
 
+## Thông báo quản trị tài khoản mới (2026-10-24)
+
+- [x] NOTIF-REG-01 — Hai bảng additive/startup idempotent; tài khoản mới và event cùng transaction, dedup; password và Google persistence mới/cũ/rollback qua, không backfill.
+- [x] NOTIF-REG-02 — Mixed FEEDBACK_NEW/USER_REGISTERED, SSE composite summary một query, read isolation/CSRF/ID cũ+mới; backend check + 57 pass/1 remote skip.
+- [x] NOTIF-REG-03 — Chuông tới /admin/users, mark read; sửa panel mobile bị cắt. Frontend 279 tests với timeout tạm 20s; build/prerender, Chromium + Hono/SQLite thật trong môi trường test qua.
+- [ ] NOTIF-REG-DEPLOY — Main, CI/CD/smoke, đối chiếu schema và feedback production; không tạo tài khoản thử production.
+- [ ] NOTIF-REG-GOOGLE-LIVE — Nghiệm thu callback Google thật cho tài khoản mới; chưa thực hiện provider thật trong đợt này.
+
 ## RBAC admin chính / đồng quản trị (2026-10-24)
 
 - [x] RBAC-01 — Registry owner theo ID admin hiện có, bootstrap một lần/fail closed khi nhiều admin; không tự chuyển owner, không email allowlist.

@@ -4,6 +4,15 @@
 
 ## Cập nhật gần nhất
 
+### Thông báo đăng ký tài khoản mới — 2026-10-24, đã kiểm tra local, chờ phát hành main
+
+- Theo yêu cầu chủ dự án, giao Antigravity phần helper/thông báo hợp nhất, UI và tests; Codex rà diff, tích hợp giao dịch tạo tài khoản mật khẩu/Google trong `accounts.ts`, nâng cấp bảng startup, tối ưu summary một truy vấn, sửa lỗi type/test và khung chuông mobile.
+- USER_REGISTERED hiện trong chuông của admin chính/coadmin, tiêu đề cố định, dẫn `/admin/users`; chỉ phát khi tạo tài khoản, không phát lại khi đăng nhập, không backfill người cũ hoặc phát cho bootstrap admin. Giữ cơ chế đăng nhập, xác minh OAuth và RBAC; không gửi email/push bên ngoài.
+- Hai bảng additive lưu event đăng ký và read state riêng từng admin; giữ nguyên feedback/receipt cũ. Ghi tài khoản và event cùng transaction, user_id UNIQUE chống trùng; lỗi lưu event rollback tài khoản. API hỗ trợ ID `registration:<id>`, composite SSE latestId; payload không chứa tên/email/credential.
+- Xác minh: backend typecheck + **57 pass/1 remote skip**, gồm đăng ký mật khẩu thực qua API, Google persistence mới/cũ/khóa/link conflict, rollback, startup idempotent/no backfill, mixed pagination/read isolation/CSRF và SSE thật cập nhật khi feedback ID lớn hơn. Frontend **279/279 tests (49 file)** qua với timeout tạm 20 giây ngoài repo; build/prerender 6 route qua, cảnh báo CSS/CommonJS cũ.
+- Chromium với backend Hono + SQLite memory thật, frontend production build: đăng ký → SSE badge, thêm feedback → mixed feed, bấm event → users/mark read, admin khác còn unread, login không phát trùng; desktop/mobile không lỗi trang hoặc tràn ngang toàn trang. Ảnh kiểm tra ngoài Git ở `output/registration-notifications/` workspace cha. Không tạo tài khoản thử trên production.
+- GitHub/deploy: chưa commit/push/deploy ở thời điểm ghi; triển khai main theo luồng đã được chủ dự án chọn, rồi đối chiếu schema/feedback cũ. Chưa thử callback Google thật trong đợt này; tests kiểm tra lớp persistence sau xác minh OAuth, không phải chạy provider thật. Chi tiết [ADMIN_NOTIFICATIONS.md](docs/ADMIN_NOTIFICATIONS.md).
+
 ### RBAC admin chính và đồng quản trị — 2026-10-24, đã lên main và deploy
 
 - Theo yêu cầu chủ dự án: chỉ tài khoản admin hiện tại trong DB được cấp/thu hồi quyền đồng quản trị; coadmin có toàn bộ quyền vận hành hiện có, không được phân quyền tiếp. Đã đọc production xác nhận đúng một ADMIN hoạt động, không ghi quyền mới cho người khác.

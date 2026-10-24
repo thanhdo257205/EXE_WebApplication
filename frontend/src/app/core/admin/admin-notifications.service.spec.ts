@@ -11,7 +11,7 @@ export class FakeNotificationSource extends EventTarget {
 }
 const root = '/api/v1/admin/notifications';
 const summary = { latestId: '1', totalElements: 1, unreadCount: 1 };
-const item = { id: '1', type: 'FEEDBACK_NEW', title: 'Có phản hồi người chơi mới', sourceId: 'feedback', href: '/admin', createdAt: '2026-10-20T00:00:00Z', read: false };
+const item = { id: '1', type: 'FEEDBACK_NEW' as const, title: 'Có phản hồi người chơi mới', sourceId: 'feedback', href: '/admin', createdAt: '2026-10-20T00:00:00Z', read: false };
 const page = { items: [item], totalElements: 1, totalPages: 1, unreadCount: 1, page: 0, size: 20 };
 
 describe('Admin notification connection lifecycle', () => {
@@ -55,6 +55,45 @@ describe('Admin notification connection lifecycle', () => {
     expect(service.unreadCount()).toBe(1);
     mutation.flush({ id: '1', read: true }); list().flush({ ...page, items: [{ ...item, read: true }], unreadCount: 0 });
     expect(service.unreadCount()).toBe(0);
+  });
+  it('handles USER_REGISTERED event and marks read with opaque registration ID via CSRF', () => {
+    service.start('admin');
+    const compositeSummary = { latestId: '1:1', totalElements: 2, unreadCount: 2 };
+    sources[0].emit('summary', compositeSummary);
+    const regItem = {
+      id: 'registration:1',
+      type: 'USER_REGISTERED' as const,
+      title: 'Có tài khoản mới đăng ký',
+      sourceId: 'user-uuid-1',
+      href: '/admin/users',
+      createdAt: '2026-10-24T12:00:00Z',
+      read: false,
+    };
+    const mixedPage = {
+      items: [regItem, item],
+      totalElements: 2,
+      totalPages: 1,
+      unreadCount: 2,
+      page: 0,
+      size: 20,
+    };
+    list().flush(mixedPage);
+    expect(service.items()).toHaveLength(2);
+    expect(service.items()[0].id).toBe('registration:1');
+    expect(service.items()[0].type).toBe('USER_REGISTERED');
+    expect(service.items()[0].href).toBe('/admin/users');
+    expect(service.unreadCount()).toBe(2);
+
+    service.markRead(service.items()[0]);
+    http.expectOne('/api/v1/auth/csrf').flush({ headerName: 'X-XSRF-TOKEN', token: 'test-csrf' });
+    const mutation = http.expectOne(`${root}/registration:1/read`);
+    expect(mutation.request.method).toBe('POST');
+    expect(mutation.request.headers.get('X-XSRF-TOKEN')).toBe('test-csrf');
+    expect(mutation.request.withCredentials).toBe(true);
+    mutation.flush({ id: 'registration:1', read: true });
+    list().flush({ ...mixedPage, items: [{ ...regItem, read: true }, item], unreadCount: 1 });
+    expect(service.unreadCount()).toBe(1);
+    expect(service.items()[0].read).toBe(true);
   });
   it('closes on hidden tabs and reloads missed data when visible again', () => {
     service.start('admin'); sources[0].emit('summary', summary); list().flush(page);

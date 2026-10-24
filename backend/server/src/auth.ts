@@ -7,6 +7,7 @@ import { z } from 'zod';
 import type { Client } from '@libsql/client';
 import { all, one, execute, transaction, uuid, now, at, fail, type Row, type Executor } from './db.ts';
 import { accessView } from './rbac-policy.ts';
+import { googleAccount, registerPasswordAccount } from './accounts.ts';
 
 export interface Config {
   production: boolean; publicOrigin: string; proxySecret: string; jwtSecret: string;
@@ -86,9 +87,9 @@ export function authRoutes(app: Api, db: Client, cfg: Config, sendMail?: (email:
     const b = registerSchema.parse(await c.req.json());
     const existing = (await all(db, 'SELECT id FROM app_users WHERE email=?', [b.email]))[0];
     if (existing) return fail(409, 'ACCOUNT_EXISTS');
-    const hash = await bcrypt.hash(b.password, 12); const id = uuid();
-    await execute(db, 'INSERT INTO app_users(id,email,password_hash,display_name,role) VALUES (?,?,?,?,?)', [id, b.email, hash, b.displayName, 'CUSTOMER']);
-    return c.json(await issue(c, await one(db, 'SELECT * FROM app_users WHERE id=?', [id])));
+    const hash = await bcrypt.hash(b.password, 12);
+    const u = await registerPasswordAccount(db, { email: b.email, passwordHash: hash, displayName: b.displayName });
+    return c.json(await issue(c, u));
   });
   app.get('/api/v1/auth/me', async c => c.json(await userView(db, await authorize(db, requireActor(c)))));
   app.post('/api/v1/auth/logout', async c => {
@@ -175,13 +176,7 @@ export function authRoutes(app: Api, db: Client, cfg: Config, sendMail?: (email:
       const { payload } = await jwtVerify(tokens.id_token, jwks, { issuer: ['https://accounts.google.com', 'accounts.google.com'], audience: cfg.googleClientId, algorithms: ['RS256'] });
       if (payload.nonce !== saved.nonce || payload.email_verified !== true || typeof payload.email !== 'string' || !payload.sub) return fail(401, 'OAUTH_FAILED');
       const normalizedEmail = email.parse(payload.email);
-      const u = await transaction(db, async tx => {
-        const found = (await all(tx, 'SELECT * FROM app_users WHERE google_subject=?', [payload.sub!]))[0];
-        if (found) { if (!found.enabled) return fail(401, 'OAUTH_FAILED'); return found; }
-        if ((await all(tx, 'SELECT id FROM app_users WHERE email=?', [normalizedEmail])).length) return fail(409, 'ACCOUNT_LINK_REQUIRED');
-        const id = uuid(); await execute(tx, 'INSERT INTO app_users(id,email,google_subject,display_name,role) VALUES (?,?,?,?,?)', [id, normalizedEmail, payload.sub!, String(payload.name || normalizedEmail).slice(0, 120), 'CUSTOMER']);
-        return one(tx, 'SELECT * FROM app_users WHERE id=?', [id]);
-      });
+      const u = await googleAccount(db, { subject: payload.sub, email: normalizedEmail, displayName: String(payload.name || normalizedEmail).slice(0, 120) });
       await issue(c, u); return c.redirect('/');
     } catch { return c.redirect('/dang-nhap?authError=google'); }
   });

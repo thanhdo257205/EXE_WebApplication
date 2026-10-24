@@ -9,10 +9,34 @@ const category = z.enum(['RULE_QUESTION', 'CARD_ISSUE', 'PLAYTEST', 'OTHER']);
 const status = z.enum(['NEW', 'IN_REVIEW', 'RESOLVED', 'REJECTED']);
 const optionalId = z.string().uuid().nullable().optional().default(null);
 const paging = z.object({ page: z.coerce.number().int().min(0).max(10000).default(0), size: z.coerce.number().int().min(1).max(100).default(20) });
+
 async function summary(db: Executor, user: string) {
-  const row = await one(db, 'SELECT COALESCE(MAX(n.id),0) AS latest,COUNT(*) AS total,COUNT(*)-COUNT(r.notification_id) AS unread FROM admin_notifications n LEFT JOIN admin_notification_reads r ON r.notification_id=n.id AND r.user_id=?', [user]);
-  return { latestId: String(row.latest), totalElements: Number(row.total), unreadCount: Number(row.unread) };
+  const row = await one(db, `SELECT fb.latest AS feedback_latest,reg.latest AS registration_latest,
+    fb.total+reg.total AS total,fb.unread+reg.unread AS unread FROM
+    (SELECT COALESCE(MAX(n.id),0) AS latest,COUNT(*) AS total,COUNT(*)-COUNT(r.notification_id) AS unread
+      FROM admin_notifications n LEFT JOIN admin_notification_reads r ON r.notification_id=n.id AND r.user_id=?) fb
+    CROSS JOIN
+    (SELECT COALESCE(MAX(n.id),0) AS latest,COUNT(*) AS total,COUNT(*)-COUNT(r.notification_id) AS unread
+      FROM admin_registration_notifications n LEFT JOIN admin_registration_notification_reads r ON r.notification_id=n.id AND r.user_id=?) reg`, [user, user]);
+  return { latestId: `${row.feedback_latest}:${row.registration_latest}`, totalElements: Number(row.total), unreadCount: Number(row.unread) };
 }
+
+function parseNotificationId(param: string | undefined): { kind: 'registration' | 'feedback'; id: number; raw: string } {
+  if (!param) return fail(400, 'INVALID_REQUEST');
+  const trimmed = param.trim();
+  if (trimmed.startsWith('registration:')) {
+    const rawNum = trimmed.slice('registration:'.length).trim();
+    if (!/^[1-9]\d*$/.test(rawNum)) fail(400, 'INVALID_REQUEST');
+    const id = Number(rawNum);
+    if (!Number.isSafeInteger(id) || id <= 0) fail(400, 'INVALID_REQUEST');
+    return { kind: 'registration', id, raw: `registration:${id}` };
+  }
+  if (!/^[1-9]\d*$/.test(trimmed)) fail(400, 'INVALID_REQUEST');
+  const id = Number(trimmed);
+  if (!Number.isSafeInteger(id) || id <= 0) fail(400, 'INVALID_REQUEST');
+  return { kind: 'feedback', id, raw: String(id) };
+}
+
 export function feedbackRoutes(app: Api, db: Client, cfg: Config) {
   app.post('/api/v1/feedback', async c => {
     const actor = requireActor(c); const b = z.object({ releaseId: optionalId, cardId: optionalId, pageId: optionalId, category, message: z.string().trim().min(1).max(5000), contactEmail: z.union([z.literal(''), z.string().email().max(254)]).nullable().optional() }).parse(await c.req.json());
@@ -52,13 +76,48 @@ export function feedbackRoutes(app: Api, db: Client, cfg: Config) {
   });
   app.get('/api/v1/admin/notifications', async c => c.json(await transaction(db, async tx => {
     const actor = requireActor(c, true); await authorize(tx, actor, true); const q = paging.extend({ size: z.coerce.number().int().min(1).max(50).default(20) }).parse(c.req.query()); const s = await summary(tx, actor.id);
-    const rows = await all(tx, 'SELECT n.id,n.feedback_id,n.created_at,r.read_at FROM admin_notifications n LEFT JOIN admin_notification_reads r ON r.notification_id=n.id AND r.user_id=? ORDER BY n.id DESC LIMIT ? OFFSET ?', [actor.id, q.size, q.page * q.size]);
-    return { ...page(rows.map(row => ({ id: String(row.id), type: 'FEEDBACK_NEW', title: 'Có phản hồi người chơi mới', sourceId: row.feedback_id, href: '/admin', createdAt: row.created_at, read: row.read_at !== null })), q.page, q.size, s.totalElements), unreadCount: s.unreadCount };
+    const rows = await all(tx, `
+      SELECT event_type, numeric_id, source_id, created_at, read_at FROM (
+        SELECT 'FEEDBACK_NEW' AS event_type, n.id AS numeric_id, n.feedback_id AS source_id, n.created_at, r.read_at
+        FROM admin_notifications n
+        LEFT JOIN admin_notification_reads r ON r.notification_id=n.id AND r.user_id=?
+        UNION ALL
+        SELECT 'USER_REGISTERED' AS event_type, n.id AS numeric_id, n.user_id AS source_id, n.created_at, r.read_at
+        FROM admin_registration_notifications n
+        LEFT JOIN admin_registration_notification_reads r ON r.notification_id=n.id AND r.user_id=?
+      )
+      ORDER BY created_at DESC, numeric_id DESC, event_type ASC
+      LIMIT ? OFFSET ?
+    `, [actor.id, actor.id, q.size, q.page * q.size]);
+    return {
+      ...page(rows.map(row => {
+        const isReg = row.event_type === 'USER_REGISTERED';
+        return {
+          id: isReg ? `registration:${row.numeric_id}` : String(row.numeric_id),
+          type: row.event_type,
+          title: isReg ? 'Có tài khoản mới đăng ký' : 'Có phản hồi người chơi mới',
+          sourceId: row.source_id,
+          href: isReg ? '/admin/users' : '/admin',
+          createdAt: row.created_at,
+          read: row.read_at !== null,
+        };
+      }), q.page, q.size, s.totalElements),
+      unreadCount: s.unreadCount,
+    };
   }, 'read')));
   app.post('/api/v1/admin/notifications/:id/read', async c => {
-    const actor = requireActor(c, true), id = z.coerce.number().int().positive().max(Number.MAX_SAFE_INTEGER).parse(c.req.param('id'));
-    return c.json(await transaction(db, async tx => { await authorize(tx, actor, true); await one(tx, 'SELECT id FROM admin_notifications WHERE id=?', [id]);
-      await execute(tx, 'INSERT INTO admin_notification_reads(notification_id,user_id) VALUES (?,?) ON CONFLICT(notification_id,user_id) DO NOTHING', [id, actor.id]); return { id: String(id), read: true }; }));
+    const actor = requireActor(c, true), target = parseNotificationId(c.req.param('id'));
+    return c.json(await transaction(db, async tx => {
+      await authorize(tx, actor, true);
+      if (target.kind === 'registration') {
+        await one(tx, 'SELECT id FROM admin_registration_notifications WHERE id=?', [target.id]);
+        await execute(tx, 'INSERT INTO admin_registration_notification_reads(notification_id,user_id) VALUES (?,?) ON CONFLICT(notification_id,user_id) DO NOTHING', [target.id, actor.id]);
+      } else {
+        await one(tx, 'SELECT id FROM admin_notifications WHERE id=?', [target.id]);
+        await execute(tx, 'INSERT INTO admin_notification_reads(notification_id,user_id) VALUES (?,?) ON CONFLICT(notification_id,user_id) DO NOTHING', [target.id, actor.id]);
+      }
+      return { id: target.raw, read: true };
+    }));
   });
   const streams = new Map<string, number>();
   app.get('/api/v1/admin/notifications/stream', c => {

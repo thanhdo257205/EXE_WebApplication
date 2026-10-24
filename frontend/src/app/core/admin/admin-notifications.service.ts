@@ -5,9 +5,11 @@ import { Subscription, switchMap } from 'rxjs';
 import { AuthService } from '../auth/auth.service';
 import { environment } from '../../../environments/environment';
 
+export type AdminNotificationType = 'FEEDBACK_NEW' | 'USER_REGISTERED';
+
 export interface AdminNotification {
   id: string;
-  type: 'FEEDBACK_NEW';
+  type: AdminNotificationType;
   title: string;
   sourceId: string;
   href: string;
