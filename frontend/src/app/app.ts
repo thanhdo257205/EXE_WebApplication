@@ -59,7 +59,11 @@ export class App implements OnDestroy {
     ).subscribe((event: NavigationEnd) => {
       this.updateAdminRoute(event.urlAfterRedirects || event.url);
       this.mobileMenuOpen.set(false);
-      if (typeof document !== 'undefined') this.syncSmoothScroll();
+      if (typeof document !== 'undefined') {
+        this.stopSmooth?.();
+        this.stopSmooth = undefined;
+        this.syncSmoothScroll();
+      }
     });
 
     // Kích hoạt hiệu ứng Cursor Ghost toàn trang trên Client (SSR-safe qua afterNextRender)

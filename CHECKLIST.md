@@ -2,6 +2,13 @@
 
 Cập nhật: 2026-10-24 (Asia/Saigon).
 
+## Khôi phục vị trí cuộn SPA & Đồng bộ Lenis (2026-10-24)
+
+- [x] FE-SCROLL-01 — Cấu hình `withInMemoryScrolling({ scrollPositionRestoration: 'enabled', anchorScrolling: 'enabled' })` trong `app.config.ts`; forward navigation về `[0, 0]`, Back/Forward khôi phục vị trí, anchor scrolling giữ nguyên.
+- [x] FE-SCROLL-02 — Dừng và dọn sạch instance Lenis cũ trên `NavigationEnd` trong `app.ts` trước `syncSmoothScroll()`; ngăn animation/momentum cũ kéo ngược màn hình; `smoothToken` hủy import trễ; giữ lazy load, SSR, admin bypass và low perf fallback.
+- [x] FE-SCROLL-VERIFY — Chrome desktop/mobile/reduced motion qua: footer từ đáy trang về đầu, Lenis đang cuộn không kéo ngược, Back/Forward nhớ vị trí và nút anchor nội trang hoạt động; 280 tests và production build qua. Deep link mở mới có hash còn hạn chế trong CSR fallback (ghi PROGRESS).
+- [ ] FE-SCROLL-DEPLOY — Push main, CI/CD và xác minh production.
+
 ## Thông báo quản trị tài khoản mới (2026-10-24)
 
 - [x] NOTIF-REG-01 — Hai bảng additive/startup idempotent; tài khoản mới và event cùng transaction, dedup; password và Google persistence mới/cũ/rollback qua, không backfill.

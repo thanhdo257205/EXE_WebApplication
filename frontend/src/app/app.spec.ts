@@ -3,6 +3,7 @@ import { provideRouter, Router } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { Component } from '@angular/core';
+import { describe, expect, it, vi } from 'vitest';
 import { App } from './app';
 
 @Component({ standalone: true, template: '<div>Admin Mock</div>' })
@@ -49,4 +50,32 @@ describe('App shell', () => {
     expect(element.querySelector('app-global-bar')).toBeNull();
     expect(element.querySelector('main#main')?.classList.contains('admin-main')).toBe(true);
   });
+
+  it('stops active smooth scroll instance on route navigation before re-evaluating smooth scroll', async () => {
+    await TestBed.configureTestingModule({
+      imports: [App],
+      providers: [
+        provideRouter([
+          { path: 'page-1', component: AdminMockComponent },
+          { path: 'page-2', component: AdminMockComponent },
+        ]),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+      ],
+    }).compileComponents();
+
+    const router = TestBed.inject(Router);
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+
+    const appInstance = fixture.componentInstance as unknown as { stopSmooth?: () => void };
+    const stopSmoothSpy = vi.fn();
+    appInstance.stopSmooth = stopSmoothSpy;
+
+    await router.navigateByUrl('/page-1');
+    fixture.detectChanges();
+
+    expect(stopSmoothSpy).toHaveBeenCalledTimes(1);
+  });
+
 });
