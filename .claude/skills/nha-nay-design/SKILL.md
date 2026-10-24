@@ -166,7 +166,7 @@ Cấu trúc: `.kit-meta` (2 nhãn hoa nhỏ hai đầu) → `h3` Anton → `p` �
 
 ## 7. Đầu trang con: `app-page-hero`
 
-Mọi trang con (cách chơi, quỹ nhà, câu chuyện, 404, thư viện/wiki/cư dân + chi tiết, cửa hàng, sổ địa chỉ) dùng chung:
+Trang chi tiết (thư viện/wiki/cư dân `/:slug`), sổ địa chỉ và 404 dùng chung (từ 2026-10-24 các trang danh sách có đầu trang riêng, xem mục 7A):
 
 ```html
 <app-page-hero tone="pink" eyebrow="Cốt truyện" heading="Câu chuyện căn nhà" description="..." backLink="/" backLabel="← Trang chủ">
@@ -174,7 +174,23 @@ Mọi trang con (cách chơi, quỹ nhà, câu chuyện, 404, thư viện/wiki/c
 </app-page-hero>
 ```
 
-Gồm: nền radial theo tone ở góc phải, 16 bong bóng CSS bay lên (vị trí cố định để khớp SSR), 3 lá thẻ minh họa nổi nghiêng theo chuột (biến `--mx/--my`, CSS 3D), chữ nền khổng lồ viền theo tone, H1 display. Route khung đặt tone qua `data: { tone: 'lime' | 'pink' | 'blue' | 'orange', section, chapters, tool }` trong `app.routes.ts`. Input tùy chọn từ route **phải có giá trị mặc định/transform** vì component input binding đặt `undefined` khi route thiếu khóa.
+Gồm: nền radial theo tone ở góc phải, 16 bong bóng CSS bay lên (vị trí cố định để khớp SSR), 3 lá thẻ minh họa nổi nghiêng theo chuột (biến `--mx/--my`, CSS 3D), chữ nền khổng lồ viền theo tone, H1 display. Route khung (404) đặt tone qua `data: { tone: 'lime' | 'pink' | 'blue' | 'orange', section }` trong `app.routes.ts` (`chapters`, `tool` đã bỏ 2026-10-24). Input tùy chọn từ route **phải có giá trị mặc định/transform** vì component input binding đặt `undefined` khi route thiếu khóa.
+
+## 7A. Mỗi trang danh sách một phong cách (2026-10-24)
+
+Theo yêu cầu chủ dự án ("các trang con same same"), mỗi trang danh sách lấy ngôn ngữ của một prompt trong bộ prompt; đây là **ngoại lệ có chủ ý** với các mục khác trong skill này (nền sáng, chữ trắng thuần, keyframes cho tiêu đề):
+
+| Trang | Prompt | Điểm nhận diện |
+| --- | --- | --- |
+| `/cach-choi` | Laocoön | Chương ghim khi cuộn, lưới 5 đường kẻ, thanh story, chữ Fraunces hiện từng ký tự |
+| `/quy-nha` | Ascend | Nền không gian sâu, "đồng xu" phát sáng dính phía sau, khối kính, bảng góp quỹ |
+| `/cau-chuyen` | Flowstate | Mực loang WebGL (fragment shader), chữ medium hiện từng từ, nút viên thuốc trắng |
+| `/thu-vien` | KIMI | **Nền giấy sáng** kẻ lưới, Anton in hoa, nhấn cyan, khung góc ngoặc; danh sách trượt đè đầu trang |
+| `/cu-dan` | Marcus Vane | Tên khổng lồ đỏ cam `#ff3b1d`, quạt ô hồ sơ minh họa, marquee |
+| `/wiki` | Baseline | Khối navy bo góc, tiêu đề hiện từng từ sau mặt nạ, danh sách loại bài trên nền sáng |
+| `/cua-hang` | Lumora | **Nền sáng**, ảnh nhạt + vệt cọ hiện bản màu, mực đen + cam cháy `#b15f2c` |
+
+Quy tắc chung vẫn giữ: số liệu game lấy từ `shared/game-facts.ts` (không tự đặt giá/luật), ghi "minh họa" cho ô/hình trang trí, có bản tĩnh khi reduced motion/không JS/không WebGL, hiệu ứng vào trang chờ `html[data-boot="done"]`, dấu tiếng Việt chồng cần đệm trên ~0,25em khi dùng mặt nạ `overflow: hidden`. Muốn đổi màu nút trong phạm vi riêng thì đổi token `--ctrl-glass-*` (mục 8). Chi tiết: `docs/design/FRONTEND_REDESIGN.md` mục "Mỗi trang con một phong cách".
 
 ## 8. Vật liệu kính lỏng (liquid glass)
 
@@ -300,7 +316,7 @@ Nguyên tắc kỹ thuật:
 - Có bản tĩnh tương đương cho mọi hiệu ứng (no-JS, reduced motion, không WebGPU, máy yếu).
 
 **Không nên**
-- Không quay về nền kem/sáng cho trang công khai hay xen kẽ dải nền màu giữa các section trang chủ.
+- Không quay về nền kem/sáng cho trang công khai hay xen kẽ dải nền màu giữa các section trang chủ (ngoại lệ có chủ ý: Thư viện và Cửa hàng, mục 7A).
 - Không dùng `#fff` thuần làm chữ, không đặt chữ trắng lên lime/hồng/xanh.
 - Không lồng nhiều lớp `backdrop-filter`; không đặt đoạn văn dài lên kính.
 - Không animate chữ đoạn văn; không thay lò xo tiêu đề bằng keyframes/Framer Motion.
@@ -320,6 +336,7 @@ Nguyên tắc kỹ thuật:
 | Trang chủ | `features/home/home.page.*`, `home-sections.css`, `home-glass.css`, `home-hero3d.css` |
 | Cảnh WebGPU thuần | `features/home/hero3d/*`, `features/home/hero-box.component.ts`, `features/arena/arena-renderer.ts`, `arena-shaders.ts` (+ `docs/ARENA.md`) |
 | Đầu trang con | `shared/components/page-hero/*` |
+| Trang danh sách riêng (mục 7A) | `features/guide/*`, `features/fund/*`, `features/story/*` (+ `story-ink.ts`), `features/public-content/heroes/*`, `features/shop/shop-hero.css`, `liquid-reveal.ts`; số liệu game `shared/game-facts.ts` |
 | Thẻ khám phá | `shared/components/explore-cards/*`, `shared/explore-links.ts` |
 | Marquee, Column Spread, morph icon | `shared/components/marquee`, `column-spread`, `morph-icon` |
 | Chuyển động | `shared/motion/*` (rise-heading, reveal, count-up, liquid-glass, dot-grid-warp) |

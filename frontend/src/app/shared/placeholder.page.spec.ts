@@ -12,9 +12,9 @@ describe('Trang khung', () => {
   async function open(url: string) {
     TestBed.configureTestingModule({
       providers: [provideRouter([
-        { path: 'quy-nha', component: PlaceholderPage, data: { heading: 'Mô phỏng Quỹ Nhà Chung', description: 'Mô tả', section: 'Quỹ nhà', tool: 'fund' } },
-        { path: 'cach-choi', component: PlaceholderPage, data: { heading: 'Hướng dẫn cách chơi', description: 'Mô tả', chapters: ['Thiết lập bàn chơi', 'Giai đoạn Sự Kiện'] } },
         { path: 'san-dau', component: Stub },
+        { path: 'dang-soan', component: PlaceholderPage, data: { heading: 'Khu vực mới', description: 'Mô tả' } },
+        { path: '**', component: PlaceholderPage, data: { heading: '404 - Không tìm thấy trang', description: 'Mô tả', section: 'Lạc đường', tone: 'blue' } },
       ], withComponentInputBinding())],
     });
     const harness = await RouterTestingHarness.create();
@@ -22,17 +22,17 @@ describe('Trang khung', () => {
     return harness.routeNativeElement as HTMLElement;
   }
 
-  it('không lỗi khi route thiếu chapters và hiện công cụ tương tác', async () => {
-    const el = await open('/quy-nha');
-    expect(el.querySelector('app-fund-calculator')).toBeTruthy();
-    expect(el.querySelector('.kit-rows')).toBeNull();
+  it('trang 404 báo không có trang và dẫn sang các khu vực đã hoạt động', async () => {
+    const el = await open('/khong-co');
+    expect(el.querySelector('.meta')?.textContent).toContain('Không có trang này');
+    expect(el.querySelector('.meta')?.textContent).toContain('Lạc đường');
     expect(el.querySelectorAll('app-explore-cards .kit-card').length).toBe(4);
-    expect(el.querySelector('app-explore-cards a[href="/quy-nha"]')).toBeNull();
+    expect(el.querySelector('app-explore-cards a[href="/san-dau"]')).toBeTruthy();
   });
 
-  it('liệt kê mục lục và dẫn sang các khu vực đã hoạt động', async () => {
-    const el = await open('/cach-choi');
-    expect([...el.querySelectorAll('.kit-row h3')].map(h => h.textContent?.trim())).toEqual(['Thiết lập bàn chơi', 'Giai đoạn Sự Kiện']);
-    expect(el.querySelector('app-explore-cards a[href="/san-dau"]')).toBeTruthy();
+  it('không lỗi khi route thiếu section/tone', async () => {
+    const el = await open('/dang-soan');
+    expect(el.querySelector('.meta')?.textContent).toContain('Căn nhà');
+    expect(el.querySelector('.meta')?.textContent).toContain('Đang biên soạn');
   });
 });

@@ -1,0 +1,57 @@
+<section class="hero" aria-labelledby="story-title">
+  <canvas #ink class="ink" [class.on]="inkOn()" aria-hidden="true"></canvas>
+  <div class="scrim" aria-hidden="true"></div>
+  <div class="column">
+    <p class="badge step" style="--d: 320ms"><span class="dot"></span>{{ game.brand }} · Câu chuyện căn nhà</p>
+    <h1 id="story-title" class="words"><span class="sr">{{ title }}</span>@for (word of titleWords; track word.i) {<span class="w" aria-hidden="true" [style.--i]="word.i">{{ word.w }}</span>}</h1>
+    <p class="sub words"><span class="sr">{{ subline }}</span>@for (word of sublineWords; track word.i) {<span class="w" aria-hidden="true" [style.--i]="word.i">{{ word.w }}</span>}</p>
+    <div class="bar step" style="--d: 1450ms">
+      <span>Góp quỹ hay giữ tiền?</span>
+      <a routerLink="/quy-nha" class="pill">Thử góp quỹ</a>
+    </div>
+  </div>
+  <p class="foot step" style="--d: 1650ms">{{ game.name }} · {{ game.genre.toLowerCase() }} cho {{ game.players }} người chơi</p>
+</section>
+
+<section class="acts" aria-labelledby="acts-title">
+  <div class="head" appReveal>
+    <p class="eyebrow">Bối cảnh</p>
+    <h2 id="acts-title">Ba hồi của một căn nhà chung</h2>
+  </div>
+  <ol>
+    @for (act of acts; track act.title; let i = $index) {
+      <li class="act" [style.--n]="i" appReveal>
+        <span class="num" aria-hidden="true">0{{ i + 1 }}</span>
+        <div class="act-copy">
+          <h3><span class="sr">{{ act.title }}</span>@for (word of act.words; track word.i) {<span class="w" aria-hidden="true" [style.--i]="word.i">{{ word.w }}</span>}</h3>
+          <p>{{ act.text }}</p>
+          <ul class="tags" aria-label="Chủ đề">@for (tag of act.tags; track tag) {<li>{{ tag }}</li>}</ul>
+        </div>
+      </li>
+    }
+  </ol>
+</section>
+
+<section class="mirror" aria-labelledby="mirror-title">
+  <div class="head" appReveal>
+    <p class="eyebrow">Đời thật → luật chơi</p>
+    <h2 id="mirror-title">Chuyện quen thuộc, thành cơ chế trong hộp</h2>
+  </div>
+  <div class="table" role="table" aria-label="Tình huống đời thật và cơ chế tương ứng trong game" appReveal>
+    <div class="row th" role="row"><span role="columnheader">Ngoài đời</span><span aria-hidden="true"></span><span role="columnheader">Trong {{ game.name }}</span></div>
+    @for (row of mirror; track row.life) {
+      <div class="row" role="row"><span class="life" role="cell">{{ row.life }}</span><span class="arrow" aria-hidden="true">→</span><span class="game" role="cell">{{ row.game }}</span></div>
+    }
+  </div>
+</section>
+
+<section class="brand" aria-labelledby="brand-title">
+  <p class="eyebrow" appReveal>Tên thương hiệu</p>
+  <h2 id="brand-title" class="quote" [appReveal]="80">“{{ game.brand }}”</h2>
+  <p class="lead" [appReveal]="160">Là giai đoạn chưa thật sự vững tài chính nhưng đã bắt đầu tự chịu trách nhiệm cho nhiều quyết định. {{ game.name }} nhìn lại giai đoạn đó bằng giọng hài hước: vui là chính, bài học đến từ trải nghiệm.</p>
+  <p class="note" [appReveal]="220">Cốt truyện chi tiết, hồ sơ {{ game.characters }} nhân vật và các tình huống trong game sẽ công bố cùng bản nội dung chính thức.</p>
+  <div class="actions" [appReveal]="280">
+    <a routerLink="/cu-dan" class="pill">Gặp các cư dân</a>
+    <a routerLink="/cach-choi" class="pill glass">Xem cách chơi</a>
+  </div>
+</section>

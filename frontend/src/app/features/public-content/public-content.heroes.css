@@ -1,0 +1,13 @@
+/* Đầu trang riêng theo loại nội dung. Thư viện (KIMI): đầu trang được ghim, danh sách trượt đè lên, khối bị che lùi lại và tối dần. */
+:host { timeline-scope: --cover; }
+app-library-hero { position: sticky; top: min(80px, calc(100svh - var(--h, 100svh))); z-index: 0; transform-origin: 50% 0; }
+.reader-shell.over { position: relative; z-index: 1; background: #0b0c0d; border-image-source: conic-gradient(#0b0c0d 0 0); border-image-slice: 0 fill; border-image-outset: 0 100vmax; view-timeline: --cover block; }
+.browse-tools { scroll-margin-top: 96px; }
+app-library-hero .release-note { color: #3d4447; }
+@supports (animation-timeline: view()) {
+  app-library-hero { animation: recede linear both; animation-timeline: --cover; animation-range: entry 0% entry 90vh; }
+  app-library-hero::after { content: ''; position: absolute; inset: 0; background: #000; opacity: 0; pointer-events: none; animation: dim linear both; animation-timeline: --cover; animation-range: entry 0% entry 90vh; }
+}
+@keyframes recede { to { transform: scale(.9); } }
+@keyframes dim { to { opacity: .55; } }
+@media (prefers-reduced-motion: reduce) { app-library-hero { position: relative; top: auto; animation: none; } app-library-hero::after { display: none; } }

@@ -24,8 +24,8 @@ import { Component, input } from '@angular/core';
     ul { display: flex; flex: none; margin: 0; padding: 0; list-style: none; }
     li { display: flex; align-items: center; gap: clamp(18px, 3vw, 44px); padding-right: clamp(18px, 3vw, 44px); font-family: var(--font-display, 'Anton', Impact, sans-serif); font-size: clamp(36px, 5.2vw, 80px); font-weight: 400; line-height: 1; letter-spacing: -.01em; text-transform: uppercase; white-space: nowrap; color: #f3f1ea; }
     li.outline { color: transparent; -webkit-text-stroke: 1.5px #f3f1ea; }
-    li.accent { color: #dafa76; }
-    li span { flex: none; width: .625rem; height: .625rem; border-radius: 999px; background: #dafa76; font-size: 0; }
+    li.accent { color: var(--marquee-accent, #dafa76); }
+    li span { flex: none; width: .625rem; height: .625rem; border-radius: 999px; background: var(--marquee-accent, #dafa76); font-size: 0; }
     @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
     @media (prefers-reduced-motion: reduce) { .track { animation: none; } }
     :host-context(html[data-perf='low']) .track { will-change: auto; }

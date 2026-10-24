@@ -1,0 +1,44 @@
+/* KIMI: tờ giấy sáng kẻ lưới mảnh, chữ đen cô đặc in hoa, một màu nhấn cyan, khung góc ngoặc */
+:host {
+  --paper: #f7fafb; --ink: #050607; --cyan: #02d2e3; --grid: rgba(5, 6, 7, .06);
+  display: block; color: var(--ink); background-color: var(--paper); font-family: 'Be Vietnam Pro', system-ui, sans-serif;
+  background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px); background-size: 80px 80px;
+}
+.sheet { max-width: 1440px; margin: 0 auto; padding: 0 clamp(20px, 4vw, 56px) 28px; }
+.mast { display: flex; align-items: center; gap: 24px; min-height: 56px; border-bottom: 1.5px solid var(--ink); font-size: 11px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; }
+.back { color: inherit; } .back:hover { color: #0098a6; }
+.tag { margin-left: auto; padding: 5px 10px; background: var(--ink); color: var(--cyan); }
+.top { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 32px; align-items: end; padding: clamp(28px, 4vw, 56px) 0 clamp(22px, 3vw, 36px); border-bottom: 1.5px solid var(--ink); }
+.label { display: flex; align-items: center; gap: 10px; margin: 0 0 clamp(26px, 3vw, 44px); font-size: 11px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase; }
+.label::before { content: ''; width: 10px; height: 10px; background: var(--cyan); }
+h1 { margin: 0; font: 400 clamp(60px, 8.6vw, 140px)/.96 var(--font-display); letter-spacing: -.01em; text-transform: uppercase; }
+.lede { max-width: 50ch; margin: 18px 0 0; font-size: 13px; font-weight: 500; line-height: 1.7; letter-spacing: .04em; text-transform: uppercase; }
+.figures { display: grid; grid-template-columns: 1fr 1fr; margin: 0; }
+.figures div { padding-left: 20px; border-left: 1.5px solid var(--ink); }
+.figures dt { font-size: 11px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; }
+.figures dd { margin: 10px 0 0; font: 400 clamp(72px, 9.6vw, 160px)/.8 var(--font-display); }
+.figures div:last-child dd { color: transparent; -webkit-text-stroke: 2px var(--ink); }
+.figures div:first-child dd { box-shadow: inset 0 -.16em 0 var(--cyan); display: inline-block; }
+.panels { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 16px; margin-top: 22px; }
+.panel { --kc: var(--ink); padding: 24px 26px 26px; background:
+  linear-gradient(var(--kc), var(--kc)) left top / 18px 2px no-repeat, linear-gradient(var(--kc), var(--kc)) left top / 2px 18px no-repeat,
+  linear-gradient(var(--kc), var(--kc)) right top / 18px 2px no-repeat, linear-gradient(var(--kc), var(--kc)) right top / 2px 18px no-repeat,
+  linear-gradient(var(--kc), var(--kc)) left bottom / 18px 2px no-repeat, linear-gradient(var(--kc), var(--kc)) left bottom / 2px 18px no-repeat,
+  linear-gradient(var(--kc), var(--kc)) right bottom / 18px 2px no-repeat, linear-gradient(var(--kc), var(--kc)) right bottom / 2px 18px no-repeat, var(--bg, transparent); }
+.panel.dark { --kc: var(--cyan); --bg: #0b0d0f; color: #f7fafb; }
+.panel h2 { margin: 0 0 16px; font: 400 26px/1 var(--font-display); text-transform: uppercase; }
+ol { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; margin: 0; padding: 0; list-style: none; }
+li { display: grid; grid-template-columns: 30px 1fr; gap: 3px 10px; padding: 11px 0; border-top: 1px solid rgba(247, 250, 251, .14); }
+li span { grid-row: span 2; font: 400 18px/1 var(--font-display); color: var(--cyan); }
+li strong { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; }
+li em { font-size: 13px; font-style: normal; color: #a8b0b4; }
+.panel p { margin: 0 0 22px; font-size: 14px; line-height: 1.7; }
+.cta { display: inline-flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 18px; background: var(--ink); color: var(--paper); font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; transition: background .2s, color .2s; }
+.cta span { color: var(--cyan); }
+.cta:hover { background: var(--cyan); color: var(--ink); } .cta:hover span { color: var(--ink); }
+.foot { min-height: 8px; margin-top: 14px; }
+@media (max-width: 900px) {
+  .top, .panels { grid-template-columns: 1fr; }
+  .path { display: none; }
+  ol { grid-template-columns: 1fr; }
+}

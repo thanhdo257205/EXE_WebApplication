@@ -256,6 +256,7 @@ html[data-arena-focus] app-global-bar, html[data-arena-focus] .public-footer, ht
 
 /* Màu chủ đề hero chuyển mượt (gradient nền nội suy được) */
 @property --hero-color { syntax: '<color>'; inherits: true; initial-value: #dafa76; }
+@property --tint { syntax: '<color>'; inherits: true; initial-value: #dafa76; }
 
 /* ===== Bộ thành phần dùng chung (tham khảo bộ prompt Lumora / KIMI / Baseline) ===== */
 /* Nút viên thuốc kèm huy hiệu mũi tên tròn */

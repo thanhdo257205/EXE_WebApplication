@@ -2,6 +2,14 @@
 
 Cập nhật: 2026-10-24 (Asia/Saigon).
 
+## Phong cách riêng cho từng trang con (2026-10-24)
+
+- [x] PAGE-STYLE-01 — Mỗi trang danh sách một phong cách từ bộ prompt: Cách chơi (Laocoön), Quỹ nhà (Ascend), Câu chuyện (Flowstate), Thư viện (KIMI), Cư dân (Marcus Vane), Wiki (Baseline), Cửa hàng (Lumora); 248 tests, build, ảnh 1440/390px không tràn ngang, không lỗi console (local).
+- [x] GAME-FACTS-01 — Thông tin game quan trọng từ BMC/CHECKLIST gom ở `shared/game-facts.ts` và hiển thị trên các trang; không đưa giá/lô hàng/bản mở rộng.
+- [x] FUND-02 — Sửa máy tính quỹ từ 0–8 về 0–4 Tiền/người; thêm chế độ góp kín + lật quỹ, kịch bản có sẵn, ba kết cục; spec + kiểm tra bấm trên Chromium.
+- [ ] PAGE-STYLE-02 — Xem 7 trang trên production và điện thoại thật; đo mực loang WebGL (`/cau-chuyen`) và vệt cọ (`/cua-hang`) trên GPU thật; thử Firefox/Safari (phần dùng scroll-driven animations).
+- [ ] PAGE-STYLE-03 — Đưa `fund-dashboard.css` (6,85 kB) xuống dưới mức cảnh báo 6 kB.
+
 ## Skill thiết kế (2026-10-24)
 
 - [x] DESIGN-SKILL — `.claude/skills/nha-nay-design/SKILL.md` mô tả ngôn ngữ thiết kế hiện tại, đối chiếu với `styles.css`, trang chủ, page-hero, header, footer, admin.
@@ -174,7 +182,7 @@ Cập nhật: 2026-10-24 (Asia/Saigon).
 - [x] FUND-01: Máy tính Quỹ Nhà Chung ở `/quy-nha` (4 cư dân, Hóa đơn 8 Tiền, Thiếu/Đủ/Dư) + spec; local qua (2026-10-23).
 - [x] ADMIN-UI-01: Đổi giao diện quản trị sang ngôn ngữ site (nền tối ấm, xanh chanh, Anton, sidebar đánh số, thẻ khung góc, bảng cuộn ngang trên mobile); build/ảnh local qua (2026-10-23).
 - [ ] ADMIN-UI-02: Xem lại giao diện quản trị với dữ liệu thật trên production (bảng, form, trạng thái lỗi) và trên điện thoại thật.
-- [ ] CONTENT-05: Thay mục lục "Đang biên soạn" ở `/cach-choi`, `/cau-chuyen` bằng nội dung luật/cốt truyện đã duyệt.
+- [ ] CONTENT-05: `/cach-choi`, `/cau-chuyen` đã có tổng quan cơ chế và bối cảnh từ BMC (2026-10-24); còn thay bằng luật đầy đủ/cốt truyện đã duyệt.
 - [x] HERO-3D-01: Hero trang chủ hộp game 3D WebGPU (nắp mở theo cuộn, thẻ bay/đẩy theo con trỏ, đổi chủ đề xoay 720°), nạp lười, dự phòng CSS; 4 test cảnh + ảnh SwiftShader 1440/390px local (2026-10-23).
 - [ ] HERO-3D-02: Đo FPS/GPU và độ nét hero 3D trên máy thật (Chrome/Edge desktop, Android); thử Safari/Firefox; chỉnh DPR/hạt nếu giật.
 - [x] PAGE-HERO-01: Đầu trang con dùng chung `app-page-hero` cho trang khung, thư viện/wiki/cư dân, cửa hàng, sổ địa chỉ; spec + ảnh desktop/mobile local (2026-10-23).
@@ -294,10 +302,10 @@ Chi tiết bằng chứng: [IMPLEMENTATION_REVIEW.md](docs/IMPLEMENTATION_REVIEW
 - [ ] Tìm kiếm toàn web cho thẻ, wiki và nhân vật.
 - [ ] Trang chi tiết với mã/URL ổn định để dùng QR.
 - [ ] Thể hiện phiên bản luật và các nội dung chưa chốt.
-- [ ] Xây giao diện 4 cư dân đóng Quỹ, mỗi người từ 0–4 Tiền.
-- [ ] Tính tổng đóng góp so với hóa đơn cơ bản 8 Tiền.
-- [ ] Hiển thị đúng ba trường hợp đủ, thiếu và dư.
-- [ ] Kiểm tra mô phỏng hoạt động khi không kết nối backend.
+- [x] Xây giao diện 4 cư dân đóng Quỹ, mỗi người từ 0–4 Tiền (`/quy-nha`, spec + Chromium, 2026-10-24).
+- [x] Tính tổng đóng góp so với hóa đơn cơ bản 8 Tiền.
+- [x] Hiển thị đúng ba trường hợp đủ, thiếu và dư.
+- [x] Kiểm tra mô phỏng hoạt động khi không kết nối backend (tính hoàn toàn trên trình duyệt; kiểm bằng Chromium với API giả lập trả lỗi/rỗng).
 - [ ] Kiểm tra giao diện mobile, khả năng truy cập cơ bản và metadata chia sẻ/SEO.
 
 ### 4. Database, phản hồi và quản trị

@@ -1,0 +1,34 @@
+<header class="sheet">
+  <div class="mast">
+    <a routerLink="/" class="back">← Về căn nhà</a>
+    <span class="path">{{ game.name }} / Thư viện thẻ</span>
+    <span class="tag">Bản thiết kế</span>
+  </div>
+  <div class="top">
+    <div>
+      <p class="label">Tra cứu thẻ bài</p>
+      <h1>{{ heading() }}</h1>
+      @if (description()) { <p class="lede">{{ description() }}</p> }
+    </div>
+    <dl class="figures">
+      <div><dt>Lá thẻ</dt><dd>{{ game.cards }}</dd></div>
+      <div><dt>Bộ thẻ</dt><dd>{{ game.sets }}</dd></div>
+    </dl>
+  </div>
+  <div class="panels">
+    <section class="panel dark" aria-labelledby="anatomy-title">
+      <h2 id="anatomy-title">Giải phẫu một lá thẻ</h2>
+      <ol>
+        @for (row of anatomy; track row.field; let i = $index) {
+          <li><span>0{{ i + 1 }}</span><strong>{{ row.field }}</strong><em>{{ row.note }}</em></li>
+        }
+      </ol>
+    </section>
+    <section class="panel" aria-labelledby="read-title">
+      <h2 id="read-title">Đọc trước khi tra</h2>
+      <p>{{ game.cards }} lá trong {{ game.sets }} bộ là con số theo bản thiết kế. Thư viện chỉ hiện những lá đã xuất bản trong bản nội dung chính thức; lá có luật đang rà soát được đánh dấu riêng.</p>
+      <a routerLink="/thu-vien/mau/pokemon-card-3d" class="cta">Cầm thử thẻ 3D <span aria-hidden="true">↗</span></a>
+    </section>
+  </div>
+  <div class="foot"><ng-content /></div>
+</header>

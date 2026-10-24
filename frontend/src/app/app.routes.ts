@@ -91,8 +91,7 @@ export const routes: Routes = [
   {
     path: 'cach-choi',
     title: 'Hướng dẫn cách chơi — Nhà Này Hơi Báo!',
-    data: { heading: 'Hướng dẫn cách chơi', description: 'Các bước thiết lập bàn chơi, cấu trúc vòng chơi, giai đoạn Sự Kiện và cách tính điểm thắng cuộc.', section: 'Luật chơi', tone: 'lime', chapters: ['Thiết lập bàn chơi', 'Cấu trúc một vòng chơi', 'Giai đoạn Sự Kiện', 'Cách tính điểm thắng cuộc'] },
-    loadComponent: () => import('./shared/placeholder.page').then(m => m.PlaceholderPage),
+    loadComponent: () => import('./features/guide/how-to-play.page').then(m => m.HowToPlayPage),
   },
   {
     path: 'huong-dan',
@@ -114,14 +113,12 @@ export const routes: Routes = [
   {
     path: 'quy-nha',
     title: 'Quỹ Nhà Chung — Nhà Này Hơi Báo!',
-    data: { heading: 'Mô phỏng Quỹ Nhà Chung', description: 'Công cụ tính toán tương tác: Kiểm tra 4 cư dân đóng tiền và đối chiếu với Hóa đơn 8 Tiền (Thiếu, Đủ, Dư).', section: 'Quỹ nhà', tone: 'orange', tool: 'fund' },
-    loadComponent: () => import('./shared/placeholder.page').then(m => m.PlaceholderPage),
+    loadComponent: () => import('./features/fund/fund.page').then(m => m.FundPage),
   },
   {
     path: 'cau-chuyen',
     title: 'Câu chuyện căn nhà — Nhà Này Hơi Báo!',
-    data: { heading: 'Câu chuyện căn nhà', description: 'Cốt truyện về những người trẻ lần đầu tập sống chung, bão hóa đơn và những tình huống dở khóc dở cười.', section: 'Cốt truyện', tone: 'pink', chapters: ['Lần đầu tập sống chung', 'Bão hóa đơn', 'Những tình huống dở khóc dở cười'] },
-    loadComponent: () => import('./shared/placeholder.page').then(m => m.PlaceholderPage),
+    loadComponent: () => import('./features/story/story.page').then(m => m.StoryPage),
   },
   {
     path: 'cua-hang',

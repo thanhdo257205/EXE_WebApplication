@@ -1,7 +1,51 @@
-<app-page-hero heading="Thẻ sưu tập" eyebrow="Cửa hàng" tone="orange" description="Bản thử nghiệm cửa hàng: đặt mua, nhập thông tin giao hàng và thanh toán bằng mã QR của PayOS.">
-  <dl class="facts"><div><dt>Thanh toán</dt><dd>Mã QR PayOS</dd></div><div><dt>Giao hàng</dt><dd>Theo sổ địa chỉ</dd></div><div><dt>Trạng thái</dt><dd>Bản thử nghiệm</dd></div></dl>
-</app-page-hero>
-<section class="shop">
+<section class="hero" #hero aria-labelledby="shop-title">
+  <div class="media" aria-hidden="true">
+    <img class="base" [src]="heroImage" alt="" width="1440" height="780" fetchpriority="high" />
+    <canvas #reveal class="trail"></canvas>
+  </div>
+  <div class="vignette" aria-hidden="true"></div>
+  <span class="watermark" aria-hidden="true">Nhà này</span>
+  <div class="shell">
+    <div class="left">
+      <p class="eyebrow-l"><span></span>Cửa hàng · {{ game.brand }}</p>
+      <h1 id="shop-title">@for (line of lines; track $index) {<span class="line"><span [style.--i]="$index">{{ line }}</span></span>}</h1>
+      <ul class="facts" aria-label="Thông số trò chơi">
+        <li><b>{{ game.players }}</b> người chơi</li>
+        <li><b>{{ game.minutes }}</b> phút / ván</li>
+        <li><b>{{ game.cards }}</b> lá thẻ</li>
+      </ul>
+      <div class="ctas">
+        <a href="/cua-hang#san-pham" class="pill dark" (click)="$event.preventDefault(); scrollTo('san-pham')">Xem sản phẩm <span class="arrow" aria-hidden="true">↓</span></a>
+        <a routerLink="/cach-choi" class="pill outline">Cách chơi</a>
+      </div>
+    </div>
+    <div class="right">
+      <div class="hero-card">
+        <span class="tile" aria-hidden="true">N</span>
+        <div class="panel">
+          <div class="slot" aria-live="polite">
+            @for (item of slides; track item.caption; let i = $index) {
+              <p class="item" [class.on]="slide() === i" [attr.aria-hidden]="slide() !== i"><small>{{ item.caption }}</small><b>{{ item.title }}</b></p>
+            }
+          </div>
+          <span class="dots" aria-hidden="true">@for (item of slides; track item.caption; let i = $index) {<i [class.on]="slide() === i"></i>}</span>
+        </div>
+      </div>
+      <dl class="services">
+        @for (service of services; track service.label) {<div><dt>{{ service.label }}</dt><dd>{{ service.value }}</dd></div>}
+      </dl>
+    </div>
+  </div>
+  <div class="status">
+    <span>Bản thử nghiệm cửa hàng</span>
+    <span class="mid">Thanh toán bằng mã QR PayOS</span>
+    <span>Cuộn để xem ↓</span>
+  </div>
+</section>
+
+<section class="shop" id="san-pham" aria-labelledby="products-title">
+  <p class="eyebrow-l" appReveal><span></span>Sản phẩm</p>
+  <h2 id="products-title" [appReveal]="80">Đang mở bán</h2>
 
   @if (failed()) {
     <div class="state" role="alert"><p>Chưa tải được danh sách sản phẩm.</p><button type="button" (click)="load()">Thử lại</button></div>
@@ -16,11 +60,11 @@
           <li class="product">
             <div class="art" [class.empty]="!product.imageUrl">@if (product.imageUrl) { <img [src]="product.imageUrl" [alt]="product.name" width="360" height="495" loading="lazy" /> } @else { <span class="mock" aria-hidden="true"><small>Chưa giàu đã lớn</small><b>Nhà này<br>hơi báo!</b><i>{{ product.name }}</i></span> }</div>
             <div class="info">
-              <h2>{{ product.name }}</h2>
+              <h3>{{ product.name }}</h3>
               <p class="desc">{{ product.description }}</p>
               <p class="meta"><span>{{ variant.name }}</span><strong>{{ price(variant.priceAmount) }}</strong></p>
               @if (variant.available) {
-                <a class="buy" [routerLink]="['/gio-hang']" [queryParams]="{ variant: variant.id }">Mua ngay</a>
+                <a class="pill dark buy" [routerLink]="['/gio-hang']" [queryParams]="{ variant: variant.id }">Mua ngay <span class="arrow" aria-hidden="true">→</span></a>
               } @else { <span class="sold-out">Tạm hết hàng</span> }
             </div>
           </li>
@@ -28,14 +72,21 @@
       }
     </ul>
   }
+</section>
 
-  <section class="steps" aria-labelledby="steps-title">
-    <p class="eyebrow">Cách mua</p>
-    <h2 id="steps-title" class="display">Ba bước<br>là có hàng.</h2>
-    <ol>
+<section class="ink-wrap" aria-labelledby="steps-title">
+  <div class="ink" appReveal>
+    <p class="eyebrow-l light"><span></span>Cách mua</p>
+    <h2 id="steps-title">Ba bước là có hàng.</h2>
+    <ol class="steps">
       @for (step of steps; track step.title; let i = $index) {
-        <li class="kit-bracket"><span class="num display">0{{ i + 1 }}</span><h3>{{ step.title }}</h3><p>{{ step.text }}</p></li>
+        <li [appReveal]="i * 90"><span class="num">0{{ i + 1 }}</span><h3>{{ step.title }}</h3><p>{{ step.text }}</p></li>
       }
     </ol>
-  </section>
+    <dl class="numbers">
+      @for (stat of stats; track stat.label; let i = $index) {
+        <div [appReveal]="i * 90"><dt>{{ stat.label }}</dt><dd [appCountUp]="stat.value" [countDuration]="1100">{{ stat.value }}</dd></div>
+      }
+    </dl>
+  </div>
 </section>
