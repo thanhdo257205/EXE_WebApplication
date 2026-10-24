@@ -4,6 +4,12 @@
 
 ## Cập nhật gần nhất
 
+### Skill thiết kế giao diện — 2026-10-24, chỉ tài liệu
+
+- Theo yêu cầu "xem mã nguồn, xem cách design và xuất thành một file skill": thêm [.claude/skills/nha-nay-design/SKILL.md](.claude/skills/nha-nay-design/SKILL.md), tổng hợp từ mã hiện tại: token màu (`--ed-*`, 4 tone lime/pink/blue/orange kèm ink), chữ (Anton display, Be Vietnam Pro, Fraunces nghiêng; xử lý dấu tiếng Việt), bố cục (`--gutter`, `--section`, breakpoint), bộ `kit-*`, `app-page-hero`, kính lỏng và các mức hạ cấp, chuyển động (Rise & Settle, reveal, boot, view transition, marquee, Lenis), hero 3D WebGPU + dự phòng, hiệu năng, trợ năng, form, khu quản trị, quy trình làm trang mới, nên/không nên và bản đồ file.
+- Ghi chú trong skill: frontmatter `DESIGN.md` (nền kem) là giai đoạn cũ; mã nguồn là chuẩn.
+- Không đổi code/cấu hình chạy nên không chạy lại test runtime. Trạng thái GitHub: commit và push lên nhánh `claude/nifty-meitner-e36xmb`, chưa mở PR.
+
 ### Ảnh thẻ trên Cloudflare R2 — 2026-10-23, local (chưa commit lúc viết)
 
 - Theo yêu cầu "thử lưu thẻ trên cloud bằng R2" (đã giải thích không lưu ảnh trong DB, chỉ lưu đường dẫn): backend `media.ts` (tải ảnh admin, nhận diện PNG/JPEG/WebP theo byte, ≤1 MiB, khóa theo hash, ký SigV4 bằng `node:crypto`, audit), gateway phục vụ `/media/cards/<hash>` từ R2 binding tùy chọn (cache immutable, ETag/304) và nâng giới hạn thân cho đường tải ảnh, validator `artworkUrl` chấp nhận `/media/cards/...`, admin có khối tải ảnh (nén WebP trên trình duyệt). Chi tiết và các bước cấu hình: [docs/R2_CARD_IMAGES.md](docs/R2_CARD_IMAGES.md).

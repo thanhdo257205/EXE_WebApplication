@@ -98,6 +98,8 @@ components:
 
 # Design System: Nhà Này Hơi Báo!
 
+> Bản tổng hợp hiện hành (2026-10-24): [.claude/skills/nha-nay-design/SKILL.md](.claude/skills/nha-nay-design/SKILL.md). Frontmatter phía trên ghi bảng màu kem của giai đoạn đầu; giao diện hiện tại là editorial tối (xem các mục "Cập nhật" cuối file và skill).
+
 ## Overview
 
 **Creative North Star: "Diet Soda-inspired board-game showcase"**
