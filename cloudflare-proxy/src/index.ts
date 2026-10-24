@@ -38,6 +38,7 @@ async function serveMedia(request: Request, env: Env, pathname: string): Promise
 }
 
 const LOGIN = '/api/v1/auth/login';
+const REGISTER = '/api/v1/auth/register';
 const FORGOT_PASSWORD = '/api/v1/auth/forgot-password';
 const RESET_PASSWORD = '/api/v1/auth/reset-password';
 const PAYOS_WEBHOOK = '/api/v1/payments/payos/webhook';
@@ -95,9 +96,9 @@ export async function handle(request: Request, env: Env, fetcher: typeof fetch =
     const api = url.pathname === '/api' || url.pathname.startsWith('/api/');
     if (decodeURIComponent(url.pathname).startsWith('/api/v1/internal')) return problem(404, 'Not found');
     if (!api) {
-      if (frontend.origin === publicUrl.origin) return problem(503, 'Static assets must be served by Pages');
       if (!['GET', 'HEAD'].includes(request.method)) return problem(405, 'Method not allowed');
       if (url.pathname.startsWith('/media/')) return await serveMedia(request, env, url.pathname);
+      if (frontend.origin === publicUrl.origin) return problem(503, 'Static assets must be served by Pages');
       // Static requests never carry authentication, origin secrets or user-controlled forwarding headers.
       const headers = new Headers();
       for (const name of ['accept', 'accept-language', 'if-none-match', 'if-modified-since']) {
@@ -131,7 +132,7 @@ export async function handle(request: Request, env: Env, fetcher: typeof fetch =
     }
     if (!['GET', 'POST', 'HEAD', 'PUT', 'PATCH', 'DELETE'].includes(request.method)) return problem(405, 'Method not allowed');
     const recovery = request.method === 'POST' && [FORGOT_PASSWORD, RESET_PASSWORD].includes(url.pathname);
-    const authAttempt = (request.method === 'POST' && url.pathname === LOGIN) || url.pathname === OAUTH_START || recovery;
+    const authAttempt = (request.method === 'POST' && [LOGIN, REGISTER].includes(url.pathname)) || url.pathname === OAUTH_START || recovery;
     if (authAttempt && !(await env.LOGIN_LIMITER.limit({ key: `login:${ip}` })).success) return problem(429, 'Too many login attempts', '60');
     const body = SAFE_METHODS.has(request.method) ? undefined : await readLimitedBody(request, webhook ? 16384 : url.pathname === MEDIA_UPLOAD ? MEDIA_UPLOAD_MAX : 65536);
     if (body === null) return problem(413, 'Request too large');
@@ -149,6 +150,15 @@ export async function handle(request: Request, env: Env, fetcher: typeof fetch =
       } else if (typeof payload.token !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(payload.token)
           || typeof payload.password !== 'string' || payload.password.length < 8
           || new TextEncoder().encode(payload.password).length > 72) return problem(400, 'Invalid recovery request');
+    }
+    if (request.method === 'POST' && url.pathname === REGISTER) {
+      if (!request.headers.get('Content-Type')?.toLowerCase().startsWith('application/json')) return problem(415, 'JSON required');
+      let email: unknown;
+      try { email = JSON.parse(new TextDecoder().decode(body)).email; }
+      catch { return problem(400, 'Invalid JSON'); }
+      if (typeof email !== 'string' || email.length > 254) return problem(400, 'Invalid register request');
+      const key = await digest(email.trim().toLowerCase());
+      if (!(await env.ACCOUNT_LIMITER.limit({ key: `register:${key}` })).success) return problem(429, 'Too many register attempts', '60');
     }
     if (request.method === 'POST' && url.pathname === LOGIN) {
       if (!request.headers.get('Content-Type')?.toLowerCase().startsWith('application/json')) return problem(415, 'JSON required');

@@ -82,7 +82,10 @@ export function authRoutes(app: Api, db: Client, cfg: Config, sendMail?: (email:
     return c.json(await issue(c, u));
   });
   app.post('/api/v1/auth/register', async c => {
-    const b = registerSchema.parse(await c.req.json()); const hash = await bcrypt.hash(b.password, 12); const id = uuid();
+    const b = registerSchema.parse(await c.req.json());
+    const existing = (await all(db, 'SELECT id FROM app_users WHERE email=?', [b.email]))[0];
+    if (existing) return fail(409, 'ACCOUNT_EXISTS');
+    const hash = await bcrypt.hash(b.password, 12); const id = uuid();
     await execute(db, 'INSERT INTO app_users(id,email,password_hash,display_name,role) VALUES (?,?,?,?,?)', [id, b.email, hash, b.displayName, 'CUSTOMER']);
     return c.json(await issue(c, await one(db, 'SELECT * FROM app_users WHERE id=?', [id])));
   });

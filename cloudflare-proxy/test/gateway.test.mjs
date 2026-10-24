@@ -274,6 +274,19 @@ test('ảnh thẻ /media phục vụ từ R2: cache immutable, 304, chỉ đúng
   for (const bad of ['/media/cards/../secret.png', `/media/cards/${HASH}.svg`, '/media/other/x.png', `/media/cards/${HASH}.webp/x`]) assert.equal((await get(bad)).status, 404, bad);
   assert.equal((await handle(new Request(ORIGIN + `/media/cards/${HASH}.webp`, { method: 'POST' }), env, noUpstream)).status, 405);
   assert.equal((await handle(new Request(ORIGIN + `/media/cards/${HASH}.webp`), environment(), noUpstream)).status, 404); // chưa gắn bucket
+  // Phục vụ đúng ngay cả khi FRONTEND_ORIGIN trùng PUBLIC_ORIGIN như cấu hình production
+  const prodEnv = environment({ FRONTEND_ORIGIN: ORIGIN, CARD_IMAGES: bucket({ [`cards/${HASH}.webp`]: new Uint8Array([1, 2, 3]) }) });
+  const prodOk = await handle(new Request(ORIGIN + `/media/cards/${HASH}.webp`), prodEnv, noUpstream);
+  assert.equal(prodOk.status, 200);
+});
+
+test('đăng ký áp dụng giới hạn IP và email tài khoản trước khi vào backend', async () => {
+  const registerReq = () => browser('/api/v1/auth/register', {
+    method: 'POST', body: JSON.stringify({ displayName: 'Test', email: 'NewUser@example.test', password: 'password123' }),
+    headers: { Origin: ORIGIN, 'Content-Type': 'application/json' },
+  });
+  assert.equal((await handle(registerReq(), environment({ LOGIN_LIMITER: limiter(0) }), noUpstream)).status, 429);
+  assert.equal((await handle(registerReq(), environment({ ACCOUNT_LIMITER: limiter(0) }), noUpstream)).status, 429);
 });
 
 test('đường tải ảnh admin cho phép thân tới ~1 MiB, các API khác vẫn giới hạn 64 KiB', async () => {

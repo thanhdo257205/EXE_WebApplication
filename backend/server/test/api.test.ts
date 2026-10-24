@@ -139,6 +139,15 @@ test('login accepts migrated BCrypt hashes and returns HttpOnly cookies; logout 
   assert.equal((await f.request('POST', '/api/v1/auth/logout', null)).status, 204); assert.equal((await f.request('GET', '/api/v1/auth/me')).status, 401);
 });
 
+test('register creates new accounts and rejects duplicate email with 409', async t => {
+  const f = await fixture(); t.after(() => f.db.close());
+  const reg1 = await f.request('POST', '/api/v1/auth/register', { displayName: 'Người mới', email: 'nguoimoi@example.test', password: 'password123' });
+  assert.equal(reg1.status, 200);
+  assert.match(reg1.headers.get('set-cookie')!, /AUTH_TOKEN=.*HttpOnly/);
+  const dup = await f.request('POST', '/api/v1/auth/register', { displayName: 'Người mới trùng', email: 'nguoimoi@example.test', password: 'password123' });
+  assert.equal(dup.status, 409);
+});
+
 test('draft versioning, references, clone and public draft isolation retain their contracts', async t => {
   const f = await fixture(); t.after(() => f.db.close());
   const created = await f.request('POST', '/api/v1/admin/content/releases', { title: 'Nội dung thử', versionLabel: 'test-v1' }, f.admin); assert.equal(created.status, 201); const release = await created.json();
