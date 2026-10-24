@@ -4,13 +4,13 @@
 
 ## Cập nhật gần nhất
 
-### Khôi phục vị trí cuộn khi chuyển route SPA và đồng bộ Lenis — 2026-10-24, đã nghiệm thu local, chờ CI/CD
+### Khôi phục vị trí cuộn khi chuyển route SPA và đồng bộ Lenis — 2026-10-24, đã lên main và deploy
 
 - Khắc phục lỗi điều hướng SPA giữ nguyên vị trí cuộn ở cuối trang của route trước (đặc biệt khi bấm các liên kết ở footer).
 - Cấu hình `withInMemoryScrolling({ scrollPositionRestoration: 'enabled', anchorScrolling: 'enabled' })` trong `provideRouter` (`app.config.ts`), giữ nguyên `withComponentInputBinding`, `withViewTransitions({ skipInitialTransition: true })`, hydration và SSR. Router tự động đưa vị trí cuộn về `[0, 0]` khi chuyển trang mới; khôi phục vị trí cũ khi Back/Forward; cuộn anchor fragment khi có hash `#anchor`.
 - Dọn dẹp Lenis trên `NavigationEnd` (`app.ts`): gọi `this.stopSmooth?.(); this.stopSmooth = undefined;` trước `syncSmoothScroll()`. Tránh việc animation/momentum cũ của Lenis kéo cửa sổ ngược lại vị trí trang trước sau khi Router đã cuộn. `smoothToken` tự động hủy các import trễ hoặc khởi tạo bất đồng bộ dở dang. Giữ nguyên lazy load `import('lenis')`, tắt cuộn mượt cho admin route và `perf-tier=low`, tôn trọng `prefers-reduced-motion`, không chạy vòng lặp rAF khi đứng yên, và an toàn SSR.
 - Giữ unit test kiểm tra dừng instance cuộn mượt khi đổi route; bỏ spec kiểm tra scroller không được bootstrap trong TestBed và thay bằng xác minh Chrome trên bản build thực tế.
-- Antigravity triển khai; Codex rà diff, chỉnh spec, kiểm tra và triển khai. Frontend 280/280 tests (49 files) qua với runner timeout 20 giây cho bài AI có sẵn; production build/prerender 6 routes qua, còn các cảnh báo CSS budget/CommonJS có sẵn. Chrome desktop 1440px, mobile 390px và reduced motion: footer navigation giữ SPA và về đầu, không bật ngược do Lenis, Back/Forward nhớ vị trí, nút mở bảng góp quỹ trong trang hoạt động. API được mock lỗi 503 để dùng fallback, không tạo dữ liệu thật. Deep link mở mới `/quy-nha#bang-quy` chưa tự cuộn trong bản CSR fallback; không thuộc lỗi đổi trang lần này và chưa được sửa. Chờ CI/CD main và xác minh production.
+- Antigravity triển khai; Codex rà diff, chỉnh spec, kiểm tra và triển khai. Frontend 280/280 tests (49 files) qua với runner timeout 20 giây cho bài AI có sẵn; production build/prerender 6 routes qua, còn các cảnh báo CSS budget/CommonJS có sẵn. Chrome desktop 1440px, mobile 390px và reduced motion: footer navigation giữ SPA và về đầu, không bật ngược do Lenis, Back/Forward nhớ vị trí, nút mở bảng góp quỹ trong trang hoạt động. API được mock lỗi 503 để dùng fallback, không tạo dữ liệu thật. Deep link mở mới `/quy-nha#bang-quy` chưa tự cuộn trong bản CSR fallback; không thuộc lỗi đổi trang lần này và chưa được sửa. Production `bad54c76d1dc0f21bd3390fd79e4b9bbf5925ac7`: CI `40097867205` và CD `40097935132` thành công; `/api/v1/info` trả đúng SHA, `/cau-chuyen` 200, anonymous admin users 401. Chrome chạy lại trên asset production desktop/mobile/reduced motion đều qua các thao tác trên (API mock 503).
 
 ### Thông báo đăng ký tài khoản mới — 2026-10-24, đã lên main và deploy
 
