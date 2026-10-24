@@ -4,13 +4,13 @@
 
 ## Cập nhật gần nhất
 
-### RBAC admin chính và đồng quản trị — 2026-10-24, đã kiểm tra local, chờ phát hành main
+### RBAC admin chính và đồng quản trị — 2026-10-24, đã lên main và deploy
 
 - Theo yêu cầu chủ dự án: chỉ tài khoản admin hiện tại trong DB được cấp/thu hồi quyền đồng quản trị; coadmin có toàn bộ quyền vận hành hiện có, không được phân quyền tiếp. Đã đọc production xác nhận đúng một ADMIN hoạt động, không ghi quyền mới cho người khác.
 - Registry `rbac_owner` gắn owner theo ID một lần khi backend khởi động; nâng cấp bảng bổ sung cho DB cũ, có nhiều admin thì dừng để tránh chọn sai; restart không thay owner. Giữ role ADMIN tương thích, bổ sung adminLevel/permissions từ DB vào auth response. Không hardcode email hay ID tài khoản thật.
 - API danh sách/tìm tài khoản cho admin; API đổi role chỉ owner, xác minh lại trong write transaction, bảo vệ owner, optimistic version theo auth_version, thu hồi JWT và recovery chờ, audit atomic. UI `/admin/users` có tìm kiếm/phân trang, xác nhận/hủy, owner được bảo vệ, coadmin không có nút quyền; conflict/mạng lỗi bắt tải lại, không retry mutation.
 - Xác minh: backend typecheck + **45 pass/1 remote skip** (11 RBAC tests); frontend **277/277 tests** với timeout tạm 20s ngoài repo, build/prerender 6 route qua (cảnh báo CSS/CommonJS cũ). Chromium API giả lập owner/coadmin trên 1440/390px qua, không lỗi trang/tràn ngang toàn trang; bảng cuộn ngang mobile. Ảnh ngoài Git ở `output/rbac/` workspace cha. Chi tiết [RBAC.md](docs/RBAC.md).
-- GitHub/deploy: chưa commit/push/deploy RBAC tại thời điểm ghi; triển khai theo luồng main đã được chủ dự án chọn, rồi xác minh registry khớp admin đã đọc và smoke. Chưa cấp quyền thật cho người khác hoặc thử tài khoản thật trên UI; không gửi email/lời mời, không đổi mật khẩu/credential.
+- GitHub/deploy: runtime `1fb5a5d346f592e7ab175680d8a86ac992506686` đã lên main; [CI 40090777412](https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/40090777412) qua cả bốn job với test mặc định; [CD 40090829039](https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/40090829039) success gồm smoke. API production đúng SHA, `/admin/users` 200, danh sách tài khoản thiếu đăng nhập 401. Đọc registry production: đúng một slot khớp ID admin đã xác nhận trước deploy; audit `RBAC_OWNER_INITIALIZED` đúng một sự kiện, không có `USER_ROLE_CHANGED`. Chưa cấp quyền thật cho người khác hoặc thử tài khoản thật trên UI; không gửi email/lời mời, không đổi mật khẩu/credential. Ghi nhận nghiệm thu bằng commit docs `[skip ci]` để giữ runtime đã kiểm thử.
 - Hạn chế: chưa có quyền nhỏ lẻ theo từng module hoặc giao diện chuyển/recover owner. Rollback giữ registry và audit, không xóa quyền/tài khoản đã phát sinh. Không tự thay owner khi tài khoản bị vô hiệu hóa.
 
 ### Tạo thẻ admin và ảnh trên model 3D — 2026-10-24, đã lên main và deploy

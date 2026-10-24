@@ -7,7 +7,7 @@ Cập nhật: 2026-10-24 (Asia/Saigon).
 - [x] RBAC-01 — Registry owner theo ID admin hiện có, bootstrap một lần/fail closed khi nhiều admin; không tự chuyển owner, không email allowlist.
 - [x] RBAC-02 — Danh sách/tìm tài khoản và đổi role owner-only; bảo vệ owner, CSRF/session hiện tại, expectedVersion, thu hồi JWT/recovery, audit atomic; backend check + 45 pass/1 remote skip.
 - [x] RBAC-03 — UI `/admin/users`: owner cấp/thu hồi có xác nhận, coadmin chỉ đọc; conflict/mạng lỗi bắt tải lại; frontend 277 tests với timeout tạm 20s, build, Chromium 1440/390px API giả lập qua.
-- [ ] RBAC-DEPLOY — Push main, CI/CD và smoke; kiểm tra registry production gắn đúng admin hiện có.
+- [x] RBAC-DEPLOY — Main/runtime 1fb5a5d; CI 40090777412 bốn job với test mặc định và CD 40090829039/smoke qua; registry production đúng admin hiện có, một bootstrap audit; chưa có USER_ROLE_CHANGED; /admin/users 200, API anonymous 401.
 - [ ] RBAC-LIVE — Chủ dự án dùng tài khoản thật thử cấp/thu hồi cho người được chỉ định; chưa cấp quyền production cho ai.
 
 ## Tạo thẻ bài Admin & Texture 3D Thẻ chính thức (2026-10-24)
