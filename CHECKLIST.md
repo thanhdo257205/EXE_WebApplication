@@ -2,6 +2,14 @@
 
 Cập nhật: 2026-10-24 (Asia/Saigon).
 
+## Tạo thẻ bài Admin & Texture 3D Thẻ chính thức (2026-10-24)
+
+- [x] FE-ADMIN-CARD-01 — Typed createCard (POST /v1/admin/content/releases/:release/cards) & cloneRelease (POST /v1/admin/content/releases/:release/clone) trong AdminContentService với CSRF & credentials; spec kiểm thử HTTP POST đã cập nhật (đã kiểm tra local: 267 tests với timeout tạm 20s; build/prerender và Chromium API giả lập qua).
+- [x] FE-ADMIN-CARD-02 — Form tạo thẻ trong AdminSectionPage: chọn bản phát hành (ưu tiên DRAFT), khóa ghi khi là PUBLISHED, form clone sang bản DRAFT khi chỉ có bản phát hành chỉ đọc; tích hợp tải ảnh tự gán artworkUrl và khóa lưu khi đang tải; lưu expectedVersion, giữ input khi lỗi/409, chống stale race condition (đã kiểm tra local: 267 tests với timeout tạm 20s; build/prerender và Chromium API giả lập qua).
+- [x] FE-ADMIN-CARD-03 — CardImageUploadComponent phát output uploaded, busyChange; phương thức reset() dọn preview/kết quả cũ; hỗ trợ disabled (đã kiểm tra local: 267 tests với timeout tạm 20s; build/prerender và Chromium API giả lập qua).
+- [x] FE-CARD-VIEWER-01 — Chi tiết thẻ công khai: thẻ chính thức gắn item.artworkUrl || poster cho poster, và item.artworkUrl || undefined cho frontTexture; giữ nguyên model default-card.glb; cập nhật model-note có điều kiện cho thẻ chính thức vs thẻ mẫu; regression spec kiểm thử component signal bindings (đã kiểm tra local: 267 tests với timeout tạm 20s; build/prerender và Chromium API giả lập qua).
+- [ ] FE-ADMIN-CARD-PROD — Triển khai production và thử nghiệm tạo thẻ bài thật từ trình duyệt admin (chưa deploy).
+
 ## Kho ảnh Azure (2026-10-24)
 
 - [x] AZURE-MEDIA-01 — Kho riêng Azure for Students, Standard_LRS Hot Singapore; spending limit On; 35 tệp đối chiếu byte; thử upload Azure thật; cấu hình Render SAS giới hạn container.

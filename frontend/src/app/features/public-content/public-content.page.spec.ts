@@ -1,3 +1,7 @@
+import { By } from '@angular/platform-browser';
+import { provideRouter } from '@angular/router';
+import { DEFAULT_CARD_POSTER } from '../../core/content/default-card';
+import { CARD_VIEWER_LOADER, CardViewerComponent } from '../../shared/components/card-viewer/card-viewer.component';
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { BehaviorSubject, of, throwError } from 'rxjs';
@@ -188,5 +192,138 @@ describe('Card catalog', () => {
     expect(page.demo()).toBe(false);
     expect(page.itemLink(real)).toEqual(['/thu-vien', 'charizard-3d']);
     expect(page.sampleTexture(real)).toBeUndefined();
+  });
+});
+
+describe('Card detail 3D viewer regression bindings', () => {
+  const service = { list: vi.fn(), detail: vi.fn() };
+  const release = { id: 'rel-official', title: 'Bản phát hành chính thức', versionLabel: 'v1.0' };
+  const paramMap$ = new BehaviorSubject(convertToParamMap({}));
+  let snapshotParams = convertToParamMap({});
+
+  beforeEach(async () => {
+    service.list.mockReset();
+    service.detail.mockReset();
+    paramMap$.next(convertToParamMap({}));
+    snapshotParams = convertToParamMap({});
+
+    await TestBed.configureTestingModule({
+      imports: [PublicContentPage],
+      providers: [
+        provideRouter([]),
+        { provide: PublicContentService, useValue: service },
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            paramMap: paramMap$.asObservable(),
+            get snapshot() {
+              return { paramMap: snapshotParams };
+            },
+          },
+        },
+        {
+          provide: CARD_VIEWER_LOADER,
+          useValue: async () => ({ mountCardViewer: vi.fn().mockResolvedValue({ dispose: vi.fn() }) }),
+        },
+      ],
+    }).compileComponents();
+  });
+
+  it('binds uploaded artworkUrl to both frontTexture and poster on official card detail', () => {
+    const officialArtwork = '/media/cards/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef.webp';
+    const officialCard = {
+      id: 'official-card-1',
+      code: 'OFFICIAL-01',
+      slug: 'official-card-1',
+      name: 'Thẻ chính thức có artwork',
+      effectText: 'Hiệu ứng chính thức',
+      rulingNotes: 'Ghi chú',
+      ruleStatus: 'CONFIRMED' as const,
+      copiesInDeck: 2,
+      artworkUrl: officialArtwork,
+      sortOrder: 0,
+    };
+
+    service.detail.mockReturnValue(of({ release, item: officialCard, source: 'api' }));
+    snapshotParams = convertToParamMap({ slug: 'official-card-1' });
+    paramMap$.next(convertToParamMap({ slug: 'official-card-1' }));
+
+    const fixture = TestBed.createComponent(PublicContentPage);
+    fixture.componentRef.setInput('slug', 'official-card-1');
+    fixture.componentRef.setInput('kind', 'cards');
+    fixture.detectChanges();
+
+    const viewerEl = fixture.debugElement.query(By.directive(CardViewerComponent));
+    expect(viewerEl).toBeTruthy();
+    const viewerInstance = viewerEl.componentInstance as CardViewerComponent;
+
+    // Both frontTexture and poster must bind to official artwork
+    expect(viewerInstance.poster()).toBe(officialArtwork);
+    expect(viewerInstance.frontTexture()).toBe(officialArtwork);
+
+    // Conditional model note must describe official artwork and not Pokémon
+    const noteEl = fixture.nativeElement.querySelector('.model-note');
+    expect(noteEl?.textContent).toContain('Model 3D dùng chung hiển thị artwork chính thức');
+    expect(noteEl?.textContent).not.toContain('Model Pokémon mặc định');
+  });
+
+  it('falls back to default poster and undefined frontTexture on official card with no artworkUrl', () => {
+    const officialCardNoArt = {
+      id: 'official-card-no-art',
+      code: 'OFFICIAL-02',
+      slug: 'official-card-no-art',
+      name: 'Thẻ chưa có artwork',
+      effectText: 'Hiệu ứng không ảnh',
+      rulingNotes: null,
+      ruleStatus: 'CONFIRMED' as const,
+      copiesInDeck: 1,
+      artworkUrl: null,
+      sortOrder: 0,
+    };
+
+    service.detail.mockReturnValue(of({ release, item: officialCardNoArt, source: 'api' }));
+    snapshotParams = convertToParamMap({ slug: 'official-card-no-art' });
+    paramMap$.next(convertToParamMap({ slug: 'official-card-no-art' }));
+
+    const fixture = TestBed.createComponent(PublicContentPage);
+    fixture.componentRef.setInput('slug', 'official-card-no-art');
+    fixture.componentRef.setInput('kind', 'cards');
+    fixture.detectChanges();
+
+    const viewerEl = fixture.debugElement.query(By.directive(CardViewerComponent));
+    expect(viewerEl).toBeTruthy();
+    const viewerInstance = viewerEl.componentInstance as CardViewerComponent;
+
+    // Poster falls back to DEFAULT_CARD_POSTER, frontTexture falls back to undefined
+    expect(viewerInstance.poster()).toBe(DEFAULT_CARD_POSTER);
+    expect(viewerInstance.frontTexture()).toBeUndefined();
+
+    // Conditional model note must explain fallback poster
+    const noteEl = fixture.nativeElement.querySelector('.model-note');
+    expect(noteEl?.textContent).toContain('poster mặc định do thẻ chưa có artwork riêng');
+    expect(noteEl?.textContent).not.toContain('Model Pokémon mặc định');
+  });
+
+  it('preserves sampleTexture and sample poster on demo sample card', () => {
+    const fixture = TestBed.createComponent(PublicContentPage);
+    fixture.componentRef.setInput('sample', true);
+    snapshotParams = convertToParamMap({ slug: 'charizard-3d' });
+    paramMap$.next(convertToParamMap({ slug: 'charizard-3d' }));
+    fixture.detectChanges();
+
+    const charizard = findSampleCard('charizard-3d')!;
+    expect(charizard).toBeDefined();
+
+    const viewerEl = fixture.debugElement.query(By.directive(CardViewerComponent));
+    expect(viewerEl).toBeTruthy();
+    const viewerInstance = viewerEl.componentInstance as CardViewerComponent;
+
+    expect(viewerInstance.frontTexture()).toBe(charizard.frontTextureUrl);
+    expect(viewerInstance.poster()).toBe(charizard.artworkUrl || DEFAULT_CARD_POSTER);
+
+    // Conditional model note in demo mode mentions Pokémon and TCGdex attribution
+    const noteEl = fixture.nativeElement.querySelector('.model-note');
+    expect(noteEl?.textContent).toContain('Model Pokémon mặc định dùng để trải nghiệm 3D');
+    expect(noteEl?.textContent).toContain('TCGdex');
   });
 });

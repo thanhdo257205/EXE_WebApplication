@@ -3,9 +3,9 @@
     <h3 id="upload-title">Ảnh thẻ trên kho đám mây</h3>
     <p>Chọn ảnh PNG, JPEG hoặc WebP. Ảnh được co về tối đa 750×1050 và nén WebP (≤ 1 MB) trước khi tải lên.</p>
   </div>
-  <label class="pick" [class.busy]="busy()">
-    <input type="file" accept="image/png,image/jpeg,image/webp" [disabled]="busy()" (change)="choose($event)" />
-    <span>{{ busy() ? 'Đang xử lý…' : 'Chọn ảnh thẻ' }}</span>
+  <label class="pick" [class.busy]="busy()" [class.disabled]="disabled()">
+    <input type="file" accept="image/png,image/jpeg,image/webp" [disabled]="busy() || disabled()" (change)="choose($event)" />
+    <span>{{ busy() ? 'Đang xử lý…' : disabled() ? 'Khóa tải ảnh (Không phải bản nháp)' : 'Chọn ảnh thẻ' }}</span>
   </label>
   @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
   @if (preview()) {
@@ -16,7 +16,7 @@
           <p>Đã tải lên · {{ (r.bytes / 1024).toFixed(0) }} kB</p>
           <code>{{ r.url }}</code>
           <button type="button" (click)="copy()">{{ copied() ? 'Đã chép' : 'Chép đường dẫn' }}</button>
-          <small>Dán đường dẫn này vào trường ảnh (artworkUrl) của thẻ.</small>
+          <small>Đường dẫn đã tự động điền vào biểu mẫu tạo thẻ bên dưới.</small>
         </div>
       }
     </div>

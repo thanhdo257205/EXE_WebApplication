@@ -3,6 +3,7 @@
 .head h3{margin:0;font-size:14px;font-weight:700}.head p{margin:6px 0 0;font-size:12px;line-height:1.6;color:#a6aaa3}
 .pick{display:inline-flex;justify-self:start;align-items:center;min-height:40px;padding:0 18px;border-radius:999px;background:#dafa76;color:#183c2b;font-size:13px;font-weight:700;cursor:pointer}
 .pick.busy{opacity:.6;cursor:progress}.pick input{position:absolute;width:1px;height:1px;opacity:0}
+.pick.disabled{opacity:.4;cursor:not-allowed;background:#24272a;color:#8f9289}
 .pick:focus-within{outline:2px solid #f3f1ea;outline-offset:2px}
 .error{margin:0;font-size:13px;color:#ff9b8a}
 .done{display:flex;gap:14px;align-items:flex-start}.done img{border-radius:8px;object-fit:cover;box-shadow:0 8px 20px -8px #000}

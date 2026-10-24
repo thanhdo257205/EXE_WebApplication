@@ -33,8 +33,8 @@
       @if (isCard(item)) {
         <app-card-viewer
           [cardName]="item.name"
-          [poster]="demo() ? item.artworkUrl || poster : poster"
-          [frontTexture]="demo() ? sampleTexture(item) : undefined"
+          [poster]="item.artworkUrl || poster"
+          [frontTexture]="demo() ? sampleTexture(item) : (item.artworkUrl || undefined)"
         />
         <div class="card-description">
           <p class="detail-code">{{ demo() ? 'THẺ MINH HỌA' : item.code }}</p>
@@ -51,12 +51,18 @@
             </p>
           }
           <p class="model-note">
-            Model Pokémon mặc định dùng để trải nghiệm 3D. Artwork của thẻ trong game sẽ được thay
-            khi có bản chính thức.
-            @if (demo() && sampleFromTcgdex(item)) {
-              <span>
-                Hình ảnh thẻ minh họa từ <a href="https://tcgdex.net" target="_blank" rel="noopener noreferrer">TCGdex</a>.
-              </span>
+            @if (demo()) {
+              Model Pokémon mặc định dùng để trải nghiệm 3D. Artwork của thẻ trong game sẽ được thay
+              khi có bản chính thức.
+              @if (sampleFromTcgdex(item)) {
+                <span>
+                  Hình ảnh thẻ minh họa từ <a href="https://tcgdex.net" target="_blank" rel="noopener noreferrer">TCGdex</a>.
+                </span>
+              }
+            } @else if (item.artworkUrl) {
+              Model 3D dùng chung hiển thị artwork chính thức của thẻ.
+            } @else {
+              Model 3D dùng chung sử dụng poster mặc định do thẻ chưa có artwork riêng.
             }
           </p>
           <a class="back-link" routerLink="/thu-vien">Khám phá bộ thẻ →</a>

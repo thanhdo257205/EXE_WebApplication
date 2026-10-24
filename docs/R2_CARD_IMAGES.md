@@ -34,7 +34,7 @@ Người xem ──GET /media/cards/<hash>.webp──▶ Gateway ──(binding 
 
 ## Giới hạn / việc tiếp theo
 
-- Admin hiện **chưa có form sửa thẻ** (trước đó chỉ có API); khối tải ảnh trả về đường dẫn để dán vào `artworkUrl` khi tạo/sửa thẻ qua API. Cần form CRUD thẻ để dùng trọn vẹn.
+- **Cập nhật 2026-10-24 (Frontend, local)**: `/admin/cards` có form tạo thẻ, tự nhận URL ảnh vào `artworkUrl`, chọn/nhân bản DRAFT, lưu với `expectedVersion`; khi 409 giữ input và có nút tải lại phiên bản. 267 tests qua với timeout tạm 20 giây ngoài repo (bài mô phỏng 300 ván timeout ở mức mặc định 5 giây); build/prerender và Chromium với API giả lập qua. Chưa commit/push/deploy hay thử backend/Azure production. Chưa có form sửa thẻ; có thể dùng API PUT hiện có. Lưu nháp không tự xuất bản. Xem [tài liệu Azure](AZURE_CARD_IMAGES.md).
 - Hero 3D (12 mặt thẻ), Sân đấu (9 thẻ Pokémon) và `/thu-vien/mau` vẫn dùng dữ liệu viết cứng trong code; chuyển sang đọc từ API là bước riêng.
 - Ảnh không bị xóa khỏi R2 khi thẻ đổi ảnh (có thể dọn ảnh mồ côi sau). Chưa quét virus/NSFW — chỉ ADMIN được tải.
 - Chưa đo độ trễ lần đọc đầu từ R2 qua gateway; ảnh được cache vĩnh viễn nên các lần sau do CDN/trình duyệt phục vụ.

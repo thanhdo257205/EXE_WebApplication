@@ -129,6 +129,35 @@ export interface CreateReleasePayload {
   releaseNotes?: string | null;
 }
 
+export interface CloneReleasePayload {
+  sourceVersion: number;
+  versionLabel: string;
+  title: string;
+  releaseNotes?: string | null;
+}
+
+export interface CreateCardPayload {
+  expectedVersion: number;
+  entityId?: string | null;
+  code: string;
+  slug: string;
+  name: string;
+  cardSetId: string;
+  characterId?: string | null;
+  effectText: string;
+  rulingNotes?: string | null;
+  ruleStatus: 'CONFIRMED' | 'NEEDS_REVIEW';
+  copiesInDeck: number;
+  artworkUrl?: string | null;
+  sortOrder?: number | null;
+}
+
+export interface CreateCardResponse {
+  entityId: string;
+  releaseVersion: number;
+  item: AdminCard;
+}
+
 export interface AdminProblemDetail {
   status: number;
   title: string;
@@ -196,9 +225,42 @@ export class AdminContentService {
   }
 
   /**
-   * POST /api/v1/admin/media/card-image — thân là byte ảnh thô (WebP/PNG/JPEG ≤ 1 MiB). Trả đường dẫn `/media/cards/<hash>.<ext>`
-   * để gán vào `artworkUrl` của thẻ.
+   * POST /api/v1/admin/content/releases/{release}/cards
    */
+  createCard(releaseId: string, payload: CreateCardPayload): Observable<CreateCardResponse> {
+    return this.auth.getCsrf().pipe(
+      switchMap(csrf =>
+        this.http.post<CreateCardResponse>(`${this.base}/content/releases/${releaseId}/cards`, payload, {
+          withCredentials: true,
+          headers: new HttpHeaders({
+            'Content-Type': 'application/json',
+            [csrf.headerName]: csrf.token,
+          }),
+        })
+      ),
+      catchError(err => this.handleError(err))
+    );
+  }
+
+  /**
+   * POST /api/v1/admin/content/releases/{release}/clone
+   */
+  cloneRelease(releaseId: string, payload: CloneReleasePayload): Observable<AdminRelease> {
+    return this.auth.getCsrf().pipe(
+      switchMap(csrf =>
+        this.http.post<AdminRelease>(`${this.base}/content/releases/${releaseId}/clone`, payload, {
+          withCredentials: true,
+          headers: new HttpHeaders({
+            'Content-Type': 'application/json',
+            [csrf.headerName]: csrf.token,
+          }),
+        })
+      ),
+      catchError(err => this.handleError(err))
+    );
+  }
+
+  /** Upload raw image bytes and return the public artwork URL. */
   uploadCardImage(image: Blob): Observable<{ url: string; bytes: number; contentType: string }> {
     return this.auth.getCsrf().pipe(
       switchMap(csrf =>

@@ -10,6 +10,8 @@ import {
   AdminRevisionPage,
   AdminCard,
   AdminAuditPage,
+  CreateCardPayload,
+  CloneReleasePayload,
 } from './admin-content.service';
 import { AuthService } from '../auth/auth.service';
 
@@ -210,5 +212,81 @@ describe('AdminContentService', () => {
     expect(req.request.method).toBe('POST');
     expect(req.request.headers.get('X-XSRF-TOKEN')).toBe('mock-csrf-token');
     req.flush(newRelease);
+  });
+
+  it('creates a new card revision POSTing to /v1/admin/content/releases/:release/cards with CSRF and credentials', () => {
+    const payload: CreateCardPayload = {
+      expectedVersion: 1,
+      code: 'CARD-999',
+      slug: 'the-moi',
+      name: 'Thẻ bài mới',
+      cardSetId: 'set-1',
+      characterId: null,
+      effectText: 'Hiệu ứng đặc biệt',
+      rulingNotes: null,
+      ruleStatus: 'CONFIRMED',
+      copiesInDeck: 2,
+      artworkUrl: '/media/cards/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef.webp',
+      sortOrder: 10,
+    };
+
+    const mockResponse = {
+      entityId: 'c-new',
+      releaseVersion: 2,
+      item: {
+        id: 'c-new',
+        revisionId: 'rev-new',
+        releaseId: 'rel-1',
+        ...payload,
+      },
+    };
+
+    service.createCard('rel-1', payload).subscribe(res => {
+      expect(res.entityId).toBe('c-new');
+      expect(res.releaseVersion).toBe(2);
+      expect(res.item.name).toBe('Thẻ bài mới');
+    });
+
+    const req = httpMock.expectOne('/api/v1/admin/content/releases/rel-1/cards');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.withCredentials).toBe(true);
+    expect(req.request.headers.get('X-XSRF-TOKEN')).toBe('mock-csrf-token');
+    expect(req.request.body).toEqual(payload);
+    req.flush(mockResponse);
+  });
+
+  it('clones a release POSTing to /v1/admin/content/releases/:release/clone with CSRF and credentials', () => {
+    const payload: CloneReleasePayload = {
+      sourceVersion: 3,
+      versionLabel: 'v3.0-draft',
+      title: 'Bản sao chép',
+      releaseNotes: 'Nhân bản từ v2.0',
+    };
+
+    const mockClonedRelease = {
+      id: 'rel-cloned',
+      versionLabel: 'v3.0-draft',
+      title: 'Bản sao chép',
+      releaseNotes: 'Nhân bản từ v2.0',
+      status: 'DRAFT' as const,
+      currentSlot: null,
+      createdBy: 'admin-1',
+      createdAt: '2026-10-24T12:00:00Z',
+      publishedAt: null,
+      version: 0,
+    };
+
+    service.cloneRelease('rel-source', payload).subscribe(res => {
+      expect(res.id).toBe('rel-cloned');
+      expect(res.version).toBe(0);
+      expect(res.status).toBe('DRAFT');
+    });
+
+    const req = httpMock.expectOne('/api/v1/admin/content/releases/rel-source/clone');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.withCredentials).toBe(true);
+    expect(req.request.headers.get('X-XSRF-TOKEN')).toBe('mock-csrf-token');
+    expect(req.request.body).toEqual(payload);
+    req.flush(mockClonedRelease);
   });
 });

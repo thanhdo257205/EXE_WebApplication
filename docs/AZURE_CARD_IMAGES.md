@@ -46,7 +46,23 @@ Không có cấu hình Azure thì giữ hỗ trợ R2 cũ; có cấu hình Azure
 
 Khôi phục: các tệp gốc vẫn ở `frontend/public/assets/`; có thể revert commit tích hợp và phát hành lại theo CI/CD. Không xóa container hoặc ảnh để rollback. Muốn ngừng upload Azure, bỏ cả hai biến Azure; R2 chỉ hoạt động khi được cấu hình đầy đủ.
 
-## Xác minh
+## Tích hợp tạo thẻ admin và hiển thị 3D chi tiết thẻ (2026-10-24)
+
+- **Frontend Admin**:
+  - Giao diện `/admin/cards` cung cấp bộ chọn bản phát hành (ưu tiên DRAFT khi tải đầu trang), chặn ghi lên bản phát hành PUBLISHED/ARCHIVED.
+  - Khi chưa có bản DRAFT hoặc bản hiện tại chỉ đọc, cung cấp form nhân bản (POST `/api/v1/admin/content/releases/:release/clone`) sao chép các bộ thẻ sang bản DRAFT mới.
+  - Component tải ảnh (`CardImageUploadComponent`) phát tín hiệu URL thành công và trạng thái bận (`busyChange`); form tự động nhận URL gán vào `artworkUrl` và khóa nút lưu trong lúc đang tải ảnh.
+  - Form tạo thẻ xác thực đầy đủ quy chuẩn backend (code, slug, name, cardSetId, effectText, copiesInDeck 1..1000, artworkUrl hợp lệ, sortOrder), gửi `expectedVersion`, giữ nguyên dữ liệu đã nhập khi gặp lỗi hoặc xung đột phiên bản 409 (yêu cầu người dùng tải lại dữ liệu, không tự động thử lại).
+  - Gỡ bỏ nút giữ chỗ "Xuất bản Snapshot" do backend không có route xuất bản tự động, thay bằng nhãn quy trình snapshot rõ ràng.
+- **Trang chi tiết thẻ công khai**:
+  - Thẻ chính thức gắn `item.artworkUrl || poster` cho `[poster]`, và `demo() ? sampleTexture(item) : (item.artworkUrl || undefined)` cho `[frontTexture]`.
+  - Cập nhật ghi chú model: thẻ chính thức có artwork nêu rõ hiển thị artwork chính thức trên model 3D dùng chung; thẻ chưa có artwork nêu rõ dùng poster mặc định; thẻ mẫu giữ nguyên ghi chú Pokémon và ghi công TCGdex. Model `default-card.glb` dùng chung không đổi.
+- **Trạng thái kiểm tra**:
+  - Đã bổ sung bộ kiểm thử hồi quy cho frontend admin service, component tải ảnh, trang quản trị section và trang chi tiết thẻ công khai.
+  - **Local: 267/267 tests (47 file) qua với runner config tạm ngoài repo đặt timeout 20 giây; build production/prerender 6 route qua.** Lệnh test mặc định gặp timeout 5 giây ở bài mô phỏng 300 ván đã biết; không đổi cấu hình repo. Chromium với API giả lập kiểm tra upload WebP/tự điền URL, tạo thẻ/payload/version, reset, 409 và reload giữ input, published chỉ đọc, clone DRAFT; ảnh 1440px/390px không tràn ngang, không lỗi trang.
+  - Chưa commit/push/deploy hoặc thử admin với backend/Azure production; không sửa dữ liệu production. Chưa có form sửa thẻ (API PUT hiện có vẫn dùng được). Lưu DRAFT không tự xuất bản; quy trình snapshot vẫn riêng. Uploader bỏ kết quả nén đến muộn sau reset/đổi release; sau 409 cần tải lại version rồi chủ động lưu lại.
+
+## Xác minh kho Azure trước đợt form admin
 
 - Thử thật `azureMediaStore`: tải default poster bằng SAS, đọc công khai và đối chiếu byte thành công.
 - Backend: typecheck; 34 tests pass, 1 test Turso thật skip. Bao gồm SAS hết hạn/cấu hình sai, PUT BlockBlob, cache và không lộ SAS khi lỗi.

@@ -71,18 +71,29 @@
           <h2 class="panel-title">Danh sách Thẻ bài & Bộ thẻ (148 thẻ V2)</h2>
           <div class="flex items-center gap-2">
             <span class="status-pill-green">Đã xác minh schema</span>
-            <button type="button" class="action-btn-primary">Xuất bản Snapshot</button>
+            <span class="text-xs text-slate-400 bg-slate-900 px-2.5 py-1 rounded border border-slate-800">
+              Thẻ mới được lưu vào bản nháp
+            </span>
           </div>
         </div>
 
-        <app-card-image-upload />
-
         @if (releases().length > 0) {
           <div class="flex flex-wrap items-center justify-between gap-3 p-3 my-3 bg-slate-900/60 rounded-xl border border-slate-800">
-            <div class="flex items-center gap-2">
-              <span class="text-xs text-slate-400 font-medium">Bản phát hành:</span>
-              <span class="text-xs font-bold text-sky-400 font-mono">{{ activeRelease()?.versionLabel }}</span>
-              <span class="text-xs text-slate-400">({{ activeRelease()?.title }})</span>
+            <div class="flex flex-wrap items-center gap-2">
+              <label for="release-selector" class="text-xs text-slate-400 font-medium">Bản phát hành:</label>
+              <select
+                id="release-selector"
+                [disabled]="cardSaving() || cloneSaving()"
+                class="admin-select text-xs font-bold text-sky-400 font-mono bg-slate-900 border border-slate-700 rounded px-2 py-1"
+                [ngModel]="activeRelease()?.id"
+                (ngModelChange)="onReleaseSelect($event)"
+              >
+                @for (rel of releases(); track rel.id) {
+                  <option [value]="rel.id">
+                    {{ rel.versionLabel }} — {{ rel.title }} [{{ rel.status }}] (v{{ rel.version }})
+                  </option>
+                }
+              </select>
             </div>
             @if (activeRelease(); as rel) {
               <div class="flex items-center gap-2 text-xs text-slate-400">
@@ -91,11 +102,300 @@
                       [class.bg-amber-950]="rel.status === 'DRAFT'"
                       [class.text-amber-400]="rel.status === 'DRAFT'"
                       [class.bg-emerald-950]="rel.status === 'PUBLISHED'"
-                      [class.text-emerald-400]="rel.status === 'PUBLISHED'">
+                      [class.text-emerald-400]="rel.status === 'PUBLISHED'"
+                      [class.bg-slate-800]="rel.status === 'ARCHIVED'"
+                      [class.text-slate-400]="rel.status === 'ARCHIVED'">
                   {{ rel.status }}
                 </span>
               </div>
             }
+          </div>
+        }
+
+        <app-card-image-upload
+          #cardUploader
+          [disabled]="!isDraftSelected() || cardSaving()"
+          (uploaded)="onImageUploaded($event)"
+          (busyChange)="onUploadBusyChange($event)"
+        />
+
+        @if (!isDraftSelected() && activeRelease()) {
+          <div class="clone-banner my-4 p-4 rounded-xl border border-amber-800/40 bg-amber-950/20">
+            <div class="flex items-center gap-2 mb-2 text-amber-300 font-bold text-sm">
+              <app-morph-icon name="shield" [size]="18" color="#fbbf24"></app-morph-icon>
+              <span>Bản phát hành chỉ đọc ({{ activeRelease()?.status }})</span>
+            </div>
+            <p class="text-xs text-slate-300 mb-3">
+              Bản phát hành hiện tại đã được khóa (không thể chỉnh sửa trực tiếp). Để tạo thêm thẻ bài, vui lòng nhân bản sang một Bản thảo (DRAFT) mới. Các bộ thẻ mở rộng sẽ được tự động giữ nguyên.
+            </p>
+
+            @if (cloneErrorMsg()) {
+              <p class="error mb-3" role="alert">{{ cloneErrorMsg() }}</p>
+            }
+            @if (cloneSuccessMsg()) {
+              <p class="success mb-3" role="status">{{ cloneSuccessMsg() }}</p>
+            }
+
+            <form (ngSubmit)="submitCloneToDraft()" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label for="clone-version-label" class="block text-xs font-semibold text-slate-400 mb-1">Mã phiên bản mới (versionLabel) *</label>
+                <input
+                  id="clone-version-label"
+                  name="cloneVersionLabel"
+                  type="text"
+                  class="admin-input"
+                  placeholder="VD: v2.1-draft"
+                  [(ngModel)]="cloneForm.versionLabel"
+                  required
+                />
+              </div>
+              <div>
+                <label for="clone-title" class="block text-xs font-semibold text-slate-400 mb-1">Tiêu đề bản nháp *</label>
+                <input
+                  id="clone-title"
+                  name="cloneTitle"
+                  type="text"
+                  class="admin-input"
+                  placeholder="VD: Bản nháp cập nhật V2.1"
+                  [(ngModel)]="cloneForm.title"
+                  required
+                />
+              </div>
+              <div class="sm:col-span-3">
+                <label for="clone-notes" class="block text-xs font-semibold text-slate-400 mb-1">Ghi chú phát hành (tùy chọn)</label>
+                <input
+                  id="clone-notes"
+                  name="cloneNotes"
+                  type="text"
+                  class="admin-input"
+                  placeholder="Mô tả mục tiêu của bản thảo..."
+                  [(ngModel)]="cloneForm.releaseNotes"
+                />
+              </div>
+              <div class="sm:col-span-3 flex justify-end">
+                <button
+                  type="submit"
+                  id="submit-clone-btn"
+                  class="action-btn-primary"
+                  [disabled]="cloneSaving()"
+                >
+                  {{ cloneSaving() ? 'Đang nhân bản…' : 'Tạo bản nháp từ bản phát hành này' }}
+                </button>
+              </div>
+            </form>
+          </div>
+        }
+
+        @if (!activeRelease() && !loading()) {
+          <p role="status">Chưa có bản phát hành. Hãy chuẩn bị bản nội dung có bộ thẻ trước khi thêm thẻ mới.</p>
+        }
+
+        @if (isDraftSelected()) {
+          <div class="card-create-box my-4 p-4 rounded-xl border border-lime-900/40 bg-slate-900/80">
+            <div class="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
+              <h3 class="text-sm font-bold text-lime-300 flex items-center gap-2">
+                <app-morph-icon name="cards" [size]="18" color="#dafa76"></app-morph-icon>
+                <span>Tạo thẻ bài mới vào Bản thảo ({{ activeRelease()?.versionLabel }})</span>
+              </h3>
+              <span class="text-xs text-slate-400">Phiên bản dự kiến: v{{ activeRelease()?.version }}</span>
+            </div>
+
+            @if (cardFormError()) {
+              <div class="error-banner-card mb-3" role="alert">
+                <span class="text-xs text-rose-300 font-medium">{{ cardFormError() }}</span>
+                @if (cardConflict()) {
+                  <button type="button" class="action-btn-primary" (click)="reloadSelectedRelease()" [disabled]="loading()">
+                    Tải lại phiên bản, giữ nội dung đang nhập
+                  </button>
+                }
+              </div>
+            }
+            @if (cardSuccessMsg()) {
+              <div class="p-3 mb-3 rounded bg-emerald-950/40 border border-emerald-800 text-xs text-emerald-300" role="status">
+                {{ cardSuccessMsg() }}
+              </div>
+            }
+
+            <form (ngSubmit)="saveCard()" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <fieldset class="contents" [disabled]="cardSaving()">
+              <div>
+                <label for="card-code" class="block text-xs font-semibold text-slate-400 mb-1">Mã thẻ (code) *</label>
+                <input
+                  id="card-code"
+                  name="code"
+                  type="text"
+                  class="admin-input font-mono"
+                  placeholder="VD: CARD-001"
+                  [(ngModel)]="cardForm.code"
+                  required
+                />
+              </div>
+
+              <div>
+                <label for="card-name" class="block text-xs font-semibold text-slate-400 mb-1">Tên thẻ bài *</label>
+                <input
+                  id="card-name"
+                  name="name"
+                  type="text"
+                  class="admin-input"
+                  placeholder="VD: Ăn mì gói"
+                  [(ngModel)]="cardForm.name"
+                  (input)="onCardNameInput()"
+                  required
+                />
+              </div>
+
+              <div>
+                <label for="card-slug" class="block text-xs font-semibold text-slate-400 mb-1">Đường dẫn (slug) *</label>
+                <input
+                  id="card-slug"
+                  name="slug"
+                  type="text"
+                  class="admin-input font-mono"
+                  placeholder="VD: an-mi-goi"
+                  [(ngModel)]="cardForm.slug"
+                  (input)="onSlugInput()"
+                  required
+                />
+              </div>
+
+              <div>
+                <label for="card-set-id" class="block text-xs font-semibold text-slate-400 mb-1">Bộ thẻ mở rộng *</label>
+                <select
+                  id="card-set-id"
+                  name="cardSetId"
+                  class="admin-select"
+                  [(ngModel)]="cardForm.cardSetId"
+                  required
+                >
+                  @if (cardSets().length === 0) {
+                    <option value="" disabled>Chưa có bộ thẻ trong bản phát hành</option>
+                  }
+                  @for (set of cardSets(); track set.id) {
+                    <option [value]="set.id">{{ set.code }} — {{ set.name }}</option>
+                  }
+                </select>
+              </div>
+
+              <div>
+                <label for="card-character-id" class="block text-xs font-semibold text-slate-400 mb-1">Nhân vật liên kết (tùy chọn)</label>
+                <select
+                  id="card-character-id"
+                  name="characterId"
+                  class="admin-select"
+                  [(ngModel)]="cardForm.characterId"
+                >
+                  <option value="">(Không liên kết nhân vật)</option>
+                  @for (c of characters(); track c.id) {
+                    <option [value]="c.id">{{ c.code }} — {{ c.name }}</option>
+                  }
+                </select>
+              </div>
+
+              <div>
+                <label for="card-rule-status" class="block text-xs font-semibold text-slate-400 mb-1">Trạng thái luật *</label>
+                <select
+                  id="card-rule-status"
+                  name="ruleStatus"
+                  class="admin-select"
+                  [(ngModel)]="cardForm.ruleStatus"
+                  required
+                >
+                  <option value="CONFIRMED">Đã xác nhận (CONFIRMED)</option>
+                  <option value="NEEDS_REVIEW">Cần rà soát (NEEDS_REVIEW)</option>
+                </select>
+              </div>
+
+              <div>
+                <label for="card-copies" class="block text-xs font-semibold text-slate-400 mb-1">Số bản trong bộ (1–1000) *</label>
+                <input
+                  id="card-copies"
+                  name="copiesInDeck"
+                  type="number"
+                  min="1"
+                  max="1000"
+                  class="admin-input font-mono"
+                  [(ngModel)]="cardForm.copiesInDeck"
+                  required
+                />
+              </div>
+
+              <div>
+                <label for="card-sort" class="block text-xs font-semibold text-slate-400 mb-1">Thứ tự hiển thị (sortOrder)</label>
+                <input
+                  id="card-sort"
+                  name="sortOrder"
+                  type="number"
+                  min="0"
+                  max="100000"
+                  class="admin-input font-mono"
+                  placeholder="0"
+                  [(ngModel)]="cardForm.sortOrder"
+                />
+              </div>
+
+              <div>
+                <label for="card-artwork-url" class="block text-xs font-semibold text-slate-400 mb-1">Đường dẫn ảnh thẻ (artworkUrl)</label>
+                <input
+                  id="card-artwork-url"
+                  name="artworkUrl"
+                  type="text"
+                  class="admin-input font-mono text-xs"
+                  placeholder="/media/cards/... hoặc https://..."
+                  [(ngModel)]="cardForm.artworkUrl"
+                />
+                <span class="text-[10px] text-slate-400 mt-0.5 block">Tự động điền khi chọn ảnh ở trên, hoặc dán thủ công.</span>
+              </div>
+
+              <div class="sm:col-span-2 lg:col-span-3">
+                <label for="card-effect-text" class="block text-xs font-semibold text-slate-400 mb-1">Hiệu ứng thẻ bài *</label>
+                <textarea
+                  id="card-effect-text"
+                  name="effectText"
+                  rows="2"
+                  class="admin-textarea"
+                  placeholder="Nhập mô tả hiệu ứng khi kích hoạt thẻ..."
+                  [(ngModel)]="cardForm.effectText"
+                  required
+                ></textarea>
+              </div>
+
+              <div class="sm:col-span-2 lg:col-span-3">
+                <label for="card-ruling-notes" class="block text-xs font-semibold text-slate-400 mb-1">Ghi chú luật & giải đáp tình huống (tùy chọn)</label>
+                <textarea
+                  id="card-ruling-notes"
+                  name="rulingNotes"
+                  rows="2"
+                  class="admin-textarea"
+                  placeholder="Quy tắc xử lý khi có xung đột hiệu ứng..."
+                  [(ngModel)]="cardForm.rulingNotes"
+                ></textarea>
+              </div>
+
+              <div class="sm:col-span-2 lg:col-span-3 flex flex-wrap items-center justify-between gap-3 pt-2">
+                <button
+                  type="button"
+                  class="text-xs text-slate-400 hover:text-slate-200 underline"
+                  (click)="resetCardForm()"
+                  [disabled]="cardSaving() || uploadBusy()"
+                >
+                  Xóa trắng biểu mẫu
+                </button>
+
+                <div class="flex items-center gap-2">
+                  <button
+                    type="submit"
+                    id="save-card-button"
+                    class="action-btn-primary"
+                    [disabled]="cardSaving() || uploadBusy() || loading() || cardConflict() || !isDraftSelected() || !cardSets().length"
+                  >
+                    {{ cardSaving() ? 'Đang lưu thẻ bài…' : uploadBusy() ? 'Đang tải ảnh…' : 'Lưu thẻ bài vào Bản thảo' }}
+                  </button>
+                </div>
+              </div>
+              </fieldset>
+            </form>
+            <p class="text-xs text-slate-400 mt-3">Lưu thẻ chưa đưa nội dung lên trang công khai. Bản nháp cần được kiểm tra và xuất bản theo quy trình nội dung của dự án.</p>
           </div>
         }
 
