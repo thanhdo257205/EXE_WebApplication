@@ -7,7 +7,7 @@ Cập nhật: 2026-10-24 (Asia/Saigon).
 - [x] NOTIF-REG-01 — Hai bảng additive/startup idempotent; tài khoản mới và event cùng transaction, dedup; password và Google persistence mới/cũ/rollback qua, không backfill.
 - [x] NOTIF-REG-02 — Mixed FEEDBACK_NEW/USER_REGISTERED, SSE composite summary một query, read isolation/CSRF/ID cũ+mới; backend check + 57 pass/1 remote skip.
 - [x] NOTIF-REG-03 — Chuông tới /admin/users, mark read; sửa panel mobile bị cắt. Frontend 279 tests với timeout tạm 20s; build/prerender, Chromium + Hono/SQLite thật trong môi trường test qua.
-- [ ] NOTIF-REG-DEPLOY — Main, CI/CD/smoke, đối chiếu schema và feedback production; không tạo tài khoản thử production.
+- [x] NOTIF-REG-DEPLOY — Main/runtime a063165; CI 40095924379 bốn job với test mặc định + CD 40095984896/smoke qua; hai bảng mới đúng, không backfill, feedback/read/tài khoản/owner registry giữ nguyên; API anonymous 401. Không tạo tài khoản thử production.
 - [ ] NOTIF-REG-GOOGLE-LIVE — Nghiệm thu callback Google thật cho tài khoản mới; chưa thực hiện provider thật trong đợt này.
 
 ## RBAC admin chính / đồng quản trị (2026-10-24)
