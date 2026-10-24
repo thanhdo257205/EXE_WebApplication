@@ -1,6 +1,6 @@
 ---
 name: nha-nay-design
-description: Ngôn ngữ thiết kế giao diện web "Nhà Này Hơi Báo!" (editorial tối, nhấn xanh chanh, chữ Anton, kính lỏng, chuyển động lò xo, hero 3D). Dùng khi thêm/sửa trang, component, CSS, hiệu ứng hoặc giao diện quản trị trong frontend Angular của dự án này, hoặc khi cần dựng một trang mới "giống phong cách site".
+description: Ngôn ngữ thiết kế giao diện web "Nhà Này Hơi Báo!" (editorial tối, nhấn xanh chanh, chữ Anton, kính lỏng, chuyển động lò xo, cảnh 3D bằng WebGPU thuần). Dùng khi thêm/sửa trang, component, CSS, hiệu ứng hoặc giao diện quản trị trong frontend Angular của dự án này, hoặc khi cần dựng một trang mới "giống phong cách site".
 ---
 
 # Skill thiết kế: Nhà Này Hơi Báo!
@@ -209,7 +209,33 @@ Quy tắc chuyển động:
 4. Mọi hiệu ứng có nhánh `prefers-reduced-motion: reduce` (tắt hoặc hiển thị trạng thái tĩnh).
 5. Không thêm vòng `requestAnimationFrame` chạy liên tục khi trang đứng yên; dừng khi tab ẩn / ngoài khung nhìn; dọn listener, observer, frame khi destroy. Chạy ngoài Angular zone (`NgZone.runOutsideAngular`).
 
-## 10. Hero 3D trang chủ (WebGPU)
+## 10. WebGPU thuần — công cụ chính để thể hiện ý tưởng
+
+**Được phép và khuyến khích dùng WebGPU thuần** (API `navigator.gpu` + shader WGSL tự viết, không cần engine 3D) khi đó là cách thể hiện ý tưởng tốt nhất: vật thể sản phẩm có chiều sâu, cảnh tương tác theo chuột/cuộn, hiệu ứng ánh sáng, hạt, foil thẻ, bàn chơi. Không bắt buộc gói ý tưởng vào CSS 3D khi CSS không diễn tả nổi. Hai cảnh hiện có làm mẫu: hero trang chủ (`features/home/hero3d/`) và Sân đấu (`features/arena/`, xem `docs/ARENA.md`). `three` chỉ còn dùng cho trình xem thẻ GLB (`card-viewer`); cảnh mới ưu tiên WebGPU thuần để chunk nhỏ và kiểm soát hoàn toàn việc vẽ.
+
+Cấu trúc nên theo (giống hai cảnh mẫu):
+
+| File | Vai trò |
+| --- | --- |
+| `*-math.ts` | Ma trận 4×4, camera/chiếu, easing, RNG có seed |
+| `*-scene.ts` | Logic thuần, không đụng GPU, có unit test: trạng thái vật thể, dòng thời gian, xuất mảng instance |
+| `*-textures.ts` | Vẽ texture bằng Canvas 2D (chữ Anton, logo, mặt thẻ) rồi đưa vào texture array có mipmap |
+| `*-shaders.ts` | WGSL dạng chuỗi TypeScript |
+| `*-renderer.ts` | Khởi tạo: `requestAdapter()` → `requestDevice()` → `getPreferredCanvasFormat()` → `context.configure({ alphaMode })`; pipeline, buffer, render pass; theo dõi `device.lost` |
+| `*-runtime.ts` | Vòng rAF, con trỏ, cuộn, dừng khi khuất màn/tab ẩn, DPR, hạ cấp |
+
+Nguyên tắc kỹ thuật:
+
+- Nạp lười (dynamic `import()` sau khi trang đã hiển thị / `requestIdleCallback`); không thêm thư viện.
+- Ít lệnh vẽ: instancing qua storage/vertex buffer, một `writeBuffer` mỗi khung, không cấp phát mảng mới mỗi khung.
+- `alphaMode: 'premultiplied'` khi cần nền CSS đổi màu phía sau canvas (hero); `'opaque'` khi cảnh tự có nền (Sân đấu).
+- Giới hạn ~60 khung/giây, hạ tốc khi đứng yên, độ phân giải thích ứng theo thời gian khung; DPR tối đa 1,75–2 (cảm ứng thấp hơn, `data-perf="low"` = 1).
+- Màu, chữ, tone trong cảnh lấy từ token của site (mục 2–3) để cảnh 3D cùng một ngôn ngữ với phần còn lại.
+- **Luôn có dự phòng**: không có `navigator.gpu`/adapter, `prefers-reduced-motion`, `data-perf="low"` hoặc mất GPU giữa chừng → bản CSS/DOM tĩnh vẫn truyền đạt đủ nội dung (hero: hộp CSS; Sân đấu: chế độ chữ chơi đủ luật).
+- Canvas trang trí `aria-hidden`; thông tin quan trọng phải có ở DOM.
+- Kiểm tra bằng Chromium + SwiftShader (WebGPU phần mềm), đọc ngược texture để chụp ảnh; FPS trên SwiftShader không đại diện, cần đo trên GPU thật.
+
+### Hero 3D trang chủ
 
 `features/home/hero3d/*`, nạp lười qua `HeroBoxComponent` sau khi trang hiển thị (chunk ~30 kB, không thêm thư viện):
 
@@ -225,7 +251,7 @@ Quy tắc chuyển động:
 - `shared/utils/perf-tier.ts` đo khung hình lúc có tương tác; giật thì đặt `html[data-perf="low"]` cho cả phiên (`?perf=1` để xem HUD). CSS/JS hiệu ứng nặng phải lắng nghe mức này.
 - Ngân sách Angular: style mỗi component cảnh báo 6 kB, lỗi 10 kB → tách file CSS (ví dụ `home.page.css` + `home-sections.css` + `home-glass.css` + `home-hero3d.css`); initial bundle cảnh báo 500 kB.
 - Ảnh: WebP, có `width`/`height`, ảnh hero `fetchpriority="high"`, còn lại lazy. Font tự host, preload bản 400.
-- Không thêm thư viện UI/animation nặng; ưu tiên CSS + Web APIs (WAAPI, IntersectionObserver, View Transitions, WebGPU).
+- Không thêm thư viện UI/animation nặng; ưu tiên CSS + Web APIs (WAAPI, IntersectionObserver, View Transitions). Ý tưởng cần 3D/ánh sáng/hạt thì dùng WebGPU thuần (mục 10).
 
 ## 12. Khả năng tiếp cận
 
@@ -270,6 +296,7 @@ Quy tắc chuyển động:
 - Một màu nhấn mỗi vùng (lime mặc định, hoặc tone của trang).
 - Đặt chữ tối (`ink` của tone) lên mọi nền màu sáng.
 - Ghi rõ "minh họa" cho hộp/thẻ trang trí; ghi nguồn ảnh bên thứ ba.
+- Dùng WebGPU thuần khi đó là cách thể hiện ý tưởng tốt nhất (mục 10).
 - Có bản tĩnh tương đương cho mọi hiệu ứng (no-JS, reduced motion, không WebGPU, máy yếu).
 
 **Không nên**
@@ -279,7 +306,8 @@ Quy tắc chuyển động:
 - Không animate chữ đoạn văn; không thay lò xo tiêu đề bằng keyframes/Framer Motion.
 - Không sửa toán học, thông số, thứ tự ảnh, thứ tự vẽ của engine Column Spread (`shared/motion/spread-columns.js`).
 - Không bịa luật, giá, đánh giá, số liệu; không trình bày thẻ trang trí như nội dung chính thức.
-- Không thêm font CDN hay thư viện animation lớn khi CSS/Web API làm được.
+- Không thêm font CDN hay thư viện animation/3D lớn khi CSS hoặc WebGPU thuần làm được.
+- Không dựng cảnh WebGPU mà thiếu bản dự phòng tĩnh.
 
 ## 17. Bản đồ file
 
@@ -290,7 +318,7 @@ Quy tắc chuyển động:
 | Khung app, drawer di động, footer | `frontend/src/app/app.html`, `app.css`, `app-footer.css` |
 | Header + lens + dropdown + menu tài khoản | `shared/components/global-bar/*` (+ `docs/PUBLIC_NAVIGATION.md`) |
 | Trang chủ | `features/home/home.page.*`, `home-sections.css`, `home-glass.css`, `home-hero3d.css` |
-| Hero 3D | `features/home/hero3d/*`, `features/home/hero-box.component.ts` |
+| Cảnh WebGPU thuần | `features/home/hero3d/*`, `features/home/hero-box.component.ts`, `features/arena/arena-renderer.ts`, `arena-shaders.ts` (+ `docs/ARENA.md`) |
 | Đầu trang con | `shared/components/page-hero/*` |
 | Thẻ khám phá | `shared/components/explore-cards/*`, `shared/explore-links.ts` |
 | Marquee, Column Spread, morph icon | `shared/components/marquee`, `column-spread`, `morph-icon` |

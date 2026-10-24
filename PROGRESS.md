@@ -7,6 +7,7 @@
 ### Skill thiết kế giao diện — 2026-10-24, chỉ tài liệu
 
 - Theo yêu cầu "xem mã nguồn, xem cách design và xuất thành một file skill": thêm [.claude/skills/nha-nay-design/SKILL.md](.claude/skills/nha-nay-design/SKILL.md), tổng hợp từ mã hiện tại: token màu (`--ed-*`, 4 tone lime/pink/blue/orange kèm ink), chữ (Anton display, Be Vietnam Pro, Fraunces nghiêng; xử lý dấu tiếng Việt), bố cục (`--gutter`, `--section`, breakpoint), bộ `kit-*`, `app-page-hero`, kính lỏng và các mức hạ cấp, chuyển động (Rise & Settle, reveal, boot, view transition, marquee, Lenis), hero 3D WebGPU + dự phòng, hiệu năng, trợ năng, form, khu quản trị, quy trình làm trang mới, nên/không nên và bản đồ file.
+- Bổ sung theo yêu cầu: skill ghi rõ **có thể dùng WebGPU thuần để thể hiện ý tưởng tốt nhất** (mục 10: cấu trúc file theo hero/Sân đấu, nguyên tắc nạp lười, instancing, giới hạn khung, dự phòng bắt buộc, cách kiểm tra).
 - Ghi chú trong skill: frontmatter `DESIGN.md` (nền kem) là giai đoạn cũ; mã nguồn là chuẩn.
 - Không đổi code/cấu hình chạy nên không chạy lại test runtime. Trạng thái GitHub: commit và push lên nhánh `claude/nifty-meitner-e36xmb`, chưa mở PR.
 
