@@ -1,6 +1,6 @@
 # Ảnh thẻ trên Cloudflare R2
 
-Trạng thái: **code đã xong và có test, chưa bật trên production** — cần tạo bucket và đặt biến môi trường (các bước dưới). Chưa thử với R2 thật.
+Trạng thái 2026-10-24: R2 chưa kích hoạt vì cần phương thức thanh toán. Chủ dự án chọn Azure for Students; xem [ảnh thẻ Azure](AZURE_CARD_IMAGES.md) cho cấu hình và kết quả mới nhất. Hướng dẫn R2 dưới đây được giữ làm phương án thay thế.
 
 ## Kiến trúc
 

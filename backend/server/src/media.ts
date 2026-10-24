@@ -9,6 +9,34 @@ export const MAX_IMAGE_BYTES = 1024 * 1024;
 export const MEDIA_PREFIX = '/media/cards/';
 
 export interface MediaStore { put(key: string, body: Uint8Array, contentType: string): Promise<void> }
+export interface AzureMediaConfig { containerUrl: string; sasToken: string }
+
+/** Container-scoped write SAS stays on the backend; public image URLs never contain it. */
+export function azureMediaConfig(env: Record<string, string | undefined>): AzureMediaConfig | null {
+  const containerUrl = env.AZURE_STORAGE_CONTAINER_URL, sasToken = env.AZURE_STORAGE_SAS_TOKEN;
+  if (!containerUrl && !sasToken) return null;
+  if (!containerUrl || !sasToken || !/^https:\/\/[a-z0-9]{3,24}\.blob\.core\.windows\.net\/[a-z0-9][a-z0-9-]{2,62}$/.test(containerUrl)) throw new Error('Invalid Azure media configuration');
+  const params = new URLSearchParams(sasToken.replace(/^\?/, ''));
+  if (!params.get('sig') || params.get('sr') !== 'c' || params.get('spr') !== 'https' || !params.get('sp')?.includes('w') || !Number.isFinite(Date.parse(params.get('se') || '')) || Date.parse(params.get('se')!) <= Date.now()) throw new Error('Invalid Azure media configuration');
+  return { containerUrl, sasToken: params.toString() };
+}
+
+export function azureMediaStore(cfg: AzureMediaConfig, fetcher: typeof fetch = fetch): MediaStore {
+  return {
+    async put(key, body, contentType) {
+      if (!/^cards\/[a-f0-9]{64}\.(png|jpg|webp)$/.test(key)) throw new Error('Invalid media key');
+      try {
+        const response = await fetcher(`${cfg.containerUrl}/${key}?${cfg.sasToken}`, {
+          method: 'PUT', redirect: 'error', signal: AbortSignal.timeout(20000), body: body as BodyInit,
+          headers: { 'x-ms-blob-type': 'BlockBlob', 'Content-Type': contentType, 'x-ms-blob-cache-control': 'public, max-age=31536000, immutable' },
+        });
+        if (!response.ok) throw new Error('Storage rejected upload');
+      } catch {
+        throw Object.assign(new Error('Object storage rejected the upload'), { code: 'HTTP_STORAGE_FAILED' });
+      }
+    },
+  };
+}
 export interface R2Config { accountId: string; bucket: string; accessKeyId: string; secretAccessKey: string }
 
 /** Đọc cấu hình R2 từ biến môi trường; thiếu bất kỳ biến nào thì trả null (tính năng tải ảnh tắt). Không bao giờ log giá trị. */

@@ -3,6 +3,15 @@ import assert from 'node:assert/strict';
 import pages from '../../cloudflare-pages/worker.js';
 import { handle } from '../src/index.ts';
 
+test('Pages routes uploaded and migrated card images to gateway, with no HTML fallback on failure', async () => {
+  for (const path of ['/media/cards/a.webp', '/assets/cards/card-01.svg', '/assets/models/default-card-poster.webp']) {
+    const req = new Request('https://exe-webapp.pages.dev' + path);
+    const res = await pages.fetch(req, { GATEWAY: { fetch: async r => { assert.equal(r, req); return new Response('image'); } } });
+    assert.equal(await res.text(), 'image');
+    assert.equal((await pages.fetch(req, {})).status, 503);
+  }
+});
+
 test('Pages API preserves browser identity and request through internal gateway binding', async () => {
   const request = new Request('https://exe-webapp.pages.dev/api/v1/info', { headers: { Origin: 'https://exe-webapp.pages.dev', 'CF-Connecting-IP': '192.0.2.1' } });
   const limiter = { limit: async () => ({ success: true }) };

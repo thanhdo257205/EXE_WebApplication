@@ -1,7 +1,7 @@
 import { serve } from '@hono/node-server';
 import { randomBytes } from 'node:crypto';
 import { database, initializeLocal, scalar, all, execute, uuid } from './db.ts';
-import { r2Config, r2Store } from './media.ts';
+import { azureMediaConfig, azureMediaStore, r2Config, r2Store } from './media.ts';
 import { createApp } from './app.ts';
 import { payosProvider } from './payments.ts';
 import type { Config } from './auth.ts';
@@ -33,6 +33,7 @@ if (bootstrapEmail || bootstrapPassword) {
   if (!(await all(db, 'SELECT id FROM app_users WHERE email=?', [email])).length) await execute(db, 'INSERT INTO app_users(id,email,password_hash,display_name,role) VALUES (?,?,?,?,?)', [uuid(), email, await bcrypt.hash(bootstrapPassword, 12), 'Administrator', 'ADMIN']);
 }
 const r2 = r2Config(process.env);
-const { app } = createApp(db, config, payosProvider(process.env), undefined, r2 ? r2Store(r2) : null);
+const azure = azureMediaConfig(process.env);
+const { app } = createApp(db, config, payosProvider(process.env), undefined, azure ? azureMediaStore(azure) : r2 ? r2Store(r2) : null);
 const server = serve({ fetch: app.fetch, port: Number(process.env.PORT || 8080), hostname: '0.0.0.0' }, () => console.log('API listening'));
 for (const signal of ['SIGTERM', 'SIGINT'] as const) process.once(signal, () => { server.close(() => { db.close(); process.exit(0); }); setTimeout(() => { if ('closeAllConnections' in server) server.closeAllConnections(); db.close(); process.exit(0); }, 50_000).unref(); });

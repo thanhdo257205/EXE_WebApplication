@@ -2,7 +2,7 @@
 export default {
   async fetch(request, env) {
     const path = new URL(request.url).pathname;
-    if (path === '/api' || path.startsWith('/api/')) {
+    if (path === '/api' || path.startsWith('/api/') || path.startsWith('/media/') || (path.startsWith('/assets/cards/') && /\.(svg|webp)$/.test(path)) || path === '/assets/models/default-card-poster.webp') {
       try { return await env.GATEWAY.fetch(request); }
       catch { return new Response('API temporarily unavailable', { status: 503, headers: { 'Cache-Control': 'no-store' } }); }
     }

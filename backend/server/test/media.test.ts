@@ -6,7 +6,35 @@ import bcrypt from 'bcryptjs';
 import { database, initializeLocal, execute, all, uuid } from '../src/db.ts';
 import { createApp } from '../src/app.ts';
 import type { Config } from '../src/auth.ts';
-import { detectImage, MAX_IMAGE_BYTES, r2Config, r2Store, signPut, type MediaStore } from '../src/media.ts';
+import { azureMediaConfig, azureMediaStore, detectImage, MAX_IMAGE_BYTES, r2Config, r2Store, signPut, type MediaStore } from '../src/media.ts';
+
+test('Azure configuration rejects partial, expired and non-container credentials without leaking them', () => {
+  const url = 'https://testaccount.blob.core.windows.net/card-images';
+  const sas = 'sig=test-secret&sr=c&spr=https&sp=cw&se=2099-01-01T00%3A00%3A00Z';
+  assert.equal(azureMediaConfig({}), null);
+  assert.equal(azureMediaConfig({ AZURE_STORAGE_CONTAINER_URL: url, AZURE_STORAGE_SAS_TOKEN: sas })?.containerUrl, url);
+  for (const env of [
+    { AZURE_STORAGE_CONTAINER_URL: url },
+    { AZURE_STORAGE_CONTAINER_URL: 'https://evil.test/container', AZURE_STORAGE_SAS_TOKEN: sas },
+    { AZURE_STORAGE_CONTAINER_URL: url, AZURE_STORAGE_SAS_TOKEN: sas.replace('2099', '2020') },
+    { AZURE_STORAGE_CONTAINER_URL: url, AZURE_STORAGE_SAS_TOKEN: sas.replace('sr=c', 'sr=b') },
+  ]) assert.throws(() => azureMediaConfig(env), /^Error: Invalid Azure media configuration$/);
+});
+
+test('Azure uploads BlockBlob with immutable caching and hides SAS on storage/transport errors', async () => {
+  const cfg = { containerUrl: 'https://testaccount.blob.core.windows.net/card-images', sasToken: 'sig=test-secret' };
+  const key = `cards/${'a'.repeat(64)}.webp`;
+  await azureMediaStore(cfg, (async (url: string, init: RequestInit) => {
+    assert.equal(url, `${cfg.containerUrl}/${key}?${cfg.sasToken}`);
+    assert.equal(init.method, 'PUT'); assert.equal(init.redirect, 'error');
+    assert.equal((init.headers as Record<string, string>)['x-ms-blob-type'], 'BlockBlob');
+    assert.match((init.headers as Record<string, string>)['x-ms-blob-cache-control'], /immutable/);
+    return new Response(null, { status: 201 });
+  }) as any).put(key, new Uint8Array([1]), 'image/webp');
+  for (const fetcher of [async () => new Response('test-secret', { status: 403 }), async () => { throw new Error('test-secret'); }]) {
+    await assert.rejects(azureMediaStore(cfg, fetcher as any).put(key, new Uint8Array([1]), 'image/webp'), /^Error: Object storage rejected the upload$/);
+  }
+});
 
 const png = (extra = 40) => Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, ...randomBytes(extra)]);
 const webp = Uint8Array.from([...Buffer.from('RIFF'), 1, 2, 3, 4, ...Buffer.from('WEBP'), ...randomBytes(20)]);

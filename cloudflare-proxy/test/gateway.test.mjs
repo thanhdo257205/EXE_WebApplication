@@ -28,6 +28,29 @@ function login(overrides = {}) {
 }
 const noUpstream = async () => { assert.fail('Request must not reach upstream'); };
 
+test('Azure media preserves existing image paths, conditions and HEAD without forwarding cookies or query', async () => {
+  const origin = 'https://testaccount.blob.core.windows.net/card-images';
+  const env = environment({ AZURE_MEDIA_ORIGIN: origin });
+  for (const path of ['/assets/cards/pokemon/charizard-poster.webp', '/assets/cards/card-01.svg', '/assets/models/default-card-poster.webp', `/media/cards/${'a'.repeat(64)}.webp`]) {
+    for (const method of ['GET', 'HEAD']) {
+      const res = await handle(browser(path + '?ignored=1', { method, headers: { Cookie: 'private', Authorization: 'secret', 'If-None-Match': '"etag"' } }), env, async (url, init) => {
+        assert.equal(url, origin + (path.startsWith('/media/') ? '/' + path.slice(7) : path));
+        assert.equal(init.method, method); assert.equal(init.redirect, 'manual');
+        assert.equal(init.headers.get('Cookie'), null); assert.equal(init.headers.get('Authorization'), null);
+        assert.equal(init.headers.get('If-None-Match'), '"etag"');
+        return new Response(method === 'HEAD' ? null : 'image', { headers: { ETag: '"etag"' } });
+      });
+      assert.equal(res.status, 200); assert.equal(res.headers.get('X-Media-Storage'), 'azure-blob');
+      assert.equal(await res.text(), method === 'HEAD' ? '' : 'image');
+    }
+  }
+  const path = `/media/cards/${'b'.repeat(64)}.png`;
+  assert.equal((await handle(browser(path), env, async () => new Response(null, { status: 304 }))).status, 304);
+  for (const status of [404, 403, 302, 500]) assert.equal((await handle(browser(path), env, async () => new Response(null, { status }))).status, status === 404 ? 404 : 503);
+  assert.equal((await handle(browser('/media/cards/private.txt'), env, noUpstream)).status, 404);
+  assert.equal((await handle(browser(path, { method: 'POST' }), env, noUpstream)).status, 405);
+});
+
 test('admin SSE passes chunks immediately with cookies, private headers and cancellation', async () => {
   let controller, cancelled=false;
   const body=new ReadableStream({ start(value) { controller=value; }, cancel() { cancelled=true; } });

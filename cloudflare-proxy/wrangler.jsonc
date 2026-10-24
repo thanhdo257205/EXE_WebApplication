@@ -8,6 +8,7 @@
   "preview_urls": false,
   "triggers": { "crons": ["*/30 * * * *"] },
   "vars": {
+    "AZURE_MEDIA_ORIGIN": "https://stexecardimages257.blob.core.windows.net/card-images",
     "PUBLIC_ORIGIN": "https://exe-webapp.pages.dev",
     "BACKEND_ORIGIN": "https://exe-web-backend.onrender.com",
     "FRONTEND_ORIGIN": "https://exe-webapp.pages.dev"

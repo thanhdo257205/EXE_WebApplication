@@ -66,7 +66,7 @@ backend/                REST API, Maven Wrapper, Dockerfile
 CHECKLIST.md            Danh sách việc và trạng thái
 PROGRESS.md             Quyết định, nhật ký, điểm tiếp tục
 docs/design/            Tham chiếu prototype Figma
-docs/R2_CARD_IMAGES.md  Ảnh thẻ trên Cloudflare R2 (tải lên từ admin, phục vụ qua gateway)
+docs/AZURE_CARD_IMAGES.md  Ảnh thẻ trên Azure Blob Storage (Azure for Students, tải admin qua backend, đọc qua gateway)
 ```
 
 ## Yêu cầu

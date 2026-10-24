@@ -2,6 +2,13 @@
 
 Cập nhật: 2026-10-24 (Asia/Saigon).
 
+## Kho ảnh Azure (2026-10-24)
+
+- [x] AZURE-MEDIA-01 — Kho riêng Azure for Students, Standard_LRS Hot Singapore; spending limit On; 35 tệp đối chiếu byte; thử upload Azure thật; cấu hình Render SAS giới hạn container.
+- [x] AZURE-MEDIA-02 — Bộ tải Azure + proxy đọc ảnh cùng origin, routing Pages/manifest, giữ URL cũ; backend 34 pass/1 skip, gateway 30 pass, typecheck và dry-run qua.
+- [ ] AZURE-MEDIA-03 — CI/CD phát hành và kiểm tra toàn bộ ảnh production từ Azure qua Pages; xác minh cache/HEAD/ETag.
+- [ ] AZURE-MEDIA-04 — Thử đăng nhập admin và tải ảnh qua trình duyệt production; thay SAS trước 2027-10-24 00:00 UTC; kiểm tra credit/ngày hết hạn Azure for Students.
+
 ## Phong cách riêng cho từng trang con (2026-10-24)
 
 - [x] PAGE-STYLE-01 — Mỗi trang danh sách một phong cách từ bộ prompt: Cách chơi (Laocoön), Quỹ nhà (Ascend), Câu chuyện (Flowstate), Thư viện (KIMI), Cư dân (Marcus Vane), Wiki (Baseline), Cửa hàng (Lumora); 248 tests, build, ảnh 1440/390px không tràn ngang, không lỗi console (local).

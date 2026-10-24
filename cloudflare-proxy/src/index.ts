@@ -15,12 +15,40 @@ export interface Env {
   ACCOUNT_LIMITER: Limiter;
   /** Bucket R2 chứa ảnh thẻ. Tùy chọn: chưa gắn thì `/media/*` trả 404 và gateway vẫn chạy bình thường. */
   CARD_IMAGES?: R2BucketLike;
+  AZURE_MEDIA_ORIGIN?: string;
 }
 
 const MEDIA_UPLOAD = '/api/v1/admin/media/card-image';
 const MEDIA_UPLOAD_MAX = 1024 * 1024 + 4096;
 const MEDIA_PATH = /^\/media\/cards\/[a-f0-9]{64}\.(png|jpg|webp)$/;
 const MEDIA_TYPES: Record<string, string> = { png: 'image/png', jpg: 'image/jpeg', webp: 'image/webp' };
+
+/** Only this project's image paths may reach a fixed public Azure container. Never forward credentials. */
+async function serveAzureMedia(request: Request, env: Env, pathname: string, fetcher: typeof fetch): Promise<Response> {
+  const uploaded = MEDIA_PATH.exec(pathname);
+  const asset = /^\/assets\/cards\/(?:pokemon\/)?[a-z0-9-]+\.(svg|webp)$/.exec(pathname);
+  const defaultPoster = pathname === '/assets/models/default-card-poster.webp';
+  if (!uploaded && !asset && !defaultPoster) return problem(404, 'Not found');
+  if (!env.AZURE_MEDIA_ORIGIN || !/^https:\/\/[a-z0-9]{3,24}\.blob\.core\.windows\.net\/[a-z0-9][a-z0-9-]{2,62}$/.test(env.AZURE_MEDIA_ORIGIN)) return problem(503, 'Media unavailable');
+  const key = uploaded ? pathname.slice(7) : pathname.slice(1);
+  const headers = new Headers();
+  for (const name of ['if-none-match', 'if-modified-since']) {
+    const value = request.headers.get(name); if (value) headers.set(name, value);
+  }
+  const response = await fetcher(`${env.AZURE_MEDIA_ORIGIN}/${key}`, { method: request.method, headers, redirect: 'manual', signal: AbortSignal.timeout(15000) });
+  if (![200, 304].includes(response.status)) return problem(response.status === 404 ? 404 : 503, 'Media unavailable');
+  const ext = uploaded?.[1] || asset?.[1] || 'webp';
+  const result = new Headers({
+    'Content-Type': ext === 'svg' ? 'image/svg+xml' : MEDIA_TYPES[ext],
+    'Cache-Control': uploaded ? 'public, max-age=31536000, immutable' : 'public, max-age=86400',
+    'X-Content-Type-Options': 'nosniff', 'Cross-Origin-Resource-Policy': 'same-origin',
+    'Content-Security-Policy': "default-src 'none'; sandbox", 'X-Media-Storage': 'azure-blob',
+  });
+  for (const name of ['etag', 'last-modified', 'content-length']) {
+    const value = response.headers.get(name); if (value) result.set(name, value);
+  }
+  return new Response(request.method === 'HEAD' || response.status === 304 ? null : response.body, { status: response.status, headers: result });
+}
 
 /** Ảnh thẻ trên R2: tên file là hash nội dung nên nội dung không bao giờ đổi → cache vĩnh viễn, hỗ trợ ETag/304. */
 async function serveMedia(request: Request, env: Env, pathname: string): Promise<Response> {
@@ -97,6 +125,7 @@ export async function handle(request: Request, env: Env, fetcher: typeof fetch =
     if (decodeURIComponent(url.pathname).startsWith('/api/v1/internal')) return problem(404, 'Not found');
     if (!api) {
       if (!['GET', 'HEAD'].includes(request.method)) return problem(405, 'Method not allowed');
+      if (env.AZURE_MEDIA_ORIGIN && (url.pathname.startsWith('/media/') || url.pathname.startsWith('/assets/cards/') || url.pathname === '/assets/models/default-card-poster.webp')) return await serveAzureMedia(request, env, url.pathname, fetcher);
       if (url.pathname.startsWith('/media/')) return await serveMedia(request, env, url.pathname);
       if (frontend.origin === publicUrl.origin) return problem(503, 'Static assets must be served by Pages');
       // Static requests never carry authentication, origin secrets or user-controlled forwarding headers.

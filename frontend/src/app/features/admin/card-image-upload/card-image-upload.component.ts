@@ -3,7 +3,7 @@ import { AdminContentService } from '../../../core/admin/admin-content.service';
 import { CardImageError, prepareCardImage } from '../../../core/admin/card-image';
 
 /**
- * Tải ảnh thẻ lên kho R2 (qua backend). Ảnh được co/nén WebP ngay trên trình duyệt, sau đó trả về đường dẫn
+ * Tải ảnh thẻ lên kho đám mây (qua backend). Ảnh được co/nén WebP ngay trên trình duyệt, sau đó trả về đường dẫn
  * `/media/cards/<hash>.webp` để dán vào trường ảnh của thẻ. Cùng một ảnh tải lại sẽ ra cùng đường dẫn.
  */
 @Component({
@@ -47,7 +47,7 @@ export class CardImageUploadComponent {
   }
 
   private explain(problem: { title?: string; message?: string; status?: number }): string {
-    if (problem.status === 503) return 'Kho ảnh chưa được cấu hình hoặc đang lỗi. Kiểm tra biến R2 trên máy chủ.';
+    if (problem.status === 503) return 'Kho ảnh chưa được cấu hình hoặc đang lỗi. Vui lòng thử lại sau.';
     if (problem.status === 415) return 'Định dạng ảnh không được hỗ trợ.';
     if (problem.status === 413) return 'Ảnh vượt quá 1 MB sau khi nén.';
     if (problem.status === 403) return 'Phiên quản trị đã hết hạn, hãy đăng nhập lại.';
