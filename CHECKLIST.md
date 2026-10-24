@@ -2,6 +2,14 @@
 
 Cập nhật: 2026-10-24 (Asia/Saigon).
 
+## RBAC admin chính / đồng quản trị (2026-10-24)
+
+- [x] RBAC-01 — Registry owner theo ID admin hiện có, bootstrap một lần/fail closed khi nhiều admin; không tự chuyển owner, không email allowlist.
+- [x] RBAC-02 — Danh sách/tìm tài khoản và đổi role owner-only; bảo vệ owner, CSRF/session hiện tại, expectedVersion, thu hồi JWT/recovery, audit atomic; backend check + 45 pass/1 remote skip.
+- [x] RBAC-03 — UI `/admin/users`: owner cấp/thu hồi có xác nhận, coadmin chỉ đọc; conflict/mạng lỗi bắt tải lại; frontend 277 tests với timeout tạm 20s, build, Chromium 1440/390px API giả lập qua.
+- [ ] RBAC-DEPLOY — Push main, CI/CD và smoke; kiểm tra registry production gắn đúng admin hiện có.
+- [ ] RBAC-LIVE — Chủ dự án dùng tài khoản thật thử cấp/thu hồi cho người được chỉ định; chưa cấp quyền production cho ai.
+
 ## Tạo thẻ bài Admin & Texture 3D Thẻ chính thức (2026-10-24)
 
 - [x] FE-ADMIN-CARD-01 — Typed createCard (POST /v1/admin/content/releases/:release/cards) & cloneRelease (POST /v1/admin/content/releases/:release/clone) trong AdminContentService với CSRF & credentials; spec kiểm thử HTTP POST đã cập nhật (đã kiểm tra local: 267 tests với timeout tạm 20s; build/prerender và Chromium API giả lập qua).

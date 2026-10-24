@@ -1,5 +1,7 @@
 > Cập nhật chuyển đổi2026-10-22: backend TypeScript/Turso ở `backend/server/` thay Spring Boot/PostgreSQL. Các đường dẫn API/nghiệp vụ giữ nguyên; chi tiết runtime, giao dịch, OAuth và trạng thái triển khai mới xem [TURSO_MIGRATION.md](TURSO_MIGRATION.md). Các hướng dẫn Java/Aiven bên dưới là lịch sử trước chuyển đổi.
 
+> RBAC 2026-10-24: phân biệt admin chính/đồng quản trị, registry owner cố định theo ID; chỉ owner được cấp/thu hồi ADMIN, thay đổi quyền thu hồi JWT và recovery token chờ. Auth response thêm adminLevel/permissions, giữ role ADMIN để tương thích. Xem [RBAC.md](RBAC.md) và PROGRESS.md cho trạng thái phát hành.
+
 > Production hiện tại: https://exe-webapp.pages.dev . Pages Function chuyển API qua service binding `GATEWAY` tới Worker nội bộ `exe-webapp-gateway`; workers.dev và preview URL của gateway đã tắt. Không đổi namespace dùng chung `fville-onboard`. Xem [DEPLOYMENT.md](DEPLOYMENT.md).
 
 # Đăng nhập và Cloudflare API gateway

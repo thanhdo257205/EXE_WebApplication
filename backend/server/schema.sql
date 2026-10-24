@@ -530,3 +530,10 @@ CREATE TABLE app_sequences (name TEXT PRIMARY KEY NOT NULL, value INTEGER NOT NU
 INSERT INTO app_sequences VALUES ('payos_order_code', 99999999);
 CREATE TABLE runtime_schema (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);
 INSERT INTO runtime_schema VALUES (1, strftime('%Y-%m-%dT%H:%M:%f000Z','now'));
+
+-- Additive RBAC ownership registry. ADMIN remains the operational role for compatibility.
+CREATE TABLE rbac_owner (
+    slot INTEGER PRIMARY KEY CHECK (slot=1),
+    user_id TEXT NOT NULL UNIQUE REFERENCES app_users(id) ON DELETE RESTRICT,
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000Z','now'))
+);

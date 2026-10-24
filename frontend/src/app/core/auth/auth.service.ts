@@ -8,6 +8,8 @@ export interface CurrentUser {
   email: string;
   displayName: string;
   role: 'ADMIN' | 'EDITOR' | 'CUSTOMER';
+  adminLevel?: 'OWNER' | 'DELEGATED' | null;
+  permissions?: string[];
 }
 
 interface Csrf {

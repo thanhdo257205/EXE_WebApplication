@@ -1,0 +1,71 @@
+<section class="users-page">
+  <a routerLink="/admin" class="back-link">← Tổng quan quản trị</a>
+  <header>
+    <p class="eyebrow">Tài khoản & quyền truy cập</p>
+    <h1>Người cùng quản trị</h1>
+    <p>Admin chính cấp và thu hồi quyền. Đồng quản trị được vận hành hệ thống, không được phân quyền cho người khác.</p>
+  </header>
+
+  <div class="access-note" role="note">
+    {{ canManageRoles() ? 'Bạn có quyền quản lý đồng quản trị. Quyền admin chính luôn được bảo vệ.' : 'Bạn có thể xem tài khoản. Chỉ admin chính được thay đổi quyền.' }}
+    Người được cấp quyền cần có tài khoản đã đăng ký trong hệ thống.
+  </div>
+
+  @if (error()) {
+    <div class="error" role="alert">{{ error() }} <button type="button" (click)="load()" [disabled]="loading() || saving()">Tải lại danh sách</button></div>
+  }
+  @if (notice()) { <p class="notice" role="status">{{ notice() }}</p> }
+
+  <form class="search" (ngSubmit)="search()">
+    <label for="account-search">Tìm bằng email hoặc tên</label>
+    <div>
+      <input id="account-search" name="query" [(ngModel)]="query" maxlength="100" placeholder="Email hoặc tên tài khoản" [disabled]="saving()" />
+      <button type="submit" [disabled]="loading() || saving()">Tìm tài khoản</button>
+    </div>
+  </form>
+
+  @if (pending(); as change) {
+    <section class="confirmation" aria-labelledby="confirm-title" aria-live="polite">
+      <h2 id="confirm-title">{{ change.role === 'ADMIN' ? 'Cấp quyền đồng quản trị?' : 'Thu hồi quyền đồng quản trị?' }}</h2>
+      <p><strong>{{ change.account.displayName }}</strong> · {{ change.account.email }}</p>
+      <p>{{ change.role === 'ADMIN' ? 'Tài khoản có toàn bộ quyền vận hành quản trị, nhưng không được cấp hoặc thu hồi quyền người khác.' : 'Tài khoản trở về quyền thành viên và không còn truy cập trang quản trị.' }}</p>
+      <p>Các phiên đăng nhập cũ và liên kết khôi phục mật khẩu đang chờ của tài khoản này sẽ bị thu hồi.</p>
+      <div class="actions">
+        <button type="button" (click)="cancel()" [disabled]="saving()">Hủy</button>
+        <button type="button" class="primary" (click)="confirm()" [disabled]="saving()">{{ saving() ? 'Đang cập nhật…' : 'Xác nhận thay đổi quyền' }}</button>
+      </div>
+    </section>
+  }
+
+  <div class="table-wrap" [attr.aria-busy]="loading()">
+    <table>
+      <caption>{{ loading() ? 'Đang tải tài khoản…' : total() + ' tài khoản trong hệ thống' }}</caption>
+      <thead><tr><th scope="col">Tài khoản</th><th scope="col">Vai trò</th><th scope="col">Trạng thái</th><th scope="col">Phân quyền</th></tr></thead>
+      <tbody>
+        @for (account of accounts(); track account.id) {
+          <tr>
+            <td><strong>{{ account.displayName }}</strong><span class="email">{{ account.email }}</span></td>
+            <td><span class="role" [class.owner]="account.adminLevel === 'OWNER'">{{ roleLabel(account) }}</span></td>
+            <td>{{ account.enabled ? 'Đang hoạt động' : 'Đã khóa' }}</td>
+            <td>
+              @if (account.adminLevel === 'OWNER') {
+                <span class="muted">Được bảo vệ</span>
+              } @else if (canManageRoles()) {
+                <button type="button" (click)="propose(account)" [disabled]="loading() || saving() || needsReload() || (!account.enabled && account.role !== 'ADMIN')" [attr.aria-label]="(account.role === 'ADMIN' ? 'Thu hồi quyền của ' : 'Cấp quyền cho ') + account.email">{{ account.role === 'ADMIN' ? 'Thu hồi quyền' : 'Cấp đồng quản trị' }}</button>
+              } @else {
+                <span class="muted">Chỉ admin chính</span>
+              }
+            </td>
+          </tr>
+        } @empty {
+          <tr><td colspan="4">{{ loading() ? 'Đang tải…' : 'Không có tài khoản phù hợp.' }}</td></tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  <nav class="pagination" aria-label="Trang danh sách tài khoản">
+    <button type="button" (click)="load(page() - 1)" [disabled]="page() === 0 || loading() || saving()">← Trước</button>
+    <span>Trang {{ totalPages() ? page() + 1 : 0 }} / {{ totalPages() }}</span>
+    <button type="button" (click)="load(page() + 1)" [disabled]="page() + 1 >= totalPages() || loading() || saving()">Sau →</button>
+  </nav>
+</section>

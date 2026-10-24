@@ -3,6 +3,8 @@ Website triển khai: https://exe-webapp.pages.dev .
 
 Website board game **Chưa Giàu Đã Lớn — Nhà Này Hơi Báo!**
 
+Quản trị tài khoản: `/admin/users` hỗ trợ tìm kiếm, cấp và thu hồi đồng quản trị. Chỉ admin chính được phân quyền; đồng quản trị có quyền vận hành nhưng không được cấp quyền tiếp. Quyền owner gắn với tài khoản admin hiện có bằng ID DB, không suy từ email. Chi tiết và trạng thái kiểm tra: [RBAC](docs/RBAC.md), [tiến trình](PROGRESS.md).
+
 ## Chuyển đổi backend sang Turso — 2026-10-22
 
 Backend mới nằm trong `backend/server/`: **TypeScript trên Node.js24, Hono, SDK libSQL/Turso**, giữ frontend Angular và các đường dẫn API. Dockerfile/CI đã chuyển sang runtime mới; source Spring Boot và migration PostgreSQL được giữ để tham chiếu lịch sử. Trạng thái triển khai thực tế xem [PROGRESS.md](PROGRESS.md), không suy ra đã deploy từ việc có source.

@@ -1,3 +1,5 @@
+> RBAC 2026-10-24: backend TypeScript có GET `/api/v1/admin/users` và PUT `/api/v1/admin/users/:id/role`; chỉ admin chính được đổi quyền, coadmin chỉ đọc danh sách và vận hành các API quản trị hiện có. Xem [RBAC.md](RBAC.md) cho policy, bootstrap, API và kết quả kiểm thử; không dùng các đoạn Spring Boot lịch sử bên dưới làm hướng dẫn runtime.
+
 # Backend admin — quản trị nội dung đợt A
 
 Hợp đồng phiên bản 0.1.0, ngày 2026-10-20. Frontend do AI khác phụ trách. Đây là bản thiết kế kèm API đã triển khai trong source của đợt này; CD `39385059734` tại `30bb28c` đã thành công; chưa nghiệm thu chức năng production. Đọc [OpenAPI](api/admin-content.openapi.json) để tạo type/client và [ADMIN_PLAN.md](ADMIN_PLAN.md) cho phạm vi dài hạn. Checklist là nguồn trạng thái nghiệm thu.

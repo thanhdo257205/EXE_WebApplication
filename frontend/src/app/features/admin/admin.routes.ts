@@ -57,8 +57,7 @@ export const ADMIN_ROUTES: Routes = [
       {
         path: 'users',
         title: 'Quản lý Tài khoản Cư dân — Quản trị viên NNHB',
-        data: { section: 'users' },
-        loadComponent: () => import('./section/admin-section.page').then(m => m.AdminSectionPage),
+        loadComponent: () => import('./users/admin-users.page').then(m => m.AdminUsersPage),
       },
       {
         path: 'system',

@@ -6,6 +6,7 @@ import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import type { Client } from '@libsql/client';
 import { all, one, execute, transaction, uuid, now, at, fail, type Row, type Executor } from './db.ts';
+import { accessView } from './rbac-policy.ts';
 
 export interface Config {
   production: boolean; publicOrigin: string; proxySecret: string; jwtSecret: string;
@@ -30,7 +31,7 @@ export async function authorize(db: Executor, actor: Actor, admin = false): Prom
   if (!user || !user.enabled || user.auth_version !== actor.version || (admin && user.role !== 'ADMIN')) return fail(403, 'AUTH_REQUIRED');
   return user;
 }
-const userView = (u: Row) => ({ id: u.id, email: u.email, displayName: u.display_name, role: u.role });
+const userView = async (db: Executor, u: Row) => ({ id: u.id, email: u.email, displayName: u.display_name, role: u.role, ...await accessView(db, u) });
 const email = z.string().trim().email().max(254).transform(s => s.toLowerCase());
 const password = z.string().min(1).max(72).refine(s => Buffer.byteLength(s) <= 72);
 const loginSchema = z.object({ email, password });
@@ -55,7 +56,7 @@ export function authRoutes(app: Api, db: Client, cfg: Config, sendMail?: (email:
       .setIssuer('exe-web-api').setAudience('exe-web').setJti(uuid()).setIssuedAt().setExpirationTime('30m').sign(Buffer.from(cfg.jwtSecret, 'base64'));
     setCookie(c, 'AUTH_TOKEN', jwt, { ...cookie, maxAge: 1800 });
     deleteCookie(c, 'XSRF-TOKEN', cookie);
-    return userView(u);
+    return userView(db, u);
   }
   app.get('/api/v1/auth/config', c => c.json({ password: true, google: cfg.googleEnabled, googleLoginUrl: cfg.googleEnabled ? '/api/v1/auth/oauth2/authorization/google' : null }));
   app.get('/api/v1/auth/csrf', c => {
@@ -89,7 +90,7 @@ export function authRoutes(app: Api, db: Client, cfg: Config, sendMail?: (email:
     await execute(db, 'INSERT INTO app_users(id,email,password_hash,display_name,role) VALUES (?,?,?,?,?)', [id, b.email, hash, b.displayName, 'CUSTOMER']);
     return c.json(await issue(c, await one(db, 'SELECT * FROM app_users WHERE id=?', [id])));
   });
-  app.get('/api/v1/auth/me', async c => c.json(userView(await authorize(db, requireActor(c)))));
+  app.get('/api/v1/auth/me', async c => c.json(await userView(db, await authorize(db, requireActor(c)))));
   app.post('/api/v1/auth/logout', async c => {
     const actor = c.get('actor');
     if (actor) await execute(db, 'UPDATE app_users SET auth_version=auth_version+1 WHERE id=? AND auth_version=?', [actor.id, actor.version]);

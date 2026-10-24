@@ -11,6 +11,7 @@ import { feedbackRoutes } from './feedback.ts';
 import { addressRoutes } from './addresses.ts';
 import { mediaRoutes, MAX_IMAGE_BYTES, type MediaStore } from './media.ts';
 import { Payments, paymentRoutes, type Provider } from './payments.ts';
+import { rbacRoutes } from './rbac.ts';
 
 export function createApp(db: Client, config: Config, provider: Provider | null = null, sendMail?: (email: string, url: string) => Promise<void>, media: MediaStore | null = null) {
   const app = new Hono<ApiEnv>();
@@ -63,6 +64,7 @@ export function createApp(db: Client, config: Config, provider: Provider | null 
   });
   authRoutes(app, db, config, sendMail);
   contentRoutes(app, db, cache);
+  rbacRoutes(app, db);
   mediaRoutes(app, db, media);
   feedbackRoutes(app, db, config);
   addressRoutes(app, db);

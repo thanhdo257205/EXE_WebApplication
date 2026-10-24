@@ -6,6 +6,7 @@ import { createApp } from './app.ts';
 import { payosProvider } from './payments.ts';
 import type { Config } from './auth.ts';
 import bcrypt from 'bcryptjs';
+import { initializeRbac } from './rbac.ts';
 
 const production = process.env.NODE_ENV === 'production';
 const config: Config = {
@@ -32,6 +33,7 @@ if (bootstrapEmail || bootstrapPassword) {
   const email = bootstrapEmail.trim().toLowerCase();
   if (!(await all(db, 'SELECT id FROM app_users WHERE email=?', [email])).length) await execute(db, 'INSERT INTO app_users(id,email,password_hash,display_name,role) VALUES (?,?,?,?,?)', [uuid(), email, await bcrypt.hash(bootstrapPassword, 12), 'Administrator', 'ADMIN']);
 }
+await initializeRbac(db);
 const r2 = r2Config(process.env);
 const azure = azureMediaConfig(process.env);
 const { app } = createApp(db, config, payosProvider(process.env), undefined, azure ? azureMediaStore(azure) : r2 ? r2Store(r2) : null);
