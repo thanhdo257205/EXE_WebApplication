@@ -10,6 +10,11 @@ Cập nhật: 2026-10-24 (Asia/Saigon).
 - [ ] PAGE-STYLE-02 — Xem 7 trang trên production và điện thoại thật; đo mực loang WebGL (`/cau-chuyen`) và vệt cọ (`/cua-hang`) trên GPU thật; thử Firefox/Safari (phần dùng scroll-driven animations).
 - [ ] PAGE-STYLE-03 — Đưa `fund-dashboard.css` (6,85 kB) xuống dưới mức cảnh báo 6 kB.
 
+## Skill thiết kế (2026-10-24)
+
+- [x] DESIGN-SKILL — `.claude/skills/nha-nay-design/SKILL.md` mô tả ngôn ngữ thiết kế hiện tại, đối chiếu với `styles.css`, trang chủ, page-hero, header, footer, admin.
+- [ ] DESIGN-MD-SYNC — Đồng bộ frontmatter `DESIGN.md` (vẫn ghi bảng màu kem cũ) với giao diện editorial tối hiện tại.
+
 ## Giao diện điện thoại (2026-10-23)
 
 - [x] MOBILE-OVERFLOW — Hết tràn ngang trên 21 trang ở 390px (header công khai/admin); mục tiêu chạm ≥40px trên màn cảm ứng.

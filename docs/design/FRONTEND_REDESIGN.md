@@ -1,5 +1,7 @@
 # Frontend: Diet Soda reference + Column Spread + Rise & Settle
 
+> Hướng dẫn thiết kế tổng hợp để dùng khi làm giao diện mới: [skill `nha-nay-design`](../../.claude/skills/nha-nay-design/SKILL.md) (2026-10-24).
+
 ## Direction contract
 
 - Authority: user-pinned Diet Soda reference at `D:/Angular/css-animation/index.html`; user-supplied Column Spread engine and Rise & Settle props. These override unrelated concept alternatives (`seed:4f8edfffb7547e49`).

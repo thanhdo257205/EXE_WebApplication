@@ -14,6 +14,13 @@
 - Hạn chế: cốt truyện chi tiết, tên/chân dung 8 nhân vật và luật đầy đủ vẫn chờ nội dung chính thức (trang chỉ nêu bối cảnh và cơ chế đã có trong tài liệu); hiệu ứng thu nhỏ/tối ở Thư viện và "đồng xu" trôi ở Quỹ nhà cần scroll-driven animations (Chromium, Safari mới), trình duyệt khác hiển thị tĩnh.
 - Việc tiếp theo: chủ dự án xem ảnh/duyệt; mở PR và merge nếu đồng ý; sau deploy xem trên production và điện thoại thật; thay bối cảnh bằng nội dung đã duyệt khi có.
 
+### Skill thiết kế giao diện — 2026-10-24, chỉ tài liệu, đã merge (PR #21)
+
+- Theo yêu cầu "xem mã nguồn, xem cách design và xuất thành một file skill": thêm [.claude/skills/nha-nay-design/SKILL.md](.claude/skills/nha-nay-design/SKILL.md), tổng hợp từ mã hiện tại: token màu (`--ed-*`, 4 tone lime/pink/blue/orange kèm ink), chữ (Anton display, Be Vietnam Pro, Fraunces nghiêng; xử lý dấu tiếng Việt), bố cục (`--gutter`, `--section`, breakpoint), bộ `kit-*`, `app-page-hero`, kính lỏng và các mức hạ cấp, chuyển động (Rise & Settle, reveal, boot, view transition, marquee, Lenis), hero 3D WebGPU + dự phòng, hiệu năng, trợ năng, form, khu quản trị, quy trình làm trang mới, nên/không nên và bản đồ file.
+- Bổ sung theo yêu cầu: skill ghi rõ **có thể dùng WebGPU thuần để thể hiện ý tưởng tốt nhất** (mục 10: cấu trúc file theo hero/Sân đấu, nguyên tắc nạp lười, instancing, giới hạn khung, dự phòng bắt buộc, cách kiểm tra).
+- Ghi chú trong skill: frontmatter `DESIGN.md` (nền kem) là giai đoạn cũ; mã nguồn là chuẩn.
+- Không đổi code/cấu hình chạy nên không chạy lại test runtime. Trạng thái GitHub: nhánh `claude/nifty-meitner-e36xmb`, [PR #21](https://github.com/thanhdo257205/EXE_WebApplication/pull/21) đã merge vào `main` (`63c2e54`).
+
 ### Ảnh thẻ trên Cloudflare R2 — 2026-10-23, đã merge (PR #20)
 
 - Theo yêu cầu "thử lưu thẻ trên cloud bằng R2" (đã giải thích không lưu ảnh trong DB, chỉ lưu đường dẫn): backend `media.ts` (tải ảnh admin, nhận diện PNG/JPEG/WebP theo byte, ≤1 MiB, khóa theo hash, ký SigV4 bằng `node:crypto`, audit), gateway phục vụ `/media/cards/<hash>` từ R2 binding tùy chọn (cache immutable, ETag/304) và nâng giới hạn thân cho đường tải ảnh, validator `artworkUrl` chấp nhận `/media/cards/...`, admin có khối tải ảnh (nén WebP trên trình duyệt). Chi tiết và các bước cấu hình: [docs/R2_CARD_IMAGES.md](docs/R2_CARD_IMAGES.md).
