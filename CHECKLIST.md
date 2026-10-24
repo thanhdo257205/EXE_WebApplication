@@ -7,6 +7,7 @@ Cập nhật: 2026-10-24 (Asia/Saigon).
 - [x] AZURE-MEDIA-01 — Kho riêng Azure for Students, Standard_LRS Hot Singapore; spending limit On; 35 tệp đối chiếu byte; thử upload Azure thật; cấu hình Render SAS giới hạn container.
 - [x] AZURE-MEDIA-02 — Bộ tải Azure + proxy đọc ảnh cùng origin, routing Pages/manifest, giữ URL cũ; backend 34 pass/1 skip, gateway 30 pass, typecheck và dry-run qua.
 - [x] AZURE-MEDIA-03 — CI40085221452/CD40085281301 success, runtime a18a188; 33 ảnh production qua Azure khớp byte; ảnh upload hash 200/immutable, HEAD 200, ETag 304, thiếu 404; upload thiếu CSRF 403.
+- [x] AZURE-MEDIA-05 — Chủ dự án chốt giữ một GLB dùng chung trên Pages, ảnh texture/poster trên Azure; client gắn texture và dựng 3D. Đã ghi quyết định trong docs/AZURE_CARD_IMAGES.md, không đổi runtime (2026-10-24).
 - [ ] AZURE-MEDIA-04 — Thử đăng nhập admin và tải ảnh qua trình duyệt production; thay SAS trước 2027-10-24 00:00 UTC; kiểm tra credit/ngày hết hạn Azure for Students.
 
 ## Phong cách riêng cho từng trang con (2026-10-24)

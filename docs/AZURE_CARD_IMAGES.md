@@ -9,6 +9,21 @@
 - Container `card-images`: anonymous **blob read** cho ảnh công khai, không anonymous list/write. Không chứa dữ liệu riêng tư. Kho question-bank hiện có không bị thay đổi.
 - Đã đối chiếu toàn bộ **35 tệp** (33 ảnh SVG/WebP + 2 tệp nguồn/ghi công) trên Azure với byte local. Thêm một bản default poster đặt theo SHA-256 để thử thật bộ tải Azure.
 
+## Quyết định lưu model và texture — 2026-10-24
+
+Chủ dự án xác nhận giữ cách phân phối hiện tại:
+
+| Thành phần | Nơi phục vụ | Cách sử dụng |
+| --- | --- | --- |
+| Model hình học `default-card.glb` (383.984 byte, khoảng 384 kB) | Cloudflare Pages, `/assets/models/default-card.glb` | Một model chung cho các thẻ cùng hình dạng; phát hành cùng frontend. |
+| Ảnh mặt thẻ/texture và ảnh xem trước | Azure Blob Storage, đọc qua Pages → gateway → Azure | Mỗi thẻ dùng ảnh tương ứng; giữ URL cùng origin `/assets/cards/...`, `/assets/models/default-card-poster.webp` hoặc `/media/cards/<hash>.<ext>`. |
+
+- Ví dụ bộ 124 thẻ cùng hình dạng: một model dùng chung và các ảnh mặt thẻ riêng, không cần 124 file GLB. Con số này là ví dụ quy mô được trao đổi, không thay số thẻ trong tài liệu luật/game.
+- Trình duyệt tải model/ảnh, giải mã texture và dựng thẻ trên GPU; server lưu/phục vụ tài nguyên và dữ liệu. Không tạo lại GLB trên server khi chỉ thay ảnh mặt thẻ.
+- Đường dẫn ảnh/danh sách thẻ mẫu còn viết cố định trong code không có nghĩa ảnh được phục vụ từ file tĩnh Pages: gateway đang lấy byte ảnh từ Azure. Bản ảnh gốc vẫn nằm trong source/build để có thể khôi phục; luồng hiện tại không tự chuyển sang bản đó khi Azure lỗi.
+- Chỉ cân nhắc model riêng khi hình học khác; chỉ cân nhắc chuyển GLB lên Azure khi cần nhiều model hoặc quản lý model độc lập qua admin. Không thực hiện các thay đổi này trong đợt ghi nhận quyết định.
+- Đây là quyết định giữ nguyên runtime đã triển khai, chỉ cập nhật tài liệu; không cần deploy hoặc chạy lại test runtime.
+
 ## Luồng và đường dẫn
 
 - Các ảnh hiện có giữ nguyên URL `/assets/cards/...` và `/assets/models/default-card-poster.webp`: Pages → binding GATEWAY → Azure, không cần thay code 3D/Sân đấu. Tệp ghi công/nguồn tiếp tục do Pages phục vụ.

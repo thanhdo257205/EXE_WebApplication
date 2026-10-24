@@ -4,6 +4,13 @@
 
 ## Cập nhật gần nhất
 
+### Chốt nơi lưu model 3D và texture — 2026-10-24, chỉ tài liệu
+
+- Chủ dự án xác nhận giữ model `default-card.glb` dùng chung (383.984 byte) trên Cloudflare Pages; ảnh mặt thẻ/texture và ảnh xem trước lấy từ Azure qua gateway cùng origin.
+- Các thẻ cùng hình dạng tái sử dụng model; trình duyệt gắn texture và dựng 3D, không tạo GLB riêng cho mỗi ảnh. Ví dụ 124 thẻ không làm thay đổi tổng số thẻ trong tài liệu game.
+- Ghi quyết định và phạm vi trong [AZURE_CARD_IMAGES.md](docs/AZURE_CARD_IMAGES.md). Chỉ sửa docs, không đổi code/cấu hình hoặc runtime production `a18a188`; kiểm tra diff và đẩy cùng commit tài liệu `[skip ci]`, không chạy lại test/deploy runtime.
+
+
 ### Chuyển kho ảnh thẻ sang Azure — 2026-10-24, đã triển khai và xác minh
 
 - Chủ dự án chọn Azure for Students vì R2 yêu cầu phương thức thanh toán. Đã tạo kho riêng `rg-exe-webapp` / `stexecardimages257` / `card-images`, Standard_LRS Hot tại Singapore. Giữ spending limit On; chưa xác minh credit còn lại, không đổi gói.
