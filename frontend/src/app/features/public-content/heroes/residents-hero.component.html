@@ -1,0 +1,17 @@
+<header class="vane">
+  <div class="top">
+    <a routerLink="/" class="back">← Về căn nhà</a>
+    <ul class="roles" aria-label="Thông tin nhân vật">@for (role of roles; track role; let i = $index) {<li [style.--k]="i">{{ role }}</li>}</ul>
+    <p class="intro">Mỗi ván, {{ game.players }} người chơi chọn {{ game.players }} trong {{ game.characters }} nhân vật. Mỗi hồ sơ có tiểu sử và một kỹ năng riêng.</p>
+  </div>
+  <h1 class="giant"><span class="sr">{{ heading() }}</span>@for (line of lines; track $index; let l = $index) {<span class="line" aria-hidden="true">@for (ch of line; track $index) {<span class="ch" [style.--k]="$index + l * 6">{{ ch }}</span>}</span>}</h1>
+  <div class="fan" aria-hidden="true">
+    @for (slot of slots; track slot.n) {
+      <span class="slot" [style.--r]="slot.r + 'deg'" [style.--k]="slot.n"><i class="sil"></i><b>{{ slot.label }}</b><small>Hồ sơ 0{{ slot.n }}</small></span>
+    }
+  </div>
+  <div class="melt" aria-hidden="true"></div>
+  <p class="cue">Ô hồ sơ minh họa · chân dung và tên công bố cùng bản chính thức</p>
+  <div class="foot"><ng-content /></div>
+</header>
+<app-marquee class="strip" [items]="marquee" />

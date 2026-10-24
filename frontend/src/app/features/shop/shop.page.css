@@ -1,25 +1,37 @@
-:host{display:block;background:#0b0c0d;color:#f3f1ea;min-height:70vh}
-.shop{max-width:1200px;margin:0 auto;padding:0 var(--gutter,24px) 96px}
-.state{margin:48px 0;color:#8f9289}.state button{margin-top:12px;padding:10px 18px;border:1px solid #f3f1ea40;border-radius:999px;color:#f3f1ea}
-.grid{display:grid;gap:32px;margin:56px 0 0;padding:0;list-style:none;grid-template-columns:repeat(auto-fill,minmax(min(100%,520px),1fr))}
-.product{display:grid;grid-template-columns:minmax(140px,220px) 1fr;gap:28px;padding:24px;border:1px solid #f3f1ea1a;border-radius:18px;background:#141618}
-.art{display:grid;place-items:center;padding:12px;border-radius:14px;background:#e5e5d8}.art img{width:100%;height:auto;max-height:300px;object-fit:contain}
-.info{display:flex;flex-direction:column;gap:14px}h2{margin:0;font-size:28px;line-height:1.1}.desc{margin:0;color:#8f9289;line-height:1.6;font-size:14px}
-.meta{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:auto 0 0;padding-top:14px;border-top:1px solid #f3f1ea1a;font-size:13px;color:#8f9289}
-.meta strong{font-size:28px;font-weight:600;color:#dafa76;letter-spacing:-.01em}
-.buy{display:inline-flex;justify-content:center;padding:15px 24px;border-radius:999px;background:#dafa76;color:#183c2b;font-weight:700;font-size:14px;transition:background .2s}.buy:hover{background:#e6fb9d}
-.sold-out{color:#8f9289;font-size:14px}
-@media(max-width:560px){.product{grid-template-columns:1fr}.art{max-width:240px}}
-.facts{display:flex;flex-wrap:wrap;gap:28px;margin:32px 0 0;padding-top:20px;border-top:1px solid #f3f1ea1f}
-.facts dt{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#8f9289}.facts dd{margin:6px 0 0;font-size:14px;font-weight:700}
-.art.empty{padding:0;overflow:hidden;background:radial-gradient(120% 80% at 20% 0,#2f5a43,#163024 70%)}
-.mock{display:flex;flex-direction:column;gap:10px;width:100%;aspect-ratio:5/7;padding:18px;color:#dafa76;box-shadow:inset 0 0 0 1px #dafa7640;border-radius:14px}
-.mock small{font-size:9px;letter-spacing:.2em;text-transform:uppercase;opacity:.8}
-.mock b{font:400 clamp(26px,3vw,38px)/.95 var(--font-display,Anton,Impact,sans-serif);text-transform:uppercase}
-.mock i{margin-top:auto;padding-top:10px;border-top:1px solid #dafa7640;color:#f3f1ea;font-size:12px;font-style:normal}
-.steps{margin-top:clamp(72px,9vw,128px);padding-top:clamp(48px,6vw,80px);border-top:1px solid #f3f1ea1a}
-.steps h2{margin:20px 0 40px;font-size:clamp(40px,5.5vw,84px);line-height:1.02}
-.steps ol{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:0;padding:0;list-style:none}
-.steps li{display:flex;flex-direction:column;gap:12px;padding:28px;--kc:#f3f1ea55}.steps li:hover{--kc:#dafa76}
-.steps .num{font-size:44px;color:#dafa76}.steps h3{margin:8px 0 0;font-size:20px}.steps li p{margin:0;color:#b9b7af;font-size:14px;line-height:1.7}
-@media(max-width:800px){.steps ol{grid-template-columns:1fr}}
+/* Phần sau đầu trang (Lumora): sản phẩm trên thẻ sáng, cách mua và số liệu trong khối mực đen */
+:host { --ink: #0a0a0a; --fill: #f1f0ee; --line: #e6e5e2; --orange: #b15f2c; display: block; min-height: 70vh; background: #fff; color: #111; font-family: 'Be Vietnam Pro', system-ui, sans-serif; }
+.shop { max-width: 1280px; margin: 0 auto; padding: clamp(64px, 8vw, 112px) var(--gutter) 0; }
+.shop h2, .ink h2 { margin: 1rem 0 0; font-size: clamp(30px, 3.4vw, 48px); font-weight: 500; letter-spacing: -.02em; }
+.state { margin: 40px 0; color: #6b6a66; }
+.state button { margin-top: 12px; padding: 10px 18px; border-radius: 999px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 520px), 1fr)); gap: 20px; margin: 40px 0 0; padding: 0; list-style: none; }
+.product { display: grid; grid-template-columns: minmax(140px, 220px) 1fr; gap: 24px; padding: 12px; border-radius: 1.25rem; background: var(--fill); transition: transform .3s cubic-bezier(.16, 1, .3, 1); }
+.product:hover { transform: translateY(-3px); }
+.art { display: grid; place-items: center; padding: 12px; border-radius: .875rem; background: #fff; }
+.art img { width: 100%; height: auto; max-height: 300px; object-fit: contain; }
+.art.empty { overflow: hidden; padding: 0; background: var(--ink); }
+.mock { display: flex; flex-direction: column; gap: 10px; width: 100%; aspect-ratio: 5 / 7; padding: 18px; border-radius: .875rem; color: #cf8047; }
+.mock small { font-size: 9px; letter-spacing: .2em; text-transform: uppercase; opacity: .8; }
+.mock b { font: 400 clamp(26px, 3vw, 38px)/.95 var(--font-display, Anton, Impact, sans-serif); text-transform: uppercase; }
+.mock i { margin-top: auto; padding-top: 10px; border-top: 1px solid rgba(207, 128, 71, .35); font-size: 12px; font-style: normal; color: #f1f0ee; }
+.info { display: flex; flex-direction: column; gap: 12px; padding: 12px 12px 12px 0; }
+.info h3 { margin: 0; font-size: 26px; font-weight: 600; line-height: 1.15; letter-spacing: -.02em; }
+.desc { margin: 0; font-size: 14px; line-height: 1.6; color: #6b6a66; }
+.meta { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: auto 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 13px; color: #6b6a66; }
+.meta strong { font-size: 28px; font-weight: 600; letter-spacing: -.02em; color: var(--orange); }
+.buy { align-self: flex-start; }
+.sold-out { font-size: 14px; color: #6b6a66; }
+
+.ink-wrap { padding: clamp(64px, 8vw, 112px) var(--gutter) clamp(64px, 8vw, 112px); }
+.ink { max-width: 1280px; margin: 0 auto; padding: clamp(48px, 6vw, 72px) clamp(24px, 5vw, 64px); border-radius: 2rem; background: var(--ink); color: #fff; }
+.steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2rem; margin: 3rem 0 0; padding: 0; list-style: none; }
+.steps li { padding-top: 1.25rem; border-top: 1px solid rgba(255, 255, 255, .15); }
+.num { font-size: 14px; font-weight: 500; color: #cf8047; }
+.steps h3 { margin: 12px 0 8px; font-size: 20px; font-weight: 500; }
+.steps p { margin: 0; font-size: 14px; line-height: 1.7; color: rgba(255, 255, 255, .6); }
+.numbers { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 3rem 2rem; margin: 3.5rem 0 0; }
+.numbers div { display: flex; flex-direction: column-reverse; }
+.numbers dd { margin: 0; font-size: clamp(48px, 5.6vw, 76px); font-weight: 600; line-height: 1; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.numbers dt { margin-top: .75rem; font-size: 14px; color: rgba(255, 255, 255, .55); }
+@media (max-width: 800px) { .steps { grid-template-columns: 1fr; } .numbers { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .product { grid-template-columns: 1fr; } .art { max-width: 240px; } .info { padding: 4px; } }

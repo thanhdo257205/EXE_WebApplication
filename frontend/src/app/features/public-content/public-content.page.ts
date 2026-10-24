@@ -1,4 +1,4 @@
-import { isPlatformBrowser } from '@angular/common';
+import { isPlatformBrowser, NgTemplateOutlet } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, DestroyRef, inject, input, OnInit, PLATFORM_ID, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -28,15 +28,19 @@ import {
 } from '../../core/content/default-card';
 import { ExploreCardsComponent } from '../../shared/components/explore-cards/explore-cards.component';
 import { PageHeroComponent, PageTone } from '../../shared/components/page-hero/page-hero.component';
+import { LibraryHeroComponent } from './heroes/library-hero.component';
+import { ResidentsHeroComponent } from './heroes/residents-hero.component';
+import { WikiHeroComponent } from './heroes/wiki-hero.component';
 
 @Component({
   selector: 'app-public-content-page',
-  imports: [RouterLink, CardViewerComponent, ExploreCardsComponent, PageHeroComponent],
+  imports: [RouterLink, NgTemplateOutlet, CardViewerComponent, ExploreCardsComponent, PageHeroComponent, LibraryHeroComponent, ResidentsHeroComponent, WikiHeroComponent],
   templateUrl: './public-content.page.html',
   styleUrls: [
     './public-content.page.css',
     './public-content.detail.css',
     './public-content.cards.css',
+    './public-content.heroes.css',
   ],
 })
 export class PublicContentPage implements OnInit {

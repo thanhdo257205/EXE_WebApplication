@@ -1,0 +1,38 @@
+<header class="navy">
+  <span class="ghost" aria-hidden="true">Wiki</span>
+  <div class="nav-row">
+    <a routerLink="/" class="back">← Về căn nhà</a>
+    <span class="crumb">Wiki luật chơi</span>
+    <span class="chip">{{ game.name }}</span>
+  </div>
+  <h1 class="title"><span class="sr">{{ heading() }}</span>@for (word of words(); track word.i) {<span class="mask" aria-hidden="true"><span class="w" [style.--i]="word.i">{{ word.w }}</span></span>}</h1>
+  <div class="under">
+    <div>
+      @if (description()) { <p class="lede">{{ description() }}</p> }
+      <ng-content />
+    </div>
+    <dl class="band">
+      <div><dt>loại bài viết</dt><dd>{{ types.length }}</dd></div>
+      <div><dt>phút học luật với Quick Start (mục tiêu)</dt><dd>≤{{ game.learnMinutes }}</dd></div>
+      <div><dt>tra cứu luật từ hộp game (đang triển khai)</dt><dd>QR</dd></div>
+    </dl>
+  </div>
+</header>
+<section class="programs" aria-labelledby="types-title">
+  <div>
+    <p class="eyebrow-b">Năm loại bài viết</p>
+    <h2 id="types-title">Mở đúng<br>ngăn sổ tay</h2>
+    <p class="hint">Chọn một loại để lọc danh sách; chọn lại để xem tất cả.</p>
+  </div>
+  <ol>
+    @for (type of types; track type.value; let i = $index) {
+      <li>
+        <button type="button" class="row" [attr.aria-pressed]="active() === type.value" (click)="choose(type.value)">
+          <span class="n">0{{ i + 1 }}</span>
+          <span class="txt"><strong>{{ type.label }}</strong><em>{{ type.note }}</em></span>
+          <span class="go" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" /></svg></span>
+        </button>
+      </li>
+    }
+  </ol>
+</section>

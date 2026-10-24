@@ -1,0 +1,132 @@
+<div class="sky" aria-hidden="true"><span class="stars"></span><span class="orb"><i class="rim"></i><i class="edge"></i></span></div>
+
+<header class="hero">
+  <div class="hero-inner">
+    <p class="badge" appReveal><span class="dot"></span>Quỹ Nhà Chung · {{ game.name }}</p>
+    <h1 [appReveal]="60">Góp kín,<br>trả <em>chung</em>.</h1>
+    <p class="sub" [appReveal]="180">Cuối mỗi tháng, {{ residents.length }} cư dân góp kín 0–{{ max }} Tiền vào Quỹ Chung để trả hóa đơn cơ bản {{ bill }} Tiền. Góp hay giữ, bạn tự chọn, nhưng cả nhà cùng chịu kết quả.</p>
+    <div class="actions" [appReveal]="300">
+      <a href="/quy-nha#bang-quy" class="kit-pill" (click)="$event.preventDefault(); scrollToBoard()">Mở bảng góp quỹ <span class="kit-arrow" aria-hidden="true">↓</span></a>
+      <a routerLink="/cach-choi" class="btn-outline">Xem cách chơi</a>
+    </div>
+  </div>
+  <p class="scroll-cue" aria-hidden="true">Cuộn xuống</p>
+</header>
+
+<section class="section" aria-labelledby="rules-title">
+  <div class="section-head">
+    <p class="eyebrow" appReveal>Luật quỹ</p>
+    <h2 id="rules-title" [appReveal]="80">Sáu điều cả nhà cần biết về Quỹ Chung</h2>
+    <p [appReveal]="160">Tóm tắt từ bản thiết kế trò chơi. Con số và chi tiết cuối cùng theo bộ luật chính thức.</p>
+  </div>
+  <ul class="rule-grid">
+    @for (rule of rules; track rule.title; let i = $index) {
+      <li class="glass card" [appReveal]="i * 90">
+        <span class="icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            @switch (rule.icon) {
+              @case ('lock') { <rect x="4" y="10" width="16" height="11" rx="2.5" /><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14.5v2.5" /> }
+              @case ('hand') { <circle cx="12" cy="7" r="4" /><path d="M12 5.5v3M3 21v-3.5a2 2 0 0 1 2-2h3l3.5 2H15a1.5 1.5 0 0 1 0 3h-4M15 18.5l4.2-2.1a1.6 1.6 0 0 1 1.8 2.6L16 22H8" /> }
+              @case ('bill') { <path d="M6 2h12v20l-3-2-3 2-3-2-3 2V2Z" /><path d="M9 7h6M9 11h6M9 15h3" /> }
+              @case ('talk') { <path d="M21 12a8 8 0 0 1-11.6 7.1L4 21l1.9-5.4A8 8 0 1 1 21 12Z" /><path d="M8.5 12h.01M12 12h.01M15.5 12h.01" /> }
+              @case ('heart') { <path d="M12 20s-8-4.7-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 9c0 6.3-8 11-8 11Z" /> }
+              @default { <path d="M4 19V5M4 19h16" /><path d="m7 15 4-4 3 3 6-6M15 8h5v5" /> }
+            }
+          </svg>
+        </span>
+        <h3>{{ rule.title }}</h3>
+        <p>{{ rule.text }}</p>
+      </li>
+    }
+  </ul>
+</section>
+
+<section class="section showcase" id="bang-quy" aria-labelledby="board-title">
+  <div class="showcase-copy">
+    <p class="eyebrow" appReveal>Bảng góp quỹ</p>
+    <h2 id="board-title" [appReveal]="90">Đếm quỹ trước khi hóa đơn tới cửa</h2>
+    <p [appReveal]="180">Chỉnh số Tiền từng cư dân góp, hoặc chọn một kịch bản có sẵn. Bật <strong>Góp kín</strong> để úp số tiền như trong ván thật, rồi lật quỹ xem cả nhà Thiếu, Đủ hay Dư.</p>
+    <div class="presets" role="group" aria-label="Kịch bản góp quỹ" [appReveal]="270">
+      @for (preset of presets; track preset.label) {
+        <button type="button" class="chip" [class.on]="same(preset.values)" [attr.aria-pressed]="same(preset.values)" (click)="apply(preset.values)">{{ preset.label }} <small>{{ preset.values.join(' · ') }}</small></button>
+      }
+    </div>
+  </div>
+
+  <div class="glass dashboard" [attr.data-status]="hidden() ? 'an' : status()" [appReveal]="160">
+    <div class="dash-top">
+      <p>Quỹ Chung · Tháng này</p>
+      <span class="live"><i></i>Mô phỏng</span>
+    </div>
+    <div class="bars" role="img" [attr.aria-label]="hidden() ? 'Số góp của từng cư dân đang úp kín' : 'Số góp: ' + paid().join(', ') + ' Tiền'">
+      <span class="even" [style.--e]="bill / residents.length / max"></span><span class="legend">- - chia đều {{ bill / residents.length }} Tiền/người</span>
+      @for (name of residents; track name; let i = $index) {
+        <span class="bar" [class.secret]="hidden()" [style.--v]="hidden() ? 0.55 : paid()[i] / max" [style.--i]="i">
+          <b>{{ hidden() ? '?' : paid()[i] }}</b><i></i><small>CD{{ i + 1 }}</small>
+        </span>
+      }
+    </div>
+    <ul class="rows" aria-label="Số tiền mỗi cư dân góp">
+      @for (name of residents; track name; let i = $index) {
+        <li>
+          <span class="who">{{ name }}</span>
+          <span class="track"><span class="fill" [style.--w]="paid()[i] / max"></span></span>
+          <span class="stepper">
+            <button type="button" [attr.aria-label]="'Bớt 1 Tiền của ' + name" [disabled]="paid()[i] === 0" (click)="change(i, -1)">−</button>
+            <output [attr.aria-label]="name + ' góp ' + paid()[i] + ' Tiền'">{{ paid()[i] }}</output>
+            <button type="button" [attr.aria-label]="'Thêm 1 Tiền cho ' + name" [disabled]="paid()[i] === max" (click)="change(i, 1)">+</button>
+          </span>
+        </li>
+      }
+    </ul>
+    <div class="total" aria-live="polite">
+      <dl>
+        <div><dt>Tổng góp</dt><dd>{{ hidden() ? '??' : total() }}<small> / {{ bill }} Tiền</small></dd></div>
+        <div><dt>Kết quả</dt><dd class="verdict">{{ hidden() ? 'Đang úp' : label() }}</dd></div>
+      </dl>
+      <div class="meter" role="img" [attr.aria-label]="hidden() ? 'Quỹ đang úp kín' : 'Tổng góp ' + total() + ' trên hóa đơn ' + bill + ' Tiền'">
+        <span class="meter-fill" [style.--w]="hidden() ? 0 : total() / ceiling"></span><span class="mark" [style.left.%]="(bill / ceiling) * 100"><small>Hóa đơn {{ bill }}</small></span>
+      </div>
+      <p class="message">{{ message() }}</p>
+    </div>
+    <div class="controls">
+      <button type="button" class="switch" role="switch" [attr.aria-checked]="secret()" (click)="toggleSecret()"><span></span>Góp kín</button>
+      @if (hidden()) { <button type="button" class="flip" (click)="flip()">Lật quỹ</button> }
+      <button type="button" class="reset" (click)="reset()">Đặt lại</button>
+    </div>
+  </div>
+</section>
+
+<section class="section" aria-labelledby="outcome-title">
+  <div class="section-head">
+    <p class="eyebrow" appReveal>Cuối tháng</p>
+    <h2 id="outcome-title" [appReveal]="80">Ba kết cục khi lật quỹ</h2>
+  </div>
+  <ol class="outcomes">
+    @for (outcome of outcomes; track outcome.key; let i = $index) {
+      <li class="glass outcome" [attr.data-key]="outcome.key" [class.now]="!hidden() && status() === outcome.key" [appReveal]="i * 90">
+        <span class="tag">{{ outcome.label }}</span>
+        <h3>{{ outcome.title }}</h3>
+        <p>{{ outcome.text }}</p>
+        @if (!hidden() && status() === outcome.key) { <span class="now-pill">Bảng góp đang ở đây</span> }
+      </li>
+    }
+  </ol>
+  <dl class="stats">
+    @for (stat of stats; track stat.label; let i = $index) {
+      <div class="glass stat" [appReveal]="i * 80"><dt>{{ stat.label }}</dt><dd>{{ stat.value }}</dd></div>
+    }
+  </dl>
+</section>
+
+<section class="section cta" aria-labelledby="cta-title">
+  <div class="glass cta-card" appReveal>
+    <p class="eyebrow">Vào nhà thật</p>
+    <h2 id="cta-title">Giữ nhà qua một tháng với {{ game.players }} người chơi</h2>
+    <p>Mỗi ván kéo dài khoảng {{ game.minutes }} phút theo bản thiết kế, với {{ game.characters }} nhân vật và {{ game.cards }} lá bài.</p>
+    <div class="actions">
+      <a routerLink="/cach-choi" class="kit-pill">Xem cách chơi <span class="kit-arrow" aria-hidden="true">→</span></a>
+      <a routerLink="/cu-dan" class="btn-outline">Gặp các cư dân</a>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,52 @@
+/* Cách chơi — chương điện ảnh kiểu Laocoön: ghim khi cuộn, lưới 5 đường kẻ có chấm, thanh story, chữ hiện từng ký tự (mờ → nét). */
+:host { display: block; background: #08090a; color: #fff6ed; --tint: #dafa76; }
+.track { position: relative; }
+.track.pinned { height: calc(var(--n) * 100svh + 30svh); }
+.stage { position: relative; isolation: isolate; background: radial-gradient(60% 55% at 72% 34%, color-mix(in srgb, var(--tint) 16%, transparent), transparent 70%), #08090a; transition: --tint .9s ease; }
+.pinned .stage { position: sticky; top: 80px; height: calc(100svh - 80px); overflow: hidden; }
+/* Một chương */
+.slide { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 40px; align-items: end; padding: 72px 60px; border-bottom: 1px solid #ffffff14; }
+.pinned .slide { position: absolute; inset: 64px 0 0; display: block; padding: 0; border: 0; pointer-events: none; }
+.pinned .slide.active { pointer-events: auto; }
+.mask { margin: 0; overflow: hidden; aspect-ratio: 1; border-radius: 4px; max-width: 420px; }
+.mask img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.pinned .mask { position: absolute; top: 32px; width: calc(25vw - 60px); max-width: none; clip-path: inset(0 0 100% 0); opacity: 0; transition: clip-path 1.6s cubic-bezier(.16, 1, .3, 1), opacity .8s ease; }
+.pinned .mask img { transform: scale(1.15); transition: transform 1.6s cubic-bezier(.16, 1, .3, 1); }
+.pinned .active .mask { clip-path: inset(0); opacity: 1; }
+.pinned .active .mask img { transform: scale(1); }
+.copy { position: relative; z-index: 3; }
+.pinned .copy { position: absolute; bottom: 11%; }
+.kicker { display: flex; align-items: center; gap: 12px; margin: 0 0 18px; font-size: 11px; letter-spacing: .24em; text-transform: uppercase; color: #c9cbc3; }
+.kicker span { color: var(--tint); font: 400 14px/1 var(--font-display); letter-spacing: .1em; }
+.title { margin: 0 0 22px; font: italic 700 clamp(46px, 7.4vw, 116px)/1.02 Fraunces, Georgia, serif; letter-spacing: -.01em; color: #fff6ed; }
+.word { display: inline-block; margin-right: .22em; white-space: nowrap; }
+.pinned .char { display: inline-block; opacity: 0; transform: translateY(50px); filter: blur(12px); transition: opacity .8s cubic-bezier(.25, 1, .5, 1), transform .8s cubic-bezier(.25, 1, .5, 1), filter .8s cubic-bezier(.25, 1, .5, 1); transition-delay: calc(var(--k) * 30ms); }
+.pinned .active .char { opacity: 1; transform: none; filter: none; }
+.desc { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 40px; max-width: 760px; }
+.desc p { margin: 0; font-size: 16px; line-height: 1.75; font-weight: 300; color: #d1d5db; }
+.desc p:first-child { color: #f3f1ea; font-weight: 400; }
+.pinned .kicker { opacity: 0; transition: opacity .6s ease .2s; }
+.pinned .active .kicker { opacity: 1; }
+.pinned .desc, .pinned .copy .kit-pill { opacity: 0; transform: translateY(30px); transition: opacity .8s cubic-bezier(.25, 1, .5, 1) .45s, transform .8s cubic-bezier(.25, 1, .5, 1) .45s; }
+.pinned .active .desc, .pinned .active .copy .kit-pill { opacity: 1; transform: none; }
+.copy .kit-pill { margin-top: 26px; }
+.copy .kit-pill.ghost > .kit-arrow { background: var(--tint); color: #183c2b; }
+/* Ba bố cục xen kẽ theo lưới 4 cột như bản gốc */
+.pinned .s0 .copy { left: 60px; right: 60px; }
+.pinned .s0 .mask { right: 60px; }
+.pinned .s1 .mask { left: 60px; }
+.pinned .s1 .copy { left: calc(25vw + 40px); right: 60px; }
+.pinned .s2 .mask { left: calc(25vw + 40px); }
+.pinned .s2 .copy { left: calc(50vw + 20px); right: 60px; }
+.pinned .s2 .desc { grid-template-columns: 1fr; max-width: 520px; gap: 14px; }
+@media (max-width: 900px) {
+  .stage-top { padding: 0 20px; } .stage-top h1 span { display: none; }
+  .grid { inset: 0 20px; } .grid i:nth-child(2), .grid i:nth-child(4) { display: none; }
+  .slide { grid-template-columns: 1fr; padding: 48px 20px; }
+  .pinned .copy, .pinned .s0 .copy, .pinned .s1 .copy, .pinned .s2 .copy { left: 20px; right: 20px; bottom: 7%; }
+  .pinned .mask, .pinned .s0 .mask, .pinned .s1 .mask, .pinned .s2 .mask { top: 24px; left: auto; right: 20px; width: 38vw; }
+  .desc, .pinned .s2 .desc { grid-template-columns: 1fr; gap: 12px; }
+  .desc p { font-size: 15px; }
+  .hint { display: none !important; }
+}
+@media (prefers-reduced-motion: reduce) { .stage { transition: none; } }

@@ -131,7 +131,7 @@ Thành phần mới: `CountUpDirective` (`appCountUp`, đếm từ 0 khi vào kh
 
 - Trang chủ: thêm khu "Trong nhà có gì" (thẻ Sân đấu nổi bật có bàn đấu thu nhỏ bằng CSS + 4 thẻ phòng), dải số liệu trong khung góc có đếm lên và chú thích, phần kết thành hàng CTA (Chơi thử / Mua hộp game / Câu chuyện). CSS mới ở `home-sections.css`.
 - Trang khung (`/cach-choi`, `/quy-nha`, `/cau-chuyen`, 404): phần đầu có hàng meta (khu vực/trạng thái/số phần) và chữ nền; route data mới `section`, `chapters` (mục lục, gắn nhãn "Đang biên soạn" — không viết luật chưa có), `tool`. Input tùy chọn có transform vì binding đặt input về `undefined` khi route thiếu khóa (lỗi này đã làm trắng trang `/quy-nha` khi thử, có spec chặn lại).
-- `/quy-nha`: **máy tính Quỹ Nhà Chung chạy thật** đúng mô tả route — 4 cư dân góp 0–8 Tiền, đối chiếu Hóa đơn 8 Tiền ra Thiếu/Đủ/Dư, thanh tiến độ có vạch hóa đơn, `aria-live` đọc kết quả.
+- `/quy-nha`: **máy tính Quỹ Nhà Chung chạy thật** đúng mô tả route — 4 cư dân góp 0–8 Tiền (sai luật, đã sửa thành 0–4 ở đợt 3), đối chiếu Hóa đơn 8 Tiền ra Thiếu/Đủ/Dư, thanh tiến độ có vạch hóa đơn, `aria-live` đọc kết quả.
 - Thư viện/Wiki/Cư dân khi trống hoặc chưa có bản phát hành: khung góc + tiêu đề Anton + thẻ dẫn sang khu vực đã hoạt động.
 - Cửa hàng: hàng thông tin (thanh toán/giao hàng/trạng thái), ảnh giữ chỗ dạng hộp game khi sản phẩm chưa có ảnh, khu "Cách mua" 3 bước theo luồng thật (giỏ → sổ địa chỉ → QR PayOS).
 - Đăng nhập/đăng ký/khôi phục: thẻ màu kem đổi sang nền tối có khung góc; ô nhập tối, viền sáng xanh chanh khi focus; khối giới thiệu xanh chanh giữ nguyên.
@@ -169,3 +169,32 @@ Chủ dự án thấy đợt "bộ thành phần" chưa đủ khác biệt và c
 **Giới hạn**: chưa đo hiệu năng trên GPU thật; bộ nhớ texture hero ~35 MB (có mipmap) — trên máy yếu có thể cần giảm kích thước lớp; ảnh thẻ trên hộp là minh họa, không phải nội dung luật.
 
 **Tối ưu sau đó (2026-10-23)**: hero vẽ tối đa ~60 khung/giây, độ phân giải tự hạ/nâng theo thời gian khung, không cấp phát mảng mới cho thẻ/hạt mỗi khung, texture vẽ không tạo tác vụ dài; heading Rise & Settle chuyển sang Web Animations (bỏ React). Chi tiết số đo ở [PERFORMANCE.md](../PERFORMANCE.md#tối-ưu-giữ-nguyên-hiệu-ứng--2026-10-23-hiện-trạng-mới-nhất).
+
+## Mỗi trang con một phong cách theo bộ prompt (2026-10-24, đợt 3)
+
+Chủ dự án thấy giao diện đã ổn nhưng các trang con (trừ trang chủ) "quá đơn điệu và same same" vì cùng dùng `app-page-hero`. Đợt này cho mỗi trang danh sách một ngôn ngữ riêng lấy từ bộ prompt (không sao chép nội dung/thương hiệu của prompt) và thêm thông tin quan trọng về game lấy từ tài liệu dự án (BMC_EN.docx + CHECKLIST), gom vào `shared/game-facts.ts`.
+
+| Trang | Prompt | Kỹ thuật chính | File |
+| --- | --- | --- | --- |
+| `/cach-choi` | Laocoön | 5 chương toàn màn hình ghim khi cuộn, lưới 5 đường kẻ có chấm, thanh tiến độ dạng story, chữ hiện từng ký tự kèm mờ, ảnh trong mặt nạ, số chương khổng lồ viền; bảng thông số kiểu khung cắt góc | `features/guide/how-to-play.page.*`, `how-to-play-frame.css`, `how-to-play-spec.css` |
+| `/quy-nha` | Ascend | "Đồng xu hành tinh" phát sáng dính phía sau (`position: sticky` trong trang, trôi theo `animation-timeline: scroll()`), sao lấp lánh, khối kính mờ; bảng góp quỹ có cột từng cư dân, chế độ **góp kín** + **Lật quỹ**, 4 kịch bản, 3 kết cục, dải số liệu | `features/fund/fund.page.*`, `fund-sections.css`, `fund-dashboard.css` |
+| `/cau-chuyen` | Flowstate | Mực loang WebGL (một fragment shader fbm uốn miền thay bộ giải chất lỏng; độ phân giải 0,5×, ~60 khung/giây, 30 khi máy hạ cấp, dừng khi khuất), lớp phủ tối ở tâm, huy hiệu kính, tiêu đề hiện từng chữ, thanh kính dẫn sang Quỹ nhà; ba hồi bối cảnh, bảng "đời thật → luật chơi", ý nghĩa tên thương hiệu | `features/story/story.page.*`, `story-acts.css`, `story-ink.ts` |
+| `/thu-vien` | KIMI | Tờ giấy sáng kẻ lưới, chữ Anton in hoa, một màu nhấn cyan, hàng meta, hai khung góc ngoặc ("Giải phẫu một lá thẻ" theo đúng các trường trang chi tiết hiển thị), số 148/11; đầu trang được ghim và danh sách trượt đè lên, khối bị che thu nhỏ + tối dần (`view-timeline` + `timeline-scope`) | `features/public-content/heroes/library-hero.component.*`, `public-content.heroes.css` |
+| `/cu-dan` | Marcus Vane | Tên khổng lồ hai dòng đỏ cam hiện từng ký tự, quạt 8 ô hồ sơ (4 nam · 4 nữ, ghi rõ minh họa) phía trước tràn khỏi mép dưới, lớp chuyển màu làm tan chân, dải chữ chạy | `heroes/residents-hero.component.*` |
+| `/wiki` | Baseline | Khối navy bo góc lồng trong khung, tiêu đề hiện từng từ sau mặt nạ cắt, chữ ma "Wiki", dải số liệu kính; danh sách đánh số 5 loại bài trên nền sáng — **bấm để lọc danh sách** (bấm lại để bỏ) và cuộn tới kết quả | `heroes/wiki-hero.component.*` |
+| `/cua-hang` | Lumora | Nền sáng; ảnh căn nhà toàn khung bo góc dưới được làm nhạt, con trỏ quét vệt cọ mềm hiện bản màu (canvas 2D, phai dần, tự dừng khi đứng yên, tắt trên cảm ứng/reduced motion), chữ nền lớn, thẻ thông tin xoay vòng, hàng trạng thái; sản phẩm trên thẻ sáng, "Cách mua" + số liệu đếm lên trong khối mực đen. Giá luôn lấy từ API | `features/shop/shop.page.*`, `shop-hero.css`, `liquid-reveal.ts` |
+
+Trang chi tiết (`/thu-vien/:slug`, `/cu-dan/:slug`, `/wiki/:slug`), Sổ địa chỉ và 404 vẫn dùng `app-page-hero`.
+
+**Thông tin game được đưa lên** (chỉ thông tin quan trọng, từ BMC/CHECKLIST): 4 người chơi; 8 nhân vật (4 nam, 4 nữ) có tiểu sử và kỹ năng; 40–60 phút/ván (theo bản thiết kế); 148 lá thẻ trong 11 bộ; cuối tháng mỗi cư dân góp kín 0–4 Tiền vào Quỹ Chung, không bắt buộc; hóa đơn cơ bản 8 Tiền; mục tiêu cá nhân bí mật mỗi tháng; được thương lượng nhưng hứa suông không được luật bảo vệ; thiếu quỹ thì Nhà Chung mất Tim, nhà yếu thì chi phí tăng; Tiền và Sức; mục tiêu học luật ≤15 phút với Quick Start; tra cứu QR đang triển khai. **Không đưa** giá bán lẻ/sỉ, số lượng lô hàng hay bản mở rộng (giả định tài chính trong BMC, chưa phải thông tin bán hàng). Ô hồ sơ ở `/cu-dan` và câu chuyện ở `/cau-chuyen` chỉ là bối cảnh/minh họa; cốt truyện chi tiết, tên và chân dung nhân vật chờ bản nội dung chính thức.
+
+**Sửa lỗi**: máy tính quỹ cũ cho mỗi cư dân góp 0–8 Tiền trong khi luật/CHECKLIST là 0–4 → trang Quỹ nhà mới giới hạn 0–4 (tổng tối đa 16, thanh tiến độ theo thang 16 với vạch hóa đơn ở 8). `FundCalculatorComponent` bị gỡ; `PlaceholderPage` chỉ còn phục vụ 404 (bỏ route data `tool`, `chapters`).
+
+**Ghi chú kỹ thuật**
+
+- `glass-controls.css` phủ vật liệu kính tối (`!important`) lên mọi `button`. Trang nào cần nút khác màu thì đổi token trên phạm vi đó (`--ctrl-glass-bg-tint`, `--ctrl-glass-text`, `--ctrl-glass-border`, `--ctrl-glass-shadow`…): hàng loại bài trên nền sáng ở Wiki và nút "Lật quỹ". CTA chỉ cuộn trang dùng `<a href>` + `preventDefault` để giữ kiểu `kit-pill`.
+- Trạng thái ẩn để chạy hiệu ứng chỉ đặt ở trình duyệt: bản dựng sẵn (SSR) và reduced motion luôn hiện đủ chữ. Các hiệu ứng vào trang chờ `html[data-boot="done"]` (màn mở trang rút xong).
+- Dấu tiếng Việt chồng (Ữ, Ờ, Ủ) cao hơn chữ hoa thường: mặt nạ `overflow: hidden` cần đệm trên ~0,25em, nếu không sẽ cắt dấu (đã gặp ở `/cu-dan`).
+- `app-marquee` nhận màu nhấn qua biến `--marquee-accent` (mặc định xanh chanh).
+
+**Giới hạn**: chưa xem với dữ liệu nội dung thật (API giả lập trả rỗng); mực loang WebGL và vệt cọ chỉ chụp bằng Chromium/SwiftShader, chưa đo trên GPU/điện thoại thật; hiệu ứng lùi/tối ở Thư viện và trôi "đồng xu" ở Quỹ nhà cần scroll-driven animations (Chromium, Safari mới) — trình duyệt khác vẫn ghim/hiển thị tĩnh; `fund-dashboard.css` 6,85 kB vượt mức cảnh báo 6 kB (dưới ngưỡng lỗi 10 kB).

@@ -1,0 +1,48 @@
+<section class="track" #track [class.pinned]="pinned()" [style.--n]="chapters.length" [style.--tint]="chapters[active()].tint" aria-labelledby="htp-title">
+  <div class="stage">
+    <header class="stage-top">
+      <a routerLink="/" class="back">← Về căn nhà</a>
+      <h1 id="htp-title">Cách chơi <span>· {{ game.name }}</span></h1>
+      <p class="counter" aria-hidden="true">{{ pad(active() + 1) }} / {{ pad(chapters.length) }}</p>
+    </header>
+    <div class="grid" aria-hidden="true">
+      @for (line of [0, 1, 2, 3]; track line) { <i><b></b><b></b></i> }
+      <i class="story"><b></b><b></b><span class="dashes">@for (c of chapters; track c.title) { <span class="dash"><span #dash class="fill"></span></span> }</span></i>
+    </div>
+    <span class="big-num" aria-hidden="true">{{ pad(active() + 1) }}</span>
+    @for (chapter of chapters; track chapter.title; let i = $index) {
+      <article [class]="'slide s' + (i % 3)" [class.active]="!pinned() || active() === i" [attr.aria-hidden]="pinned() && active() !== i ? 'true' : null" [style.--tint]="chapter.tint">
+        <figure class="mask"><img [src]="chapter.image" alt="" width="512" height="512" loading="lazy" /></figure>
+        <div class="copy">
+          <p class="kicker"><span>{{ pad(i + 1) }}</span>{{ chapter.kicker }}</p>
+          <h2 class="title" [attr.aria-label]="chapter.title">@for (word of titles[i]; track $index) {<span class="word" aria-hidden="true">@for (c of word; track c.k) {<span class="char" [style.--k]="c.k">{{ c.ch }}</span>}</span>}</h2>
+          <div class="desc"><p>{{ chapter.lead }}</p><p>{{ chapter.note }}</p></div>
+          @if (chapter.link; as link) { <a class="kit-pill ghost" [routerLink]="link.path" [attr.tabindex]="pinned() && active() !== i ? -1 : null">{{ link.label }} <span class="kit-arrow" aria-hidden="true">→</span></a> }
+        </div>
+      </article>
+    }
+    <p class="hint" aria-hidden="true">Cuộn để lật chương</p>
+  </div>
+</section>
+
+<section class="spec" aria-labelledby="spec-title">
+  <div class="spec-head"><p class="eyebrow">Thông số ván chơi</p><h2 id="spec-title">Một hộp,<br><em>một tháng sống chung.</em></h2></div>
+  <dl class="plate">
+    <div><dt>Người chơi</dt><dd>{{ game.players }}</dd><small>mỗi ván</small></div>
+    <div><dt>Nhân vật</dt><dd>{{ game.characters }}</dd><small>{{ game.male }} nam · {{ game.female }} nữ</small></div>
+    <div><dt>Thời lượng</dt><dd>{{ game.minutes }}</dd><small>phút · theo bản thiết kế</small></div>
+    <div><dt>Thẻ bài</dt><dd>{{ game.cards }}</dd><small>{{ game.sets }} bộ thẻ</small></div>
+    <div><dt>Hóa đơn cơ bản</dt><dd>{{ game.bill }}</dd><small>Tiền mỗi tháng</small></div>
+    <div><dt>Học luật</dt><dd>≤{{ game.learnMinutes }}</dd><small>phút · mục tiêu với Quick Start</small></div>
+  </dl>
+  <p class="spec-note">{{ game.genre }}: giải trí là chính, giá trị học hỏi đến từ trải nghiệm. Luật chi tiết (thiết lập bàn, thứ tự lượt, cách tính thắng) sẽ có trong sách luật và Wiki khi bản luật được phát hành.</p>
+</section>
+
+<section class="learn" aria-labelledby="learn-title">
+  <div><p class="eyebrow">Học nhanh</p><h2 id="learn-title">Tra luật ngay<br>khi đang chơi.</h2><p>Bộ game đi kèm hướng dẫn Quick Start. Khi cần, quét QR hoặc mở website để tra đúng phần luật — không phải lật cả cuốn sách.</p></div>
+  <ol class="kit-rows">
+    <li><a class="kit-row" routerLink="/wiki"><span class="kit-num">01</span><div><h3>Wiki luật</h3><p>Luật, hướng dẫn, FAQ và câu chuyện đã phát hành.</p></div><span class="kit-tag">Tra cứu</span></a></li>
+    <li><a class="kit-row" routerLink="/thu-vien"><span class="kit-num">02</span><div><h3>Thư viện thẻ</h3><p>Tìm thẻ theo tên hoặc mã, xem hiệu ứng và ghi chú luật.</p></div><span class="kit-tag">{{ game.cards }} thẻ</span></a></li>
+    <li><a class="kit-row" routerLink="/quy-nha"><span class="kit-num">03</span><div><h3>Quỹ Nhà Chung</h3><p>Thử góp quỹ kín cho 4 cư dân và xem Nhà có mất Tim không.</p></div><span class="kit-tag">Mô phỏng</span></a></li>
+  </ol>
+</section>

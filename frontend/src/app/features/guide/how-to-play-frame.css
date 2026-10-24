@@ -1,0 +1,25 @@
+/* Khung chương: thanh đầu, lưới 5 đường kẻ có chấm, thanh story, số chương khổng lồ */
+.stage-top { position: relative; z-index: 6; display: flex; align-items: center; gap: 24px; height: 64px; padding: 0 60px; border-bottom: 1px solid #ffffff1f; }
+.back { font-size: 11px; letter-spacing: .22em; text-transform: uppercase; color: #9a9d95; transition: color .2s; }
+.back:hover { color: var(--tint); }
+.stage-top h1 { margin: 0; font-size: 13px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase; }
+.stage-top h1 span { color: #9a9d95; font-weight: 400; }
+.counter { margin: 0 0 0 auto; font: 400 15px/1 var(--font-display); letter-spacing: .1em; color: var(--tint); }
+.grid { position: absolute; inset: 0 40px; z-index: 1; display: none; justify-content: space-between; pointer-events: none; }
+.pinned .grid { display: flex; }
+.grid i { position: relative; width: 1px; height: 100%; background: #ffffff17; }
+.grid i:nth-child(3) { margin-top: 64px; height: calc(100% - 64px); }
+.grid b { position: absolute; left: 50%; width: 6px; height: 6px; border-radius: 50%; background: #ffffff59; transform: translate(-50%, -50%); }
+.grid b:first-child { top: 64px; } .grid b:nth-child(2) { bottom: 0; transform: translate(-50%, 50%); }
+.dashes { position: absolute; top: 50%; left: 50%; display: flex; flex-direction: column; gap: 12px; transform: translate(-50%, -50%); }
+.dash { width: 2px; height: 40px; border-radius: 2px; background: #ffffff26; overflow: hidden; }
+.fill { display: block; width: 100%; height: 100%; background: var(--tint); transform: scaleY(0); transform-origin: top; }
+.big-num { position: absolute; z-index: 0; right: 6vw; bottom: -6vh; display: none; font: 400 clamp(220px, 34vw, 520px)/.8 var(--font-display); color: transparent; -webkit-text-stroke: 1.5px color-mix(in srgb, var(--tint) 30%, transparent); pointer-events: none; user-select: none; }
+.pinned .big-num { display: block; }
+.hint { position: absolute; z-index: 5; right: 60px; bottom: 24px; margin: 0; font-size: 11px; letter-spacing: .22em; text-transform: uppercase; color: #9a9d95; display: none; }
+.pinned .hint { display: block; }
+
+@media (max-width: 600px) {
+  .stage-top { gap: 14px; } .back { display: none; }
+  .stage-top h1, .counter { white-space: nowrap; } .stage-top h1 { overflow: hidden; text-overflow: ellipsis; }
+}

@@ -1,11 +1,4 @@
-<app-page-hero
-  [heading]="selected() ? itemName(selected()!) : heading()"
-  [description]="selected() ? subtitle(selected()!) : description()"
-  [eyebrow]="kindLabel()"
-  [tone]="tone()"
-  [backLink]="selected() ? listLink() : '/'"
-  [backLabel]="selected() ? '← Quay lại danh sách' : '← Về căn nhà'"
->
+<ng-template #release>
   @if (releaseLabel()) {
     <p class="release-note">
       Đang xem {{ releaseLabel() }}
@@ -14,8 +7,26 @@
       }
     </p>
   }
-</app-page-hero>
-<section class="reader-shell">
+</ng-template>
+@if (slug()) {
+  <app-page-hero
+  [heading]="selected() ? itemName(selected()!) : heading()"
+  [description]="selected() ? subtitle(selected()!) : description()"
+  [eyebrow]="kindLabel()"
+  [tone]="tone()"
+  [backLink]="selected() ? listLink() : '/'"
+  [backLabel]="selected() ? '← Quay lại danh sách' : '← Về căn nhà'"
+>
+    <ng-container *ngTemplateOutlet="release" />
+  </app-page-hero>
+} @else if (kind() === 'cards') {
+  <app-library-hero [heading]="heading()" [description]="description()"><ng-container *ngTemplateOutlet="release" /></app-library-hero>
+} @else if (kind() === 'characters') {
+  <app-residents-hero [heading]="heading()"><ng-container *ngTemplateOutlet="release" /></app-residents-hero>
+} @else {
+  <app-wiki-hero [heading]="heading()" [description]="description()" [active]="filter()" (pick)="setFilter($event)"><ng-container *ngTemplateOutlet="release" /></app-wiki-hero>
+}
+<section class="reader-shell" [class.over]="!slug() && kind() === 'cards'">
 
   @if (selected(); as item) {
     <article class="detail-sheet" [class.card-detail]="isCard(item)">
@@ -116,7 +127,7 @@
       </section>
       <h2 class="catalog-title display">Những lá thẻ trong nhà</h2>
     }
-    <section class="browse-tools" aria-label="Tìm trong nội dung">
+    <section class="browse-tools" id="noi-dung" aria-label="Tìm trong nội dung">
       <label class="search-field"
         ><span class="search-mark" aria-hidden="true"></span
         ><span class="visually-hidden">Tìm kiếm</span

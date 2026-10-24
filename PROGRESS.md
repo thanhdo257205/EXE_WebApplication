@@ -4,7 +4,17 @@
 
 ## Cập nhật gần nhất
 
-### Ảnh thẻ trên Cloudflare R2 — 2026-10-23, local (chưa commit lúc viết)
+### Mỗi trang con một phong cách theo bộ prompt + thông tin game — 2026-10-24, đã commit và push nhánh `claude/wonderful-hypatia-8x6sul` (chưa mở PR)
+
+- Theo yêu cầu "các trang trừ trang chủ còn đơn điệu, same same; áp dụng style trong bộ prompt, thêm thông tin quan trọng về game dựa vào dự án" (nguồn: `BMC_EN.docx`; file `video-topics-summary.docx` gửi nhầm nên không dùng): `/cach-choi` kiểu Laocoön (5 chương ghim khi cuộn), `/quy-nha` kiểu Ascend (bảng góp quỹ kính mờ, góp kín + lật quỹ), `/cau-chuyen` kiểu Flowstate (mực loang WebGL, chữ hiện từng từ), `/thu-vien` kiểu KIMI (tờ giấy sáng, danh sách trượt đè lên đầu trang), `/cu-dan` kiểu Marcus Vane (tên khổng lồ + quạt 8 ô hồ sơ minh họa), `/wiki` kiểu Baseline (khối navy, 5 loại bài bấm để lọc), `/cua-hang` kiểu Lumora (nền sáng, con trỏ quét hiện ảnh màu). Chi tiết, bảng file và ghi chú kỹ thuật: [docs/design/FRONTEND_REDESIGN.md](docs/design/FRONTEND_REDESIGN.md#mỗi-trang-con-một-phong-cách-theo-bộ-prompt-2026-10-24-đợt-3).
+- Thông tin game gom ở `frontend/src/app/shared/game-facts.ts`: 4 người chơi, 8 nhân vật (4 nam, 4 nữ), 40–60 phút theo bản thiết kế, 148 thẻ/11 bộ, góp kín 0–4 Tiền/người, hóa đơn 8 Tiền, mục tiêu bí mật, thương lượng/hứa suông, mất Tim, Tiền × Sức, học luật ≤15 phút. Không đưa giá bán, lô hàng, bản mở rộng (giả định tài chính trong BMC).
+- Sửa lỗi: máy tính quỹ cũ cho góp 0–8 Tiền/người, trái luật 0–4 → trang Quỹ nhà mới giới hạn 0–4. Gỡ `FundCalculatorComponent`; `PlaceholderPage` chỉ còn cho 404.
+- Xác minh: frontend **248/248 tests** (47 file; mới/viết lại: Quỹ nhà 4, Câu chuyện 1, Cửa hàng 2, trang khung 2); build Angular qua (cảnh báo budget mới duy nhất: `fund-dashboard.css` 6,85 kB, dưới ngưỡng lỗi 10 kB). Ảnh Chromium 1440×900 và 390×844 cho cả 7 trang: không tràn ngang, không lỗi console; Playwright bấm thử Quỹ nhà (kịch bản → Thiếu; góp kín → "Đang úp"/"??"; lật quỹ; đổi số khi đang góp kín thì úp lại) và rê chuột giả lập cho vệt cọ Cửa hàng. API giả lập trả rỗng — **chưa xem với dữ liệu thật**; mực loang/vệt cọ mới chụp bằng SwiftShader, **chưa đo trên GPU/điện thoại thật**.
+- GitHub/deploy: commit trên nhánh `claude/wonderful-hypatia-8x6sul`, chưa mở PR, chưa deploy.
+- Hạn chế: cốt truyện chi tiết, tên/chân dung 8 nhân vật và luật đầy đủ vẫn chờ nội dung chính thức (trang chỉ nêu bối cảnh và cơ chế đã có trong tài liệu); hiệu ứng thu nhỏ/tối ở Thư viện và "đồng xu" trôi ở Quỹ nhà cần scroll-driven animations (Chromium, Safari mới), trình duyệt khác hiển thị tĩnh.
+- Việc tiếp theo: chủ dự án xem ảnh/duyệt; mở PR và merge nếu đồng ý; sau deploy xem trên production và điện thoại thật; thay bối cảnh bằng nội dung đã duyệt khi có.
+
+### Ảnh thẻ trên Cloudflare R2 — 2026-10-23, đã merge (PR #20)
 
 - Theo yêu cầu "thử lưu thẻ trên cloud bằng R2" (đã giải thích không lưu ảnh trong DB, chỉ lưu đường dẫn): backend `media.ts` (tải ảnh admin, nhận diện PNG/JPEG/WebP theo byte, ≤1 MiB, khóa theo hash, ký SigV4 bằng `node:crypto`, audit), gateway phục vụ `/media/cards/<hash>` từ R2 binding tùy chọn (cache immutable, ETag/304) và nâng giới hạn thân cho đường tải ảnh, validator `artworkUrl` chấp nhận `/media/cards/...`, admin có khối tải ảnh (nén WebP trên trình duyệt). Chi tiết và các bước cấu hình: [docs/R2_CARD_IMAGES.md](docs/R2_CARD_IMAGES.md).
 - Xác minh: backend 31 test pass (mới 6: byte magic, cấu hình, chữ ký SigV4 đối chiếu phép tính độc lập, PUT có ký, quyền/loại/dung lượng/audit, 503); gateway 27 test pass (mới 2); frontend 243 test pass (mới 4); tsc cả ba gói và build Angular qua. **Chưa thử với R2 thật** (chưa có bucket/khóa trong môi trường này; không ghi khóa vào repo).
