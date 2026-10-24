@@ -4,7 +4,7 @@
 
 ## Cập nhật gần nhất
 
-### Tạo thẻ admin và ảnh trên model 3D — 2026-10-24, đã kiểm tra local, chưa deploy
+### Tạo thẻ admin và ảnh trên model 3D — 2026-10-24, đã lên main và deploy
 
 - `/admin/cards`: chọn bản phát hành (ưu tiên DRAFT), tải ảnh tự điền `artworkUrl`, nhập thông tin và lưu thẻ qua API hiện có. Có form nhân bản bản phát hành để tạo DRAFT có sẵn các bộ thẻ. Lưu bản nháp chưa xuất bản lên trang công khai; bỏ nút xuất bản giả vì backend không có route tương ứng.
 - Gửi `expectedVersion`, tăng/cập nhật version sau lưu, chặn gửi lặp và đổi release trong lúc lưu; giữ form khi lỗi. Khi gặp 409, phải bấm tải lại phiên bản (giữ nội dung) rồi chủ động lưu lại. Dọn danh sách tham chiếu cũ khi đổi release, bỏ qua response cũ; uploader dùng sequence để bỏ kết quả nén đến muộn sau reset/đổi release và hủy subscription khi rời trang.
@@ -12,7 +12,7 @@
 - Antigravity triển khai frontend/tests/docs; Codex rà diff, sửa lỗi cú pháp, xử lý race lúc nén ảnh/đổi release, chống version giảm do response cũ và bổ sung kiểm thử giữ form khi reload.
 - Xác minh: production build + prerender 6 route qua (chỉ cảnh báo CSS budget/CommonJS cũ); 47 file, **267/267 tests pass** với runner config tạm ngoài repo đặt `testTimeout: 20000`. Lệnh mặc định gặp timeout bài mô phỏng 300 ván/5 giây đã biết; không sửa timeout hay test mô phỏng trong repo. Kiểm thử regression đọc binding thật của CardViewer cho ảnh chính thức, thiếu ảnh và demo.
 - Chromium local với API giả lập: upload WebP thật qua bộ chuẩn bị ảnh, tự điền URL, sinh slug, POST payload/version, reset sau lưu, 409 giữ input, reload giữ input, published chỉ đọc, clone chọn DRAFT đều qua; không lỗi trang. Xem ảnh 1440px/390px, không tràn ngang. Ảnh kiểm tra ở workspace cha `output/admin-cards/`.
-- GitHub/deploy: thay đổi còn local, chưa commit/push/deploy; không sửa dữ liệu production. Chưa thử luồng admin với backend/Azure production hoặc GPU/điện thoại thật. Chưa có giao diện sửa thẻ đã tạo; API PUT hiện có vẫn dùng được. Quy trình xuất bản snapshot không nằm trong đợt này.
+- GitHub/deploy: theo yêu cầu chủ dự án đã push commit `2e04302b63e93086b0f39a1557ccc87989e95962` lên `main`. [CI 40089322438](https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/40089322438) qua cả 4 job với test mặc định; [CD 40089372817](https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/40089372817) success, gateway → Render đúng SHA → Pages → smoke production qua. Kiểm tra riêng API `/api/v1/info` đúng SHA trên, storage `turso`, `/admin/cards` trả 200. Không sửa dữ liệu production; chưa đăng nhập tạo thẻ/upload Azure thật hoặc thử GPU/điện thoại thật. Chưa có giao diện sửa thẻ; API PUT vẫn dùng được. Xuất bản snapshot vẫn là quy trình riêng. Bản ghi nghiệm thu docs được push với `[skip ci]`, giữ nguyên runtime đã kiểm thử.
 
 ### Chốt nơi lưu model 3D và texture — 2026-10-24, chỉ tài liệu
 

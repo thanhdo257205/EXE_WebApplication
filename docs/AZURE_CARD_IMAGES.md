@@ -60,7 +60,7 @@ Khôi phục: các tệp gốc vẫn ở `frontend/public/assets/`; có thể re
 - **Trạng thái kiểm tra**:
   - Đã bổ sung bộ kiểm thử hồi quy cho frontend admin service, component tải ảnh, trang quản trị section và trang chi tiết thẻ công khai.
   - **Local: 267/267 tests (47 file) qua với runner config tạm ngoài repo đặt timeout 20 giây; build production/prerender 6 route qua.** Lệnh test mặc định gặp timeout 5 giây ở bài mô phỏng 300 ván đã biết; không đổi cấu hình repo. Chromium với API giả lập kiểm tra upload WebP/tự điền URL, tạo thẻ/payload/version, reset, 409 và reload giữ input, published chỉ đọc, clone DRAFT; ảnh 1440px/390px không tràn ngang, không lỗi trang.
-  - Chưa commit/push/deploy hoặc thử admin với backend/Azure production; không sửa dữ liệu production. Chưa có form sửa thẻ (API PUT hiện có vẫn dùng được). Lưu DRAFT không tự xuất bản; quy trình snapshot vẫn riêng. Uploader bỏ kết quả nén đến muộn sau reset/đổi release; sau 409 cần tải lại version rồi chủ động lưu lại.
+  - Đã push `main` và deploy commit `2e04302b63e93086b0f39a1557ccc87989e95962`: [CI](https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/40089322438) qua bốn job với test mặc định; [CD](https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/40089372817) success gồm smoke production. API live đúng SHA, `/admin/cards` trả 200. Chưa đăng nhập admin để thử ghi thẻ/upload Azure thật; không sửa dữ liệu production. Chưa có form sửa thẻ (API PUT vẫn dùng được). Lưu DRAFT không tự xuất bản; quy trình snapshot vẫn riêng. Uploader bỏ kết quả nén đến muộn sau reset/đổi release; sau 409 cần tải lại version rồi chủ động lưu lại.
 
 ## Xác minh kho Azure trước đợt form admin
 
