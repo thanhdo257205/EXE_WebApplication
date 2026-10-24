@@ -1,6 +1,11 @@
 # EXE_WebApplication — Checklist triển khai
 
-Cập nhật: 2026-10-22 (Asia/Saigon).
+Cập nhật: 2026-10-24 (Asia/Saigon).
+
+## Skill thiết kế (2026-10-24)
+
+- [x] DESIGN-SKILL — `.claude/skills/nha-nay-design/SKILL.md` mô tả ngôn ngữ thiết kế hiện tại, đối chiếu với `styles.css`, trang chủ, page-hero, header, footer, admin.
+- [ ] DESIGN-MD-SYNC — Đồng bộ frontmatter `DESIGN.md` (vẫn ghi bảng màu kem cũ) với giao diện editorial tối hiện tại.
 
 ## Giao diện điện thoại (2026-10-23)
 
