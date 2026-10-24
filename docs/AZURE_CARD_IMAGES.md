@@ -2,7 +2,7 @@
 
 ## Trạng thái 2026-10-24
 
-Đã tạo và tải ảnh lên Azure; mã tích hợp đang được kiểm tra trước khi phát hành. Chưa coi là production đã chuyển kho cho tới khi URL Pages trả `X-Media-Storage: azure-blob` và byte ảnh khớp.
+**Đã triển khai và xác minh production** tại `https://exe-webapp.pages.dev`, runtime commit `a18a18867071cb890ad23d7c2286a5b379399c66`. CI [40085221452](https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/40085221452) và CD [40085281301](https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/40085281301) thành công, gồm container 512 MB và smoke production. Toàn bộ 33 URL ảnh hiện có trả `X-Media-Storage: azure-blob` và khớp byte local.
 
 - Subscription hiện tại: Azure for Students, Enabled; spending limit **On**, giữ nguyên, không nâng lên pay-as-you-go. Chưa xác minh số credit còn lại/ngày hết hạn quyền lợi. Có thể ngừng dịch vụ khi hết credit; không coi Blob Storage miễn phí vĩnh viễn.
 - Resource group: `rg-exe-webapp`; StorageV2 `stexecardimages257`, `southeastasia`, Standard_LRS, Hot, HTTPS bắt buộc/TLS 1.2.
@@ -36,4 +36,7 @@ Khôi phục: các tệp gốc vẫn ở `frontend/public/assets/`; có thể re
 - Thử thật `azureMediaStore`: tải default poster bằng SAS, đọc công khai và đối chiếu byte thành công.
 - Backend: typecheck; 34 tests pass, 1 test Turso thật skip. Bao gồm SAS hết hạn/cấu hình sai, PUT BlockBlob, cache và không lộ SAS khi lỗi.
 - Gateway: typecheck, 30 tests pass, Wrangler dry-run; kiểm tra URL cố định, không chuyển cookie/query, HEAD/304, lỗi kho và routing Pages.
-- Frontend build/prerender thành công (cảnh báo budget/CommonJS cũ). Lệnh test mặc định có 247 pass/1 timeout ở mô phỏng 300 ván (5 giây); chạy lại với runner config tạm ngoài repo để cho phép 20 giây. Không sửa test/timeout trong repo. Lần chạy cấu hình tạm: **248/248 pass**. CI/CD sẽ cập nhật khi hoàn tất. Chưa thử đăng nhập admin và tải ảnh từ trình duyệt production.
+- Frontend build/prerender thành công (cảnh báo budget/CommonJS cũ). Lệnh test mặc định có 247 pass/1 timeout ở mô phỏng 300 ván (5 giây); chạy lại với runner config tạm ngoài repo để cho phép 20 giây. Không sửa test/timeout trong repo. Lần chạy cấu hình tạm: **248/248 pass**. CI mặc định trên GitHub đã pass cả bốn job; CD deploy Worker → Render đúng SHA → Pages → smoke thành công.
+- Production: 33 ảnh cũ qua Pages trả 200, xác nhận Azure và đối chiếu byte; ảnh upload theo hash trả 200/cache immutable, HEAD 200 không thân, If-None-Match 304, ảnh không tồn tại 404. Backend `/api/v1/info` khớp SHA `a18a188`; gọi upload không có phiên/CSRF bị chặn 403 `CSRF_REQUIRED`. Anonymous list/write trực tiếp Azure bị chặn 404.
+- Chưa thử đăng nhập admin và tải ảnh từ trình duyệt production. Bộ tải Azure đã thử thật và API admin đã kiểm thử quyền/CSRF bằng test tự động; hai điều này không thay thế thử trình duyệt end-to-end.
+- Bản ghi nghiệm thu sau deploy là thay đổi tài liệu, phát hành riêng với `[skip ci]` để giữ runtime ở SHA đã kiểm thử, không kích hoạt một lần deploy chỉ vì sửa docs.

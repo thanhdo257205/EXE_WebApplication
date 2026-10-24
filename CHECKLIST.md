@@ -6,7 +6,7 @@ Cập nhật: 2026-10-24 (Asia/Saigon).
 
 - [x] AZURE-MEDIA-01 — Kho riêng Azure for Students, Standard_LRS Hot Singapore; spending limit On; 35 tệp đối chiếu byte; thử upload Azure thật; cấu hình Render SAS giới hạn container.
 - [x] AZURE-MEDIA-02 — Bộ tải Azure + proxy đọc ảnh cùng origin, routing Pages/manifest, giữ URL cũ; backend 34 pass/1 skip, gateway 30 pass, typecheck và dry-run qua.
-- [ ] AZURE-MEDIA-03 — CI/CD phát hành và kiểm tra toàn bộ ảnh production từ Azure qua Pages; xác minh cache/HEAD/ETag.
+- [x] AZURE-MEDIA-03 — CI40085221452/CD40085281301 success, runtime a18a188; 33 ảnh production qua Azure khớp byte; ảnh upload hash 200/immutable, HEAD 200, ETag 304, thiếu 404; upload thiếu CSRF 403.
 - [ ] AZURE-MEDIA-04 — Thử đăng nhập admin và tải ảnh qua trình duyệt production; thay SAS trước 2027-10-24 00:00 UTC; kiểm tra credit/ngày hết hạn Azure for Students.
 
 ## Phong cách riêng cho từng trang con (2026-10-24)
@@ -198,7 +198,7 @@ Cập nhật: 2026-10-24 (Asia/Saigon).
 - [x] PERF-FONT-01: Tự host Be Vietnam Pro (vietnamese + latin), bỏ kết nối Google Fonts; font 304→238 kB (local, 2026-10-23).
 - [ ] PERF-CACHE-01: Xác minh sau deploy rằng `/*.js` và `/styles-*.css` trả `Cache-Control: public, max-age=31536000, immutable`.
 - [x] R2-01: Code tải/phục vụ ảnh thẻ qua R2 (backend + gateway + khối admin), 31/27/243 test qua local (2026-10-23).
-- [ ] R2-02: Tạo bucket + token giới hạn bucket, đặt `R2_*` trên Render, thêm binding `CARD_IMAGES` vào gateway, tải một ảnh thật và xác minh header cache production.
+- [ ] R2-02 (không triển khai theo lựa chọn 2026-10-24, đã thay bằng AZURE-MEDIA-01–03): Tạo bucket/token/Render/binding R2 nếu sau này quay lại R2.
 - [ ] R2-03: Form tạo/sửa thẻ trong admin gắn `artworkUrl`; chuyển hero 3D, Sân đấu và thẻ mẫu sang đọc thẻ từ API (giữ bộ cứng làm dự phòng).
 
 ## Cửa hàng thử (2026-10-21)

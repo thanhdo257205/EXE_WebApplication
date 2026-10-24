@@ -4,12 +4,12 @@
 
 ## Cập nhật gần nhất
 
-### Chuyển kho ảnh thẻ sang Azure — 2026-10-24, đang phát hành
+### Chuyển kho ảnh thẻ sang Azure — 2026-10-24, đã triển khai và xác minh
 
 - Chủ dự án chọn Azure for Students vì R2 yêu cầu phương thức thanh toán. Đã tạo kho riêng `rg-exe-webapp` / `stexecardimages257` / `card-images`, Standard_LRS Hot tại Singapore. Giữ spending limit On; chưa xác minh credit còn lại, không đổi gói.
 - 35 tệp (33 ảnh + 2 tệp ghi công/nguồn) đã lên Azure và đối chiếu toàn bộ byte. Thử upload thật theo hash bằng bộ tải mới thành công; SAS container create/write HTTPS đã đặt riêng trên Render, hết hạn 2027-10-24 00:00 UTC.
 - Giữ URL ảnh hiện có, Pages/gateway đọc Azure cùng origin. Bổ sung routing `/media/*` ở cả Pages worker và manifest (trước đây thiếu), giữ ADMIN/CSRF/giới hạn ảnh. R2 còn là dự phòng chưa kích hoạt. Chi tiết: [AZURE_CARD_IMAGES.md](docs/AZURE_CARD_IMAGES.md).
-- Kiểm tra: backend typecheck + 34 pass/1 skip; gateway typecheck + 30 pass + dry-run. Frontend build/prerender qua; test mặc định 247 pass/1 timeout (300 ván/5s), chạy lại với timeout 20s tạm ngoài repo đạt **248/248**, không sửa bộ test. CI/CD và kiểm tra ảnh qua Pages sẽ cập nhật sau khi xong. Chưa thử upload từ trình duyệt admin production; chưa sửa nội dung thẻ/DB.
+- Kiểm tra: backend typecheck + 34 pass/1 skip; gateway typecheck + 30 pass + dry-run. Frontend build/prerender qua; test mặc định 247 pass/1 timeout (300 ván/5s), chạy lại với timeout 20s tạm ngoài repo đạt **248/248**, không sửa bộ test. CI [40085221452](https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/40085221452) pass bốn job với test mặc định; CD [40085281301](https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/40085281301) success gồm smoke. Runtime `a18a18867071cb890ad23d7c2286a5b379399c66` khớp API production. Toàn bộ 33 ảnh qua Pages 200, `X-Media-Storage: azure-blob`, khớp byte; ảnh hash mới 200/immutable, HEAD 200, ETag 304, thiếu ảnh 404; upload thiếu phiên/CSRF 403. Chưa thử upload từ trình duyệt admin production; chưa sửa nội dung thẻ/DB. Bản ghi nghiệm thu chỉ docs được push riêng với `[skip ci]`, không đổi runtime.
 
 
 ### Mỗi trang con một phong cách theo bộ prompt + thông tin game — 2026-10-24, PR #22 (merge theo yêu cầu chủ dự án)
