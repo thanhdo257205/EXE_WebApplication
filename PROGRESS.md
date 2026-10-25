@@ -4,7 +4,7 @@
 
 ## Cập nhật gần nhất
 
-### Nút chép ảnh + thiết lập bản phát hành/bộ thẻ cho quản lý thẻ — 2026-10-25, local, chưa deploy
+### Nút chép ảnh + thiết lập bản phát hành/bộ thẻ cho quản lý thẻ — 2026-10-25, đã lên main và deploy
 
 - Hiện tượng chủ dự án báo trên production: (1) nút "Chép đường dẫn" sau khi tải ảnh không hoạt động; (2) không thấy phần quản lý toàn bộ thẻ bài.
 - Nguyên nhân (1): `copy()` chỉ gọi `navigator.clipboard.writeText`; khi trình duyệt/tab chặn Clipboard API thì promise bị reject và component nuốt lỗi, không có đường dự phòng hay thông báo.
@@ -13,7 +13,9 @@
 - Đã bổ sung: khối "Chưa có bản phát hành — tạo bản thảo đầu tiên" cho cards/characters/articles (gọi `POST /api/v1/admin/content/releases`, tạo DRAFT); khối quản lý bộ thẻ trong bản nháp (gọi `POST /api/v1/admin/content/releases/:release/card-sets`, tự sinh slug, có `expectedVersion`); danh sách thẻ có ô tìm kiếm theo mã/tên/slug và phân trang 50 thẻ/trang. Sau khi có release + bộ thẻ, form tạo thẻ hiện như trước.
 - Không đổi backend/schema/quyền: dùng các route admin đã có. Không sửa dữ liệu production.
 - Kiểm thử local: `admin-content.service.spec.ts` 10/10, `admin-section.page.spec.ts` 17/17, `card-image-upload.component.spec.ts` 9/9 pass (thêm test fallback chép, tạo release, tạo bộ thẻ, tìm kiếm/phân trang). Production build/prerender qua, chỉ còn cảnh báo CSS budget/CommonJS có sẵn.
-- Chưa kiểm thử trình duyệt vì cần phiên admin thật; chưa commit/push/deploy. Việc tiếp theo: nghiệm thu local, commit, chạy CI/CD và kiểm tra tạo release → bộ thẻ → thẻ trên production.
+- GitHub/deploy: commit `6bb16661d37a605f3c54cd97ac9e6bb743a594c1` fast-forward `deepseek` → `main`; [CI 40178390112](https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/40178390112) và [CD 40178448148](https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/40178448148) thành công. `/api/v1/info` production trả đúng SHA `6bb1666`, storage `turso`.
+- Nghiệm thu production (2026-10-25, phiên admin thật còn hiệu lực): tải lại `/admin/cards` thấy khối **"Chưa có bản phát hành — tạo bản thảo đầu tiên"** với form versionLabel/title/releaseNotes, danh sách đổi tên **"Quản lý toàn bộ Thẻ bài & Bộ thẻ"**. Upload lại poster 29.838 byte trả cùng URL Azure; bấm **"Chép đường dẫn"** → nút chuyển **"Đã chép"**, không hiện lỗi.
+- Chưa tạo bản phát hành/bộ thẻ/thẻ thật trên production: không có API xóa release nên thao tác thử sẽ để lại dữ liệu; chủ dự án cần tự tạo release → bộ thẻ → thẻ với nội dung thật. Trang danh sách thẻ, tìm kiếm và phân trang chỉ hiện sau khi có release.
 
 ### Bật tải ảnh thẻ khi chưa có bản nháp — 2026-10-25, đã lên main và deploy
 

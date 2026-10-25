@@ -16,7 +16,7 @@
 - Nút "Chép đường dẫn" trước đây chỉ dùng Clipboard API và im lặng thất bại khi trình duyệt chặn. Nay thử Clipboard API, fallback `textarea` + `document.execCommand('copy')`, và nếu vẫn bị chặn thì báo lỗi kèm hướng dẫn bấm vào URL để chọn toàn bộ. Không đổi endpoint upload hay định dạng URL.
 - `/admin/cards` bổ sung khối tạo bản phát hành DRAFT khi hệ thống chưa có release (`POST /api/v1/admin/content/releases`) và khối tạo bộ thẻ trong bản nháp (`POST /api/v1/admin/content/releases/:release/card-sets`). Đây là hai bước bắt buộc trước khi form tạo thẻ hoạt động; không cần thay đổi media API.
 - Danh sách thẻ dùng tìm kiếm mã/tên/slug và phân trang 50 thẻ/trang để quản lý đủ 148 thẻ. `getRevisions` nhận `page`/`size`/`q`; không có endpoint mới.
-- Test local: service 10/10, section 17/17, uploader 9/9; build production/prerender qua. Chưa kiểm thử trình duyệt với phiên admin thật và chưa deploy.
+- Test local: service 10/10, section 17/17, uploader 9/9; build production/prerender qua. Deploy main `6bb1666` (CI 40178390112, CD 40178448148); production `/api/v1/info` đúng SHA. Nghiệm thu trình duyệt: nút "Chép đường dẫn" chuyển "Đã chép" sau khi upload lại poster; khối tạo bản phát hành hiển thị. Chưa tạo release/bộ thẻ/thẻ thật trên production vì không có API xóa release.
 
 ## Trạng thái 2026-10-24
 

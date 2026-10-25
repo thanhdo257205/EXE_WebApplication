@@ -9,8 +9,9 @@ Cập nhật: 2026-10-25 (Asia/Saigon).
 - [x] ADMIN-SET-01 — Khối tạo bộ thẻ trong bản nháp (`card-sets`), tự sinh slug, validate mã/tên/slug/mô tả/thứ tự, gửi `expectedVersion`; thêm `createCardSet` vào service.
 - [x] ADMIN-LIST-01 — Danh sách thẻ có tìm kiếm mã/tên/slug và phân trang 50 thẻ/trang, hiển thị tổng số và trang hiện tại; không tải lại bộ thẻ/nhân vật khi đổi trang.
 - [x] ADMIN-VERIFY-01 — Test local: service 10/10, section 17/17, uploader 9/9 pass; production build/prerender qua (cảnh báo cũ).
-- [ ] ADMIN-DEPLOY-02 — Commit/push, chạy CI/CD và nghiệm thu production: tạo release → bộ thẻ → thẻ; thử nút chép trên trình duyệt thật.
-- [ ] ADMIN-CONTENT-RELEASE — Production đang có 0 bản phát hành; UI tạo release/bộ thẻ đã có ở local nhưng chưa deploy/kiểm tra, nên chưa thể tạo thẻ trên production.
+- [x] ADMIN-COPY-02 — Production: tải lại `/admin/cards`, upload lại poster 29.838 byte, bấm "Chép đường dẫn" → nút đổi "Đã chép", không lỗi.
+- [x] ADMIN-DEPLOY-02 — Main `6bb1666`; CI 40178390112 và CD 40178448148 thành công, `/api/v1/info` đúng SHA. UI thiết lập bản phát hành hiển thị trên production.
+- [ ] ADMIN-CONTENT-RELEASE — Production vẫn 0 bản phát hành. UI tạo release/bộ thẻ đã deploy nhưng chưa tạo dữ liệu thật (không có API xóa release); chủ dự án tự tạo release → bộ thẻ → thẻ, sau đó kiểm tra danh sách/tìm kiếm/phân trang.
 
 ## Tải ảnh thẻ khi chưa có bản nháp (2026-10-25)
 
