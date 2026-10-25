@@ -1,6 +1,6 @@
 # Nhập bộ thẻ từ Excel (admin)
 
-Cập nhật: 2026-10-25. Trạng thái: đã triển khai local, chưa deploy. Phạm vi là **frontend**; không thêm/sửa API, schema hay quyền backend.
+Cập nhật: 2026-10-25. Trạng thái: đã deploy production tại commit `5cda101` (CI `40181841394`, CD `40181899346`); chưa nghiệm thu E2E thao tác import bằng tài khoản ADMIN thật trên production. Phạm vi là **frontend**; không thêm/sửa API, schema hay quyền backend.
 
 ## Mục tiêu
 
@@ -53,7 +53,7 @@ Header chấp nhận thêm alias tiếng Việt không dấu và tiếng Anh (v�
 - Không hỗ trợ `.xls`/`.csv`/ODS và không đọc sheet thứ hai trở đi.
 - Không kiểm tra mã/slug đã tồn tại trên server trước khi ghi; xung đột được phát hiện qua phản hồi API (`CONSTRAINT_VIOLATION`) sau khi đã tạo bộ thẻ.
 - Chưa có cơ chế hoàn tác toàn bộ import; lỗi giữa chừng để lại bộ thẻ + các thẻ đã tạo.
-- Chưa nghiệm thu trên production; mới kiểm thử local với mock API và trình duyệt dev.
+- Chưa nghiệm thu E2E trên production bằng tài khoản ADMIN thật (mới kiểm thử local với mock API/dev server và xác nhận bundle production chứa giao diện).
 
 ## Thành phần source
 

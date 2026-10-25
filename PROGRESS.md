@@ -4,7 +4,7 @@
 
 ## Cập nhật gần nhất
 
-### Nhập bộ thẻ từ Excel trên trang quản trị thẻ — 2026-10-25, local (chưa deploy)
+### Nhập bộ thẻ từ Excel trên trang quản trị thẻ — 2026-10-25, đã lên main và deploy
 
 - Yêu cầu chủ dự án: thêm biểu mẫu import để admin tạo nguyên một bộ thẻ từ file Excel có các trường như tên, mô tả, ảnh.
 - Đã thêm khối **"Nhập bộ thẻ từ Excel"** trong `/admin/cards` khi bản phát hành đang chọn là `DRAFT`: nhập thông tin bộ thẻ, chọn `.xlsx` ≤ 5 MB, xem trước từng dòng (mã, tên, slug, số bản, trạng thái luật, ảnh, lỗi), chỉ bật nút nhập khi không còn dòng lỗi.
@@ -14,7 +14,8 @@
 - Kiểm thử local: `card-import.spec.ts` 13/13 và `admin-section.page.spec.ts` 22/22 pass (thêm 5 test luồng import). Toàn suite 307/308; test `arena-engine > plays 300 AI-vs-AI games` timeout 6,7 giây khi chạy song song cả suite, chạy riêng pass 4,1 giây — không liên quan thay đổi này. Production build/prerender qua, chỉ còn cảnh báo CSS budget/CommonJS có sẵn.
 - Kiểm tra trình duyệt dev server với mock API local: file 3 thẻ hiện "3 dòng · 3 hợp lệ · 0 lỗi"; bấm nhập tạo bộ thẻ `SET-TEST` + 3 thẻ, version release 1 → 5, danh sách hiển thị đủ CARD-101/102/103. Không gọi API/tài khoản production.
 - Chi tiết cột, định dạng ảnh, lỗi và giới hạn: [ADMIN_CARD_IMPORT.md](docs/ADMIN_CARD_IMPORT.md).
-- Chưa commit/push/deploy; CD chỉ chạy từ `main` và cần chủ dự án xác nhận.
+- GitHub/deploy: commit `5cda10165d9a4d19efe0eb321996c6d90d82ca5b` fast-forward `deepseek` → `main`; [CI 40181841394](https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/40181841394) và [CD 40181899346](https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/40181899346) thành công. `/api/v1/info` production trả đúng SHA `5cda101`, storage `turso`; `/admin/cards` trả 200 và chunk admin đang phục vụ (`chunk-DWIKrBvX.js`) chứa chuỗi giao diện import, tên file mẫu `mau-import-bo-the.xlsx` và hướng dẫn ảnh nhúng.
+- Phiên admin production đã hết hạn nên `/admin/cards` chuyển về `/dang-nhap?returnUrl=%2Fadmin%2Fcards`; **chưa nghiệm thu E2E thao tác import bằng tài khoản ADMIN thật trên production** (chủ dự án tự đăng nhập khi cần) và chưa tạo dữ liệu thật trên production.
 
 ### Lối vào đăng ký và chuyển động cho trang xác thực — 2026-10-25, đã lên main và deploy
 
