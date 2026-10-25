@@ -33,7 +33,7 @@ Trang `/admin` phục vụ quản lý nội dung board game và vận hành bán
 | Thẻ và bộ thẻ | Danh sách có tìm/lọc/phân trang; xem trước thẻ, sửa tên/mã/hiệu ứng/ảnh/bộ/phiên bản. ID ổn định để QR không hỏng; không xóa cứng nội dung đã được release tham chiếu. | ADMIN-04 |
 | Nhân vật | Quản lý hồ sơ, kỹ năng và ảnh của 8 nhân vật từ nguồn được duyệt; đánh dấu nội dung thiếu và xem trước. | ADMIN-05 |
 | Wiki và bài viết | Quản lý luật, hướng dẫn, FAQ, câu chuyện và devlog; có nháp, preview, xuất bản và lịch sử revision. | ADMIN-06 |
-| Nhập dữ liệu | Import JSON/CSV có mẫu, dry-run và báo lỗi theo dòng/trường trước khi xác nhận. Kiểm tra ID trùng, thiếu ảnh/tham chiếu; mục tiêu 148 thẻ/11 bộ là tiêu chí đối chiếu nguồn, không tự điền nội dung giả. | ADMIN-07 |
+| Nhập dữ liệu | Import JSON/CSV có mẫu, dry-run và báo lỗi theo dòng/trường trước khi xác nhận. Kiểm tra ID trùng, thiếu ảnh/tham chiếu; mục tiêu 148 thẻ/11 bộ là tiêu chí đối chiếu nguồn, không tự điền nội dung giả. Frontend đã có import `.xlsx` phía client (bộ thẻ + thẻ tuần tự vào DRAFT) từ 2026-10-25, local; xem [ADMIN_CARD_IMPORT.md](ADMIN_CARD_IMPORT.md). | ADMIN-07 |
 | Xuất bản nội dung | Chốt release snapshot được duyệt, theo dõi build/deploy rồi mới báo đã lên web; rollback về snapshot trước. Public site tra cứu được khi Render ngủ. | ADMIN-08 |
 | Phản hồi | Xem theo thẻ/luật/version, lọc trạng thái, ghi chú xử lý; thông tin người gửi chỉ hiện cho người có quyền. | ADMIN-09 |
 | Sản phẩm và kho | Sản phẩm/SKU/ảnh/giá/trạng thái bán; số có sẵn, giữ cho đơn, khả dụng và lịch sử nhập/xuất/điều chỉnh có lý do. | ADMIN-10 |

@@ -6,6 +6,7 @@ import { of, throwError, Subject } from 'rxjs';
 import { describe, expect, it, beforeEach, vi } from 'vitest';
 import { AdminSectionPage } from './admin-section.page';
 import { AdminContentService, AdminCard, AdminCardSet, AdminCharacter, AdminRelease } from '../../../core/admin/admin-content.service';
+import { CardImportRow } from '../../../core/admin/card-import';
 import { AuthService } from '../../../core/auth/auth.service';
 
 describe('AdminSectionPage', () => {
@@ -564,4 +565,120 @@ describe('AdminSectionPage', () => {
     expect(component.cardsTotalPages()).toBe(3);
     expect(adminApiSpy.getRevisions).toHaveBeenLastCalledWith('rel-draft-1', 'cards', 1, 50, 'mì');
   });
+
+  it('rejects non-xlsx files before parsing', async () => {
+    const event = { target: { files: [new File(['code,name'], 'cards.csv')], value: 'cards.csv' } } as unknown as Event;
+    await component.onImportFileSelected(event);
+
+    expect(component.importErrorMsg()).toContain('.xlsx');
+    expect(component.importRows()).toEqual([]);
+  });
+
+  it('imports a card set and its cards sequentially with the running release version', async () => {
+    component.importForm = { code: 'set-02', name: 'Bộ nhập', slug: 'bo-nhap', description: 'Mô tả', sortOrder: 2 };
+    component.importRows.set([
+      importRow({ line: 2, code: 'CARD-101', name: 'Thẻ 1', slug: 'the-1' }),
+      importRow({ line: 3, code: 'CARD-102', name: 'Thẻ 2', slug: 'the-2', copiesInDeck: 2, ruleStatus: 'NEEDS_REVIEW' }),
+    ]);
+    adminApiSpy.createCardSet.mockReturnValue(
+      of({
+        entityId: 'set-new',
+        releaseVersion: 2,
+        item: { id: 'set-new', code: 'SET-02', slug: 'bo-nhap', name: 'Bộ nhập', description: 'Mô tả', sortOrder: 2 },
+      })
+    );
+    adminApiSpy.createCard
+      .mockReturnValueOnce(of({ entityId: 'c-101', releaseVersion: 3, item: {} }))
+      .mockReturnValueOnce(of({ entityId: 'c-102', releaseVersion: 4, item: {} }));
+
+    await component.submitCardImport();
+
+    expect(adminApiSpy.createCardSet).toHaveBeenCalledWith('rel-draft-1', {
+      expectedVersion: 1,
+      code: 'SET-02',
+      name: 'Bộ nhập',
+      slug: 'bo-nhap',
+      description: 'Mô tả',
+      sortOrder: 2,
+    });
+    expect(adminApiSpy.createCard).toHaveBeenNthCalledWith(
+      1,
+      'rel-draft-1',
+      expect.objectContaining({ expectedVersion: 2, cardSetId: 'set-new', code: 'CARD-101' })
+    );
+    expect(adminApiSpy.createCard).toHaveBeenNthCalledWith(
+      2,
+      'rel-draft-1',
+      expect.objectContaining({ expectedVersion: 3, cardSetId: 'set-new', code: 'CARD-102', copiesInDeck: 2 })
+    );
+    expect(component.importCreated()).toBe(2);
+    expect(component.activeRelease()?.version).toBe(4);
+    expect(component.importSuccessMsg()).toContain('2 thẻ');
+    expect(component.importRows()).toEqual([]);
+    expect(component.importSaving()).toBe(false);
+  });
+
+  it('stops an import at the failing row and keeps the created card set and cards', async () => {
+    component.importForm = { code: 'SET-03', name: 'Bộ lỗi', slug: 'bo-loi', description: '', sortOrder: 0 };
+    component.importRows.set([
+      importRow({ line: 2, code: 'CARD-201', name: 'Thẻ 1', slug: 'the-1' }),
+      importRow({ line: 3, code: 'CARD-202', name: 'Thẻ 2', slug: 'the-2' }),
+    ]);
+    adminApiSpy.createCardSet.mockReturnValue(
+      of({ entityId: 'set-err', releaseVersion: 2, item: { id: 'set-err', code: 'SET-03', slug: 'bo-loi', name: 'Bộ lỗi' } })
+    );
+    adminApiSpy.createCard
+      .mockReturnValueOnce(of({ entityId: 'c-201', releaseVersion: 3, item: {} }))
+      .mockReturnValueOnce(throwError(() => ({ status: 409, code: 'CONSTRAINT_VIOLATION' })));
+
+    await component.submitCardImport();
+
+    expect(adminApiSpy.createCard).toHaveBeenCalledTimes(2);
+    expect(component.importCreated()).toBe(1);
+    expect(component.importErrorMsg()).toContain('dòng 3');
+    expect(component.importErrorMsg()).toContain('1/2 thẻ');
+    expect(component.importErrorMsg()).toContain('Mã hoặc slug đã tồn tại');
+    expect(component.importSaving()).toBe(false);
+  });
+
+  it('blocks import when the preview still has row errors', async () => {
+    component.importForm = { code: 'SET-04', name: 'Bộ lỗi', slug: 'bo-loi', description: '', sortOrder: 0 };
+    component.importRows.set([importRow({ line: 2, errors: ['Thiếu tên thẻ.'] })]);
+
+    await component.submitCardImport();
+
+    expect(adminApiSpy.createCardSet).not.toHaveBeenCalled();
+    expect(component.importErrorMsg()).toContain('Còn dòng lỗi');
+  });
+
+  it('clears import state when switching release', () => {
+    component.importRows.set([importRow({ line: 2 })]);
+    component.importForm.code = 'SET-05';
+    component.importFileName.set('cards.xlsx');
+
+    component.onReleaseSelect(mockPublishedRelease.id);
+
+    expect(component.importRows()).toEqual([]);
+    expect(component.importForm.code).toBe('');
+    expect(component.importFileName()).toBe('');
+  });
 });
+
+function importRow(overrides: Partial<CardImportRow> = {}): CardImportRow {
+  return {
+    line: 2,
+    code: 'CARD-001',
+    name: 'Thẻ mẫu',
+    slug: 'the-mau',
+    effectText: 'Hiệu ứng',
+    rulingNotes: null,
+    ruleStatus: 'CONFIRMED' as const,
+    copiesInDeck: 1,
+    sortOrder: 1,
+    artworkUrl: null,
+    characterId: null,
+    characterCode: null,
+    errors: [],
+    ...overrides,
+  };
+}

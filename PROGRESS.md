@@ -4,6 +4,18 @@
 
 ## Cập nhật gần nhất
 
+### Nhập bộ thẻ từ Excel trên trang quản trị thẻ — 2026-10-25, local (chưa deploy)
+
+- Yêu cầu chủ dự án: thêm biểu mẫu import để admin tạo nguyên một bộ thẻ từ file Excel có các trường như tên, mô tả, ảnh.
+- Đã thêm khối **"Nhập bộ thẻ từ Excel"** trong `/admin/cards` khi bản phát hành đang chọn là `DRAFT`: nhập thông tin bộ thẻ, chọn `.xlsx` ≤ 5 MB, xem trước từng dòng (mã, tên, slug, số bản, trạng thái luật, ảnh, lỗi), chỉ bật nút nhập khi không còn dòng lỗi.
+- Đọc/ghi `.xlsx` ngay trên trình duyệt, không thêm dependency: đọc ZIP central directory + OOXML, hỗ trợ entry stored/deflate (`DecompressionStream('deflate-raw')`), shared strings và inline strings; nút "Tải file mẫu" sinh workbook 2 sheet (`Thẻ bài` chỉ có tiêu đề, `Hướng dẫn` có ví dụ) bằng ZIP stored + CRC32.
+- Cột hỗ trợ: Mã thẻ, Tên thẻ, Slug (tự sinh nếu trống), Hiệu ứng/Mô tả, Ghi chú luật, Trạng thái luật, Số bản (mặc định 1), Thứ tự, Ảnh (URL), Mã nhân vật. Ảnh là URL HTTPS/`/assets/...`/`/media/cards/<hash>`; **ảnh nhúng trong Excel không được đọc**, admin tải ảnh qua khối ảnh sẵn có rồi dán URL.
+- Import tạo bộ thẻ trước rồi tạo thẻ tuần tự, gửi `expectedVersion` bằng version hiện tại sau mỗi lần ghi; có tiến độ, khóa thao tác khi đang lưu, xóa trạng thái khi đổi release. Lỗi giữa chừng dừng lại, báo dòng lỗi và số thẻ đã tạo, giữ dữ liệu đã ghi (chưa có API xóa rollback). Không sửa backend/API/schema/quyền và không đụng dữ liệu production.
+- Kiểm thử local: `card-import.spec.ts` 13/13 và `admin-section.page.spec.ts` 22/22 pass (thêm 5 test luồng import). Toàn suite 307/308; test `arena-engine > plays 300 AI-vs-AI games` timeout 6,7 giây khi chạy song song cả suite, chạy riêng pass 4,1 giây — không liên quan thay đổi này. Production build/prerender qua, chỉ còn cảnh báo CSS budget/CommonJS có sẵn.
+- Kiểm tra trình duyệt dev server với mock API local: file 3 thẻ hiện "3 dòng · 3 hợp lệ · 0 lỗi"; bấm nhập tạo bộ thẻ `SET-TEST` + 3 thẻ, version release 1 → 5, danh sách hiển thị đủ CARD-101/102/103. Không gọi API/tài khoản production.
+- Chi tiết cột, định dạng ảnh, lỗi và giới hạn: [ADMIN_CARD_IMPORT.md](docs/ADMIN_CARD_IMPORT.md).
+- Chưa commit/push/deploy; CD chỉ chạy từ `main` và cần chủ dự án xác nhận.
+
 ### Lối vào đăng ký và chuyển động cho trang xác thực — 2026-10-25, đã lên main và deploy
 
 - Yêu cầu chủ dự án: hiện chỉ thấy giao diện đăng nhập, thiếu giao diện/nút đăng ký; cần đồng bộ phong cách website và chuyển động mượt.

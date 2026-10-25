@@ -262,6 +262,207 @@
         }
 
         @if (isDraftSelected()) {
+          <div class="import-box my-4 rounded-xl border border-emerald-900/40 bg-slate-900/80">
+            <div class="flex flex-wrap items-center justify-between gap-2 p-4">
+              <div>
+                <h3 class="text-sm font-bold text-emerald-300 flex items-center gap-2">
+                  <app-morph-icon name="file-text" [size]="18" color="#dafa76"></app-morph-icon>
+                  <span>Nhập bộ thẻ từ Excel</span>
+                </h3>
+                <p class="text-[11px] text-slate-400 mt-1">
+                  Tạo bộ thẻ mới và toàn bộ thẻ trong một lần từ file .xlsx (tên, mô tả, ảnh, số bản…).
+                </p>
+              </div>
+              <div class="flex flex-wrap items-center gap-3">
+                <button type="button" class="text-xs font-bold text-sky-400 hover:underline" (click)="downloadImportTemplate()">
+                  Tải file mẫu .xlsx
+                </button>
+                <button type="button" class="text-xs font-bold text-emerald-300 hover:underline" (click)="toggleImportPanel()">
+                  {{ importOpen() ? 'Đóng biểu mẫu' : 'Mở biểu mẫu import' }}
+                </button>
+              </div>
+            </div>
+
+            @if (importSuccessMsg()) {
+              <div class="mx-4 mb-3 p-3 rounded bg-emerald-950/40 border border-emerald-800 text-xs text-emerald-300" role="status">
+                {{ importSuccessMsg() }}
+              </div>
+            }
+            @if (importErrorMsg()) {
+              <div class="mx-4 mb-3 error-banner-card" role="alert">
+                <span class="text-xs text-rose-300 font-medium">{{ importErrorMsg() }}</span>
+              </div>
+            }
+
+            @if (importOpen()) {
+              <div class="px-4 pb-4 border-t border-slate-800">
+                <p class="text-xs text-slate-300 my-3">
+                  Nhập thông tin bộ thẻ, chọn file Excel rồi kiểm tra bản xem trước. Mã thẻ trùng trong file, sai định dạng
+                  hoặc ảnh không phải URL HTTPS sẽ bị chặn trước khi ghi dữ liệu. Ảnh nhúng trong Excel không được đọc.
+                </p>
+
+                <form (ngSubmit)="submitCardImport()" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <fieldset class="contents" [disabled]="importSaving() || importParsing()">
+                    <div>
+                      <label for="import-set-code" class="block text-xs font-semibold text-slate-400 mb-1">Mã bộ thẻ *</label>
+                      <input
+                        id="import-set-code"
+                        name="importSetCode"
+                        type="text"
+                        class="admin-input font-mono"
+                        placeholder="VD: SET-01"
+                        [(ngModel)]="importForm.code"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label for="import-set-name" class="block text-xs font-semibold text-slate-400 mb-1">Tên bộ thẻ *</label>
+                      <input
+                        id="import-set-name"
+                        name="importSetName"
+                        type="text"
+                        class="admin-input"
+                        placeholder="VD: Đời sống sinh viên"
+                        [(ngModel)]="importForm.name"
+                        (input)="onImportSetNameInput()"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label for="import-set-slug" class="block text-xs font-semibold text-slate-400 mb-1">Đường dẫn (slug) *</label>
+                      <input
+                        id="import-set-slug"
+                        name="importSetSlug"
+                        type="text"
+                        class="admin-input font-mono"
+                        placeholder="VD: doi-song-sinh-vien"
+                        [(ngModel)]="importForm.slug"
+                        (input)="onImportSetSlugInput()"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label for="import-set-sort" class="block text-xs font-semibold text-slate-400 mb-1">Thứ tự hiển thị</label>
+                      <input
+                        id="import-set-sort"
+                        name="importSetSort"
+                        type="number"
+                        min="0"
+                        max="100000"
+                        class="admin-input"
+                        [(ngModel)]="importForm.sortOrder"
+                      />
+                    </div>
+                    <div class="sm:col-span-2 lg:col-span-3">
+                      <label for="import-set-description" class="block text-xs font-semibold text-slate-400 mb-1">Mô tả bộ thẻ (tùy chọn)</label>
+                      <input
+                        id="import-set-description"
+                        name="importSetDescription"
+                        type="text"
+                        class="admin-input"
+                        placeholder="Mô tả ngắn cho bộ thẻ..."
+                        [(ngModel)]="importForm.description"
+                      />
+                    </div>
+                    <div class="sm:col-span-2 lg:col-span-4">
+                      <label for="import-file" class="block text-xs font-semibold text-slate-400 mb-1">File Excel (.xlsx) *</label>
+                      <input
+                        id="import-file"
+                        name="importFile"
+                        type="file"
+                        accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                        class="admin-input import-file"
+                        (change)="onImportFileSelected($event)"
+                      />
+                      <span class="text-[10px] text-slate-400 mt-1 block">
+                        Tối đa 5 MB. Chỉ đọc sheet đầu tiên. Cột bắt buộc: Mã thẻ, Tên thẻ, Hiệu ứng / Mô tả.
+                      </span>
+                      @if (importParsing()) {
+                        <span class="text-[11px] text-amber-300 mt-1 block" role="status">Đang đọc file Excel…</span>
+                      } @else if (importFileName()) {
+                        <span class="text-[11px] text-slate-300 mt-1 block">
+                          Đã đọc {{ importFileName() }} · {{ importRows().length }} dòng dữ liệu
+                        </span>
+                      }
+                    </div>
+
+                    @if (importRows().length > 0) {
+                      <div class="sm:col-span-2 lg:col-span-4">
+                        <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                          <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Xem trước dữ liệu</span>
+                          <span
+                            class="text-xs font-semibold"
+                            [class.text-rose-300]="importErrorCount() > 0"
+                            [class.text-emerald-300]="importErrorCount() === 0"
+                          >
+                            {{ importRows().length }} dòng · {{ importRows().length - importErrorCount() }} hợp lệ ·
+                            {{ importErrorCount() }} lỗi
+                          </span>
+                        </div>
+                        <div class="import-preview">
+                          <table class="admin-table">
+                            <thead>
+                              <tr>
+                                <th>Dòng</th>
+                                <th>Mã</th>
+                                <th>Tên thẻ</th>
+                                <th>Slug</th>
+                                <th class="text-center">Số bản</th>
+                                <th>Trạng thái luật</th>
+                                <th>Ảnh</th>
+                                <th>Kiểm tra</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              @for (row of importRows(); track row.line) {
+                                <tr>
+                                  <td class="font-mono text-xs text-slate-400">{{ row.line }}</td>
+                                  <td class="font-mono text-xs text-sky-400">{{ row.code || '—' }}</td>
+                                  <td class="text-xs text-slate-100">{{ row.name || '—' }}</td>
+                                  <td class="font-mono text-[11px] text-slate-400">{{ row.slug || '—' }}</td>
+                                  <td class="text-center text-xs font-mono text-slate-300">{{ row.copiesInDeck }}</td>
+                                  <td class="text-xs text-slate-300">
+                                    {{ row.ruleStatus === 'CONFIRMED' ? 'Xác nhận' : 'Cần duyệt' }}
+                                  </td>
+                                  <td class="text-[11px] text-slate-400 max-w-[12rem] truncate">{{ row.artworkUrl || '—' }}</td>
+                                  <td class="text-xs" [class.import-row-error]="row.errors.length > 0">
+                                    {{ row.errors.length > 0 ? row.errors.join(' ') : 'Hợp lệ' }}
+                                  </td>
+                                </tr>
+                              }
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    }
+
+                    <div class="sm:col-span-2 lg:col-span-4 flex flex-wrap items-center justify-between gap-3 pt-2">
+                      @if (importSaving()) {
+                        <span class="text-xs text-amber-300" role="status">
+                          {{ importProgress().total > 0
+                            ? ('Đang nhập thẻ ' + importProgress().done + '/' + importProgress().total + '…')
+                            : 'Đang tạo bộ thẻ…' }}
+                        </span>
+                      } @else {
+                        <span class="text-[11px] text-slate-400">
+                          Import ghi tuần tự vào bản thảo; nếu lỗi giữa chừng, bộ thẻ và các thẻ đã tạo vẫn được giữ.
+                        </span>
+                      }
+                      <button
+                        type="submit"
+                        id="submit-card-import"
+                        class="action-btn-primary"
+                        [disabled]="importSaving() || importParsing() || !importReady() || !importForm.code.trim() || !importForm.name.trim() || !isDraftSelected()"
+                      >
+                        {{ importSaving() ? 'Đang nhập…' : ('Nhập bộ thẻ và ' + importRows().length + ' thẻ') }}
+                      </button>
+                    </div>
+                  </fieldset>
+                </form>
+              </div>
+            }
+          </div>
+
           <div class="my-4 p-4 rounded-xl border border-sky-900/40 bg-slate-900/80">
             <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
               <h3 class="text-sm font-bold text-sky-300">

@@ -1,6 +1,7 @@
 import { RiseHeadingDirective } from '../../../shared/motion/rise-heading.directive';
 import { Component, DestroyRef, inject, computed, OnInit, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { firstValueFrom } from 'rxjs';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { SlicePipe } from '@angular/common';
@@ -9,6 +10,17 @@ import { AuthService } from '../../../core/auth/auth.service';
 import { CardImageUploadComponent } from '../card-image-upload/card-image-upload.component';
 import { MorphIconComponent } from '../../../shared/components/morph-icon/morph-icon.component';
 import { MorphIconName } from '../../../shared/components/morph-icon/icons';
+import {
+  CARD_IMPORT_TEMPLATE_FILENAME,
+  CardImportRow,
+  CardSetImportDraft,
+  buildCardImportTemplate,
+  isAllowedArtworkUrl,
+  parseCardImport,
+  readFirstSheet,
+  slugify,
+  validateCardSetImport,
+} from '../../../core/admin/card-import';
 import {
   AdminContentService,
   AdminRelease,
@@ -93,6 +105,19 @@ export class AdminSectionPage implements OnInit {
   readonly cardSetSuccessMsg = signal<string | null>(null);
   readonly cardSetFormOpen = signal(false);
 
+  // Excel card-set import state
+  readonly importOpen = signal(false);
+  readonly importParsing = signal(false);
+  readonly importSaving = signal(false);
+  readonly importErrorMsg = signal<string | null>(null);
+  readonly importSuccessMsg = signal<string | null>(null);
+  readonly importRows = signal<CardImportRow[]>([]);
+  readonly importFileName = signal('');
+  readonly importProgress = signal({ done: 0, total: 0 });
+  readonly importCreated = signal(0);
+  readonly importErrorCount = computed(() => this.importRows().filter(row => row.errors.length > 0).length);
+  readonly importReady = computed(() => this.importRows().length > 0 && this.importErrorCount() === 0);
+
   // Card list pagination & search
   readonly cardsPage = signal(0);
   readonly cardsPageSize = 50;
@@ -104,6 +129,7 @@ export class AdminSectionPage implements OnInit {
   private cardsSeq = 0;
   private slugManuallyEdited = false;
   private cardSetSlugManuallyEdited = false;
+  private importSlugManuallyEdited = false;
 
   releaseForm = {
     versionLabel: '',
@@ -112,6 +138,14 @@ export class AdminSectionPage implements OnInit {
   };
 
   cardSetForm = {
+    code: '',
+    name: '',
+    slug: '',
+    description: '',
+    sortOrder: 0,
+  };
+
+  importForm = {
     code: '',
     name: '',
     slug: '',
@@ -231,7 +265,7 @@ export class AdminSectionPage implements OnInit {
   }
 
   loadSectionData(): void {
-    if (this.cardSaving() || this.cloneSaving()) return;
+    if (this.cardSaving() || this.cloneSaving() || this.importSaving()) return;
     const key = this.sectionKey();
     this.loading.set(true);
     this.errorMsg.set(null);
@@ -402,6 +436,209 @@ export class AdminSectionPage implements OnInit {
     this.cardSetFormOpen.update(value => !value);
   }
 
+  toggleImportPanel(): void {
+    this.importOpen.update(value => !value);
+  }
+
+  downloadImportTemplate(): void {
+    const bytes = buildCardImportTemplate();
+    const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+    const url = URL.createObjectURL(
+      new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    );
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = CARD_IMPORT_TEMPLATE_FILENAME;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  onImportSetNameInput(): void {
+    if (!this.importSlugManuallyEdited) {
+      this.importForm.slug = slugify(this.importForm.name);
+    }
+  }
+
+  onImportSetSlugInput(): void {
+    this.importSlugManuallyEdited = true;
+  }
+
+  async onImportFileSelected(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file || this.importSaving()) return;
+
+    this.importRows.set([]);
+    this.importFileName.set('');
+    this.importErrorMsg.set(null);
+    this.importSuccessMsg.set(null);
+    this.importProgress.set({ done: 0, total: 0 });
+
+    if (!/\.xlsx$/i.test(file.name)) {
+      this.importErrorMsg.set('Chỉ hỗ trợ file Excel .xlsx. Hãy tải file mẫu để bắt đầu.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      this.importErrorMsg.set('File Excel vượt quá 5 MB. Hãy tách bớt dữ liệu rồi thử lại.');
+      return;
+    }
+
+    this.importParsing.set(true);
+    try {
+      const matrix = await readFirstSheet(file);
+      if (this.destroyRef.destroyed) return;
+      const preview = parseCardImport(matrix, this.characters());
+      this.importRows.set(preview.rows);
+      this.importFileName.set(file.name);
+      if (preview.fileError) this.importErrorMsg.set(preview.fileError);
+    } catch (error) {
+      this.importErrorMsg.set(error instanceof Error ? error.message : 'Không đọc được file Excel.');
+    } finally {
+      this.importParsing.set(false);
+    }
+  }
+
+  async submitCardImport(): Promise<void> {
+    if (this.importSaving() || this.importParsing()) return;
+    const rel = this.activeRelease();
+    if (!rel) {
+      this.importErrorMsg.set('Chưa chọn bản phát hành.');
+      return;
+    }
+    if (rel.status !== 'DRAFT') {
+      this.importErrorMsg.set('Chỉ có thể nhập bộ thẻ vào bản phát hành DRAFT.');
+      return;
+    }
+    const rows = this.importRows();
+    if (rows.length === 0) {
+      this.importErrorMsg.set('Chưa chọn file Excel có dữ liệu thẻ.');
+      return;
+    }
+    if (this.importErrorCount() > 0) {
+      this.importErrorMsg.set('Còn dòng lỗi trong file. Hãy sửa file và chọn lại trước khi nhập.');
+      return;
+    }
+
+    const draft: CardSetImportDraft = {
+      code: this.importForm.code.trim().toUpperCase(),
+      name: this.importForm.name.trim(),
+      slug: this.importForm.slug.trim() || slugify(this.importForm.name),
+      description: this.importForm.description.trim(),
+      sortOrder: Number(this.importForm.sortOrder),
+    };
+    const draftError = validateCardSetImport(draft, this.cardSets());
+    if (draftError) {
+      this.importErrorMsg.set(draftError);
+      return;
+    }
+
+    this.importSaving.set(true);
+    this.importErrorMsg.set(null);
+    this.importSuccessMsg.set(null);
+    this.importCreated.set(0);
+    let version = rel.version;
+    let setCreated = false;
+    let currentRow: CardImportRow | undefined;
+
+    try {
+      const setResponse = await firstValueFrom(
+        this.adminApi.createCardSet(rel.id, {
+          expectedVersion: version,
+          code: draft.code,
+          name: draft.name,
+          slug: draft.slug,
+          description: draft.description || null,
+          sortOrder: draft.sortOrder,
+        })
+      );
+      setCreated = true;
+      version = setResponse.releaseVersion;
+      this.updateReleaseVersion(rel.id, version);
+      this.importProgress.set({ done: 0, total: rows.length });
+
+      for (let index = 0; index < rows.length; index++) {
+        if (this.destroyRef.destroyed || this.activeRelease()?.id !== rel.id) return;
+        currentRow = rows[index];
+        const response = await firstValueFrom(
+          this.adminApi.createCard(rel.id, {
+            expectedVersion: version,
+            code: currentRow.code,
+            slug: currentRow.slug,
+            name: currentRow.name,
+            cardSetId: setResponse.item.id,
+            characterId: currentRow.characterId,
+            effectText: currentRow.effectText,
+            rulingNotes: currentRow.rulingNotes,
+            ruleStatus: currentRow.ruleStatus,
+            copiesInDeck: currentRow.copiesInDeck,
+            artworkUrl: currentRow.artworkUrl,
+            sortOrder: currentRow.sortOrder,
+          })
+        );
+        version = response.releaseVersion;
+        this.importCreated.update(count => count + 1);
+        this.importProgress.set({ done: index + 1, total: rows.length });
+        this.updateReleaseVersion(rel.id, version);
+      }
+
+      this.importSuccessMsg.set(
+        `Đã tạo bộ thẻ "${draft.name}" và ${rows.length} thẻ trong bản thảo ${rel.versionLabel}. Thẻ chưa hiển thị công khai cho đến khi xuất bản.`
+      );
+      this.importForm = { code: '', name: '', slug: '', description: '', sortOrder: 0 };
+      this.importSlugManuallyEdited = false;
+      this.importRows.set([]);
+      this.importFileName.set('');
+      this.importProgress.set({ done: 0, total: 0 });
+      this.importOpen.set(false);
+    } catch (error) {
+      const problem = error as AdminProblemDetail;
+      if (this.activeRelease()?.id === rel.id) {
+        const reason = this.describeImportProblem(problem);
+        if (setCreated) {
+          const rowLabel = currentRow ? ` ở dòng ${currentRow.line} (${currentRow.code || 'chưa có mã'})` : '';
+          this.importErrorMsg.set(
+            `Dừng${rowLabel}: ${reason} Đã tạo bộ thẻ "${draft.name}" và ${this.importCreated()}/${rows.length} thẻ; các thẻ đã tạo vẫn được giữ. Hãy sửa file rồi thêm phần còn lại hoặc dùng biểu mẫu thẻ bài.`
+          );
+        } else {
+          this.importErrorMsg.set(`Không thể tạo bộ thẻ: ${reason}`);
+        }
+      }
+    } finally {
+      this.importSaving.set(false);
+      if (!this.destroyRef.destroyed && this.activeRelease()?.id === rel.id) {
+        this.loadReleaseContent(rel.id, 'cards');
+      }
+    }
+  }
+
+  private describeImportProblem(problem: AdminProblemDetail): string {
+    if (problem.status === 401 || problem.code === 'SESSION_EXPIRED') {
+      return 'Phiên quản trị đã hết hạn, hãy đăng nhập lại.';
+    }
+    if (problem.status === 403) {
+      return 'Tài khoản không có quyền ADMIN hoặc thiếu chữ ký CSRF.';
+    }
+    if (problem.code === 'CONSTRAINT_VIOLATION') {
+      return 'Mã hoặc slug đã tồn tại trong hệ thống.';
+    }
+    if (problem.code === 'VERSION_CONFLICT' || problem.status === 409) {
+      return 'Xung đột phiên bản: bản thảo đã thay đổi, hãy tải lại dữ liệu rồi thử lại.';
+    }
+    return problem.detail || problem.title || 'Lỗi không xác định.';
+  }
+
+  private resetImportState(): void {
+    this.importRows.set([]);
+    this.importFileName.set('');
+    this.importProgress.set({ done: 0, total: 0 });
+    this.importCreated.set(0);
+    this.importErrorMsg.set(null);
+    this.importSuccessMsg.set(null);
+    this.importForm = { code: '', name: '', slug: '', description: '', sortOrder: 0 };
+    this.importSlugManuallyEdited = false;
+  }
+
   createRelease(): void {
     if (this.releaseSaving() || this.loading()) return;
     const versionLabel = this.releaseForm.versionLabel.trim();
@@ -449,7 +686,7 @@ export class AdminSectionPage implements OnInit {
 
   onCardSetNameInput(): void {
     if (!this.cardSetSlugManuallyEdited) {
-      this.cardSetForm.slug = this.slugify(this.cardSetForm.name);
+      this.cardSetForm.slug = slugify(this.cardSetForm.name);
     }
   }
 
@@ -529,7 +766,7 @@ export class AdminSectionPage implements OnInit {
   }
 
   onReleaseSelect(releaseId: string): void {
-    if (this.cardSaving() || this.cloneSaving()) return;
+    if (this.cardSaving() || this.cloneSaving() || this.importSaving()) return;
     const target = this.releases().find(r => r.id === releaseId);
     if (target && target.id !== this.activeRelease()?.id) {
       this.selectRelease(target);
@@ -552,6 +789,8 @@ export class AdminSectionPage implements OnInit {
     this.cardSetErrorMsg.set(null);
     this.cardSetSuccessMsg.set(null);
     this.cardSetFormOpen.set(false);
+    this.resetImportState();
+    this.importOpen.set(false);
     this.cloneErrorMsg.set(null);
     this.cloneSuccessMsg.set(null);
     this.loadReleaseContent(release.id, this.sectionKey());
@@ -575,7 +814,7 @@ export class AdminSectionPage implements OnInit {
 
   onCardNameInput(): void {
     if (!this.slugManuallyEdited) {
-      this.cardForm.slug = this.slugify(this.cardForm.name);
+      this.cardForm.slug = slugify(this.cardForm.name);
     }
   }
 
@@ -642,14 +881,7 @@ export class AdminSectionPage implements OnInit {
     if (f.artworkUrl) {
       const val = f.artworkUrl.trim();
       if (val.length > 2048) return 'Đường dẫn ảnh tối đa 2048 ký tự.';
-      const isAsset = val.startsWith('/assets/') && !val.includes('..') && !val.includes('\\');
-      const isMedia = /^\/media\/cards\/[a-f0-9]{64}\.(png|jpg|webp)$/.test(val);
-      let isHttps = false;
-      try {
-        const u = new URL(val);
-        isHttps = u.protocol === 'https:' && !u.username && !u.password;
-      } catch {}
-      if (!isAsset && !isMedia && !isHttps) {
+      if (!isAllowedArtworkUrl(val)) {
         return 'Đường dẫn ảnh (artworkUrl) không hợp lệ. Phải là /media/cards/<hash>.(png|jpg|webp), /assets/... hoặc URL HTTPS.';
       }
     }
@@ -727,7 +959,7 @@ export class AdminSectionPage implements OnInit {
 
   reloadSelectedRelease(): void {
     const id = this.activeRelease()?.id;
-    if (!id || this.cardSaving() || this.cloneSaving() || this.loading()) return;
+    if (!id || this.cardSaving() || this.cloneSaving() || this.importSaving() || this.loading()) return;
     this.loading.set(true);
     this.adminApi.getRelease(id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: release => {
@@ -802,17 +1034,6 @@ export class AdminSectionPage implements OnInit {
 
   setWikiTab(tab: 'ALL' | 'STORY' | 'RULE' | 'GUIDE' | 'FAQ' | 'DEVLOG'): void {
     this.activeWikiTab.set(tab);
-  }
-
-  private slugify(text: string): string {
-    return text
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[đĐ]/g, 'd')
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 160);
   }
 
   private handleApiError(err: AdminProblemDetail | any): void {
