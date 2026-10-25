@@ -54,6 +54,13 @@ describe('Public navigation disclosures', () => {
     element().querySelector<HTMLAnchorElement>('.brand')!.focus(); fixture.detectChanges();
     expect(fixture.componentInstance.openGroup()).toBeNull();
   });
+  it('shows a register call to action next to login for signed-out visitors', () => {
+    const login = element().querySelector<HTMLAnchorElement>('.header-actions .account-link');
+    const register = element().querySelector<HTMLAnchorElement>('.header-actions .account-cta');
+    expect(login?.getAttribute('href')).toBe('/dang-nhap');
+    expect(register?.getAttribute('href')).toBe('/dang-ky');
+    expect(register?.textContent).toContain('Đăng ký');
+  });
   it('marks the parent of legal routes active and closes an open panel on navigation', async () => {
     toggle().click(); fixture.detectChanges();
     await TestBed.inject(Router).navigateByUrl('/chinh-sach-quyen-rieng-tu'); fixture.detectChanges();

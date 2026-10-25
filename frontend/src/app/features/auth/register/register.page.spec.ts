@@ -23,6 +23,15 @@ describe('RegisterPage', () => {
     expect(component).toBeTruthy();
   });
 
+  it('shows a login/register switch with register selected', () => {
+    const links = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLAnchorElement>('nav.auth-switch a');
+    expect(links).toHaveLength(2);
+    expect(links[0].getAttribute('href')).toBe('/dang-nhap');
+    expect(links[0].getAttribute('aria-current')).toBeNull();
+    expect(links[1].getAttribute('href')).toBe('/dang-ky');
+    expect(links[1].getAttribute('aria-current')).toBe('page');
+  });
+
   it('should validate form and detect password mismatch', () => {
     expect(component.registerForm.valid).toBe(false);
     component.registerForm.controls.displayName.setValue('Thủ quỹ');

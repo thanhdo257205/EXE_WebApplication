@@ -34,7 +34,8 @@
 .public-header .desktop-nav a:hover,.public-header .desktop-nav a.active,.public-header .desktop-nav[data-lens-ready] a.active,.public-header .desktop-nav[data-lens-ready] a[data-glass-lens]{background:transparent;color:#f3f1ea;text-shadow:none}
 .public-header .desktop-nav a:hover::after,.public-header .desktop-nav a.active::after{transform:scaleX(1)}
 .public-header .submenu-toggle,.public-header .nav-item:has([data-glass-lens]) .submenu-toggle{color:#8f9289}
-.public-header .account-link{font-size:12px;font-weight:500;letter-spacing:.18em;text-transform:uppercase}
+.public-header .account-link{font-size:12px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;transition:color .2s ease}
+.public-header .account-link:hover{color:#dafa76}
 .public-header .cart-link.liquid-glass{width:40px;height:40px;background:transparent;border:1px solid #f3f1ea38;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none}
 .public-header .cart-link.liquid-glass:hover{border-color:#dafa76;color:#dafa76}
 .submenu-surface{background:#141618;border:1px solid #f3f1ea29;border-radius:14px;box-shadow:0 24px 48px #0008}
@@ -43,3 +44,13 @@
 .submenu-surface a:hover,.submenu-surface a:focus-visible{background:#f3f1ea0d;outline-color:#dafa7655}
 .submenu-surface a>span:last-child{color:#dafa76}
 .submenu-surface small{color:#8f9289}
+
+@media(max-width:500px){
+  .public-header .account-link{display:none}
+}
+@media(max-width:420px){
+  .public-header{padding-inline:12px;gap:10px}
+  .public-header .brand{font-size:22px;gap:8px}
+  .public-header .brand-logo{width:36px;height:36px;font-size:21px}
+  .header-actions{gap:8px}
+}

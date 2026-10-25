@@ -62,6 +62,14 @@ Render vẫn có địa chỉ công khai. `OriginProxyFilter` chặn request ứ
 
 Angular có AuthService và UI `/dang-nhap`, `/dang-ky`, `/quen-mat-khau`, `/dat-lai-mat-khau`. Form login đã tích hợp Turnstile explicit render với action `login`, chuyển token một lần qua X-Turnstile-Token, xóa/reset token sau lỗi và chặn gửi khi chưa xác minh. Hỗ trợ challenge hết hạn, timeout, lỗi tải script và tháo widget khi rời trang. Sitekey công khai trong environment production thuộc widget dành cho exe-webapp.pages.dev; secret chỉ ở gateway. Development không render widget vì Spring local không qua gateway. Header topbar và mobile drawer hiển thị tên cư dân, avatar, vai trò và menu dropdown vào Admin Portal (chỉ hiện khi có role `ADMIN`). Đã bổ sung `adminGuard` cho toàn bộ các route `/admin/**`, kiểm tra vai trò `ADMIN`, chặn anonymous và CUSTOMER có chuyển hướng kèm thông báo lỗi.
 
+### Lối vào đăng ký và chuyển động giao diện — 2026-10-25 (local)
+
+- `/dang-ky` dùng `RegisterPage` và gọi `POST /api/v1/auth/register` với `displayName`, `email`, `password`; không có Turnstile ở bước này. Route `/register` chuyển hướng sang `/dang-ky`.
+- Header công khai khi chưa đăng nhập hiển thị cả "Đăng nhập" (`/dang-nhap`) và CTA "Đăng ký" (`/dang-ky`). CTA là pill màu `#dafa76`, hover nhấc nhẹ và dịch mũi tên; dưới 500px ẩn link đăng nhập vì drawer di động đã có cả hai nút; dưới 420px thu gọn brand/CTA để tránh tràn ngang.
+- Hai trang auth có segmented switch "Đăng nhập / Đăng ký" ngay trên form; mục hiện tại có `aria-current="page"`, thanh trượt màu lime chuyển giữa hai mục. Link chéo trong panel phụ và liên kết mobile vẫn giữ nguyên.
+- Chuyển động vào trang dùng `auth-rise`/`auth-fade` cho header block, hai panel và các field (so le bằng `--stagger`); nút submit có phản hồi nhấn. Toàn bộ animation/transition tắt khi `prefers-reduced-motion: reduce`; chuyển route vẫn dùng view transition sẵn có.
+- CSS CTA nằm trong `account-menu.css` để `global-bar.component.css` không vượt ngưỡng lỗi 10 kB mỗi component style. Kiểm thử local: login/register/global-bar 22/22 pass, production build qua; chưa deploy.
+
 Trình tự mật khẩu:
 
 1. Gọi GET csrf với `credentials: 'include'`, giữ token trả về trong bộ nhớ.

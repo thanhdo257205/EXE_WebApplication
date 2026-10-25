@@ -81,6 +81,15 @@ describe('LoginPage', () => {
     expect(component).toBeTruthy();
   });
 
+  it('shows a login/register switch with login selected', () => {
+    const links = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLAnchorElement>('nav.auth-switch a');
+    expect(links).toHaveLength(2);
+    expect(links[0].getAttribute('href')).toBe('/dang-nhap');
+    expect(links[0].getAttribute('aria-current')).toBe('page');
+    expect(links[1].getAttribute('href')).toBe('/dang-ky');
+    expect(links[1].getAttribute('aria-current')).toBeNull();
+  });
+
   it('should validate email and password fields', () => {
     expect(component.loginForm.valid).toBe(false);
     component.loginForm.controls.email.setValue('test@example.com');

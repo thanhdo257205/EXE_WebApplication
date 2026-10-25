@@ -2,6 +2,14 @@
 
 Cập nhật: 2026-10-25 (Asia/Saigon).
 
+## Lối vào đăng ký & chuyển động trang xác thực (2026-10-25)
+
+- [x] AUTH-ENTRY-01 — Header công khai hiển thị nút "Đăng ký" pill lime cạnh "Đăng nhập" khi chưa có tài khoản; ≤500px ẩn link đăng nhập (drawer vẫn có cả hai), ≤420px thu gọn brand/CTA; CSS CTA nằm trong `account-menu.css` để giữ budget.
+- [x] AUTH-SWITCH-02 — Segmented switch "Đăng nhập / Đăng ký" trên cả hai form, active theo trang với `aria-current="page"`, glider trượt; giữ link chéo hiện có.
+- [x] AUTH-MOTION-03 — Header + hai panel trượt lên, field hiện so le, nút submit có phản hồi nhấn; tắt toàn bộ dưới `prefers-reduced-motion`.
+- [x] AUTH-VERIFY-04 — 22/22 test (login 11, register 5, global-bar 6) pass; production build/prerender qua; dev server hiển thị đúng header hai nút, `/dang-nhap` và `/dang-ky` đúng switch.
+- [ ] AUTH-PROD-05 — Chưa push/deploy; chưa kiểm tra production hoặc thiết bị thật.
+
 ## Quản lý thẻ: chép URL, tạo release/bộ thẻ, tìm kiếm & phân trang (2026-10-25)
 
 - [x] ADMIN-COPY-01 — `copy()` thử Clipboard API rồi fallback `textarea` + `execCommand`; hiện thông báo khi cả hai bị chặn và cho bấm URL để chọn/chép thủ công. Có test cho cả nhánh fallback và nhánh thất bại.

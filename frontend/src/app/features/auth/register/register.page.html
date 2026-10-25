@@ -52,6 +52,11 @@
 
       <!-- Right side: Register Form -->
       <div class="auth-form-panel">
+        <nav class="auth-switch" data-active="register" aria-label="Chuyển giữa đăng nhập và đăng ký">
+          <span class="auth-switch-glider" aria-hidden="true"></span>
+          <a routerLink="/dang-nhap">Đăng nhập</a>
+          <a routerLink="/dang-ky" class="is-active" aria-current="page">Đăng ký</a>
+        </nav>
         <form [formGroup]="registerForm" (ngSubmit)="onSubmit()" class="auth-form" novalidate>
           @if (errorMessage()) {
             <div class="error-banner" role="alert">

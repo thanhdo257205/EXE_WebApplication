@@ -24,6 +24,8 @@ Mobile≤1000px giữ drawer hiện có và thêm quyền riêng tư/điều kho
 
 Lens kính theo hover hoặc nhóm đang mở, giữ trên mục cha khi rê xuống panel, rồi trở về nhóm chứa route hiện tại. Các route câu chuyện/cư dân/pháp lý thuộc Khám phá, thư viện thuộc Thẻ bài, quỹ nhà thuộc Cách chơi, giỏ hàng thuộc Cửa hàng. Auth vẫn không giả chọn một nhóm. Directive map sự kiện button về link cha qua data-glass-item; cache geometry/lens writes vẫn giữ nguyên, data-glass-open chỉ invalidate khi nhóm mở đổi.
 
+Khi chưa đăng nhập (2026-10-25), cụm hành động của header hiển thị "Đăng nhập" (`/dang-nhap`) và CTA "Đăng ký" (`/dang-ky`) dạng pill lime, hover nhấc nhẹ + mũi tên dịch sang phải, tôn trọng `prefers-reduced-motion`. Dưới 500px ẩn link đăng nhập vì drawer di động đã có cả hai nút; dưới 420px thu gọn brand và CTA để không tràn ngang. Hai trang auth có thêm segmented switch "Đăng nhập / Đăng ký" ngay trên form.
+
 ## Mã nguồn và kiểm tra
 
 Cấu hình nhóm/liên kết và activePaths nằm trong GlobalBarComponent.navigation; khi thêm mục phải thêm route thật trước. Dropdown nằm ngoài rail overflow:hidden để không bị clip; CSS giữ nền/rim kính và focus có tương phản. Mobile drawer hiện là danh sách riêng trong App template, cần đồng bộ liên kết mới tại đó.

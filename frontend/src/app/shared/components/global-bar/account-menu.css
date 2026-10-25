@@ -16,3 +16,17 @@
 .account-logout{margin-top:6px;border-top:1px solid #f3f1ea1a;border-radius:0 0 10px 10px;color:#ff9b8a}
 @keyframes account-in{from{opacity:0;transform:translateY(-6px)}}
 @media(prefers-reduced-motion:reduce){.account-menu{animation:none}}
+
+/* CTA Đăng ký cạnh Đăng nhập khi chưa có tài khoản */
+.public-header .account-cta{display:inline-flex;align-items:center;gap:8px;padding:11px 18px;border-radius:999px;background:#dafa76;color:#0b0c0d;font-size:12px;font-weight:700;letter-spacing:.14em;line-height:1;text-transform:uppercase;box-shadow:0 0 0 1px #dafa76,0 8px 20px -10px #dafa76b3;transition:transform .25s cubic-bezier(.16,1,.3,1),background-color .25s ease,box-shadow .25s ease}
+.public-header .account-cta:hover{background:#e8fca4;transform:translateY(-1px);box-shadow:0 0 0 1px #e8fca4,0 12px 26px -12px #dafa76d9}
+.public-header .account-cta:active{transform:translateY(0) scale(.97)}
+.public-header .account-cta app-morph-icon{transition:transform .25s cubic-bezier(.16,1,.3,1)}
+.public-header .account-cta:hover app-morph-icon{transform:translateX(3px)}
+.public-header .account-cta:focus-visible{outline:2px solid #f3f1ea;outline-offset:3px}
+@media(max-width:640px){.public-header .account-cta{padding:10px 14px;font-size:11px;letter-spacing:.1em}}
+@media(max-width:420px){.public-header .account-cta{padding:9px 12px;font-size:10px;letter-spacing:.06em;gap:6px}}
+@media(prefers-reduced-motion:reduce){
+  .public-header .account-cta,.public-header .account-cta app-morph-icon{transition:none}
+  .public-header .account-cta:hover,.public-header .account-cta:active{transform:none}
+}

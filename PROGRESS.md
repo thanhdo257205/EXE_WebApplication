@@ -4,6 +4,18 @@
 
 ## Cập nhật gần nhất
 
+### Lối vào đăng ký và chuyển động cho trang xác thực — 2026-10-25, local; chưa push/deploy
+
+- Yêu cầu chủ dự án: hiện chỉ thấy giao diện đăng nhập, thiếu giao diện/nút đăng ký; cần đồng bộ phong cách website và chuyển động mượt.
+- Thực tế `/dang-ky` và `RegisterPage` đã tồn tại, render đủ form (tên hiển thị, email, mật khẩu, xác nhận, điều khoản, Google) và gọi `POST /api/v1/auth/register` hiện có. Thiếu khả năng khám phá: header khi chưa đăng nhập chỉ có "Đăng nhập"; link đăng ký nằm trong panel phụ và bản mobile.
+- Bổ sung header: nút "Đăng ký" dạng pill lime cạnh "Đăng nhập" khi chưa có tài khoản, hover nhấc nhẹ và mũi tên trượt; ≤500px ẩn link đăng nhập (drawer di động vẫn có cả hai), ≤420px thu gọn brand/CTA để không tràn ngang.
+- Hai trang auth: segmented switch "Đăng nhập / Đăng ký" ngay trên form, active theo trang và có `aria-current="page"`, glider trượt; giữ các link chéo hiện có.
+- Chuyển động: header block và hai panel trượt lên lần lượt, các field trong form hiện so le, nút submit có phản hồi nhấn; tận dụng view transition sẵn có khi chuyển route. Tất cả animation/transition tắt dưới `prefers-reduced-motion`.
+- Không đổi backend, API, route, schema hay dữ liệu production. Phần CSS CTA được tách sang `account-menu.css` để `global-bar.component.css` không vượt budget lỗi 10 kB.
+- Kiểm thử local: `login.page.spec.ts` 11/11, `register.page.spec.ts` 5/5, `global-bar.component.spec.ts` 6/6 (22/22) pass; production build/prerender qua, chỉ còn cảnh báo CSS budget/CommonJS có sẵn.
+- Kiểm tra trình duyệt dev server (viewport CSS ~638px): header hiện cả "Đăng nhập" và "Đăng ký"; `/dang-ky` hiển thị đúng heading, switch active "Đăng ký" và form đầy đủ; `/dang-nhap` hiển thị switch active "Đăng nhập".
+- Trạng thái: thay đổi còn local trên nhánh `deepseek`, chưa push/deploy; chưa kiểm tra production hoặc thiết bị thật.
+
 ### Nút chép ảnh + thiết lập bản phát hành/bộ thẻ cho quản lý thẻ — 2026-10-25, đã lên main và deploy
 
 - Hiện tượng chủ dự án báo trên production: (1) nút "Chép đường dẫn" sau khi tải ảnh không hoạt động; (2) không thấy phần quản lý toàn bộ thẻ bài.
