@@ -60,6 +60,8 @@ Ngay trên danh sách, admin chính có khối **"Mời đồng quản trị b�
 
 Đồng quản trị chỉ xem danh sách và lời mời, không có nút phân quyền/mời/thu hồi. Admin chính luôn hiện “Được bảo vệ”. Lưu đang chạy chặn gửi lặp/tìm kiếm/chuyển trang; sau conflict hoặc lỗi mạng phải tải lại để kiểm tra trạng thái trước khi thao tác tiếp. Không tự thử lại một yêu cầu đổi quyền có kết quả chưa rõ. Phiên hết hạn chuyển về đăng nhập.
 
+Email mời rỗng hoặc chỉ có khoảng trắng không gửi được (nút bị khóa và phương thức gửi tự chặn). Khi tải lại danh sách/lời mời thất bại, giao diện giữ dữ liệu và quyền đã biết thay vì xóa danh sách, đồng thời xóa thông báo thành công cũ; lỗi hiện kèm nút **Tải lại danh sách**. Ô email mời không dùng autofill của trình duyệt.
+
 ## Xác minh đợt 2026-10-24
 
 - Backend typecheck qua; **45 tests pass / 1 remote test skip**, gồm 11 RBAC tests về registry/idempotence/ambiguity, role claims giả, quyền owner/coadmin/customer, CSRF, payload injection, bảo vệ owner, grant/revoke, vô hiệu hóa JWT/recovery, stale version, disabled account, rollback audit và tìm kiếm/phân trang.

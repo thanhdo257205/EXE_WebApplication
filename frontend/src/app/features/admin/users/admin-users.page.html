@@ -23,7 +23,7 @@
       <form (ngSubmit)="sendInvite()">
         <label for="invite-email">Email người nhận quyền</label>
         <div>
-          <input id="invite-email" name="inviteEmail" type="email" [(ngModel)]="inviteEmail" maxlength="254" placeholder="ten@example.com" [disabled]="inviteSaving() || saving()" />
+          <input id="invite-email" name="inviteEmail" type="email" autocomplete="off" [(ngModel)]="inviteEmail" (input)="notice.set('')" maxlength="254" placeholder="ten@example.com" [disabled]="inviteSaving() || saving()" />
           <button type="submit" class="primary" [disabled]="inviteSaving() || saving() || loading() || !inviteEmail.trim()">{{ inviteSaving() ? 'Đang thêm…' : 'Thêm đồng quản trị' }}</button>
         </div>
       </form>

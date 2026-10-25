@@ -65,8 +65,13 @@ export class AdminUsersPage {
       error: error => {
         if (request !== this.loadId) return;
         this.loading.set(false);
-        this.canManageRoles.set(false);
-        this.accounts.set([]);
+        this.notice.set('');
+        if (error.status === 401) {
+          this.canManageRoles.set(false);
+          this.accounts.set([]);
+          this.total.set(0);
+          this.totalPages.set(0);
+        }
         this.handleError(error);
       },
     });
@@ -121,7 +126,11 @@ export class AdminUsersPage {
       error: error => {
         if (request !== this.inviteLoadId) return;
         this.invitesLoading.set(false);
-        this.invites.set([]);
+        this.notice.set('');
+        if (error.status === 401) {
+          this.canManageRoles.set(false);
+          this.invites.set([]);
+        }
         this.handleError(error);
       },
     });

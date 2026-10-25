@@ -130,6 +130,34 @@ describe('RBAC users page', () => {
     expect(api.listInvites).toHaveBeenCalledTimes(2);
   });
 
+  it('does not submit an empty or whitespace-only invite email', () => {
+    const {page,fixture,el} = setup();
+    const button = el.querySelector('.invite-panel button') as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    page.sendInvite();
+    page.inviteEmail = '   ';
+    fixture.detectChanges();
+    expect(button.disabled).toBe(true);
+    page.sendInvite();
+    expect(api.invite).not.toHaveBeenCalled();
+  });
+
+  it('keeps the last loaded state and clears an old notice when a refresh fails', () => {
+    api.invite.mockReturnValue(of({status:'INVITED',invite:pendingInvite}));
+    const {page,fixture} = setup();
+    page.inviteEmail = 'future@example.test';
+    page.sendInvite();
+    expect(page.notice()).toContain('lời mời');
+    api.list.mockReturnValue(throwError(() => ({status:0})));
+    page.reload();
+    fixture.detectChanges();
+    expect(page.notice()).toBe('');
+    expect(page.error()).toContain('tải lại');
+    expect(page.accounts().length).toBe(3);
+    expect(page.canManageRoles()).toBe(true);
+    expect((fixture.nativeElement as HTMLElement).querySelector('#invite-email')).not.toBeNull();
+  });
+
   it('reports an immediate promotion when the invited email already has an account', () => {
     api.invite.mockReturnValue(of({status:'PROMOTED',account:{...customer,role:'ADMIN',adminLevel:'DELEGATED',version:4}}));
     const {page} = setup();
