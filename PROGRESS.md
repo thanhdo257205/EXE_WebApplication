@@ -4,6 +4,16 @@
 
 ## Cập nhật gần nhất
 
+### Mời đồng quản trị bằng email trước khi đăng ký — 2026-10-25, đã kiểm thử local (chưa deploy)
+
+- Yêu cầu chủ dự án: admin chính có thể thêm đồng quản trị chỉ bằng email của người đó, không cần người đó đã đăng ký hệ thống; khi người đó đăng ký đúng email thì quyền được áp dụng.
+- Backend: bảng additive `admin_invites` (email UNIQUE, người mời FK `ON DELETE SET NULL`, ngày tạo) được bổ sung idempotent lúc khởi động, không đổi `runtime_schema`. Thêm `GET/POST /api/v1/admin/users/invites` và `DELETE /api/v1/admin/users/invites/:id`; chỉ admin chính được mời/thu hồi, coadmin chỉ đọc danh sách. Email đã có tài khoản được nâng ngay (`PROMOTED`, tăng `auth_version`, thu hồi JWT/recovery, audit `USER_ROLE_CHANGED` source=admin-invite); email chưa có tài khoản tạo lời mời chờ (`INVITED`, audit `ADMIN_INVITE_CREATED`). Khi đăng ký bằng mật khẩu hoặc Google lần đầu, lời mời khớp email được áp dụng trong chính transaction tạo tài khoản (audit `ADMIN_INVITE_ACCEPTED`); lỗi audit/ghi role rollback cả đăng ký và giữ lời mời. Mã lỗi: `ALREADY_OWNER`, `ALREADY_ADMIN`, `ACCOUNT_DISABLED`, `INVITE_EXISTS`, `INVITE_NOT_FOUND`, `OWNER_REQUIRED`; role owner và registry `rbac_owner` không đổi.
+- Cảnh báo bảo mật đã ghi trong UI/docs: đăng ký mật khẩu chưa xác minh quyền sở hữu email, nên chỉ mời địa chỉ tin cậy; luồng Google có email do provider xác minh. Hệ thống không gửi email, không tạo mật khẩu thay người dùng.
+- Frontend: khối **"Mời đồng quản trị bằng email"** và bảng **"Lời mời đang chờ đăng ký"** trên `/admin/users` (chỉ owner thấy nút mời/thu hồi; coadmin chỉ đọc), có xác nhận khi thu hồi, map lỗi 409/400, 401 chuyển đăng nhập, chặn gửi lặp, tải lại danh sách tài khoản + lời mời sau thao tác. `AdminUsersService` thêm `listInvites/invite/revokeInvite` với CSRF và credentials.
+- Kiểm thử local: backend typecheck + **62 pass/1 remote skip** (5 test lời mời, gồm rollback); frontend spec service + trang `/admin/users` **21/21 pass**; toàn suite 318/319, test `arena-engine > plays 300 AI-vs-AI games` timeout khi chạy song song nhưng pass riêng ~4,1 giây (flake có sẵn, không sửa cấu hình repo). Production build/prerender qua, chỉ cảnh báo CSS/CommonJS cũ.
+- Chromium với backend Hono + SQLite thật: mời email chưa đăng ký → lời mời chờ; đăng ký đúng email → tự thành đồng quản trị, vào khu quản trị nhưng không có nút phân quyền; mời owner/trùng/email đã là admin báo đúng lỗi; thu hồi lời mời; nâng ngay thành viên đã có. Đọc DB xác nhận audit created/accepted/revoked/role-changed. 1440px/390px không tràn ngang toàn trang; bảng cuộn trong khung, form mời xếp dọc trên mobile. Không ghi dữ liệu thật vào DB production.
+- Chưa commit/push/deploy; production chưa có bảng `admin_invites` và chưa có lời mời nào. Chi tiết: [RBAC.md](docs/RBAC.md).
+
 ### Nhập bộ thẻ từ Excel trên trang quản trị thẻ — 2026-10-25, đã lên main và deploy
 
 - Yêu cầu chủ dự án: thêm biểu mẫu import để admin tạo nguyên một bộ thẻ từ file Excel có các trường như tên, mô tả, ảnh.

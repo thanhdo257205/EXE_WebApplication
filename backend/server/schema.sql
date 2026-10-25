@@ -538,6 +538,15 @@ CREATE TABLE rbac_owner (
     created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000Z','now'))
 );
 
+-- Pending co-admin invitations by email; accepted during registration in the same transaction.
+CREATE TABLE admin_invites (
+    id TEXT NOT NULL PRIMARY KEY,
+    email TEXT NOT NULL UNIQUE,
+    invited_by TEXT REFERENCES app_users(id) ON DELETE SET NULL,
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000Z','now'))
+);
+CREATE INDEX ix_admin_invites_created ON admin_invites(created_at);
+
 -- Registration events use separate storage to preserve existing feedback IDs/read receipts.
 CREATE TABLE admin_registration_notifications (
     id INTEGER PRIMARY KEY,

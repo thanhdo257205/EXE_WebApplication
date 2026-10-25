@@ -35,4 +35,31 @@ describe('AdminUsersService', () => {
     expect(req.request.headers.get('X-XSRF-TOKEN')).toBe('test-csrf');
     req.flush({item:{id:'target',role:'ADMIN',version:8},changed:true});
   });
+
+  it('lists pending invites with session credentials', () => {
+    api.listInvites().subscribe();
+    const req = http.expectOne('/api/v1/admin/users/invites');
+    expect(req.request.method).toBe('GET');
+    expect(req.request.withCredentials).toBe(true);
+    req.flush({items:[],canManageRoles:true});
+  });
+
+  it('invites by email only, with CSRF', () => {
+    api.invite('future@example.test').subscribe();
+    const req = http.expectOne('/api/v1/admin/users/invites');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({email:'future@example.test'});
+    expect(req.request.withCredentials).toBe(true);
+    expect(req.request.headers.get('X-XSRF-TOKEN')).toBe('test-csrf');
+    req.flush({status:'INVITED',invite:{id:'invite-1',email:'future@example.test',invitedByName:null,createdAt:''}});
+  });
+
+  it('revokes a pending invite by id with CSRF', () => {
+    api.revokeInvite('invite-1').subscribe();
+    const req = http.expectOne('/api/v1/admin/users/invites/invite-1');
+    expect(req.request.method).toBe('DELETE');
+    expect(req.request.withCredentials).toBe(true);
+    expect(req.request.headers.get('X-XSRF-TOKEN')).toBe('test-csrf');
+    req.flush({removed:true});
+  });
 });

@@ -11,11 +11,13 @@ describe('RBAC users page', () => {
   const customer: AdminAccount = {id:'customer',email:'customer@example.test',displayName:'Thành viên',role:'CUSTOMER',adminLevel:null,enabled:true,version:3,createdAt:''};
   const delegated: AdminAccount = {...customer,id:'admin',email:'admin@example.test',role:'ADMIN',adminLevel:'DELEGATED'};
   const result = (canManageRoles = true, items = [owner, customer, delegated]) => ({items,canManageRoles,page:0,size:20,totalPages:1,totalElements:items.length});
-  let api: {list: ReturnType<typeof vi.fn>; changeRole: ReturnType<typeof vi.fn>};
+  const pendingInvite = {id:'invite-1',email:'future@example.test',invitedByName:'Admin chính',createdAt:'2026-10-25T10:00:00.000Z'};
+  const inviteResult = (items: any[] = [], canManageRoles = true) => ({items,canManageRoles});
+  let api: {list: ReturnType<typeof vi.fn>; changeRole: ReturnType<typeof vi.fn>; listInvites: ReturnType<typeof vi.fn>; invite: ReturnType<typeof vi.fn>; revokeInvite: ReturnType<typeof vi.fn>};
   const auth = {currentUser:{set:vi.fn()}};
   beforeEach(() => {
     auth.currentUser.set.mockClear();
-    api = {list:vi.fn(() => of(result())), changeRole:vi.fn()};
+    api = {list:vi.fn(() => of(result())), changeRole:vi.fn(), listInvites:vi.fn(() => of(inviteResult())), invite:vi.fn(), revokeInvite:vi.fn()};
     TestBed.configureTestingModule({imports:[AdminUsersPage],providers:[provideRouter([]),{provide:AdminUsersService,useValue:api},{provide:AuthService,useValue:auth}]});
   });
   const setup = () => {
@@ -33,6 +35,7 @@ describe('RBAC users page', () => {
 
   it('delegated admins see accounts but cannot grant or revoke, even through page methods', () => {
     api.list.mockReturnValue(of(result(false)));
+    api.listInvites.mockReturnValue(of(inviteResult([], false)));
     const {page,el} = setup();
     expect(el.querySelectorAll('tbody button').length).toBe(0);
     page.propose(customer); page.confirm();
@@ -100,5 +103,86 @@ describe('RBAC users page', () => {
     old.next(result(false));
     expect(page.accounts()).toEqual([customer]); expect(page.canManageRoles()).toBe(true);
     expect(api.list).toHaveBeenLastCalledWith(0,'customer');
+  });
+
+  it('shows the email invite form to the owner', () => {
+    const {el} = setup();
+    expect(el.querySelector('#invite-email')).not.toBeNull();
+    expect(el.textContent).toContain('Thêm đồng quản trị bằng email');
+  });
+
+  it('hides the invite form from delegated admins', () => {
+    api.list.mockReturnValue(of(result(false)));
+    api.listInvites.mockReturnValue(of(inviteResult([], false)));
+    const {el} = setup();
+    expect(el.querySelector('#invite-email')).toBeNull();
+  });
+
+  it('adds an invite by email, trims it and explains activation at registration', () => {
+    api.invite.mockReturnValue(of({status:'INVITED',invite:pendingInvite}));
+    const {page} = setup();
+    page.inviteEmail = '  future@example.test  ';
+    page.sendInvite();
+    expect(api.invite).toHaveBeenCalledExactlyOnceWith('future@example.test');
+    expect(page.inviteEmail).toBe('');
+    expect(page.notice()).toContain('đăng ký bằng đúng email');
+    expect(api.list).toHaveBeenCalledTimes(2);
+    expect(api.listInvites).toHaveBeenCalledTimes(2);
+  });
+
+  it('reports an immediate promotion when the invited email already has an account', () => {
+    api.invite.mockReturnValue(of({status:'PROMOTED',account:{...customer,role:'ADMIN',adminLevel:'DELEGATED',version:4}}));
+    const {page} = setup();
+    page.inviteEmail = 'customer@example.test';
+    page.sendInvite();
+    expect(page.notice()).toContain('đăng nhập lại');
+    expect(api.list).toHaveBeenCalledTimes(2);
+  });
+
+  it('requires confirmation before revoking a pending invite', () => {
+    api.listInvites.mockReturnValue(of(inviteResult([pendingInvite])));
+    api.revokeInvite.mockReturnValue(of({removed:true}));
+    const {page,fixture} = setup();
+    page.proposeRevoke(pendingInvite); fixture.detectChanges();
+    expect(api.revokeInvite).not.toHaveBeenCalled();
+    expect((fixture.nativeElement as HTMLElement).querySelector('.confirmation')?.textContent).toContain(pendingInvite.email);
+    page.cancelRevoke(); page.confirmRevoke();
+    expect(api.revokeInvite).not.toHaveBeenCalled();
+    page.proposeRevoke(pendingInvite); page.confirmRevoke();
+    expect(api.revokeInvite).toHaveBeenCalledExactlyOnceWith(pendingInvite.id);
+    expect(page.pendingRevoke()).toBeNull();
+    expect(page.notice()).toContain('Đã thu hồi lời mời');
+    expect(api.listInvites).toHaveBeenCalledTimes(2);
+  });
+
+  it('shows pending invites read-only to delegated admins', () => {
+    api.list.mockReturnValue(of(result(false)));
+    api.listInvites.mockReturnValue(of(inviteResult([pendingInvite], false)));
+    const {el} = setup();
+    expect(el.textContent).toContain(pendingInvite.email);
+    expect(el.querySelectorAll('tbody button').length).toBe(0);
+  });
+
+  it('maps invite conflicts and keeps the email for correction', () => {
+    api.invite.mockReturnValue(throwError(() => ({status:409,error:{code:'ALREADY_ADMIN'}})));
+    const {page} = setup();
+    page.inviteEmail = 'admin@example.test';
+    page.sendInvite();
+    expect(page.error()).toContain('đã có quyền đồng quản trị');
+    expect(page.inviteEmail).toBe('admin@example.test');
+    api.invite.mockReturnValue(throwError(() => ({status:400})));
+    page.sendInvite();
+    expect(page.error()).toContain('Email không hợp lệ');
+    expect(api.list).toHaveBeenCalledTimes(1);
+  });
+
+  it('redirects to login when an invite request loses its session', () => {
+    api.invite.mockReturnValue(throwError(() => ({status:401})));
+    const router = TestBed.inject(Router); const navigate = vi.spyOn(router,'navigate').mockResolvedValue(true);
+    const {page} = setup();
+    page.inviteEmail = 'future@example.test';
+    page.sendInvite();
+    expect(auth.currentUser.set).toHaveBeenCalledWith(null);
+    expect(navigate).toHaveBeenCalledWith(['/dang-nhap'],{queryParams:{returnUrl:'/admin/users'}});
   });
 });

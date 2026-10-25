@@ -8,19 +8,70 @@
 
   <div class="access-note" role="note">
     {{ canManageRoles() ? 'Bạn có quyền quản lý đồng quản trị. Quyền admin chính luôn được bảo vệ.' : 'Bạn có thể xem tài khoản. Chỉ admin chính được thay đổi quyền.' }}
-    Người được cấp quyền cần có tài khoản đã đăng ký trong hệ thống.
+    Admin chính có thể thêm đồng quản trị bằng email trước khi người đó đăng ký; quyền được áp dụng tự động khi đăng ký đúng email.
   </div>
 
   @if (error()) {
-    <div class="error" role="alert">{{ error() }} <button type="button" (click)="load()" [disabled]="loading() || saving()">Tải lại danh sách</button></div>
+    <div class="error" role="alert">{{ error() }} <button type="button" (click)="reload()" [disabled]="loading() || saving()">Tải lại danh sách</button></div>
   }
   @if (notice()) { <p class="notice" role="status">{{ notice() }}</p> }
+
+  @if (canManageRoles()) {
+    <section class="invite-panel" aria-labelledby="invite-title">
+      <h2 id="invite-title">Thêm đồng quản trị bằng email</h2>
+      <p class="muted">Chỉ cần nhập email. Nếu người đó chưa có tài khoản, quyền đồng quản trị sẽ tự áp dụng khi họ đăng ký đúng email này. Chỉ mời người bạn tin cậy: đăng ký bằng mật khẩu chưa xác minh người sở hữu email.</p>
+      <form (ngSubmit)="sendInvite()">
+        <label for="invite-email">Email người nhận quyền</label>
+        <div>
+          <input id="invite-email" name="inviteEmail" type="email" [(ngModel)]="inviteEmail" maxlength="254" placeholder="ten@example.com" [disabled]="inviteSaving() || saving()" />
+          <button type="submit" class="primary" [disabled]="inviteSaving() || saving() || loading() || !inviteEmail.trim()">{{ inviteSaving() ? 'Đang thêm…' : 'Thêm đồng quản trị' }}</button>
+        </div>
+      </form>
+    </section>
+  }
+
+  @if (pendingRevoke(); as invite) {
+    <section class="confirmation" aria-labelledby="revoke-title" aria-live="polite">
+      <h2 id="revoke-title">Thu hồi lời mời?</h2>
+      <p>{{ invite.email }}</p>
+      <p>Người này sẽ không được cấp quyền đồng quản trị khi đăng ký nữa. Tài khoản đã được cấp quyền trước đó không bị ảnh hưởng.</p>
+      <div class="actions">
+        <button type="button" (click)="cancelRevoke()" [disabled]="inviteSaving()">Hủy</button>
+        <button type="button" class="primary" (click)="confirmRevoke()" [disabled]="inviteSaving()">{{ inviteSaving() ? 'Đang thu hồi…' : 'Xác nhận thu hồi' }}</button>
+      </div>
+    </section>
+  }
+
+  @if (invites().length) {
+    <div class="table-wrap" [attr.aria-busy]="invitesLoading()">
+      <table>
+        <caption>Lời mời đang chờ đăng ký ({{ invites().length }})</caption>
+        <thead><tr><th scope="col">Email</th><th scope="col">Người mời</th><th scope="col">Ngày tạo</th><th scope="col">Thao tác</th></tr></thead>
+        <tbody>
+          @for (invite of invites(); track invite.id) {
+            <tr>
+              <td>{{ invite.email }}</td>
+              <td>{{ invite.invitedByName || 'Không xác định' }}</td>
+              <td>{{ createdOn(invite) }}</td>
+              <td>
+                @if (canManageRoles()) {
+                  <button type="button" (click)="proposeRevoke(invite)" [disabled]="inviteSaving()">Thu hồi lời mời</button>
+                } @else {
+                  <span class="muted">Chỉ admin chính</span>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
 
   <form class="search" (ngSubmit)="search()">
     <label for="account-search">Tìm bằng email hoặc tên</label>
     <div>
-      <input id="account-search" name="query" [(ngModel)]="query" maxlength="100" placeholder="Email hoặc tên tài khoản" [disabled]="saving()" />
-      <button type="submit" [disabled]="loading() || saving()">Tìm tài khoản</button>
+      <input id="account-search" name="query" [(ngModel)]="query" maxlength="100" placeholder="Email hoặc tên tài khoản" [disabled]="saving() || inviteSaving()" />
+      <button type="submit" [disabled]="loading() || saving() || inviteSaving()">Tìm tài khoản</button>
     </div>
   </form>
 
@@ -32,7 +83,7 @@
       <p>Các phiên đăng nhập cũ và liên kết khôi phục mật khẩu đang chờ của tài khoản này sẽ bị thu hồi.</p>
       <div class="actions">
         <button type="button" (click)="cancel()" [disabled]="saving()">Hủy</button>
-        <button type="button" class="primary" (click)="confirm()" [disabled]="saving()">{{ saving() ? 'Đang cập nhật…' : 'Xác nhận thay đổi quyền' }}</button>
+        <button type="button" class="primary" (click)="confirm()" [disabled]="saving() || inviteSaving()">{{ saving() ? 'Đang cập nhật…' : 'Xác nhận thay đổi quyền' }}</button>
       </div>
     </section>
   }
@@ -51,7 +102,7 @@
               @if (account.adminLevel === 'OWNER') {
                 <span class="muted">Được bảo vệ</span>
               } @else if (canManageRoles()) {
-                <button type="button" (click)="propose(account)" [disabled]="loading() || saving() || needsReload() || (!account.enabled && account.role !== 'ADMIN')" [attr.aria-label]="(account.role === 'ADMIN' ? 'Thu hồi quyền của ' : 'Cấp quyền cho ') + account.email">{{ account.role === 'ADMIN' ? 'Thu hồi quyền' : 'Cấp đồng quản trị' }}</button>
+                <button type="button" (click)="propose(account)" [disabled]="loading() || saving() || inviteSaving() || needsReload() || (!account.enabled && account.role !== 'ADMIN')" [attr.aria-label]="(account.role === 'ADMIN' ? 'Thu hồi quyền của ' : 'Cấp quyền cho ') + account.email">{{ account.role === 'ADMIN' ? 'Thu hồi quyền' : 'Cấp đồng quản trị' }}</button>
               } @else {
                 <span class="muted">Chỉ admin chính</span>
               }
@@ -64,8 +115,8 @@
     </table>
   </div>
   <nav class="pagination" aria-label="Trang danh sách tài khoản">
-    <button type="button" (click)="load(page() - 1)" [disabled]="page() === 0 || loading() || saving()">← Trước</button>
+    <button type="button" (click)="load(page() - 1)" [disabled]="page() === 0 || loading() || saving() || inviteSaving()">← Trước</button>
     <span>Trang {{ totalPages() ? page() + 1 : 0 }} / {{ totalPages() }}</span>
-    <button type="button" (click)="load(page() + 1)" [disabled]="page() + 1 >= totalPages() || loading() || saving()">Sau →</button>
+    <button type="button" (click)="load(page() + 1)" [disabled]="page() + 1 >= totalPages() || loading() || saving() || inviteSaving()">Sau →</button>
   </nav>
 </section>

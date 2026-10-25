@@ -53,6 +53,13 @@ Cập nhật: 2026-10-25 (Asia/Saigon).
 - [x] RBAC-DEPLOY — Main/runtime 1fb5a5d; CI 40090777412 bốn job với test mặc định và CD 40090829039/smoke qua; registry production đúng admin hiện có, một bootstrap audit; chưa có USER_ROLE_CHANGED; /admin/users 200, API anonymous 401.
 - [ ] RBAC-LIVE — Chủ dự án dùng tài khoản thật thử cấp/thu hồi cho người được chỉ định; chưa cấp quyền production cho ai.
 
+## Mời đồng quản trị bằng email (2026-10-25)
+
+- [x] RBAC-INVITE-01 — Bảng additive `admin_invites` + khởi tạo idempotent; GET/POST/DELETE lời mời owner-only (coadmin chỉ đọc); email đã có tài khoản nâng ngay (version/JWT/recovery/audit), email chưa đăng ký được chấp nhận trong transaction đăng ký mật khẩu/Google; rollback giữ lời mời; không đổi owner registry; backend 62 pass/1 remote skip.
+- [x] RBAC-INVITE-02 — UI `/admin/users`: form mời + bảng lời mời chờ + thu hồi có xác nhận, chỉ owner thấy thao tác; coadmin chỉ đọc; map lỗi 409/400, 401 chuyển đăng nhập; frontend 21/21 test admin, build/prerender và Chromium 1440/390px với API thật local qua.
+- [ ] RBAC-INVITE-DEPLOY — Chưa commit/push/deploy đợt này; chờ chủ dự án xác nhận trước khi đưa lên production.
+- [ ] RBAC-INVITE-LIVE — Chủ dự án mời một người thật bằng email trên production, để người đó đăng ký đúng email và xác nhận nhận quyền đồng quản trị; chưa thực hiện.
+
 ## Tạo thẻ bài Admin & Texture 3D Thẻ chính thức (2026-10-24)
 
 - [x] FE-ADMIN-CARD-01 — Typed createCard (POST /v1/admin/content/releases/:release/cards) & cloneRelease (POST /v1/admin/content/releases/:release/clone) trong AdminContentService với CSRF & credentials; spec kiểm thử HTTP POST đã cập nhật (đã kiểm tra local: 267 tests với timeout tạm 20s; build/prerender và Chromium API giả lập qua).

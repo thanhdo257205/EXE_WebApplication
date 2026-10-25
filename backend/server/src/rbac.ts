@@ -3,6 +3,7 @@ import type { Client } from '@libsql/client';
 import { all, execute, fail, one, page, scalar, transaction, uuid, type Row } from './db.ts';
 import { authorize, requireActor, type Api } from './auth.ts';
 import { accessView } from './rbac-policy.ts';
+import { initializeAdminInvites, inviteView, selectInvites } from './admin-invites.ts';
 
 // Ownership is a persistent account ID, never an email match or a request payload.
 const ownerTable = `CREATE TABLE IF NOT EXISTS rbac_owner (
@@ -13,6 +14,7 @@ const ownerTable = `CREATE TABLE IF NOT EXISTS rbac_owner (
 
 /** Additive upgrade: bind the sole existing enabled ADMIN once; fail closed on ambiguity. */
 export async function initializeRbac(db: Client): Promise<void> {
+  await initializeAdminInvites(db);
   await execute(db, ownerTable);
   await transaction(db, async tx => {
     if ((await all(tx, 'SELECT user_id FROM rbac_owner WHERE slot=1')).length) return;
@@ -33,6 +35,8 @@ const accountView = (u: Row) => ({
   adminLevel: u.role === 'ADMIN' ? (u.owner_id === u.id ? 'OWNER' : 'DELEGATED') : null,
 });
 
+const inviteEmail = z.string().trim().email().max(254).transform(s => s.toLowerCase());
+
 export function rbacRoutes(app: Api, db: Client) {
   app.get('/api/v1/admin/users', async c => {
     const actor = requireActor(c, true);
@@ -51,6 +55,58 @@ export function rbacRoutes(app: Api, db: Client) {
       const access = await accessView(tx, current);
       return { ...page(users.map(accountView), q.page, q.size, count), canManageRoles: access.permissions.includes('users:manage-roles') };
     }, 'read'));
+  });
+
+  app.get('/api/v1/admin/users/invites', async c => {
+    const actor = requireActor(c, true);
+    return c.json(await transaction(db, async tx => {
+      const current = await authorize(tx, actor, true);
+      const access = await accessView(tx, current);
+      const invites = await all(tx, selectInvites + ' ORDER BY i.created_at,i.id');
+      return { items: invites.map(inviteView), canManageRoles: access.permissions.includes('users:manage-roles') };
+    }, 'read'));
+  });
+
+  // Owner adds a co-admin by email: an existing account is promoted at once, a new email
+  // becomes a pending invite accepted inside the registration transaction.
+  app.post('/api/v1/admin/users/invites', async c => {
+    const actor = requireActor(c, true);
+    const b = z.object({ email: inviteEmail }).strict().parse(await c.req.json());
+    return c.json(await transaction(db, async tx => {
+      const current = await authorize(tx, actor, true);
+      if (!(await accessView(tx, current)).permissions.includes('users:manage-roles')) return fail(403, 'OWNER_REQUIRED');
+      const target = (await all(tx, selectUsers + ' WHERE u.email=?', [b.email]))[0];
+      if (target) {
+        if (target.owner_id === target.id) return fail(409, 'ALREADY_OWNER');
+        if (target.role === 'ADMIN') return fail(409, 'ALREADY_ADMIN');
+        if (!target.enabled) return fail(409, 'ACCOUNT_DISABLED');
+        await execute(tx, "UPDATE app_users SET role='ADMIN',auth_version=auth_version+1 WHERE id=?", [target.id]);
+        await execute(tx, 'DELETE FROM password_reset_tokens WHERE user_id=?', [target.id]);
+        await execute(tx, 'DELETE FROM admin_invites WHERE email=?', [b.email]);
+        await execute(tx, "INSERT INTO audit_events(id,actor_id,action,entity_type,entity_id,outcome,details_redacted) VALUES (?,?,'USER_ROLE_CHANGED','USER',?,'SUCCESS',?)",
+          [uuid(), actor.id, target.id, `role=${target.role}->ADMIN;version=${target.auth_version + 1};source=admin-invite`]);
+        return { status: 'PROMOTED', account: accountView(await one(tx, selectUsers + ' WHERE u.id=?', [target.id])) };
+      }
+      if ((await all(tx, 'SELECT id FROM admin_invites WHERE email=?', [b.email])).length) return fail(409, 'INVITE_EXISTS');
+      const id = uuid();
+      await execute(tx, 'INSERT INTO admin_invites(id,email,invited_by) VALUES (?,?,?)', [id, b.email, actor.id]);
+      await execute(tx, "INSERT INTO audit_events(id,actor_id,action,entity_type,entity_id,outcome,details_redacted) VALUES (?,?,'ADMIN_INVITE_CREATED','ADMIN_INVITE',?,'SUCCESS','source=admin-invite;status=pending')",
+        [uuid(), actor.id, id]);
+      return { status: 'INVITED', invite: inviteView(await one(tx, selectInvites + ' WHERE i.id=?', [id])) };
+    }));
+  });
+
+  app.delete('/api/v1/admin/users/invites/:id', async c => {
+    const actor = requireActor(c, true);
+    const inviteId = z.string().uuid().parse(c.req.param('id'));
+    return c.json(await transaction(db, async tx => {
+      const current = await authorize(tx, actor, true);
+      if (!(await accessView(tx, current)).permissions.includes('users:manage-roles')) return fail(403, 'OWNER_REQUIRED');
+      if ((await execute(tx, 'DELETE FROM admin_invites WHERE id=?', [inviteId])).rowsAffected !== 1) return fail(404, 'INVITE_NOT_FOUND');
+      await execute(tx, "INSERT INTO audit_events(id,actor_id,action,entity_type,entity_id,outcome,details_redacted) VALUES (?,?,'ADMIN_INVITE_REVOKED','ADMIN_INVITE',?,'SUCCESS','source=admin-invite')",
+        [uuid(), actor.id, inviteId]);
+      return { removed: true };
+    }));
   });
 
   app.put('/api/v1/admin/users/:id/role', async c => {

@@ -3,7 +3,7 @@ Website triển khai: https://exe-webapp.pages.dev .
 
 Website board game **Chưa Giàu Đã Lớn — Nhà Này Hơi Báo!**
 
-Quản trị tài khoản: `/admin/users` hỗ trợ tìm kiếm, cấp và thu hồi đồng quản trị. Chỉ admin chính được phân quyền; đồng quản trị có quyền vận hành nhưng không được cấp quyền tiếp. Quyền owner gắn với tài khoản admin hiện có bằng ID DB, không suy từ email. Chi tiết và trạng thái kiểm tra: [RBAC](docs/RBAC.md), [tiến trình](PROGRESS.md).
+Quản trị tài khoản: `/admin/users` hỗ trợ tìm kiếm, cấp/thu hồi đồng quản trị và mời bằng email trước khi người đó đăng ký. Chỉ admin chính được phân quyền; đồng quản trị có quyền vận hành nhưng không được cấp quyền tiếp. Quyền owner gắn với tài khoản admin hiện có bằng ID DB, không suy từ email. Chi tiết và trạng thái kiểm tra: [RBAC](docs/RBAC.md), [tiến trình](PROGRESS.md).
 
 Chuông quản trị nhận thông báo phản hồi mới và tài khoản mới đăng ký (mật khẩu hoặc lần đầu Google), trạng thái đã đọc riêng cho từng admin; bấm thông báo đăng ký mở trang tài khoản. Không gửi email/push bên ngoài. Chi tiết: [thông báo quản trị](docs/ADMIN_NOTIFICATIONS.md).
 

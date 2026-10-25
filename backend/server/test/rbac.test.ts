@@ -5,6 +5,7 @@ import { SignJWT } from 'jose';
 import { database, initializeLocal, execute, one, all, scalar, uuid, at } from '../src/db.ts';
 import { createApp } from '../src/app.ts';
 import { initializeRbac } from '../src/rbac.ts';
+import { googleAccount } from '../src/accounts.ts';
 import type { Config } from '../src/auth.ts';
 
 async function fixture() {
@@ -23,7 +24,11 @@ async function fixture() {
     method, headers: { ...(who ? { Cookie: `AUTH_TOKEN=${tokens.get(who)}; XSRF-TOKEN=t` } : {}), ...(csrf ? { 'X-XSRF-TOKEN': 't' } : {}), 'Content-Type': 'application/json' }, ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
   const change = (who: string, id: string, role: string, expectedVersion = 0) => request('PUT', `/api/v1/admin/users/${id}/role`, who, { role, expectedVersion });
-  return { db, owner, admin, customer, other, tokens, token, request, change };
+  const invite = (who: string, email: string) => request('POST', '/api/v1/admin/users/invites', who, { email });
+  const revoke = (who: string, id: string) => request('DELETE', `/api/v1/admin/users/invites/${id}`, who);
+  const register = (email: string, displayName = 'New member') => request('POST', '/api/v1/auth/register', customer, { email, displayName, password: 'a-valid-password' });
+  const emailOf = async (id: string) => (await one(db, 'SELECT email FROM app_users WHERE id=?', [id])).email as string;
+  return { db, owner, admin, customer, other, tokens, token, request, change, invite, revoke, register, emailOf };
 }
 
 test('ownership binds the sole existing admin once and never switches to a delegated admin', async t => {
@@ -142,4 +147,105 @@ test('registration cannot inject admin privileges or ownership', async t => {
   const registered = await response.json();
   assert.equal(registered.role, 'CUSTOMER'); assert.equal(registered.adminLevel, null); assert.deepEqual(registered.permissions, []);
   assert.equal((await one(f.db, 'SELECT user_id FROM rbac_owner')).user_id, f.owner);
+});
+
+test('owner invite for an unregistered email becomes a delegated admin at password registration', async t => {
+  const f = await fixture(); t.after(() => f.db.close());
+  const created = await f.invite(f.owner, '  Future.Admin@Example.Test ');
+  assert.equal(created.status, 200);
+  const pending = await created.json();
+  assert.equal(pending.status, 'INVITED');
+  assert.equal(pending.invite.email, 'future.admin@example.test');
+  assert.equal(pending.invite.invitedByName, 'ADMIN');
+  assert.equal(await scalar(f.db, "SELECT COUNT(*) FROM app_users WHERE email='future.admin@example.test'"), 0);
+  assert.equal(await scalar(f.db, "SELECT COUNT(*) FROM audit_events WHERE action='ADMIN_INVITE_CREATED'"), 1);
+
+  const response = await f.register('future.admin@example.test', 'Future co-admin');
+  assert.equal(response.status, 200);
+  const account = await response.json();
+  assert.equal(account.role, 'ADMIN'); assert.equal(account.adminLevel, 'DELEGATED');
+  assert.deepEqual(account.permissions, ['admin:operate', 'users:read']);
+  assert.equal(await scalar(f.db, 'SELECT COUNT(*) FROM admin_invites'), 0);
+  assert.equal((await one(f.db, 'SELECT user_id FROM rbac_owner')).user_id, f.owner);
+  const accepted = await one(f.db, "SELECT * FROM audit_events WHERE action='ADMIN_INVITE_ACCEPTED'");
+  assert.equal(accepted.entity_id, account.id); assert.match(accepted.details_redacted, /role=CUSTOMER->ADMIN/);
+  assert.match(accepted.details_redacted, /source=password-registration/);
+
+  f.tokens.set(account.id, await f.token(account.id));
+  assert.equal((await f.request('GET', '/api/v1/admin/dashboard', account.id)).status, 200);
+  assert.equal((await f.change(account.id, f.other, 'ADMIN')).status, 403);
+});
+
+test('verified Google registration accepts a pending invite without granting ownership', async t => {
+  const f = await fixture(); t.after(() => f.db.close());
+  assert.equal((await f.invite(f.owner, 'google.new@example.test')).status, 200);
+  const account = await googleAccount(f.db, { subject: 'google-new-subject', email: 'google.new@example.test', displayName: 'Google co-admin' });
+  assert.equal(account.role, 'ADMIN');
+  assert.equal(await scalar(f.db, 'SELECT COUNT(*) FROM admin_invites'), 0);
+  assert.equal((await one(f.db, 'SELECT user_id FROM rbac_owner')).user_id, f.owner);
+  const accepted = await one(f.db, "SELECT * FROM audit_events WHERE action='ADMIN_INVITE_ACCEPTED'");
+  assert.equal(accepted.entity_id, account.id); assert.match(accepted.details_redacted, /source=google-registration/);
+});
+
+test('inviting an existing member promotes at once, invalidates old sessions and is audited', async t => {
+  const f = await fixture(); t.after(() => f.db.close());
+  const response = await f.invite(f.owner, (await f.emailOf(f.customer)).toUpperCase());
+  assert.equal(response.status, 200);
+  const result = await response.json();
+  assert.equal(result.status, 'PROMOTED');
+  assert.equal(result.account.adminLevel, 'DELEGATED'); assert.equal(result.account.version, 1);
+  assert.equal((await f.request('GET', '/api/v1/auth/me', f.customer)).status, 401);
+  assert.equal(await scalar(f.db, 'SELECT COUNT(*) FROM admin_invites'), 0);
+  const audit = await one(f.db, "SELECT * FROM audit_events WHERE action='USER_ROLE_CHANGED'");
+  assert.equal(audit.actor_id, f.owner); assert.match(audit.details_redacted, /CUSTOMER->ADMIN/);
+  assert.match(audit.details_redacted, /source=admin-invite/);
+  f.tokens.set(f.customer, await f.token(f.customer, 1));
+  assert.equal((await f.request('GET', '/api/v1/admin/dashboard', f.customer)).status, 200);
+  assert.equal((await f.change(f.customer, f.other, 'ADMIN')).status, 403);
+});
+
+test('only the owner manages invites and duplicates, protected or disabled accounts are rejected', async t => {
+  const f = await fixture(); t.after(() => f.db.close());
+  assert.equal((await f.request('GET', '/api/v1/admin/users/invites', null)).status, 401);
+  assert.equal((await f.request('GET', '/api/v1/admin/users/invites', f.customer)).status, 403);
+  assert.equal((await f.invite(f.customer, 'blocked@example.test')).status, 403);
+  const delegatedList = await (await f.request('GET', '/api/v1/admin/users/invites', f.admin)).json();
+  assert.deepEqual(delegatedList.items, []); assert.equal(delegatedList.canManageRoles, false);
+  assert.equal((await f.invite(f.admin, 'blocked@example.test')).status, 403);
+  assert.equal(await scalar(f.db, 'SELECT COUNT(*) FROM admin_invites'), 0);
+
+  assert.equal((await (await f.invite(f.owner, await f.emailOf(f.owner))).json()).code, 'ALREADY_OWNER');
+  assert.equal((await (await f.invite(f.owner, await f.emailOf(f.admin))).json()).code, 'ALREADY_ADMIN');
+  await execute(f.db, 'UPDATE app_users SET enabled=0 WHERE id=?', [f.customer]);
+  assert.equal((await (await f.invite(f.owner, await f.emailOf(f.customer))).json()).code, 'ACCOUNT_DISABLED');
+
+  assert.equal((await f.invite(f.owner, 'pending@example.test')).status, 200);
+  const duplicate = await f.invite(f.owner, 'PENDING@example.test');
+  assert.equal(duplicate.status, 409); assert.equal((await duplicate.json()).code, 'INVITE_EXISTS');
+  assert.equal((await f.request('POST', '/api/v1/admin/users/invites', f.owner, { email: 'ok@example.test', role: 'ADMIN' })).status, 400);
+  assert.equal((await f.request('POST', '/api/v1/admin/users/invites', f.owner, { email: 'not-an-email' })).status, 400);
+  assert.equal((await f.request('POST', '/api/v1/admin/users/invites', f.owner, { email: 'ok@example.test' }, false)).status, 403);
+
+  const ownerList = await (await f.request('GET', '/api/v1/admin/users/invites', f.owner)).json();
+  assert.equal(ownerList.items.length, 1); assert.equal(ownerList.items[0].email, 'pending@example.test');
+  assert.equal(ownerList.canManageRoles, true);
+  const inviteId = ownerList.items[0].id;
+  assert.equal((await f.revoke(f.admin, inviteId)).status, 403);
+  assert.equal((await f.revoke(f.owner, inviteId)).status, 200);
+  assert.equal(await scalar(f.db, 'SELECT COUNT(*) FROM admin_invites'), 0);
+  assert.equal((await f.revoke(f.owner, inviteId)).status, 404);
+  assert.equal((await f.revoke(f.owner, 'not-an-id')).status, 400);
+  assert.equal(await scalar(f.db, "SELECT COUNT(*) FROM audit_events WHERE action='ADMIN_INVITE_REVOKED'"), 1);
+  assert.equal(await scalar(f.db, "SELECT COUNT(*) FROM audit_events WHERE action='ADMIN_INVITE_CREATED'"), 1);
+});
+
+test('invite acceptance rolls back the new account when the audit cannot be written', async t => {
+  const f = await fixture(); t.after(() => f.db.close());
+  assert.equal((await f.invite(f.owner, 'audit-fail@example.test')).status, 200);
+  await execute(f.db, "CREATE TRIGGER reject_invite_audit BEFORE INSERT ON audit_events WHEN NEW.action='ADMIN_INVITE_ACCEPTED' BEGIN SELECT RAISE(ABORT,'audit unavailable'); END");
+  const response = await f.register('audit-fail@example.test', 'Rollback');
+  assert.equal(response.status, 409);
+  assert.equal(await scalar(f.db, "SELECT COUNT(*) FROM app_users WHERE email='audit-fail@example.test'"), 0);
+  assert.equal(await scalar(f.db, 'SELECT COUNT(*) FROM admin_invites'), 1);
+  assert.equal(await scalar(f.db, 'SELECT COUNT(*) FROM admin_registration_notifications'), 0);
 });

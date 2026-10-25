@@ -22,6 +22,19 @@ export interface AdminAccountsPage {
   totalPages: number;
   canManageRoles: boolean;
 }
+export interface AdminInvite {
+  id: string;
+  email: string;
+  invitedByName: string | null;
+  createdAt: string;
+}
+export interface AdminInvitesResult {
+  items: AdminInvite[];
+  canManageRoles: boolean;
+}
+export type AdminInviteResult =
+  | { status: 'INVITED'; invite: AdminInvite }
+  | { status: 'PROMOTED'; account: AdminAccount };
 
 @Injectable({ providedIn: 'root' })
 export class AdminUsersService {
@@ -41,6 +54,28 @@ export class AdminUsersService {
       this.http.put<{ item: AdminAccount; changed: boolean }>(`${this.base}/${account.id}/role`, {
         role, expectedVersion: account.version,
       }, {
+        withCredentials: true,
+        headers: new HttpHeaders({ [csrf.headerName]: csrf.token }),
+      })
+    ));
+  }
+
+  listInvites() {
+    return this.http.get<AdminInvitesResult>(`${this.base}/invites`, { withCredentials: true });
+  }
+
+  invite(email: string) {
+    return this.auth.getCsrf().pipe(switchMap(csrf =>
+      this.http.post<AdminInviteResult>(`${this.base}/invites`, { email }, {
+        withCredentials: true,
+        headers: new HttpHeaders({ [csrf.headerName]: csrf.token }),
+      })
+    ));
+  }
+
+  revokeInvite(id: string) {
+    return this.auth.getCsrf().pipe(switchMap(csrf =>
+      this.http.delete<{ removed: boolean }>(`${this.base}/invites/${encodeURIComponent(id)}`, {
         withCredentials: true,
         headers: new HttpHeaders({ [csrf.headerName]: csrf.token }),
       })
