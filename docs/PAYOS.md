@@ -62,10 +62,16 @@ after a timeout. Reusing it with different order data returns 409.
 1. Persist order, immutable lines, reservations, movement ledger and payment
    attempt in one transaction before calling PayOS. An order lock serializes
    all subsequent payment/stock transitions. Inventory is reserved through
-   conditional updates with a stable SKU lock order.
+   conditional updates with a stable SKU lock order. Pending orders may hold
+   at most 20 units per account and 5 units per variant; a checkout that would
+   exceed either cap returns 409 before inventory is touched.
 2. Exactly one caller claims initial link creation. Provider timeouts retain
    the orderCode and set UNKNOWN. Repeated checkout requests do not blindly
    create another link. Reconciliation queries the same provider orderCode.
+   A provider 404 for an attempt that never got a link is the only available
+   proof of absence: the attempt becomes FAILED, the order is cancelled and
+   its hold released once. A late signed credit on that cancelled order goes
+   to REVIEW. Timeouts and 5xx keep the attempt UNKNOWN for a later sweep.
 3. Signature verification precedes durable webhook inbox insertion. Only
    signed successful VND credits enter the ledger. Matching transactions are
    deduplicated by attempt + bank reference across webhook and polling.
@@ -77,12 +83,13 @@ after a timeout. Reusing it with different order data returns 409.
    CANCELLED/EXPIRED and both the ledger and provider show zero money. Network
    ambiguity retains the reservation. Inconsistent/ambiguous cases need
    operator review; there is no unsafe automatic release deadline.
-6. Cloudflare cron `*/30 * * * *` calls the backend directly with the existing
+6. Cloudflare cron `*/5 * * * *` calls the backend directly with the existing
    proxy credential, including when Render Free sleeps. Each sweep retries
-   up to 20 matched inbox events and queries up to 5 due payment attempts.
-   Fresh CREATING attempts have a 2-minute grace period to avoid racing the
-   initial create claim. Customers can also request reconciliation; provider
-   calls for the same order have a 30-second cooldown.
+   up to 20 matched inbox events and queries up to 25 due payment attempts,
+   stopping on a 20-second wall-clock budget. Fresh CREATING attempts have a
+   2-minute grace period to avoid racing the initial create claim. Customers
+   can also request reconciliation; provider calls for the same order have a
+   30-second cooldown.
 7. Recently paid/cancelled attempts are included in scheduled checks for 7
    days. The batch is bounded; many outstanding orders can take several
    sweeps. Webhooks still account for later transfers beyond that window.

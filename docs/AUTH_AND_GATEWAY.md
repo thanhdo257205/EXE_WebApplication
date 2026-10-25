@@ -41,6 +41,8 @@ Google OAuth vẫn dùng session JDBC ngắn hạn để lưu state/nonce/PKCE l
 
 Không thể bảo đảm nhận diện Postman: client có thể giả Origin, User-Agent và Fetch Metadata, hoặc tự điều khiển trình duyệt. Worker từ chối request API thiếu ngữ cảnh trình duyệt thông thường và chặn Origin không hợp lệ; đây là bộ lọc, không phải xác thực.
 
+Worker phân loại và áp policy trên path đã chuẩn hóa giống cách Hono giải mã path (`decodeURI`, kể cả xử lý `%25`) nhưng chuyển tiếp nguyên pathname gốc tới backend. Vì vậy biến thể mã hóa như `%6Cogin` không bỏ qua Turnstile/rate limit, còn `%256Cogin` vẫn không khớp route thay vì đổi nghĩa sau khi giải mã.
+
 Bảo vệ thực tế gồm: đăng nhập/phân quyền tại backend, CSRF với cookie JWT, Turnstile ở đăng nhập mật khẩu, rate limit và secret Worker–origin. Không có API key cố định trong JavaScript frontend. CORS không chặn được công cụ HTTP độc lập. Người dùng có JWT hợp lệ vẫn có thể tái tạo request của chính mình bằng công cụ khác.
 
 Render vẫn có địa chỉ công khai. `OriginProxyFilter` chặn request ứng dụng thiếu `X-Origin-Verify` hợp lệ trước Spring Security; health check GET `/actuator/health` được miễn. Đây là bảo vệ tầng ứng dụng, chưa phải cô lập mạng: request trực tiếp vẫn có thể tới Render và làm dịch vụ thức dậy. Không thể cam kết chặn DDoS/cold start bằng cơ chế này.

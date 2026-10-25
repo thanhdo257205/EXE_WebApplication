@@ -163,6 +163,9 @@ test('scheduled reconciliation calls only fixed backend and fails on upstream er
   });
   await assert.rejects(reconcilePayments(environment(), async () => new Response(null, { status: 503 })));
 });
+test('scheduled reconciliation rejects a checked count outside the batch bound', async () => {
+  await assert.rejects(reconcilePayments(environment(), async () => Response.json({ checked: 26 })));
+});
 test('scheduled reconciliation retries cold-start errors and rejects HTML wake-up pages', async () => {
   let calls = 0;
   await reconcilePayments(environment(), async () => ++calls === 1
@@ -193,6 +196,47 @@ test('API rate limit returns 429 and Retry-After without contacting backend', as
 test('login IP and account limits are applied before authentication', async () => {
   assert.equal((await handle(login(), environment({ LOGIN_LIMITER: limiter(0) }), noUpstream)).status, 429);
   assert.equal((await handle(login(), environment({ ACCOUNT_LIMITER: limiter(0) }), noUpstream)).status, 429);
+});
+test('percent-encoded login paths cannot skip challenge or account limits', async () => {
+  for (const path of ['/api/v1/auth/%6Cogin', '/api/v1/auth/lo%67in']) {
+    const request = browser(path, {
+      method: 'POST', body: JSON.stringify({ email: 'member@example.test', password: 'test-password' }),
+      headers: { Origin: ORIGIN, 'Content-Type': 'application/json' },
+    });
+    assert.equal((await handle(request, environment(), noUpstream)).status, 403);
+    assert.equal((await handle(browser(path, {
+      method: 'POST', body: JSON.stringify({ email: 'member@example.test', password: 'test-password' }),
+      headers: { Origin: ORIGIN, 'Content-Type': 'application/json', 'X-Turnstile-Token': 'test-token' },
+    }), environment({ ACCOUNT_LIMITER: limiter(0) }), noUpstream)).status, 429);
+  }
+});
+test('encoded login is checked canonically but forwarded with its original encoding', async () => {
+  const request = browser('/api/v1/auth/%6Cogin', {
+    method: 'POST', body: JSON.stringify({ email: 'member@example.test', password: 'test-password' }),
+    headers: { Origin: ORIGIN, 'Content-Type': 'application/json', 'X-Turnstile-Token': 'test-token' },
+  });
+  const response = await handle(request, environment(), async input => {
+    if (String(input).startsWith('https://challenges.cloudflare.com/')) return Response.json({ success: true, hostname: 'game.example.test', action: 'login' });
+    assert.equal(String(input), 'https://backend.example.test/api/v1/auth/%6Cogin');
+    return Response.json({ ok: true });
+  });
+  assert.equal(response.status, 200);
+});
+test('double-encoded paths stay unmatched instead of gaining a new meaning after decode', async () => {
+  const request = browser('/api/v1/auth/%256Cogin', {
+    method: 'POST', body: JSON.stringify({ email: 'member@example.test', password: 'test-password' }),
+    headers: { Origin: ORIGIN, 'Content-Type': 'application/json' },
+  });
+  const response = await handle(request, environment(), async input => {
+    assert.equal(String(input), 'https://backend.example.test/api/v1/auth/%256Cogin');
+    return new Response(null, { status: 404 });
+  });
+  assert.equal(response.status, 404);
+});
+test('encoded internal paths remain hidden from the public gateway', async () => {
+  for (const path of ['/api/v1/%69nternal/payments/reconcile', '/api/v1/internal/payments/reconcile']) {
+    assert.equal((await handle(browser(path, { method: 'POST', body: '{}', headers: { Origin: ORIGIN, 'Content-Type': 'application/json' } }), environment(), noUpstream)).status, 404);
+  }
 });
 test('missing challenge and unavailable challenge configuration fail closed', async () => {
   const req = login(); req.headers.delete('X-Turnstile-Token');

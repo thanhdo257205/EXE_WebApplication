@@ -149,7 +149,7 @@ test('registration cannot inject admin privileges or ownership', async t => {
   assert.equal((await one(f.db, 'SELECT user_id FROM rbac_owner')).user_id, f.owner);
 });
 
-test('owner invite for an unregistered email becomes a delegated admin at password registration', async t => {
+test('password registration never consumes an invite or grants admin without mailbox proof', async t => {
   const f = await fixture(); t.after(() => f.db.close());
   const created = await f.invite(f.owner, '  Future.Admin@Example.Test ');
   assert.equal(created.status, 200);
@@ -163,17 +163,15 @@ test('owner invite for an unregistered email becomes a delegated admin at passwo
   const response = await f.register('future.admin@example.test', 'Future co-admin');
   assert.equal(response.status, 200);
   const account = await response.json();
-  assert.equal(account.role, 'ADMIN'); assert.equal(account.adminLevel, 'DELEGATED');
-  assert.deepEqual(account.permissions, ['admin:operate', 'users:read']);
-  assert.equal(await scalar(f.db, 'SELECT COUNT(*) FROM admin_invites'), 0);
+  assert.equal(account.role, 'CUSTOMER'); assert.equal(account.adminLevel, null);
+  assert.deepEqual(account.permissions, []);
+  assert.equal(await scalar(f.db, 'SELECT COUNT(*) FROM admin_invites'), 1);
   assert.equal((await one(f.db, 'SELECT user_id FROM rbac_owner')).user_id, f.owner);
-  const accepted = await one(f.db, "SELECT * FROM audit_events WHERE action='ADMIN_INVITE_ACCEPTED'");
-  assert.equal(accepted.entity_id, account.id); assert.match(accepted.details_redacted, /role=CUSTOMER->ADMIN/);
-  assert.match(accepted.details_redacted, /source=password-registration/);
-
+  assert.equal(await scalar(f.db, "SELECT COUNT(*) FROM audit_events WHERE action='ADMIN_INVITE_ACCEPTED'"), 0);
   f.tokens.set(account.id, await f.token(account.id));
-  assert.equal((await f.request('GET', '/api/v1/admin/dashboard', account.id)).status, 200);
-  assert.equal((await f.change(account.id, f.other, 'ADMIN')).status, 403);
+  assert.equal((await f.request('GET', '/api/v1/admin/dashboard', account.id)).status, 403);
+  assert.equal((await f.change(f.owner, account.id, 'ADMIN')).status, 200);
+  assert.equal((await f.request('GET', '/api/v1/admin/dashboard', account.id)).status, 401);
 });
 
 test('verified Google registration accepts a pending invite without granting ownership', async t => {
@@ -209,8 +207,7 @@ test('only the owner manages invites and duplicates, protected or disabled accou
   assert.equal((await f.request('GET', '/api/v1/admin/users/invites', null)).status, 401);
   assert.equal((await f.request('GET', '/api/v1/admin/users/invites', f.customer)).status, 403);
   assert.equal((await f.invite(f.customer, 'blocked@example.test')).status, 403);
-  const delegatedList = await (await f.request('GET', '/api/v1/admin/users/invites', f.admin)).json();
-  assert.deepEqual(delegatedList.items, []); assert.equal(delegatedList.canManageRoles, false);
+  assert.equal((await f.request('GET', '/api/v1/admin/users/invites', f.admin)).status, 403);
   assert.equal((await f.invite(f.admin, 'blocked@example.test')).status, 403);
   assert.equal(await scalar(f.db, 'SELECT COUNT(*) FROM admin_invites'), 0);
 
@@ -239,12 +236,11 @@ test('only the owner manages invites and duplicates, protected or disabled accou
   assert.equal(await scalar(f.db, "SELECT COUNT(*) FROM audit_events WHERE action='ADMIN_INVITE_CREATED'"), 1);
 });
 
-test('invite acceptance rolls back the new account when the audit cannot be written', async t => {
+test('invite acceptance rolls back the new Google account when the audit cannot be written', async t => {
   const f = await fixture(); t.after(() => f.db.close());
   assert.equal((await f.invite(f.owner, 'audit-fail@example.test')).status, 200);
   await execute(f.db, "CREATE TRIGGER reject_invite_audit BEFORE INSERT ON audit_events WHEN NEW.action='ADMIN_INVITE_ACCEPTED' BEGIN SELECT RAISE(ABORT,'audit unavailable'); END");
-  const response = await f.register('audit-fail@example.test', 'Rollback');
-  assert.equal(response.status, 409);
+  await assert.rejects(googleAccount(f.db, { subject: 'audit-fail-subject', email: 'audit-fail@example.test', displayName: 'Rollback' }), /audit unavailable/);
   assert.equal(await scalar(f.db, "SELECT COUNT(*) FROM app_users WHERE email='audit-fail@example.test'"), 0);
   assert.equal(await scalar(f.db, 'SELECT COUNT(*) FROM admin_invites'), 1);
   assert.equal(await scalar(f.db, 'SELECT COUNT(*) FROM admin_registration_notifications'), 0);

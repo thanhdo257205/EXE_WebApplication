@@ -62,13 +62,14 @@ export function rbacRoutes(app: Api, db: Client) {
     return c.json(await transaction(db, async tx => {
       const current = await authorize(tx, actor, true);
       const access = await accessView(tx, current);
+      if (!access.permissions.includes('users:manage-roles')) return fail(403, 'OWNER_REQUIRED');
       const invites = await all(tx, selectInvites + ' ORDER BY i.created_at,i.id');
-      return { items: invites.map(inviteView), canManageRoles: access.permissions.includes('users:manage-roles') };
+      return { items: invites.map(inviteView), canManageRoles: true };
     }, 'read'));
   });
 
-  // Owner adds a co-admin by email: an existing account is promoted at once, a new email
-  // becomes a pending invite accepted inside the registration transaction.
+  // Owner adds a co-admin by email: an existing account is promoted at once. A new email
+  // becomes a pending invite that only a verified Google sign-up may auto-accept.
   app.post('/api/v1/admin/users/invites', async c => {
     const actor = requireActor(c, true);
     const b = z.object({ email: inviteEmail }).strict().parse(await c.req.json());

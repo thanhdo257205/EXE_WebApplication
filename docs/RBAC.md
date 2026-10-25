@@ -10,7 +10,7 @@
 
 Hai cấp quản trị giữ `app_users.role=ADMIN` để tương thích các guard và API hiện có. Cấp hiệu lực được máy chủ tính từ trạng thái DB, trả thêm `adminLevel` và `permissions` trong login/register/`GET /api/v1/auth/me`. `users:manage-roles` chỉ có ở admin chính; không tin role/permission do client hoặc JWT tự khai. `EDITOR` lịch sử không tự có quyền admin.
 
-`rbac_owner` là registry có một slot, gắn ID tài khoản admin chính bằng FK `ON DELETE RESTRICT`. Không có API chuyển quyền sở hữu, tạo OWNER, sửa/xóa/khóa tài khoản admin chính hoặc tự phân quyền. Email tự nó không cấp quyền: chỉ lời mời đang chờ do admin chính tạo cho đúng email mới được áp dụng khi người đó đăng ký, và lời mời chỉ tạo được đồng quản trị. Email/mật khẩu mới đăng ký không thể trở thành owner.
+`rbac_owner` là registry có một slot, gắn ID tài khoản admin chính bằng FK `ON DELETE RESTRICT`. Không có API chuyển quyền sở hữu, tạo OWNER, sửa/xóa/khóa tài khoản admin chính hoặc tự phân quyền. Email tự nó không cấp quyền: lời mời đang chờ do admin chính tạo cho đúng email chỉ được tự áp dụng khi người đó đăng ký bằng Google với email đã được provider xác minh; đăng ký bằng mật khẩu không tiêu thụ lời mời và owner phải cấp quyền thủ công sau khi kiểm tra danh tính. Lời mời chỉ tạo được đồng quản trị. Email/mật khẩu mới đăng ký không thể trở thành owner.
 
 ## Khởi tạo/nâng cấp DB
 
@@ -27,7 +27,7 @@ Hai cấp quản trị giữ `app_users.role=ADMIN` để tương thích các gu
 | --- | --- | --- |
 | GET | `/api/v1/admin/users?page=0&size=20&q=...` | Admin chính hoặc đồng quản trị |
 | PUT | `/api/v1/admin/users/:id/role` | Chỉ admin chính; phiên hợp lệ, CSRF, origin/proxy guards |
-| GET | `/api/v1/admin/users/invites` | Admin chính hoặc đồng quản trị (chỉ đọc) |
+| GET | `/api/v1/admin/users/invites` | Chỉ admin chính; đồng quản trị nhận `403 OWNER_REQUIRED` |
 | POST | `/api/v1/admin/users/invites` | Chỉ admin chính; body đúng `{ email }` |
 | DELETE | `/api/v1/admin/users/invites/:id` | Chỉ admin chính; thu hồi lời mời đang chờ |
 
@@ -47,18 +47,19 @@ Admin chính nhập email người muốn cấp đồng quản trị; người �
 
 - **Email đã có tài khoản**: nếu là owner → `409 ALREADY_OWNER`; đã là ADMIN → `409 ALREADY_ADMIN`; tài khoản bị khóa → `409 ACCOUNT_DISABLED`. Ngược lại, nâng ngay thành `role=ADMIN`, tăng `auth_version` (thu hồi JWT/recovery cũ), xóa lời mời trùng nếu có, ghi audit `USER_ROLE_CHANGED` với `source=admin-invite`, trả `{ status: 'PROMOTED', account }`.
 - **Email chưa có tài khoản**: nếu đã có lời mời chờ → `409 INVITE_EXISTS`; ngược lại tạo `admin_invites` và ghi audit `ADMIN_INVITE_CREATED`, trả `{ status: 'INVITED', invite }`.
-- **Khi người được mời đăng ký** bằng đúng email (mật khẩu hoặc Google lần đầu): trong chính transaction tạo tài khoản, lời mời được áp dụng — `role=ADMIN`, xóa lời mời, ghi audit `ADMIN_INVITE_ACCEPTED` với nguồn đăng ký. Nếu audit/ghi role lỗi, toàn bộ đăng ký rollback và lời mời được giữ.
+- **Khi người được mời đăng ký bằng Google lần đầu** với đúng email đã xác minh: trong chính transaction tạo tài khoản, lời mời được áp dụng — `role=ADMIN`, xóa lời mời, ghi audit `ADMIN_INVITE_ACCEPTED` với `source=google-registration`. Nếu audit/ghi role lỗi, toàn bộ đăng ký rollback và lời mời được giữ.
+- **Khi người được mời đăng ký bằng mật khẩu**: lời mời **không** được áp dụng vì đăng ký mật khẩu không chứng minh quyền sở hữu email. Tài khoản tạo ra là `CUSTOMER`; lời mời vẫn chờ để owner đối chiếu danh tính rồi dùng `PUT .../role` cấp quyền thủ công hoặc thu hồi.
 - **Thu hồi lời mời** (`DELETE`) xóa đúng một lời mời đang chờ, ghi audit `ADMIN_INVITE_REVOKED`; ID không tồn tại → `404 INVITE_NOT_FOUND`. Không thể thu hồi quyền của người đã đăng ký bằng route này — dùng `PUT .../role`.
 - Lời mời chỉ tạo được đồng quản trị; không thể mời owner, không đổi `rbac_owner`, không tạo mật khẩu và không gửi email. Người được mời vẫn đăng ký theo luồng thường.
-- **Cảnh báo bảo mật**: đăng ký bằng mật khẩu hiện chưa xác minh quyền sở hữu email, nên ai đăng ký trước bằng email đó sẽ nhận quyền đồng quản trị. Chỉ mời địa chỉ tin cậy; luồng Google có email đã xác minh bởi provider. Đồng quản trị không xem/thao tác được lời mời (chỉ đọc danh sách, không có nút mời/thu hồi).
+- **Bảo mật**: đăng ký bằng mật khẩu không xác minh quyền sở hữu email, nên luồng này không bao giờ tự nhận lời mời hoặc quyền admin — owner phải kiểm tra danh tính rồi cấp thủ công. Chỉ Google (email được provider xác minh) mới tự áp dụng lời mời. Đồng quản trị không xem hoặc thao tác được lời mời (`403 OWNER_REQUIRED`); API danh sách chỉ trả dữ liệu email lời mời cho owner.
 
 ## Giao diện và sử dụng
 
 Vào **Quản trị → Tài khoản cư dân** (`/admin/users`), tìm tài khoản đã đăng ký → **Cấp đồng quản trị** / **Thu hồi quyền** → kiểm tra tên/email và xác nhận. Quyền vận hành là toàn bộ quyền admin đang có, không có lựa chọn phân quyền nhỏ lẻ từng module trong đợt này.
 
-Ngay trên danh sách, admin chính có khối **"Mời đồng quản trị bằng email"**: nhập email và gửi; nếu email đã có tài khoản, người đó được cấp quyền ngay, nếu chưa thì lời mời nằm trong bảng **"Lời mời đang chờ đăng ký"** kèm người mời, ngày tạo và nút thu hồi (có bước xác nhận). Hệ thống không gửi email/lời mời ra ngoài và không tạo mật khẩu thay người dùng. Khối mời hiển thị cảnh báo chỉ mời người tin cậy vì đăng ký bằng mật khẩu chưa xác minh người sở hữu email.
+Ngay trên danh sách, admin chính có khối **"Mời đồng quản trị bằng email"**: nhập email và gửi; nếu email đã có tài khoản, người đó được cấp quyền ngay, nếu chưa thì lời mời nằm trong bảng **"Lời mời đang chờ đăng ký"** kèm người mời, ngày tạo và nút thu hồi (có bước xác nhận). Hệ thống không gửi email/lời mời ra ngoài và không tạo mật khẩu thay người dùng. Quyền chỉ tự áp dụng khi người được mời đăng ký bằng Google với email đã xác minh; nếu họ đăng ký bằng mật khẩu, owner kiểm tra danh tính rồi cấp quyền thủ công.
 
-Đồng quản trị chỉ xem danh sách và lời mời, không có nút phân quyền/mời/thu hồi. Admin chính luôn hiện “Được bảo vệ”. Lưu đang chạy chặn gửi lặp/tìm kiếm/chuyển trang; sau conflict hoặc lỗi mạng phải tải lại để kiểm tra trạng thái trước khi thao tác tiếp. Không tự thử lại một yêu cầu đổi quyền có kết quả chưa rõ. Phiên hết hạn chuyển về đăng nhập.
+Đồng quản trị chỉ xem danh sách tài khoản, không có nút phân quyền/mời/thu hồi và không tải danh sách lời mời (API trả `403`). Admin chính luôn hiện “Được bảo vệ”. Lưu đang chạy chặn gửi lặp/tìm kiếm/chuyển trang; sau conflict hoặc lỗi mạng phải tải lại để kiểm tra trạng thái trước khi thao tác tiếp. Không tự thử lại một yêu cầu đổi quyền có kết quả chưa rõ. Phiên hết hạn chuyển về đăng nhập.
 
 Email mời rỗng hoặc chỉ có khoảng trắng không gửi được (nút bị khóa và phương thức gửi tự chặn). Khi tải lại danh sách/lời mời thất bại, giao diện giữ dữ liệu và quyền đã biết thay vì xóa danh sách, đồng thời xóa thông báo thành công cũ; lỗi hiện kèm nút **Tải lại danh sách**. Ô email mời không dùng autofill của trình duyệt.
 
@@ -68,6 +69,13 @@ Email mời rỗng hoặc chỉ có khoảng trắng không gửi được (nút
 - Frontend **277/277 tests (49 file)** qua với config timeout tạm 20 giây ngoài repo cho test mô phỏng 300 ván đã biết; không thay cấu hình repo. Build production và prerender 6 route qua; chỉ cảnh báo CSS/CommonJS có sẵn.
 - Chromium với API giả lập: owner controls, coadmin chỉ đọc, xác nhận/hủy, grant/revoke đúng payload/version/CSRF, 409 bắt tải lại, tìm kiếm, 1440px/390px không tràn ngang toàn trang, không lỗi trang. Bảng có thể cuộn ngang trên mobile. Ảnh kiểm tra ngoài Git ở workspace cha `output/rbac/`.
 - Đã deploy runtime `1fb5a5d346f592e7ab175680d8a86ac992506686` từ main: [CI](https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/40090777412) bốn job qua với test mặc định; [CD](https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/40090829039) success gồm smoke. API production đúng SHA, `/admin/users` 200, GET danh sách thiếu đăng nhập 401. Registry production có đúng một slot khớp ID admin đã xác minh; một audit khởi tạo, chưa có sự kiện đổi role. Chưa đăng nhập bằng tài khoản thật để cấp/thu hồi quyền cho ai; kiểm tra owner/coadmin có xác thực được thực hiện trong test API local và trình duyệt API giả lập.
+
+## Xác minh đợt 2026-10-25 (hardening sau rà soát bảo mật)
+
+- Đăng ký bằng mật khẩu **không còn** tự tiêu thụ `admin_invites` hoặc nâng role. Chỉ Google đã xác minh email mới auto-accept lời mời; owner phải kiểm tra danh tính rồi cấp quyền thủ công. Thay đổi này thay thế mô tả "chấp nhận khi đăng ký mật khẩu" ở mục xác minh phía trên (bản deploy `be2214e`).
+- `GET /api/v1/admin/users/invites` chỉ trả dữ liệu cho owner; đồng quản trị nhận `403 OWNER_REQUIRED` và giao diện không gọi API này.
+- Backend typecheck qua; **70 tests pass / 1 remote test skip**. Gateway typecheck + **35/35 tests**. `admin-users.page.spec.ts` **18/18**. Test RBAC mới xác nhận đăng ký mật khẩu giữ `CUSTOMER`, không có `ADMIN_INVITE_ACCEPTED`, owner nâng quyền thủ công được, và lời mời vẫn được giữ khi audit rollback.
+- Thay đổi đang ở nhánh `GLM-5.3`, chưa commit/push/deploy; chưa nghiệm thu trên production.
 
 ## Xác minh đợt 2026-10-25 (lời mời theo email)
 

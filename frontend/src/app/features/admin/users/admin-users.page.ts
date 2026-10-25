@@ -37,7 +37,7 @@ export class AdminUsersPage {
   readonly inviteSaving = signal(false);
   readonly pendingRevoke = signal<AdminInvite | null>(null);
 
-  constructor() { this.load(); this.loadInvites(); }
+  constructor() { this.load(); }
 
   search(): void {
     if (this.saving() || this.inviteSaving()) return;
@@ -61,6 +61,8 @@ export class AdminUsersPage {
         this.total.set(result.totalElements);
         this.loading.set(false);
         this.needsReload.set(false);
+        if (result.canManageRoles) this.loadInvites();
+        else { this.invites.set([]); this.pendingRevoke.set(null); }
       },
       error: error => {
         if (request !== this.loadId) return;
@@ -111,7 +113,7 @@ export class AdminUsersPage {
     });
   }
 
-  reload(): void { this.load(); this.loadInvites(); }
+  reload(): void { this.load(); }
 
   loadInvites(): void {
     const request = ++this.inviteLoadId;
@@ -147,10 +149,9 @@ export class AdminUsersPage {
         this.inviteSaving.set(false);
         this.inviteEmail = '';
         this.notice.set(result.status === 'INVITED'
-          ? `Đã thêm lời mời cho ${result.invite.email}. Quyền đồng quản trị sẽ được áp dụng khi người này đăng ký bằng đúng email.`
+          ? `Đã thêm lời mời cho ${result.invite.email}. Quyền đồng quản trị sẽ tự áp dụng khi người này đăng ký bằng Google với email đã xác minh; đăng ký bằng mật khẩu cần bạn cấp quyền thủ công.`
           : `Đã cấp quyền đồng quản trị cho ${result.account.email}. Tài khoản cần đăng nhập lại.`);
         this.load();
-        this.loadInvites();
       },
       error: error => {
         this.inviteSaving.set(false);

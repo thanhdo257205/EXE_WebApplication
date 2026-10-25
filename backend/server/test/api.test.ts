@@ -20,9 +20,9 @@ async function fixture(options: { provider?: Provider | null; mail?: (email: str
   await execute(db, 'INSERT INTO inventory_balances(variant_id,on_hand) VALUES (?,2)', [variant]);
   let creates = 0; let getResponse: any;
   const mock: Provider = {
-    create: async b => { creates++; return { orderCode: b.orderCode, amount: b.amount, currency: 'VND', paymentLinkId: 'test-link', checkoutUrl: 'https://pay.payos.vn/web/test-link', qrCode: 'test-qr', status: 'PENDING' }; },
-    get: async code => getResponse ?? { orderCode: code, amount: 2000, amountPaid: 0, id: 'test-link', status: 'PENDING', transactions: [] },
-    cancel: async code => ({ orderCode: code, amount: 2000, amountPaid: 0, id: 'test-link', status: 'CANCELLED', transactions: [] }),
+    create: async b => { creates++; const link = 'link-' + b.orderCode; return { orderCode: b.orderCode, amount: b.amount, currency: 'VND', paymentLinkId: link, checkoutUrl: 'https://pay.payos.vn/web/' + link, qrCode: 'test-qr', status: 'PENDING' }; },
+    get: async code => getResponse ?? { orderCode: code, amount: 2000, amountPaid: 0, id: 'link-' + code, status: 'PENDING', transactions: [] },
+    cancel: async code => ({ orderCode: code, amount: 2000, amountPaid: 0, id: 'link-' + code, status: 'CANCELLED', transactions: [] }),
     verify: async b => { if (b.signature !== 'signed-test-fixture') throw new Error('Invalid'); return b.data; },
   };
   const { app, payments } = createApp(db, config, options.provider === undefined ? mock : options.provider, options.mail);
@@ -32,9 +32,9 @@ async function fixture(options: { provider?: Provider | null; mail?: (email: str
   const actor: Actor = { id: user, email: user + '@example.test', role: 'CUSTOMER', version: 0, expires: Date.now() / 1000 + 1800 };
   const body = (key = uuid().replaceAll('-', '')) => checkoutSchema.parse({ idempotencyKey: key, items: [{ variantId: variant, quantity: 1 }], recipientName: 'Khách thử', recipientPhone: '0901234567', addressLine: 'Địa chỉ thử', province: 'Hồ Chí Minh', note: null });
   const request = (method: string, path: string, data?: any, id: string | null = user, headers: Record<string, string> = {}) => app.request(path, { method, headers: { ...(data !== undefined ? { 'Content-Type': 'application/json' } : {}), ...(id ? { Cookie: `AUTH_TOKEN=${tokens.get(id)}; XSRF-TOKEN=test-csrf`, 'X-XSRF-TOKEN': 'test-csrf' } : {}), ...headers }, ...(data !== undefined ? { body: JSON.stringify(data) } : {}) });
-  const webhook = async (order: string, amount = 2000, reference = 'bank-ref-1', link = 'test-link') => {
+  const webhook = async (order: string, amount = 2000, reference = 'bank-ref-1', link?: string) => {
     const p = await one(db, 'SELECT * FROM payment_attempts WHERE order_id=?', [order]);
-    return request('POST', '/api/v1/payments/payos/webhook', { signature: 'signed-test-fixture', data: { code: '00', currency: 'VND', amount, orderCode: p.provider_order_code, paymentLinkId: link, reference } }, null);
+    return request('POST', '/api/v1/payments/payos/webhook', { signature: 'signed-test-fixture', data: { code: '00', currency: 'VND', amount, orderCode: p.provider_order_code, paymentLinkId: link ?? p.provider_payment_link_id ?? 'link-' + p.provider_order_code, reference } }, null);
   };
   return { db, app, config, user, admin, other, actor, variant, body, request, webhook, payments, token, tokens, creates: () => creates, setProviderResult: (value: any) => { getResponse = value; } };
 }
@@ -69,6 +69,39 @@ test('checkout retry preserves identity; changed body conflicts and foreign user
   assert.equal((await f.request('POST', `/api/v1/orders/${order.id}/refresh-payment`, {}, f.other)).status, 404);
 });
 
+test('order list hydrates every order with a constant number of statements', async t => {
+  const f = await fixture(); t.after(() => f.db.close());
+  await execute(f.db, 'UPDATE inventory_balances SET on_hand=10');
+  for (let i = 0; i < 5; i++) assert.equal((await f.request('POST', '/api/v1/checkout', f.body())).status, 200);
+  const ids = (await all(f.db, 'SELECT id FROM orders ORDER BY created_at DESC')).map(row => row.id as string);
+  let statements = 0;
+  const counting = new Proxy(f.db, {
+    get(target, property, receiver) {
+      if (property === 'transaction') return async (mode?: any) => {
+        const tx = await target.transaction(mode);
+        return new Proxy(tx, {
+          get(inner, key) {
+            if (key === 'execute' || key === 'batch') return (...args: any[]) => { statements++; return (inner as any)[key](...args); };
+            const value = (inner as any)[key];
+            return typeof value === 'function' ? value.bind(inner) : value;
+          },
+        });
+      };
+      const value = Reflect.get(target, property, receiver);
+      return typeof value === 'function' ? value.bind(target) : value;
+    },
+  }) as typeof f.db;
+  f.payments.db = counting;
+  const views = await f.payments.views(ids, f.user);
+  assert.equal(views.length, 5); assert.equal(new Set(views.map(view => view.id)).size, 5);
+  assert.equal(views[0].paymentState, 'PENDING'); assert.equal(views[0].total, 2000); assert.match(views[0].checkoutUrl, /^https:\/\/pay\.payos\.vn\//);
+  assert.equal(statements, 2);
+  statements = 0;
+  const listed = await (await f.request('GET', '/api/v1/orders', undefined, f.user)).json();
+  assert.equal(listed.length, 5); assert.deepEqual(new Set(listed.map((view: any) => view.id)), new Set(ids));
+  assert.equal(statements, 2);
+});
+
 test('stock failure rolls back the order, reservation, movements and payment code', async t => {
   const f = await fixture(); t.after(() => f.db.close()); await execute(f.db, 'UPDATE inventory_balances SET on_hand=0');
   assert.equal((await f.request('POST', '/api/v1/checkout', f.body())).status, 409);
@@ -101,6 +134,84 @@ test('unknown creation does not replay provider call or release stock', async t 
   await f.payments.checkout(f.actor, b); assert.equal(calls, 1); assert.equal((await one(f.db, 'SELECT * FROM inventory_balances')).reserved, 1);
 });
 
+test('provider-confirmed absence releases an UNKNOWN hold once and a late credit goes to review', async t => {
+  const f = await fixture({ provider: {
+    create: async () => { throw new Error('Timeout'); },
+    get: async () => { throw Object.assign(new Error('Not found'), { status: 404 }); },
+    cancel: async () => { throw new Error('Should not cancel'); },
+    verify: async b => { if (b.signature !== 'signed-test-fixture') throw new Error('Invalid'); return b.data; },
+  } });
+  t.after(() => f.db.close());
+  const order = await f.payments.checkout(f.actor, f.body());
+  assert.equal(order.paymentState, 'UNKNOWN'); assert.equal((await one(f.db, 'SELECT * FROM inventory_balances')).reserved, 1);
+  await execute(f.db, 'UPDATE payment_attempts SET last_reconciled_at=NULL');
+  await f.payments.reconcile(order.id);
+  const attempt = await one(f.db, 'SELECT * FROM payment_attempts WHERE order_id=?', [order.id]);
+  assert.equal(attempt.status, 'FAILED'); assert.equal(attempt.active_slot, null); assert.equal(attempt.failure_code, 'PROVIDER_ORDER_NOT_FOUND');
+  assert.equal((await one(f.db, 'SELECT * FROM orders WHERE id=?', [order.id])).status, 'CANCELLED');
+  assert.equal((await one(f.db, 'SELECT * FROM inventory_reservations')).status, 'RELEASED');
+  assert.equal((await one(f.db, 'SELECT * FROM inventory_balances')).reserved, 0);
+  assert.equal(await scalar(f.db, "SELECT COUNT(*) FROM inventory_movements WHERE movement_type='RELEASE'"), 1);
+
+  await execute(f.db, 'UPDATE payment_attempts SET last_reconciled_at=NULL');
+  await f.payments.reconcile(order.id);
+  assert.equal(await scalar(f.db, 'SELECT COUNT(*) FROM inventory_movements'), 2);
+
+  await f.webhook(order.id);
+  assert.equal((await one(f.db, 'SELECT * FROM orders')).payment_status, 'REVIEW');
+  assert.equal((await one(f.db, 'SELECT * FROM inventory_balances')).on_hand, 2);
+});
+
+test('ambiguous provider failures keep UNKNOWN attempts and their hold for a later sweep', async t => {
+  const f = await fixture({ provider: {
+    create: async () => { throw new Error('Timeout'); },
+    get: async () => { throw Object.assign(new Error('Server error'), { status: 503 }); },
+    cancel: async () => { throw new Error('Should not cancel'); },
+    verify: async () => { throw new Error('Invalid'); },
+  } });
+  t.after(() => f.db.close());
+  const order = await f.payments.checkout(f.actor, f.body());
+  await execute(f.db, 'UPDATE payment_attempts SET last_reconciled_at=NULL');
+  await f.payments.reconcile(order.id);
+  const attempt = await one(f.db, 'SELECT * FROM payment_attempts WHERE order_id=?', [order.id]);
+  assert.equal(attempt.status, 'UNKNOWN'); assert.equal(attempt.active_slot, 1);
+  assert.equal((await one(f.db, 'SELECT * FROM orders WHERE id=?', [order.id])).status, 'PENDING_PAYMENT');
+  assert.equal((await one(f.db, 'SELECT * FROM inventory_reservations')).status, 'HELD');
+  assert.equal((await one(f.db, 'SELECT * FROM inventory_balances')).reserved, 1);
+});
+
+test('hold budgets cap units per account and per variant across pending orders', async t => {
+  const f = await fixture(); t.after(() => f.db.close());
+  await execute(f.db, 'UPDATE inventory_balances SET on_hand=50');
+  const product = (await one(f.db, 'SELECT product_id FROM product_variants WHERE id=?', [f.variant])).product_id;
+  const variants = [f.variant];
+  for (let i = 0; i < 4; i++) {
+    const id = uuid();
+    await execute(f.db, 'INSERT INTO product_variants(id,product_id,sku,name,price_amount) VALUES (?,?,?,?,2000)', [id, product, `TEST-0${i + 2}`, `Variant ${i + 2}`]);
+    await execute(f.db, 'INSERT INTO inventory_balances(variant_id,on_hand) VALUES (?,50)', [id]);
+    variants.push(id);
+  }
+  for (let i = 0; i < 4; i++) assert.equal((await f.request('POST', '/api/v1/checkout', { ...f.body(), items: [{ variantId: variants[i], quantity: 5 }] })).status, 200);
+  assert.equal((await f.request('POST', '/api/v1/checkout', { ...f.body(), items: [{ variantId: variants[4], quantity: 1 }] })).status, 409);
+
+  const g = await fixture(); t.after(() => g.db.close());
+  await execute(g.db, 'UPDATE inventory_balances SET on_hand=50');
+  assert.equal((await g.request('POST', '/api/v1/checkout', { ...g.body(), items: [{ variantId: g.variant, quantity: 5 }] })).status, 200);
+  assert.equal((await g.request('POST', '/api/v1/checkout', { ...g.body(), items: [{ variantId: g.variant, quantity: 1 }] })).status, 409);
+});
+
+test('sweep releases more than five expired holds and reports the processed count', async t => {
+  const f = await fixture(); t.after(() => f.db.close());
+  await execute(f.db, 'UPDATE inventory_balances SET on_hand=20');
+  for (let i = 0; i < 5; i++) assert.equal((await f.request('POST', '/api/v1/checkout', f.body())).status, 200);
+  assert.equal((await f.request('POST', '/api/v1/checkout', f.body(), f.other)).status, 200);
+  await execute(f.db, 'UPDATE payment_attempts SET expires_at=?,last_reconciled_at=NULL', [at(Date.now() - 1000)]);
+  assert.equal(await f.payments.sweep(), 6);
+  assert.equal(await scalar(f.db, "SELECT COUNT(*) FROM orders WHERE status='CANCELLED'"), 6);
+  const inventory = await one(f.db, 'SELECT * FROM inventory_balances');
+  assert.equal(inventory.reserved, 0); assert.equal(inventory.on_hand, 20);
+});
+
 test('provider-confirmed expiry releases stock; a late signed credit is review, not a second sale', async t => {
   const f = await fixture(); t.after(() => f.db.close()); const order = await f.payments.checkout(f.actor, f.body());
   await execute(f.db, 'UPDATE payment_attempts SET expires_at=?,last_reconciled_at=NULL', [at(Date.now() - 1000)]);
@@ -110,7 +221,7 @@ test('provider-confirmed expiry releases stock; a late signed credit is review, 
 
 test('reconciliation and webhook sharing a reference credit the ledger only once', async t => {
   const f = await fixture(); t.after(() => f.db.close()); const order = await f.payments.checkout(f.actor, f.body()), p = await one(f.db, 'SELECT * FROM payment_attempts');
-  f.setProviderResult({ id: 'test-link', orderCode: p.provider_order_code, amount: 2000, amountPaid: 2000, status: 'PAID', transactions: [{ reference: 'same-bank-ref', amount: 2000, transactionDateTime: '2026-10-22 20:00:00' }] });
+  f.setProviderResult({ id: p.provider_payment_link_id, orderCode: p.provider_order_code, amount: 2000, amountPaid: 2000, status: 'PAID', transactions: [{ reference: 'same-bank-ref', amount: 2000, transactionDateTime: '2026-10-22 20:00:00' }] });
   await execute(f.db, 'UPDATE payment_attempts SET last_reconciled_at=NULL'); await f.payments.reconcile(order.id); await f.webhook(order.id, 2000, 'same-bank-ref');
   assert.equal(await scalar(f.db, 'SELECT COUNT(*) FROM payment_transactions'), 1); assert.equal((await one(f.db, 'SELECT * FROM inventory_balances')).on_hand, 1);
 });
@@ -235,6 +346,7 @@ test('public content is cached until an admin write; failures and drafts are not
   assert.equal(first.status, 200); assert.match(first.headers.get('Server-Timing') || '', /^app;dur=\d+$/);
   assert.equal((await first.json()).result.items[0].name, 'Thẻ cũ');
   await execute(f.db, "UPDATE card_revisions SET name='Thẻ mới' WHERE release_id=?", [release.id]);
+  assert.equal((await (await f.request('GET', '/api/v1/content/cards?utm_source=x&page=0', undefined, null)).json()).result.items[0].name, 'Thẻ cũ'); // cùng cache key
   assert.equal((await (await f.request('GET', '/api/v1/content/cards', undefined, null)).json()).result.items[0].name, 'Thẻ cũ'); // từ cache
   assert.equal((await f.request('POST', '/api/v1/admin/content/releases', { title: 'Khác', versionLabel: 'cache-v2' }, f.admin)).status, 201); // ghi admin xóa cache
   assert.equal((await (await f.request('GET', '/api/v1/content/cards', undefined, null)).json()).result.items[0].name, 'Thẻ mới');
