@@ -80,6 +80,25 @@ function problem(status: number, title: string, retryAfter?: string) {
   return new Response(JSON.stringify({ type: 'about:blank', title, status }), { status, headers });
 }
 
+function tryDecodeURI(value: string): string {
+  try { return decodeURI(value); }
+  catch {
+    return value.replace(/(?:%[0-9A-Fa-f]{2})+/g, match => {
+      try { return decodeURI(match); } catch { return match; }
+    });
+  }
+}
+
+/**
+ * Mirrors Hono's getPath() because that is the path the backend actually routes on.
+ * Policy checks use this value while the raw pathname is forwarded, so encoded
+ * spellings (for example `%6Cogin`) cannot skip login controls or gain a new meaning.
+ */
+function canonicalPath(pathname: string): string {
+  if (!pathname.includes('%')) return pathname;
+  return tryDecodeURI(pathname.includes('%25') ? pathname.replace(/%25/g, '%2525') : pathname);
+}
+
 function origin(value: string): URL {
   const url = new URL(value);
   const local = ['localhost', '127.0.0.1'].includes(url.hostname);
@@ -121,12 +140,13 @@ export async function handle(request: Request, env: Env, fetcher: typeof fetch =
     const url = new URL(request.url);
     if (url.origin !== publicUrl.origin) return problem(403, 'Unexpected host');
     if (backend.origin === publicUrl.origin) return problem(503, 'Invalid gateway configuration');
-    const api = url.pathname === '/api' || url.pathname.startsWith('/api/');
-    if (decodeURIComponent(url.pathname).startsWith('/api/v1/internal')) return problem(404, 'Not found');
+    const pathname = canonicalPath(url.pathname);
+    const api = pathname === '/api' || pathname.startsWith('/api/');
+    if (pathname.startsWith('/api/v1/internal')) return problem(404, 'Not found');
     if (!api) {
       if (!['GET', 'HEAD'].includes(request.method)) return problem(405, 'Method not allowed');
-      if (env.AZURE_MEDIA_ORIGIN && (url.pathname.startsWith('/media/') || url.pathname.startsWith('/assets/cards/') || url.pathname === '/assets/models/default-card-poster.webp')) return await serveAzureMedia(request, env, url.pathname, fetcher);
-      if (url.pathname.startsWith('/media/')) return await serveMedia(request, env, url.pathname);
+      if (env.AZURE_MEDIA_ORIGIN && (pathname.startsWith('/media/') || pathname.startsWith('/assets/cards/') || pathname === '/assets/models/default-card-poster.webp')) return await serveAzureMedia(request, env, pathname, fetcher);
+      if (pathname.startsWith('/media/')) return await serveMedia(request, env, pathname);
       if (frontend.origin === publicUrl.origin) return problem(503, 'Static assets must be served by Pages');
       // Static requests never carry authentication, origin secrets or user-controlled forwarding headers.
       const headers = new Headers();
@@ -143,11 +163,11 @@ export async function handle(request: Request, env: Env, fetcher: typeof fetch =
     const suppliedOrigin = request.headers.get('Origin');
     const site = request.headers.get('Sec-Fetch-Site');
     const mode = request.headers.get('Sec-Fetch-Mode');
-    const oauthNavigation = request.method === 'GET' && [OAUTH_START, OAUTH_CALLBACK].includes(url.pathname);
-    const notificationStream = request.method === 'GET' && url.pathname === '/api/v1/admin/notifications/stream';
-    const paymentNavigation = request.method === 'GET' && /^\/api\/v1\/payments\/return\/[a-f0-9-]{36}$/.test(url.pathname);
-    const webhook = request.method === 'POST' && url.pathname === PAYOS_WEBHOOK;
-    if (url.pathname === PAYOS_WEBHOOK && !webhook) return problem(405, 'Method not allowed');
+    const oauthNavigation = request.method === 'GET' && [OAUTH_START, OAUTH_CALLBACK].includes(pathname);
+    const notificationStream = request.method === 'GET' && pathname === '/api/v1/admin/notifications/stream';
+    const paymentNavigation = request.method === 'GET' && /^\/api\/v1\/payments\/return\/[a-f0-9-]{36}$/.test(pathname);
+    const webhook = request.method === 'POST' && pathname === PAYOS_WEBHOOK;
+    if (pathname === PAYOS_WEBHOOK && !webhook) return problem(405, 'Method not allowed');
     if (suppliedOrigin && suppliedOrigin !== publicUrl.origin) return problem(403, 'Origin not allowed');
     if (!webhook && !oauthNavigation && !paymentNavigation && suppliedOrigin !== publicUrl.origin
         && !(site === 'same-origin' && ['cors', 'same-origin'].includes(mode ?? ''))) {
@@ -160,10 +180,10 @@ export async function handle(request: Request, env: Env, fetcher: typeof fetch =
       return new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store' } });
     }
     if (!['GET', 'POST', 'HEAD', 'PUT', 'PATCH', 'DELETE'].includes(request.method)) return problem(405, 'Method not allowed');
-    const recovery = request.method === 'POST' && [FORGOT_PASSWORD, RESET_PASSWORD].includes(url.pathname);
-    const authAttempt = (request.method === 'POST' && [LOGIN, REGISTER].includes(url.pathname)) || url.pathname === OAUTH_START || recovery;
+    const recovery = request.method === 'POST' && [FORGOT_PASSWORD, RESET_PASSWORD].includes(pathname);
+    const authAttempt = (request.method === 'POST' && [LOGIN, REGISTER].includes(pathname)) || pathname === OAUTH_START || recovery;
     if (authAttempt && !(await env.LOGIN_LIMITER.limit({ key: `login:${ip}` })).success) return problem(429, 'Too many login attempts', '60');
-    const body = SAFE_METHODS.has(request.method) ? undefined : await readLimitedBody(request, webhook ? 16384 : url.pathname === MEDIA_UPLOAD ? MEDIA_UPLOAD_MAX : 65536);
+    const body = SAFE_METHODS.has(request.method) ? undefined : await readLimitedBody(request, webhook ? 16384 : pathname === MEDIA_UPLOAD ? MEDIA_UPLOAD_MAX : 65536);
     if (body === null) return problem(413, 'Request too large');
     if (recovery) {
       if (!request.headers.get('Content-Type')?.toLowerCase().startsWith('application/json')) return problem(415, 'JSON required');
@@ -172,7 +192,7 @@ export async function handle(request: Request, env: Env, fetcher: typeof fetch =
         payload = JSON.parse(new TextDecoder().decode(body));
         if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return problem(400, 'Invalid recovery request');
       } catch { return problem(400, 'Invalid JSON'); }
-      if (url.pathname === FORGOT_PASSWORD) {
+      if (pathname === FORGOT_PASSWORD) {
         if (typeof payload.email !== 'string' || !payload.email.trim() || payload.email.length > 254) return problem(400, 'Invalid recovery request');
         const key = await digest(payload.email.trim().toLowerCase());
         if (!(await env.ACCOUNT_LIMITER.limit({ key: `recovery:${key}` })).success) return problem(429, 'Too many recovery attempts', '60');
@@ -180,7 +200,7 @@ export async function handle(request: Request, env: Env, fetcher: typeof fetch =
           || typeof payload.password !== 'string' || payload.password.length < 8
           || new TextEncoder().encode(payload.password).length > 72) return problem(400, 'Invalid recovery request');
     }
-    if (request.method === 'POST' && url.pathname === REGISTER) {
+    if (request.method === 'POST' && pathname === REGISTER) {
       if (!request.headers.get('Content-Type')?.toLowerCase().startsWith('application/json')) return problem(415, 'JSON required');
       let email: unknown;
       try { email = JSON.parse(new TextDecoder().decode(body)).email; }
@@ -189,7 +209,7 @@ export async function handle(request: Request, env: Env, fetcher: typeof fetch =
       const key = await digest(email.trim().toLowerCase());
       if (!(await env.ACCOUNT_LIMITER.limit({ key: `register:${key}` })).success) return problem(429, 'Too many register attempts', '60');
     }
-    if (request.method === 'POST' && url.pathname === LOGIN) {
+    if (request.method === 'POST' && pathname === LOGIN) {
       if (!request.headers.get('Content-Type')?.toLowerCase().startsWith('application/json')) return problem(415, 'JSON required');
       let email: unknown;
       try { email = JSON.parse(new TextDecoder().decode(body)).email; }
@@ -257,7 +277,7 @@ export async function reconcilePayments(env: Env, fetcher: typeof fetch = fetch)
       });
       if (!response.ok) throw new Error('Reconciliation unavailable');
       const result = await response.json() as { checked?: number };
-      if (!Number.isInteger(result.checked) || result.checked! < 0 || result.checked! > 5) {
+      if (!Number.isInteger(result.checked) || result.checked! < 0 || result.checked! > 25) {
         throw new Error('Unexpected reconciliation response');
       }
       return;

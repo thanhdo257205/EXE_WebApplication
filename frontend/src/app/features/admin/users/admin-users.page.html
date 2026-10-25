@@ -8,7 +8,7 @@
 
   <div class="access-note" role="note">
     {{ canManageRoles() ? 'Bạn có quyền quản lý đồng quản trị. Quyền admin chính luôn được bảo vệ.' : 'Bạn có thể xem tài khoản. Chỉ admin chính được thay đổi quyền.' }}
-    Admin chính có thể thêm đồng quản trị bằng email trước khi người đó đăng ký; quyền được áp dụng tự động khi đăng ký đúng email.
+    Admin chính có thể thêm đồng quản trị bằng email trước khi người đó đăng ký; quyền chỉ tự áp dụng khi người đó đăng ký bằng Google với email đã xác minh.
   </div>
 
   @if (error()) {
@@ -19,7 +19,7 @@
   @if (canManageRoles()) {
     <section class="invite-panel" aria-labelledby="invite-title">
       <h2 id="invite-title">Thêm đồng quản trị bằng email</h2>
-      <p class="muted">Chỉ cần nhập email. Nếu người đó chưa có tài khoản, quyền đồng quản trị sẽ tự áp dụng khi họ đăng ký đúng email này. Chỉ mời người bạn tin cậy: đăng ký bằng mật khẩu chưa xác minh người sở hữu email.</p>
+      <p class="muted">Chỉ cần nhập email. Nếu người đó chưa có tài khoản, quyền đồng quản trị chỉ tự áp dụng khi họ đăng ký bằng Google với email đã xác minh; nếu họ đăng ký bằng mật khẩu, hãy kiểm tra danh tính rồi cấp quyền thủ công.</p>
       <form (ngSubmit)="sendInvite()">
         <label for="invite-email">Email người nhận quyền</label>
         <div>

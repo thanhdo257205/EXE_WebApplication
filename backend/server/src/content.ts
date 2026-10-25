@@ -70,26 +70,35 @@ export function contentRoutes(app: Api, db: Client, cache: Cache) {
   const cached = cache.cached;
   // Public content is read-only and published releases are immutable: serve it from a short in-process cache
   // (cleared on admin writes) and keep cold reads to the fewest Turso round trips.
-  const publicKey = (c: { req: { url: string } }) => { const u = new URL(c.req.url); return u.pathname + u.search; };
-  app.get('/api/v1/content/release', async c => c.json(await cached(publicKey(c), PUBLIC_TTL_MS,
-    async () => camel(await release(db, optionalId.parse(c.req.query('releaseId')), true)))));
-  app.get('/api/v1/content/snapshot', async c => c.json(await cached(publicKey(c), PUBLIC_TTL_MS, async () => {
-    const r = await release(db, optionalId.parse(c.req.query('releaseId')), true); await publicBudget(db, r.id);
-    const names = Object.keys(kinds) as Kind[];
-    const rows = await batchRead(db, names.map(kind => ({ sql: baseSelect(kind) + ' WHERE r.release_id=? ORDER BY r.sort_order,i.id', args: [r.id] })));
-    const content: Row = {}; names.forEach((kind, i) => { content[kind] = rows[i].map(camel); });
-    return { schemaVersion: 1, release: camel(r), content };
-  })));
+  // Keys contain only validated values: unknown query parameters or their order must not create new entries.
+  const publicKey = (...parts: unknown[]) => JSON.stringify(parts);
+  app.get('/api/v1/content/release', async c => {
+    const releaseId = optionalId.parse(c.req.query('releaseId'));
+    return c.json(await cached(publicKey('release', releaseId ?? ''), PUBLIC_TTL_MS,
+      async () => camel(await release(db, releaseId, true))));
+  });
+  app.get('/api/v1/content/snapshot', async c => {
+    const releaseId = optionalId.parse(c.req.query('releaseId'));
+    return c.json(await cached(publicKey('snapshot', releaseId ?? ''), PUBLIC_TTL_MS, async () => {
+      const r = await release(db, releaseId, true); await publicBudget(db, r.id);
+      const names = Object.keys(kinds) as Kind[];
+      const rows = await batchRead(db, names.map(kind => ({ sql: baseSelect(kind) + ' WHERE r.release_id=? ORDER BY r.sort_order,i.id', args: [r.id] })));
+      const content: Row = {}; names.forEach((kind, i) => { content[kind] = rows[i].map(camel); });
+      return { schemaVersion: 1, release: camel(r), content };
+    }));
+  });
   app.get('/api/v1/content/:kind', async c => {
     const kind = kindOf(c.req.param('kind')), k = kinds[kind]; const q = querySchema.parse({ size: 12, ...c.req.query() });
     const set = optionalId.parse(c.req.query('cardSetId')), character = optionalId.parse(c.req.query('characterId')), type = pageType.optional().parse(c.req.query('pageType'));
     if (((set || character) && kind !== 'cards') || (type && kind !== 'wiki-pages')) return fail(400, 'INVALID_QUERY');
-    return c.json(await cached(publicKey(c), PUBLIC_TTL_MS, async () => {
-      const r = await release(db, optionalId.parse(c.req.query('releaseId')), true); await publicBudget(db, r.id, [kind]);
+    const releaseId = optionalId.parse(c.req.query('releaseId')), search = normalize(q.q);
+    // Search results are keyed by the normalized term and share the cache's byte budget, so repeated terms hit
+    // while arbitrary terms cannot grow memory beyond the configured limits.
+    return c.json(await cached(publicKey('list', kind, releaseId ?? '', q.page, q.size, search, set ?? '', character ?? '', type ?? ''), PUBLIC_TTL_MS, async () => {
+      const r = await release(db, releaseId, true); await publicBudget(db, r.id, [kind]);
       let where = ' WHERE r.release_id=?'; const args: InValue[] = [r.id];
       for (const [column, value] of [['r.card_set_id', set], ['r.character_id', character], ['i.page_type', type]]) if (value) { where += ` AND ${column}=?`; args.push(value); }
       const metadata = await all(db, `SELECT i.id,i.slug,${kind === 'wiki-pages' ? "'' AS code" : 'i.code'},r.sort_order,r.${k.label} AS label FROM ${k.identity} i JOIN ${k.revision} r ON r.${k.fk}=i.id` + where, args);
-      const search = normalize(q.q);
       const sorted = metadata.map((row): Row => ({ ...row, normalized: normalize(row.label) })).filter(row => !search || normalize(`${row.label}`).includes(search) || normalize(row.slug).includes(search) || normalize(row.code).includes(search))
         .sort((a, b) => a.sort_order - b.sort_order || (a.normalized < b.normalized ? -1 : a.normalized > b.normalized ? 1 : 0) || a.id.localeCompare(b.id));
       const selected = sorted.slice(q.page * q.size, (q.page + 1) * q.size); let items: Row[] = [];
@@ -104,7 +113,7 @@ export function contentRoutes(app: Api, db: Client, cache: Cache) {
     const kind = kindOf(c.req.param('kind')); const id = c.req.param('id'); const slug = c.req.param('slug');
     if (id) z.string().uuid().parse(id); else z.string().max(160).regex(/^[a-zA-Z0-9_-]+$/).parse(slug);
     const releaseId = optionalId.parse(c.req.query('releaseId'));
-    return c.json(await cached(publicKey(c), PUBLIC_TTL_MS, async () => {
+    return c.json(await cached(publicKey('item', kind, id ? 'id' : 'slug', id || slug!, releaseId ?? ''), PUBLIC_TTL_MS, async () => {
       const r = await release(db, releaseId, true);
       return { release: camel(r), item: camel(await one(db, baseSelect(kind) + ` WHERE r.release_id=? AND i.${id ? 'id' : 'slug'}=?`, [r.id, id || slug!])) };
     }));

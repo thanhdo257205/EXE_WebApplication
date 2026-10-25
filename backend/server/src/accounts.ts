@@ -3,12 +3,14 @@ import { all, execute, fail, one, transaction, uuid } from './db.ts';
 import { notifyRegistration } from './registration-notifications.ts';
 import { acceptAdminInvite } from './admin-invites.ts';
 
-/** Password hashing happens before this short transaction. */
+/**
+ * Password registration proves no mailbox ownership, so a pending invite is never
+ * consumed here. The owner must promote the account explicitly after verification.
+ */
 export async function registerPasswordAccount(db: Client, account: { email: string; passwordHash: string; displayName: string }) {
   return transaction(db, async tx => {
     const id = uuid();
     await execute(tx, 'INSERT INTO app_users(id,email,password_hash,display_name,role) VALUES (?,?,?,?,?)', [id, account.email, account.passwordHash, account.displayName, 'CUSTOMER']);
-    await acceptAdminInvite(tx, id, account.email, 'password');
     await notifyRegistration(tx, id);
     return one(tx, 'SELECT * FROM app_users WHERE id=?', [id]);
   });

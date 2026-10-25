@@ -30,6 +30,15 @@ const conflict = (message: string): never => fail(409, 'PAYMENT_CONFLICT', messa
 const paymentUrl = (url: string) => { try { const u = new URL(url); if (u.protocol === 'https:' && u.hostname === 'pay.payos.vn' && !u.username && !u.password) return url; } catch {} return conflict('Unexpected payment URL'); };
 const validMoney = (amount: unknown): amount is number => typeof amount === 'number' && Number.isSafeInteger(amount) && amount > 0 && amount <= 1e12;
 const validLink = (id: unknown): id is string => typeof id === 'string' && /^[A-Za-z0-9-]{1,100}$/.test(id);
+/** PayOS APIError exposes the HTTP status; absent status means timeout/connection failure. */
+const providerStatus = (error: unknown): number | null => {
+  const status = (error as { status?: unknown } | null)?.status;
+  return typeof status === 'number' ? status : null;
+};
+const MAX_HELD_UNITS_PER_ACCOUNT = 20;
+const MAX_HELD_UNITS_PER_VARIANT = 5;
+const SWEEP_BATCH = 25;
+const SWEEP_BUDGET_MS = 20_000;
 
 export class Payments {
   db: Client; provider: Provider | null; origin: string;
@@ -45,12 +54,29 @@ export class Payments {
     await execute(db, "UPDATE orders SET payment_status='REVIEW',updated_at=? WHERE id=?", [now(), order]);
     await execute(db, "INSERT INTO order_events(id,order_id,event_type,note,operation_key) VALUES (?,?,'PAYMENT_REVIEW',?,?) ON CONFLICT(operation_key) DO NOTHING", [uuid(), order, reason, `REVIEW:${order}:${reason}`]);
   }
+  private hydrate(order: Row, p: Row) {
+    const payable = ['PENDING', 'PARTIALLY_PAID'].includes(p.status) && p.expires_at > now() && order.status === 'PENDING_PAYMENT' && order.payment_status !== 'REVIEW';
+    return { id: order.id, number: order.order_number, status: order.status, paymentStatus: order.payment_status, total: p.amount_requested, received: p.amount_received, paymentState: p.status, checkoutUrl: payable ? p.checkout_url : null, qrCode: payable ? p.qr_code : null };
+  }
   async view(order: string, user: string) {
     return transaction(this.db, async tx => {
       const row = await one(tx, 'SELECT * FROM orders WHERE id=? AND user_id=?', [order, user]); const p = await this.attempt(tx, order);
-      const payable = ['PENDING', 'PARTIALLY_PAID'].includes(p.status) && p.expires_at > now() && row.status === 'PENDING_PAYMENT' && row.payment_status !== 'REVIEW';
-      return { id: order, number: row.order_number, status: row.status, paymentStatus: row.payment_status, total: p.amount_requested, received: p.amount_received, paymentState: p.status, checkoutUrl: payable ? p.checkout_url : null, qrCode: payable ? p.qr_code : null };
+      return this.hydrate(row, p);
     }, 'read');
+  }
+  /** Same shape as view(), but the whole page of orders and their attempts is two statements. */
+  async views(ids: string[], user: string) {
+    if (!ids.length) return [];
+    const { orders, attempts } = await transaction(this.db, async tx => ({
+      orders: await all(tx, `SELECT * FROM orders WHERE user_id=? AND id IN (${placeholders(ids.length)})`, [user, ...ids]),
+      attempts: await all(tx, `SELECT * FROM payment_attempts WHERE order_id IN (${placeholders(ids.length)}) ORDER BY created_at DESC`, ids),
+    }), 'read');
+    const byOrder = new Map(orders.map(row => [row.id, row])), attemptByOrder = new Map<string, Row>();
+    for (const attempt of attempts) if (!attemptByOrder.has(attempt.order_id)) attemptByOrder.set(attempt.order_id, attempt);
+    return ids.flatMap(id => {
+      const order = byOrder.get(id), p = attemptByOrder.get(id);
+      return order && p ? [this.hydrate(order, p)] : [];
+    });
   }
   async checkout(actor: Actor, body: z.infer<typeof checkoutSchema>) {
     if (!this.provider) return fail(503, 'PAYMENTS_UNAVAILABLE');
@@ -62,6 +88,14 @@ export class Payments {
       const previous = (await all(tx, 'SELECT id,checkout_fingerprint FROM orders WHERE user_id=? AND checkout_key=?', [actor.id, body.idempotencyKey]))[0];
       if (previous) { if (previous.checkout_fingerprint !== fingerprint) return conflict('Idempotency key already used with another request'); return previous.id as string; }
       if (await scalar(tx, "SELECT COUNT(*) FROM orders WHERE user_id=? AND status='PENDING_PAYMENT'", [actor.id]) >= 5) return conflict('Too many pending orders');
+      const held = await all(tx, `SELECT i.variant_id,SUM(i.quantity) AS quantity FROM inventory_reservations r
+        JOIN order_items i ON i.id=r.order_item_id JOIN orders o ON o.id=i.order_id
+        WHERE o.user_id=? AND o.status='PENDING_PAYMENT' AND r.status='HELD' GROUP BY i.variant_id`, [actor.id]);
+      const heldByVariant = new Map(held.map(row => [row.variant_id as string, Number(row.quantity)]));
+      const heldUnits = held.reduce((sum, row) => sum + Number(row.quantity), 0);
+      const requestedUnits = lines.reduce((sum, line) => sum + line.quantity, 0);
+      if (heldUnits + requestedUnits > MAX_HELD_UNITS_PER_ACCOUNT) return conflict('Hold limit reached');
+      for (const line of lines) if ((heldByVariant.get(line.variantId) ?? 0) + line.quantity > MAX_HELD_UNITS_PER_VARIANT) return conflict('Variant hold limit reached');
       const variants = await all(tx, `SELECT v.*,p.name AS product_name FROM product_variants v JOIN products p ON p.id=v.product_id WHERE v.id IN (${placeholders(lines.length)}) AND v.enabled=1 AND p.status='ACTIVE'`, lines.map(l => l.variantId));
       const byId = new Map(variants.map(v => [v.id, v])); let total = 0;
       for (const line of lines) { const v = byId.get(line.variantId); if (!v) return conflict('Product is unavailable'); total += Number(v.price_amount) * line.quantity; }
@@ -160,6 +194,26 @@ export class Payments {
       }
     }
   }
+  /**
+   * The provider answered 404 for an attempt that never got a payment link, which is
+   * the only proof of absence available. Any credit, review flag or busy order keeps
+   * the hold instead. Timeouts and 5xx keep the attempt UNKNOWN for a later sweep.
+   */
+  private async failAbsent(order: string) {
+    await transaction(this.db, async tx => {
+      const p = await this.attempt(tx, order);
+      if (!['CREATING', 'UNKNOWN'].includes(p.status) || p.active_slot !== 1) return;
+      if (await scalar(tx, 'SELECT COALESCE(SUM(amount),0) FROM payment_transactions WHERE payment_attempt_id=?', [p.id])) { await this.review(tx, order, 'PROVIDER_ORDER_ABSENT_AFTER_CREDIT'); return; }
+      const current = await one(tx, 'SELECT * FROM orders WHERE id=?', [order]);
+      if (current.payment_status === 'REVIEW') return;
+      if (current.status === 'PENDING_PAYMENT') {
+        await this.closeStock(tx, order);
+        await execute(tx, "UPDATE orders SET status='CANCELLED',cancelled_at=?,updated_at=? WHERE id=?", [now(), now(), order]);
+        await this.event(tx, order, 'PAYMENT_FAILED', 'CANCELLED');
+      } else if (current.status !== 'CANCELLED') return;
+      await execute(tx, "UPDATE payment_attempts SET status='FAILED',active_slot=NULL,failure_code='PROVIDER_ORDER_NOT_FOUND',cancelled_at=?,updated_at=?,version=version+1 WHERE id=?", [now(), now(), p.id]);
+    });
+  }
   private async reconciled(original: Row, link: any) {
     await transaction(this.db, async tx => {
       const p = await this.attempt(tx, original.order_id), order = await one(tx, 'SELECT * FROM orders WHERE id=?', [p.order_id]);
@@ -185,7 +239,8 @@ export class Payments {
     try {
       const link = await this.provider.get(p.provider_order_code); await this.reconciled(p, link);
       if (p.expires_at < now() && link.amountPaid === 0 && link.status === 'PENDING') await this.reconciled(p, await this.provider.cancel(p.provider_order_code));
-    } catch {
+    } catch (error) {
+      if (providerStatus(error) === 404) { await this.failAbsent(order); return; }
       await execute(this.db, "UPDATE payment_attempts SET status='UNKNOWN',failure_code='PROVIDER_UNAVAILABLE' WHERE order_id=? AND status='CREATING'", [order]);
       console.warn('Payment reconciliation deferred');
     }
@@ -194,8 +249,17 @@ export class Payments {
     if (!this.provider) return fail(503, 'PAYMENTS_UNAVAILABLE');
     const events = await all(this.db, "SELECT e.id FROM payment_webhook_events e JOIN payment_attempts p ON p.provider_order_code=e.provider_order_code WHERE e.status IN ('RECEIVED','RETRY') ORDER BY e.received_at LIMIT 20");
     for (const event of events) await this.process(event.id).catch(() => console.warn('Payment inbox retry deferred'));
-    const due = await all(this.db, "SELECT order_id FROM payment_attempts WHERE (active_slot=1 OR (status IN ('CANCELLED','EXPIRED','PAID') AND created_at>?)) AND (status<>'CREATING' OR created_at<?) AND (last_reconciled_at IS NULL OR last_reconciled_at<?) ORDER BY last_reconciled_at NULLS FIRST,created_at LIMIT 5", [at(Date.now() - 7 * 86400000), at(Date.now() - 120000), at(Date.now() - 60000)]);
-    for (const p of due) await this.reconcile(p.order_id); return due.length;
+    const nowIso = now();
+    const due = await all(this.db, `SELECT order_id FROM payment_attempts
+      WHERE (active_slot=1 OR (status IN ('CANCELLED','EXPIRED','PAID') AND created_at>?))
+        AND (status<>'CREATING' OR created_at<?) AND (last_reconciled_at IS NULL OR last_reconciled_at<?)
+      ORDER BY (expires_at<?) DESC,expires_at,created_at LIMIT ?`,
+      [at(Date.now() - 7 * 86400000), at(Date.now() - 120000), at(Date.now() - 60000), nowIso, SWEEP_BATCH]);
+    // Expiring holds go first and the loop stops on a wall-clock budget so one slow
+    // provider cannot consume the scheduled invocation.
+    const deadline = Date.now() + SWEEP_BUDGET_MS; let checked = 0;
+    for (const p of due) { if (Date.now() >= deadline) break; await this.reconcile(p.order_id); checked++; }
+    return checked;
   }
 }
 
@@ -211,8 +275,8 @@ export function paymentRoutes(app: Api, db: Client, payments: Payments) {
   app.get('/api/v1/payments/config', c => c.json({ provider: 'PAYOS', enabled: Boolean(payments.provider) }));
   app.post('/api/v1/checkout', async c => c.json(await payments.checkout(requireActor(c), checkoutSchema.parse(await c.req.json()))));
   app.get('/api/v1/orders', async c => {
-    const actor = requireActor(c), rows = await all(db, 'SELECT id FROM orders WHERE user_id=? ORDER BY created_at DESC LIMIT 50', [actor.id]); const results = [];
-    for (const row of rows) results.push(await payments.view(row.id, actor.id)); return c.json(results);
+    const actor = requireActor(c), rows = await all(db, 'SELECT id FROM orders WHERE user_id=? ORDER BY created_at DESC LIMIT 50', [actor.id]);
+    return c.json(await payments.views(rows.map(row => row.id as string), actor.id));
   });
   app.get('/api/v1/orders/:id', async c => c.json(await payments.view(z.string().uuid().parse(c.req.param('id')), requireActor(c).id)));
   app.post('/api/v1/orders/:id/refresh-payment', async c => { const actor = requireActor(c), id = z.string().uuid().parse(c.req.param('id')); await payments.view(id, actor.id); await payments.reconcile(id); return c.json(await payments.view(id, actor.id)); });

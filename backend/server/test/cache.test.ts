@@ -25,5 +25,38 @@ test('clear drops entries and the cache is bounded', async () => {
   const cache = createCache();
   for (let i = 0; i < 260; i++) await cache.cached(`k${i}`, 1000, async () => i);
   assert.ok(cache.size() <= 200);
-  cache.clear(); assert.equal(cache.size(), 0);
+  cache.clear(); assert.equal(cache.size(), 0); assert.equal(cache.bytes(), 0);
+});
+
+test('oversized responses are served but never retained', async () => {
+  const cache = createCache(Date.now, { maxEntryBytes: 100 }); let calls = 0;
+  const compute = async () => { calls++; return { body: 'x'.repeat(200) }; };
+  assert.equal((await cache.cached('big', 1000, compute)).body.length, 200);
+  assert.equal(cache.size(), 0); assert.equal(cache.bytes(), 0);
+  await cache.cached('big', 1000, compute);
+  assert.equal(calls, 2);
+});
+
+test('the byte budget evicts the least recently used entry', async () => {
+  const cache = createCache(Date.now, { maxTotalBytes: 250 }); const calls: Record<string, number> = {};
+  const compute = (key: string) => async () => { calls[key] = (calls[key] ?? 0) + 1; return { value: key.repeat(100) }; };
+  await cache.cached('a', 1000, compute('a'));
+  await cache.cached('b', 1000, compute('b'));
+  await cache.cached('a', 1000, compute('a')); // refresh a, so b is now the oldest
+  await cache.cached('c', 1000, compute('c'));
+  assert.equal(cache.size(), 2);
+  assert.ok(cache.bytes() <= 250);
+  await cache.cached('b', 1000, compute('b'));
+  assert.equal(calls.b, 2);
+  await cache.cached('c', 1000, compute('c'));
+  assert.equal(calls.c, 1);
+});
+
+test('expired entries are swept on an interval', async () => {
+  let time = 0; const cache = createCache(() => time, { sweepEveryMs: 100 });
+  await cache.cached('a', 10, async () => 'a');
+  time = 50; await cache.cached('b', 10, async () => 'b');
+  assert.equal(cache.size(), 2);
+  time = 120; await cache.cached('c', 1000, async () => 'c');
+  assert.equal(cache.size(), 1);
 });

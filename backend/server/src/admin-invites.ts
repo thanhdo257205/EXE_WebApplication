@@ -24,8 +24,9 @@ export const inviteView = (row: Row) => ({
 /**
  * Runs inside the registration transaction so an unavailable audit table or
  * failed role update rolls the new account back instead of granting nothing.
+ * Only the Google path may call this: the provider has already verified the mailbox.
  */
-export async function acceptAdminInvite(db: Executor, userId: string, email: string, source: 'password' | 'google'): Promise<boolean> {
+export async function acceptAdminInvite(db: Executor, userId: string, email: string, source: 'google'): Promise<boolean> {
   const invite = (await all(db, 'SELECT id FROM admin_invites WHERE email=?', [email]))[0];
   if (!invite) return false;
   await execute(db, "UPDATE app_users SET role='ADMIN' WHERE id=?", [userId]);

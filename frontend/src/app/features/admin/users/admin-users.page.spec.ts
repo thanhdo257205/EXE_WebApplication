@@ -118,14 +118,15 @@ describe('RBAC users page', () => {
     expect(el.querySelector('#invite-email')).toBeNull();
   });
 
-  it('adds an invite by email, trims it and explains activation at registration', () => {
+  it('adds an invite by email, trims it and explains automatic activation only via verified Google', () => {
     api.invite.mockReturnValue(of({status:'INVITED',invite:pendingInvite}));
     const {page} = setup();
     page.inviteEmail = '  future@example.test  ';
     page.sendInvite();
     expect(api.invite).toHaveBeenCalledExactlyOnceWith('future@example.test');
     expect(page.inviteEmail).toBe('');
-    expect(page.notice()).toContain('đăng ký bằng đúng email');
+    expect(page.notice()).toContain('đăng ký bằng Google');
+    expect(page.notice()).toContain('cấp quyền thủ công');
     expect(api.list).toHaveBeenCalledTimes(2);
     expect(api.listInvites).toHaveBeenCalledTimes(2);
   });
@@ -183,12 +184,12 @@ describe('RBAC users page', () => {
     expect(api.listInvites).toHaveBeenCalledTimes(2);
   });
 
-  it('shows pending invites read-only to delegated admins', () => {
+  it('never requests the owner-only invite list for delegated admins', () => {
     api.list.mockReturnValue(of(result(false)));
-    api.listInvites.mockReturnValue(of(inviteResult([pendingInvite], false)));
     const {el} = setup();
-    expect(el.textContent).toContain(pendingInvite.email);
-    expect(el.querySelectorAll('tbody button').length).toBe(0);
+    expect(api.listInvites).not.toHaveBeenCalled();
+    expect(el.textContent).not.toContain(pendingInvite.email);
+    expect(el.textContent).toContain('Chỉ admin chính được thay đổi quyền');
   });
 
   it('maps invite conflicts and keeps the email for correction', () => {

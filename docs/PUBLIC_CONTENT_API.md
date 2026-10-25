@@ -75,7 +75,7 @@ Success: HTTP 200, `Cache-Control: public, max-age=60`. Không chứa dữ liệ
 | 413 | CONTENT_TOO_LARGE | Vượt giới hạn đọc hỗ trợ |
 | 403/429/503 | Có thể không có code | Proxy guard/rate limit/backend đang khởi động |
 
-Tìm kiếm chuẩn hóa chạy Java để dùng chung H2/PostgreSQL, chưa cần extension database. Trước khi tải danh sách, backend giới hạn mỗi loại tối đa 2000 revision và 500000 ký tự các trường text; snapshot áp cùng ngân sách trên tổng bốn loại. Vượt giới hạn trả 413 thay vì trả bản cắt cụt. Đây là giới hạn toàn loại trước phân trang/bộ lọc: giảm size không khắc phục; cần chia/tối ưu dữ liệu hoặc chuyển chiến lược truy vấn khi mở rộng. Phạm vi dự kiến 148 thẻ/11 bộ/8 nhân vật nằm trong giới hạn số lượng, vẫn cần kiểm tra tổng text thực tế. Hiện chưa có cache nội dung trong JVM.
+Tìm kiếm chuẩn hóa chạy trong backend, không cần extension database. Trước khi tải danh sách, backend giới hạn mỗi loại tối đa 2000 revision và 500000 ký tự các trường text; snapshot áp cùng ngân sách trên tổng bốn loại. Vượt giới hạn trả 413 thay vì trả bản cắt cụt. Đây là giới hạn toàn loại trước phân trang/bộ lọc: giảm size không khắc phục; cần chia/tối ưu dữ liệu hoặc chuyển chiến lược truy vấn khi mở rộng. Phạm vi dự kiến 148 thẻ/11 bộ/8 nhân vật nằm trong giới hạn số lượng, vẫn cần kiểm tra tổng text thực tế. Backend cache response công khai trong bộ nhớ mỗi tiến trình 30 giây (xóa khi ghi admin); key chỉ gồm tham số đã validate (release, loại, trang, size, từ khóa đã chuẩn hóa, bộ lọc), nên tham số lạ không tạo entry mới. Mỗi entry tối đa 2 MiB, tổng 8 MiB/200 entry, LRU và quét entry hết hạn mỗi 60 giây.
 
 ## Kiểm tra
 
