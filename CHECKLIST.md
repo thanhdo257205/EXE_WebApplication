@@ -58,7 +58,7 @@ Cập nhật: 2026-10-25 (Asia/Saigon).
 - [x] RBAC-INVITE-01 — Bảng additive `admin_invites` + khởi tạo idempotent; GET/POST/DELETE lời mời owner-only (coadmin chỉ đọc); email đã có tài khoản nâng ngay (version/JWT/recovery/audit), email chưa đăng ký được chấp nhận trong transaction đăng ký mật khẩu/Google; rollback giữ lời mời; không đổi owner registry; backend 62 pass/1 remote skip.
 - [x] RBAC-INVITE-02 — UI `/admin/users`: form mời + bảng lời mời chờ + thu hồi có xác nhận, chỉ owner thấy thao tác; coadmin chỉ đọc; map lỗi 409/400, 401 chuyển đăng nhập; frontend 21/21 test admin, build/prerender và Chromium 1440/390px với API thật local qua.
 - [x] RBAC-INVITE-03 — Không gửi email mời rỗng/khoảng trắng; refresh lỗi giữ danh sách/quyền đã biết và xóa notice cũ, ô mời không autofill; admin specs 23/23, build và Chromium với API thật local qua.
-- [ ] RBAC-INVITE-DEPLOY — Chưa commit/push/deploy đợt này; chờ chủ dự án xác nhận trước khi đưa lên production.
+- [x] RBAC-INVITE-DEPLOY — Main/runtime `be2214e`; CI 40187808649 bốn job và CD 40187871138/smoke qua; API đúng SHA/storage turso, `/admin/users` 200, API lời mời anonymous 401; chunk Pages trùng sha256 artifact CI; DB có bảng `admin_invites`, 0 lời mời, owner registry 1, chưa có audit mời.
 - [ ] RBAC-INVITE-LIVE — Chủ dự án mời một người thật bằng email trên production, để người đó đăng ký đúng email và xác nhận nhận quyền đồng quản trị; chưa thực hiện.
 
 ## Tạo thẻ bài Admin & Texture 3D Thẻ chính thức (2026-10-24)
