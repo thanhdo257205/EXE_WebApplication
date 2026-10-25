@@ -4,13 +4,15 @@
 
 ## Cập nhật gần nhất
 
-### Bật tải ảnh thẻ khi chưa có bản nháp — 2026-10-25, local (nhánh `deepseek`, chưa push)
+### Bật tải ảnh thẻ khi chưa có bản nháp — 2026-10-25, đã lên main và deploy
 
 - Hiện tượng do chủ dự án báo: vào `/admin/cards` trên website production, nút chọn ảnh bị khóa nên không tải ảnh được.
 - Nguyên nhân: template khóa uploader theo trạng thái release (`[disabled]="!isDraftSelected() || cardSaving()"`). Đọc Turso production (chỉ SELECT) xác nhận bảng `content_releases` có **0 dòng**, nên `activeRelease` là null và nút bị khóa vĩnh viễn; trước đây trang chỉ hiện form nhân bản khi đã có release nên không có lối thoát. API `POST /api/v1/admin/media/card-image` không phụ thuộc release — nó chỉ cần ADMIN + CSRF và ghi ảnh theo hash.
 - Sửa: uploader chỉ bị khóa khi đang lưu thẻ (`cardSaving()`); thêm gợi ý "ảnh vẫn được lưu vào kho khi chưa có bản nháp, hãy chép đường dẫn"; đổi nhãn khóa thành "Tạm khóa tải ảnh". Không đổi backend, quyền, kho ảnh, schema hay dependency.
-- Kiểm thử: `admin-section.page.spec.ts` + `card-image-upload.component.spec.ts` **21/21 pass** (thêm test uploader bật khi release PUBLISHED hoặc không có release, chỉ tắt khi đang lưu); production build/prerender 6 route qua, còn cảnh báo CSS budget/CommonJS có sẵn. Chưa chạy toàn bộ suite trong đợt này.
-- Chưa nghiệm thu end-to-end: chưa đăng nhập admin production để upload thật. Hệ quả còn lại: vì production chưa có release nào, form tạo thẻ (cần DRAFT + ít nhất một bộ thẻ) vẫn không hiện sau khi upload; muốn tạo thẻ phải có release/bộ thẻ trước, hiện chưa có UI tạo bộ thẻ.
+- Kiểm thử local: `admin-section.page.spec.ts` + `card-image-upload.component.spec.ts` **21/21 pass** (thêm test uploader bật khi release PUBLISHED hoặc không có release, chỉ tắt khi đang lưu); production build/prerender 6 route qua, còn cảnh báo CSS budget/CommonJS có sẵn.
+- GitHub/deploy: commit `ff14019a4e1c29f96ec0aace0a292ad78622ad77` merge fast-forward vào `main`; [CI 40177496244](https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/40177496244) và [CD 40177574930](https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/40177574930) thành công. `/api/v1/info` production trả đúng SHA `ff14019`.
+- Nghiệm thu production (2026-10-25, đăng nhập admin thật trên trình duyệt): `/admin/cards` hiện nút **"Chọn ảnh thẻ"** đã bật dù chưa có release; tải `pokemon-hoang-nam-poster.webp` (29.838 byte) → `POST /api/v1/admin/media/card-image` trả **201**, UI báo "Đã tải lên · 29 kB" và trả `/media/cards/7c3217cb…35f3.webp`. Mở URL: **200**, `content-type: image/webp`, đúng 29.838 byte, `cache-control: immutable`, `X-Media-Storage: azure-blob`. Ảnh và audit event `MEDIA_CARD_IMAGE_UPLOADED` là dữ liệu thật sinh ra trong lần test.
+- Hệ quả còn lại: production vẫn chưa có bản phát hành nào, nên sau khi upload trang vẫn báo "Chưa có bản phát hành" và form tạo thẻ (cần DRAFT + ít nhất một bộ thẻ) chưa hiện; hiện chưa có UI tạo bộ thẻ.
 
 ### Khôi phục vị trí cuộn khi chuyển route SPA và đồng bộ Lenis — 2026-10-24, đã lên main và deploy
 

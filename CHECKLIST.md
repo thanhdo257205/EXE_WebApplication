@@ -6,7 +6,8 @@ Cập nhật: 2026-10-25 (Asia/Saigon).
 
 - [x] ADMIN-UPLOAD-01 — Bỏ điều kiện DRAFT khỏi `[disabled]` của `CardImageUploadComponent` tại `/admin/cards`; chỉ khóa khi đang lưu thẻ, thêm gợi ý và đổi nhãn khóa. Không đổi API/quyền/kho ảnh.
 - [x] ADMIN-UPLOAD-02 — Test hồi quy: uploader bật khi release PUBLISHED hoặc không có release, tắt khi `cardSaving`; 21/21 test hai file spec qua, production build/prerender qua (cảnh báo cũ).
-- [ ] ADMIN-UPLOAD-PROD — Đăng nhập admin production, chọn ảnh và xác nhận nhận URL `/media/cards/<hash>.webp` trả 201, mở URL thấy ảnh.
+- [x] ADMIN-UPLOAD-PROD — Đã đăng nhập admin production: nút "Chọn ảnh thẻ" bật khi chưa có release; upload WebP 29.838 byte trả `POST …/media/card-image` 201, URL `/media/cards/7c32…35f3.webp` mở được 200 `image/webp` từ Azure (`X-Media-Storage: azure-blob`, cache immutable).
+- [x] ADMIN-UPLOAD-DEPLOY — Merge `ff14019` vào main; CI 40177496244 và CD 40177574930 thành công; production `/api/v1/info` đúng SHA.
 - [ ] ADMIN-CONTENT-RELEASE — Production đang có 0 bản phát hành; cần tạo release/bộ thẻ (chưa có UI tạo bộ thẻ) trước khi có thể tạo thẻ trong bản nháp.
 
 ## Khôi phục vị trí cuộn SPA & Đồng bộ Lenis (2026-10-24)

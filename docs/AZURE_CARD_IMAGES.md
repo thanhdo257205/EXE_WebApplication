@@ -1,10 +1,15 @@
 # Ảnh thẻ trên Azure Blob Storage
 
-## Sửa nút tải ảnh bị khóa (2026-10-25, local)
+## Sửa nút tải ảnh bị khóa (2026-10-25, đã xác minh trên production)
 
 - Trước đây `/admin/cards` khóa ô chọn ảnh khi bản phát hành đang chọn không phải DRAFT. Production chưa có bản phát hành nào (`content_releases` = 0 dòng), nên nút luôn bị khóa dù kho Azure đã cấu hình.
 - Nay uploader chỉ bị khóa khi đang lưu thẻ. Tải ảnh là ghi vào kho theo hash, không sửa release, nên không cần điều kiện DRAFT; đường dẫn trả về vẫn tự điền vào form tạo thẻ khi form đang mở, hoặc chép tay khi chưa có bản nháp.
-- Kiểm thử: 21/21 test của hai spec admin liên quan qua, production build/prerender qua. Chưa đăng nhập admin production để upload thật. Xem `PROGRESS.md` để biết trạng thái mới nhất.
+- Kiểm thử local: 21/21 test của hai spec admin liên quan qua, production build/prerender qua.
+- Đã triển khai commit `ff14019a4e1c29f96ec0aace0a292ad78622ad77` (CI [40177496244](https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/40177496244), CD [40177574930](https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/40177574930) thành công) và thử end-to-end trên trình duyệt production khi đã đăng nhập admin:
+  - `/admin/cards` hiển thị ô chọn ảnh ở trạng thái mở khóa dù danh sách bản phát hành rỗng; hiện thêm dòng gợi ý rằng ảnh vẫn được lưu vào kho khi chưa có bản nháp.
+  - Tải `pokemon-hoang-nam-poster.webp` (29.838 byte) → UI báo "Đã tải lên · 29 kB"; network ghi `POST /api/v1/admin/media/card-image` trả **201**.
+  - Tải lại URL trả về `/media/cards/7c3217cb6c6c2130c401bcc34560ea946dbf9bf774db65ab6733f298e31d35f3.webp`: 200, `image/webp`, đúng 29.838 byte, `cache-control: public, max-age=31536000, immutable`, `X-Media-Storage: azure-blob`.
+- Còn tồn: production vẫn chưa có bản phát hành/bộ thẻ nên form tạo thẻ chưa xuất hiện và chưa có UI tạo bộ thẻ. Xem `PROGRESS.md` và mục `ADMIN-CONTENT-RELEASE` trong `CHECKLIST.md`.
 
 ## Trạng thái 2026-10-24
 
