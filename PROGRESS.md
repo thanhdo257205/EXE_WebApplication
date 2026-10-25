@@ -4,6 +4,17 @@
 
 ## Cập nhật gần nhất
 
+### Nút chép ảnh + thiết lập bản phát hành/bộ thẻ cho quản lý thẻ — 2026-10-25, local, chưa deploy
+
+- Hiện tượng chủ dự án báo trên production: (1) nút "Chép đường dẫn" sau khi tải ảnh không hoạt động; (2) không thấy phần quản lý toàn bộ thẻ bài.
+- Nguyên nhân (1): `copy()` chỉ gọi `navigator.clipboard.writeText`; khi trình duyệt/tab chặn Clipboard API thì promise bị reject và component nuốt lỗi, không có đường dự phòng hay thông báo.
+- Đã sửa (1): thử Clipboard API trước, sau đó fallback `textarea` + `document.execCommand('copy')`; nếu cả hai bị chặn thì hiện thông báo và cho bấm vào URL để chọn toàn bộ rồi chép thủ công. Thêm `copyError`, reset khi chụp ảnh mới; URL có `user-select: all`.
+- Nguyên nhân (2): trang `/admin/cards` chỉ liệt kê thẻ theo bản phát hành đang chọn. Production có `content_releases` = 0 dòng, trong khi trước đây UI chỉ có form nhân bản khi đã có release, không có UI tạo release hay bộ thẻ. Vì vậy danh sách trống và form tạo thẻ không xuất hiện.
+- Đã bổ sung: khối "Chưa có bản phát hành — tạo bản thảo đầu tiên" cho cards/characters/articles (gọi `POST /api/v1/admin/content/releases`, tạo DRAFT); khối quản lý bộ thẻ trong bản nháp (gọi `POST /api/v1/admin/content/releases/:release/card-sets`, tự sinh slug, có `expectedVersion`); danh sách thẻ có ô tìm kiếm theo mã/tên/slug và phân trang 50 thẻ/trang. Sau khi có release + bộ thẻ, form tạo thẻ hiện như trước.
+- Không đổi backend/schema/quyền: dùng các route admin đã có. Không sửa dữ liệu production.
+- Kiểm thử local: `admin-content.service.spec.ts` 10/10, `admin-section.page.spec.ts` 17/17, `card-image-upload.component.spec.ts` 9/9 pass (thêm test fallback chép, tạo release, tạo bộ thẻ, tìm kiếm/phân trang). Production build/prerender qua, chỉ còn cảnh báo CSS budget/CommonJS có sẵn.
+- Chưa kiểm thử trình duyệt vì cần phiên admin thật; chưa commit/push/deploy. Việc tiếp theo: nghiệm thu local, commit, chạy CI/CD và kiểm tra tạo release → bộ thẻ → thẻ trên production.
+
 ### Bật tải ảnh thẻ khi chưa có bản nháp — 2026-10-25, đã lên main và deploy
 
 - Hiện tượng do chủ dự án báo: vào `/admin/cards` trên website production, nút chọn ảnh bị khóa nên không tải ảnh được.

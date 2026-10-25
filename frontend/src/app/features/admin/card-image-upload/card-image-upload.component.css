@@ -8,6 +8,6 @@
 .error{margin:0;font-size:13px;color:#ff9b8a}
 .done{display:flex;gap:14px;align-items:flex-start}.done img{border-radius:8px;object-fit:cover;box-shadow:0 8px 20px -8px #000}
 .meta{display:grid;gap:6px;justify-items:start;font-size:12px}.meta p{margin:0;color:#dafa76}
-.meta code{padding:4px 8px;border-radius:6px;background:#0b0c0d;word-break:break-all;font-size:11px}
+.meta code{padding:4px 8px;border-radius:6px;background:#0b0c0d;word-break:break-all;font-size:11px;cursor:text;user-select:all}
 .meta button{min-height:36px;padding:0 14px;border:1px solid #f3f1ea40;border-radius:999px;color:#f3f1ea;font-size:12px}
 .meta small{color:#8f9289}

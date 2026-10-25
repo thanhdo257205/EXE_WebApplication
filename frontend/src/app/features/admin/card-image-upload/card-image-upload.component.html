@@ -14,8 +14,9 @@
       @if (result(); as r) {
         <div class="meta" aria-live="polite">
           <p>Đã tải lên · {{ (r.bytes / 1024).toFixed(0) }} kB</p>
-          <code>{{ r.url }}</code>
+          <code (click)="selectUrl($event)" title="Bấm để chọn toàn bộ đường dẫn">{{ r.url }}</code>
           <button type="button" (click)="copy()">{{ copied() ? 'Đã chép' : 'Chép đường dẫn' }}</button>
+          @if (copyError()) { <small class="error" role="alert">{{ copyError() }}</small> }
           <small>Đường dẫn đã tự động điền vào biểu mẫu tạo thẻ bên dưới.</small>
         </div>
       }

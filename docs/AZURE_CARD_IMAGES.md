@@ -11,6 +11,13 @@
   - Tải lại URL trả về `/media/cards/7c3217cb6c6c2130c401bcc34560ea946dbf9bf774db65ab6733f298e31d35f3.webp`: 200, `image/webp`, đúng 29.838 byte, `cache-control: public, max-age=31536000, immutable`, `X-Media-Storage: azure-blob`.
 - Còn tồn: production vẫn chưa có bản phát hành/bộ thẻ nên form tạo thẻ chưa xuất hiện và chưa có UI tạo bộ thẻ. Xem `PROGRESS.md` và mục `ADMIN-CONTENT-RELEASE` trong `CHECKLIST.md`.
 
+## Chép đường dẫn và thiết lập nội dung để tạo thẻ (2026-10-25, local, chưa deploy)
+
+- Nút "Chép đường dẫn" trước đây chỉ dùng Clipboard API và im lặng thất bại khi trình duyệt chặn. Nay thử Clipboard API, fallback `textarea` + `document.execCommand('copy')`, và nếu vẫn bị chặn thì báo lỗi kèm hướng dẫn bấm vào URL để chọn toàn bộ. Không đổi endpoint upload hay định dạng URL.
+- `/admin/cards` bổ sung khối tạo bản phát hành DRAFT khi hệ thống chưa có release (`POST /api/v1/admin/content/releases`) và khối tạo bộ thẻ trong bản nháp (`POST /api/v1/admin/content/releases/:release/card-sets`). Đây là hai bước bắt buộc trước khi form tạo thẻ hoạt động; không cần thay đổi media API.
+- Danh sách thẻ dùng tìm kiếm mã/tên/slug và phân trang 50 thẻ/trang để quản lý đủ 148 thẻ. `getRevisions` nhận `page`/`size`/`q`; không có endpoint mới.
+- Test local: service 10/10, section 17/17, uploader 9/9; build production/prerender qua. Chưa kiểm thử trình duyệt với phiên admin thật và chưa deploy.
+
 ## Trạng thái 2026-10-24
 
 **Đã triển khai và xác minh production** tại `https://exe-webapp.pages.dev`, runtime commit `a18a18867071cb890ad23d7c2286a5b379399c66`. CI [40085221452](https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/40085221452) và CD [40085281301](https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/40085281301) thành công, gồm container 512 MB và smoke production. Toàn bộ 33 URL ảnh hiện có trả `X-Media-Storage: azure-blob` và khớp byte local.

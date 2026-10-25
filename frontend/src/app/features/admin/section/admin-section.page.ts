@@ -19,6 +19,7 @@ import {
   AdminWikiPage,
   AdminProblemDetail,
   CreateCardPayload,
+  CreateCardSetPayload,
   CloneReleasePayload,
 } from '../../../core/admin/admin-content.service';
 
@@ -83,9 +84,40 @@ export class AdminSectionPage implements OnInit {
   readonly cloneErrorMsg = signal<string | null>(null);
   readonly cloneSuccessMsg = signal<string | null>(null);
 
+  // Release / card-set bootstrap state
+  readonly releaseSaving = signal(false);
+  readonly releaseErrorMsg = signal<string | null>(null);
+  readonly releaseSuccessMsg = signal<string | null>(null);
+  readonly cardSetSaving = signal(false);
+  readonly cardSetErrorMsg = signal<string | null>(null);
+  readonly cardSetSuccessMsg = signal<string | null>(null);
+  readonly cardSetFormOpen = signal(false);
+
+  // Card list pagination & search
+  readonly cardsPage = signal(0);
+  readonly cardsPageSize = 50;
+  readonly cardsTotalPages = computed(() => Math.max(1, Math.ceil(this.totalCardsCount() / this.cardsPageSize)));
+  cardSearchInput = '';
+
   // Sequence to prevent race conditions on fast release switching
   private loadContentSeq = 0;
+  private cardsSeq = 0;
   private slugManuallyEdited = false;
+  private cardSetSlugManuallyEdited = false;
+
+  releaseForm = {
+    versionLabel: '',
+    title: '',
+    releaseNotes: '',
+  };
+
+  cardSetForm = {
+    code: '',
+    name: '',
+    slug: '',
+    description: '',
+    sortOrder: 0,
+  };
 
   cardForm = {
     code: '',
@@ -108,6 +140,10 @@ export class AdminSectionPage implements OnInit {
   };
 
   readonly isDraftSelected = computed(() => this.activeRelease()?.status === 'DRAFT');
+
+  readonly showCardSetForm = computed(
+    () => this.isDraftSelected() && (this.cardSets().length === 0 || this.cardSetFormOpen())
+  );
 
   readonly sectionKey = computed(() => {
     return this.route.snapshot.data['section'] || 'cards';
@@ -259,19 +295,7 @@ export class AdminSectionPage implements OnInit {
     this.loading.set(true);
 
     if (key === 'cards') {
-      this.adminApi.getRevisions<AdminCard>(releaseId, 'cards', 0, 50, this.searchQuery()).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-        next: (res) => {
-          if (currentSeq !== this.loadContentSeq || this.activeRelease()?.id !== releaseId) return;
-          this.cards.set(res.result.items);
-          this.totalCardsCount.set(res.result.totalElements);
-          this.updateReleaseVersion(releaseId, res.releaseVersion);
-          this.loading.set(false);
-        },
-        error: (err) => {
-          if (currentSeq !== this.loadContentSeq || this.activeRelease()?.id !== releaseId) return;
-          this.handleApiError(err);
-        },
-      });
+      this.loadCards(releaseId);
 
       this.adminApi.getRevisions<AdminCardSet>(releaseId, 'card-sets', 0, 50).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: (res) => {
@@ -329,6 +353,181 @@ export class AdminSectionPage implements OnInit {
     }
   }
 
+  private loadCards(releaseId: string): void {
+    const seq = ++this.cardsSeq;
+    this.loading.set(true);
+    this.adminApi
+      .getRevisions<AdminCard>(releaseId, 'cards', this.cardsPage(), this.cardsPageSize, this.searchQuery())
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (res) => {
+          if (seq !== this.cardsSeq || this.activeRelease()?.id !== releaseId) return;
+          this.cards.set(res.result.items);
+          this.totalCardsCount.set(res.result.totalElements);
+          this.updateReleaseVersion(releaseId, res.releaseVersion);
+          this.loading.set(false);
+        },
+        error: (err) => {
+          if (seq !== this.cardsSeq || this.activeRelease()?.id !== releaseId) return;
+          this.handleApiError(err);
+        },
+      });
+  }
+
+  onCardSearchSubmit(): void {
+    const rel = this.activeRelease();
+    if (!rel || this.loading()) return;
+    this.searchQuery.set(this.cardSearchInput.trim());
+    this.cardsPage.set(0);
+    this.loadCards(rel.id);
+  }
+
+  clearCardSearch(): void {
+    this.cardSearchInput = '';
+    if (!this.searchQuery()) return;
+    this.searchQuery.set('');
+    this.cardsPage.set(0);
+    const rel = this.activeRelease();
+    if (rel) this.loadCards(rel.id);
+  }
+
+  goToCardsPage(page: number): void {
+    const rel = this.activeRelease();
+    if (!rel || page < 0 || page >= this.cardsTotalPages() || this.loading()) return;
+    this.cardsPage.set(page);
+    this.loadCards(rel.id);
+  }
+
+  toggleCardSetForm(): void {
+    this.cardSetFormOpen.update(value => !value);
+  }
+
+  createRelease(): void {
+    if (this.releaseSaving() || this.loading()) return;
+    const versionLabel = this.releaseForm.versionLabel.trim();
+    if (!versionLabel || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(versionLabel) || versionLabel.length > 40) {
+      this.releaseErrorMsg.set('Nhãn phiên bản (versionLabel) bắt buộc, tối đa 40 ký tự (VD: v2.0-draft).');
+      return;
+    }
+    const title = this.releaseForm.title.trim();
+    if (!title || title.length > 200) {
+      this.releaseErrorMsg.set('Tiêu đề bản phát hành bắt buộc, tối đa 200 ký tự.');
+      return;
+    }
+    if (this.releaseForm.releaseNotes.length > 10000) {
+      this.releaseErrorMsg.set('Ghi chú phát hành tối đa 10000 ký tự.');
+      return;
+    }
+
+    this.releaseSaving.set(true);
+    this.releaseErrorMsg.set(null);
+    this.releaseSuccessMsg.set(null);
+
+    this.adminApi
+      .createRelease({
+        versionLabel,
+        title,
+        releaseNotes: this.releaseForm.releaseNotes.trim() || null,
+      })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (release) => {
+          this.releaseSaving.set(false);
+          this.releaseForm = { versionLabel: '', title: '', releaseNotes: '' };
+          this.releases.set([release]);
+          this.releaseSuccessMsg.set(
+            `Đã tạo bản thảo ${release.versionLabel}. Tiếp theo: tạo bộ thẻ mở rộng, rồi thêm thẻ bài.`
+          );
+          this.selectRelease(release);
+        },
+        error: (err: AdminProblemDetail) => {
+          this.releaseSaving.set(false);
+          this.releaseErrorMsg.set(err.detail || err.title || 'Không thể tạo bản phát hành.');
+        },
+      });
+  }
+
+  onCardSetNameInput(): void {
+    if (!this.cardSetSlugManuallyEdited) {
+      this.cardSetForm.slug = this.slugify(this.cardSetForm.name);
+    }
+  }
+
+  onCardSetSlugInput(): void {
+    this.cardSetSlugManuallyEdited = true;
+  }
+
+  createCardSet(): void {
+    if (this.cardSetSaving() || this.loading()) return;
+    const rel = this.activeRelease();
+    if (!rel) {
+      this.cardSetErrorMsg.set('Chưa chọn bản phát hành.');
+      return;
+    }
+    if (rel.status !== 'DRAFT') {
+      this.cardSetErrorMsg.set('Chỉ có thể thêm bộ thẻ vào bản phát hành DRAFT.');
+      return;
+    }
+    const f = this.cardSetForm;
+    if (!f.code || !/^[A-Z0-9][A-Z0-9_-]*$/.test(f.code.trim()) || f.code.trim().length > 40) {
+      this.cardSetErrorMsg.set('Mã bộ thẻ bắt buộc, tối đa 40 ký tự, chỉ gồm chữ hoa, số, gạch ngang/gạch dưới (VD: SET-01).');
+      return;
+    }
+    if (!f.name.trim() || f.name.trim().length > 160) {
+      this.cardSetErrorMsg.set('Tên bộ thẻ bắt buộc, tối đa 160 ký tự.');
+      return;
+    }
+    if (!f.slug || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(f.slug.trim()) || f.slug.trim().length > 160) {
+      this.cardSetErrorMsg.set('Đường dẫn (slug) bắt buộc, tối đa 160 ký tự, chữ thường và dấu gạch ngang.');
+      return;
+    }
+    if (f.description.length > 10000) {
+      this.cardSetErrorMsg.set('Mô tả bộ thẻ tối đa 10000 ký tự.');
+      return;
+    }
+    const sort = Number(f.sortOrder);
+    if (!Number.isInteger(sort) || sort < 0 || sort > 100000) {
+      this.cardSetErrorMsg.set('Thứ tự hiển thị phải là số nguyên từ 0 đến 100000.');
+      return;
+    }
+
+    this.cardSetSaving.set(true);
+    this.cardSetErrorMsg.set(null);
+    this.cardSetSuccessMsg.set(null);
+
+    this.adminApi
+      .createCardSet(rel.id, {
+        expectedVersion: rel.version,
+        code: f.code.trim(),
+        name: f.name.trim(),
+        slug: f.slug.trim(),
+        description: f.description.trim() || null,
+        sortOrder: sort,
+      })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (res) => {
+          this.cardSetSaving.set(false);
+          if (this.activeRelease()?.id !== rel.id) return;
+          this.updateReleaseVersion(rel.id, res.releaseVersion);
+          this.cardSetSuccessMsg.set(`Đã tạo bộ thẻ "${res.item.name}" (${res.item.code}). Giờ có thể thêm thẻ bài.`);
+          this.cardSetForm = { code: '', name: '', slug: '', description: '', sortOrder: 0 };
+          this.cardSetSlugManuallyEdited = false;
+          this.cardSetFormOpen.set(false);
+          this.loadReleaseContent(rel.id, 'cards');
+        },
+        error: (err: AdminProblemDetail) => {
+          this.cardSetSaving.set(false);
+          if (this.activeRelease()?.id !== rel.id) return;
+          this.cardSetErrorMsg.set(
+            err.status === 409 || err.code === 'VERSION_CONFLICT'
+              ? 'Xung đột phiên bản (409): bản thảo đã thay đổi. Vui lòng tải lại dữ liệu rồi thử lại.'
+              : err.detail || err.title || 'Không thể tạo bộ thẻ.'
+          );
+        },
+      });
+  }
+
   onReleaseSelect(releaseId: string): void {
     if (this.cardSaving() || this.cloneSaving()) return;
     const target = this.releases().find(r => r.id === releaseId);
@@ -343,10 +542,16 @@ export class AdminSectionPage implements OnInit {
     this.cardSets.set([]);
     this.characters.set([]);
     this.totalCardsCount.set(0);
+    this.cardsPage.set(0);
+    this.searchQuery.set('');
+    this.cardSearchInput = '';
     this.resetCardForm();
     this.cardUploader()?.reset();
     this.cardSuccessMsg.set(null);
     this.cardFormError.set(null);
+    this.cardSetErrorMsg.set(null);
+    this.cardSetSuccessMsg.set(null);
+    this.cardSetFormOpen.set(false);
     this.cloneErrorMsg.set(null);
     this.cloneSuccessMsg.set(null);
     this.loadReleaseContent(release.id, this.sectionKey());

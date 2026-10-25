@@ -63,12 +63,78 @@
     </span>
   </div>
 
+  <!-- Bootstrap: create the first DRAFT release -->
+  @if (!loading() && releases().length === 0 && (sectionKey() === 'cards' || sectionKey() === 'characters' || sectionKey() === 'articles')) {
+    <div class="panel-box">
+      <div class="panel-header">
+        <h2 class="panel-title">Chưa có bản phát hành — tạo bản thảo đầu tiên</h2>
+        <span class="status-pill-amber">CẦN THIẾT LẬP</span>
+      </div>
+      <p class="text-xs text-slate-300 my-2">
+        Quy trình: tạo bản phát hành DRAFT → tạo bộ thẻ mở rộng → thêm thẻ bài. Nội dung chỉ hiển thị công khai sau khi chốt snapshot.
+      </p>
+
+      @if (releaseErrorMsg()) {
+        <p class="error-banner-card mb-3" role="alert">{{ releaseErrorMsg() }}</p>
+      }
+
+      <form (ngSubmit)="createRelease()" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div>
+          <label for="release-version-label" class="block text-xs font-semibold text-slate-400 mb-1">Mã phiên bản (versionLabel) *</label>
+          <input
+            id="release-version-label"
+            name="releaseVersionLabel"
+            type="text"
+            class="admin-input"
+            placeholder="VD: v2.0-draft"
+            [(ngModel)]="releaseForm.versionLabel"
+            required
+          />
+        </div>
+        <div class="sm:col-span-2">
+          <label for="release-title" class="block text-xs font-semibold text-slate-400 mb-1">Tiêu đề bản phát hành *</label>
+          <input
+            id="release-title"
+            name="releaseTitle"
+            type="text"
+            class="admin-input"
+            placeholder="VD: Bản nháp nội dung V2"
+            [(ngModel)]="releaseForm.title"
+            required
+          />
+        </div>
+        <div class="sm:col-span-3">
+          <label for="release-notes" class="block text-xs font-semibold text-slate-400 mb-1">Ghi chú phát hành (tùy chọn)</label>
+          <input
+            id="release-notes"
+            name="releaseNotes"
+            type="text"
+            class="admin-input"
+            placeholder="Mô tả mục tiêu của bản thảo..."
+            [(ngModel)]="releaseForm.releaseNotes"
+          />
+        </div>
+        <div class="sm:col-span-3 flex justify-end">
+          <button type="submit" class="action-btn-primary" [disabled]="releaseSaving()">
+            {{ releaseSaving() ? 'Đang tạo…' : 'Tạo bản thảo' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  }
+
+  @if (releaseSuccessMsg()) {
+    <div class="p-3 my-3 rounded bg-emerald-950/40 border border-emerald-800 text-xs text-emerald-300" role="status">
+      {{ releaseSuccessMsg() }}
+    </div>
+  }
+
   <!-- Dynamic Section View -->
   @switch (sectionKey()) {
     @case ('cards') {
       <div class="panel-box">
         <div class="panel-header">
-          <h2 class="panel-title">Danh sách Thẻ bài & Bộ thẻ (148 thẻ V2)</h2>
+          <h2 class="panel-title">Quản lý toàn bộ Thẻ bài & Bộ thẻ (148 thẻ V2)</h2>
           <div class="flex items-center gap-2">
             <span class="status-pill-green">Đã xác minh schema</span>
             <span class="text-xs text-slate-400 bg-slate-900 px-2.5 py-1 rounded border border-slate-800">
@@ -192,10 +258,108 @@
         }
 
         @if (!activeRelease() && !loading()) {
-          <p role="status">Chưa có bản phát hành. Hãy chuẩn bị bản nội dung có bộ thẻ trước khi thêm thẻ mới.</p>
+          <p role="status">Chưa có bản phát hành. Tạo bản thảo ở khung phía trên, sau đó tạo bộ thẻ mở rộng trước khi thêm thẻ mới.</p>
         }
 
         @if (isDraftSelected()) {
+          <div class="my-4 p-4 rounded-xl border border-sky-900/40 bg-slate-900/80">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+              <h3 class="text-sm font-bold text-sky-300">
+                Bộ thẻ mở rộng ({{ cardSets().length }})
+              </h3>
+              @if (cardSets().length > 0) {
+                <button type="button" class="text-xs font-bold text-sky-400 hover:underline" (click)="toggleCardSetForm()">
+                  {{ showCardSetForm() ? 'Đóng biểu mẫu' : 'Thêm bộ thẻ' }}
+                </button>
+              }
+            </div>
+
+            @if (cardSetSuccessMsg()) {
+              <p class="p-2 mb-2 rounded bg-emerald-950/40 border border-emerald-800 text-xs text-emerald-300" role="status">
+                {{ cardSetSuccessMsg() }}
+              </p>
+            }
+            @if (cardSetErrorMsg()) {
+              <p class="error mb-2" role="alert">{{ cardSetErrorMsg() }}</p>
+            }
+
+            @if (showCardSetForm()) {
+              <p class="text-xs text-slate-300 mb-2">
+                Cần ít nhất một bộ thẻ trước khi tạo thẻ bài. Mã bộ thẻ và đường dẫn không thể đổi sau khi tạo.
+              </p>
+              <form (ngSubmit)="createCardSet()" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div>
+                  <label for="card-set-code" class="block text-xs font-semibold text-slate-400 mb-1">Mã bộ thẻ *</label>
+                  <input
+                    id="card-set-code"
+                    name="cardSetCode"
+                    type="text"
+                    class="admin-input font-mono"
+                    placeholder="VD: SET-01"
+                    [(ngModel)]="cardSetForm.code"
+                    required
+                  />
+                </div>
+                <div>
+                  <label for="card-set-name" class="block text-xs font-semibold text-slate-400 mb-1">Tên bộ thẻ *</label>
+                  <input
+                    id="card-set-name"
+                    name="cardSetName"
+                    type="text"
+                    class="admin-input"
+                    placeholder="VD: Đời sống sinh viên"
+                    [(ngModel)]="cardSetForm.name"
+                    (input)="onCardSetNameInput()"
+                    required
+                  />
+                </div>
+                <div>
+                  <label for="card-set-slug" class="block text-xs font-semibold text-slate-400 mb-1">Đường dẫn (slug) *</label>
+                  <input
+                    id="card-set-slug"
+                    name="cardSetSlug"
+                    type="text"
+                    class="admin-input font-mono"
+                    placeholder="VD: doi-song-sinh-vien"
+                    [(ngModel)]="cardSetForm.slug"
+                    (input)="onCardSetSlugInput()"
+                    required
+                  />
+                </div>
+                <div>
+                  <label for="card-set-sort" class="block text-xs font-semibold text-slate-400 mb-1">Thứ tự hiển thị</label>
+                  <input
+                    id="card-set-sort"
+                    name="cardSetSort"
+                    type="number"
+                    class="admin-input"
+                    min="0"
+                    max="100000"
+                    [(ngModel)]="cardSetForm.sortOrder"
+                  />
+                </div>
+                <div class="sm:col-span-2 lg:col-span-3">
+                  <label for="card-set-description" class="block text-xs font-semibold text-slate-400 mb-1">Mô tả (tùy chọn)</label>
+                  <input
+                    id="card-set-description"
+                    name="cardSetDescription"
+                    type="text"
+                    class="admin-input"
+                    placeholder="Mô tả ngắn cho bộ thẻ..."
+                    [(ngModel)]="cardSetForm.description"
+                  />
+                </div>
+                <div class="flex items-end justify-end">
+                  <button type="submit" class="action-btn-primary" [disabled]="cardSetSaving()">
+                    {{ cardSetSaving() ? 'Đang tạo…' : 'Tạo bộ thẻ' }}
+                  </button>
+                </div>
+              </form>
+            } @else if (cardSets().length === 0) {
+              <p class="text-xs text-slate-400">Chưa có bộ thẻ trong bản thảo này.</p>
+            }
+          </div>
+
           <div class="card-create-box my-4 p-4 rounded-xl border border-lime-900/40 bg-slate-900/80">
             <div class="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
               <h3 class="text-sm font-bold text-lime-300 flex items-center gap-2">
@@ -418,10 +582,34 @@
           </div>
         }
 
+        @if (activeRelease()) {
+          <form (ngSubmit)="onCardSearchSubmit()" class="flex flex-wrap items-end gap-2 my-3">
+            <div class="flex-1 min-w-[220px]">
+              <label for="card-search" class="block text-xs font-semibold text-slate-400 mb-1">Tìm thẻ bài</label>
+              <input
+                id="card-search"
+                name="cardSearch"
+                type="search"
+                class="admin-input"
+                placeholder="Nhập mã, tên hoặc slug…"
+                [(ngModel)]="cardSearchInput"
+              />
+            </div>
+            <button type="submit" class="action-btn-primary" [disabled]="loading()">Tìm</button>
+            @if (searchQuery()) {
+              <button type="button" class="text-xs font-bold text-sky-400 hover:underline px-2 py-2" (click)="clearCardSearch()">
+                Xóa lọc
+              </button>
+            }
+          </form>
+        }
+
         @if (cards().length > 0) {
           <div class="table-responsive my-3">
             <div class="flex items-center justify-between mb-2">
-              <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Danh sách thẻ bài ({{ totalCardsCount() }} thẻ):</span>
+              <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                Danh sách thẻ bài ({{ totalCardsCount() }} thẻ) · Trang {{ cardsPage() + 1 }}/{{ cardsTotalPages() }}
+              </span>
             </div>
             <table class="admin-table">
               <thead>
@@ -450,10 +638,35 @@
                 }
               </tbody>
             </table>
+            @if (cardsTotalPages() > 1) {
+              <div class="flex items-center justify-end gap-3 mt-3">
+                <button
+                  type="button"
+                  class="text-xs font-bold text-sky-400 hover:underline"
+                  [disabled]="cardsPage() === 0 || loading()"
+                  (click)="goToCardsPage(cardsPage() - 1)"
+                >
+                  ← Trước
+                </button>
+                <span class="text-xs text-slate-400">Trang {{ cardsPage() + 1 }} / {{ cardsTotalPages() }}</span>
+                <button
+                  type="button"
+                  class="text-xs font-bold text-sky-400 hover:underline"
+                  [disabled]="cardsPage() + 1 >= cardsTotalPages() || loading()"
+                  (click)="goToCardsPage(cardsPage() + 1)"
+                >
+                  Sau →
+                </button>
+              </div>
+            }
           </div>
         } @else if (loading()) {
           <div class="py-8 text-center text-xs text-slate-400">
             <p>Đang tải danh sách thẻ bài từ API...</p>
+          </div>
+        } @else if (searchQuery()) {
+          <div class="p-6 bg-slate-900/40 rounded-lg border border-slate-800 text-center my-3">
+            <p class="text-xs text-slate-400">Không tìm thấy thẻ bài khớp “{{ searchQuery() }}”.</p>
           </div>
         } @else {
           <div class="p-6 bg-slate-900/40 rounded-lg border border-slate-800 text-center my-3">

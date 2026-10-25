@@ -146,4 +146,39 @@ describe('Tải ảnh thẻ lên kho đám mây (admin)', () => {
     expect(emissions).toEqual(['', '', url]);
     expect(fixture.componentInstance.result()?.url).toBe(url);
   });
+
+  it('falls back to execCommand when the Clipboard API is rejected', async () => {
+    const { fixture } = setup(vi.fn());
+    fixture.componentInstance.result.set({ url: '/media/cards/fallback.webp', bytes: 1 });
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: vi.fn().mockRejectedValue(new Error('blocked')) },
+    });
+    const exec = vi.fn(() => true);
+    (document as unknown as { execCommand: typeof document.execCommand }).execCommand = exec;
+
+    await fixture.componentInstance.copy();
+
+    expect(exec).toHaveBeenCalledWith('copy');
+    expect(fixture.componentInstance.copied()).toBe(true);
+    expect(fixture.componentInstance.copyError()).toBe('');
+  });
+
+  it('asks for manual copy when both clipboard paths are blocked', async () => {
+    const { fixture } = setup(vi.fn());
+    fixture.componentInstance.preview.set('blob:blocked');
+    fixture.componentInstance.result.set({ url: '/media/cards/blocked.webp', bytes: 1 });
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: vi.fn().mockRejectedValue(new Error('blocked')) },
+    });
+    (document as unknown as { execCommand: typeof document.execCommand }).execCommand = vi.fn(() => false);
+
+    await fixture.componentInstance.copy();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.copied()).toBe(false);
+    expect(fixture.componentInstance.copyError()).toContain('chép thủ công');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('chép thủ công');
+  });
 });

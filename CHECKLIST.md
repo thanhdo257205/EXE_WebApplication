@@ -2,6 +2,16 @@
 
 Cập nhật: 2026-10-25 (Asia/Saigon).
 
+## Quản lý thẻ: chép URL, tạo release/bộ thẻ, tìm kiếm & phân trang (2026-10-25)
+
+- [x] ADMIN-COPY-01 — `copy()` thử Clipboard API rồi fallback `textarea` + `execCommand`; hiện thông báo khi cả hai bị chặn và cho bấm URL để chọn/chép thủ công. Có test cho cả nhánh fallback và nhánh thất bại.
+- [x] ADMIN-RELEASE-01 — Khối tạo bản phát hành DRAFT khi chưa có release (cards/characters/articles), dùng `POST /api/v1/admin/content/releases`; validate versionLabel/title và hiển thị lỗi từ API.
+- [x] ADMIN-SET-01 — Khối tạo bộ thẻ trong bản nháp (`card-sets`), tự sinh slug, validate mã/tên/slug/mô tả/thứ tự, gửi `expectedVersion`; thêm `createCardSet` vào service.
+- [x] ADMIN-LIST-01 — Danh sách thẻ có tìm kiếm mã/tên/slug và phân trang 50 thẻ/trang, hiển thị tổng số và trang hiện tại; không tải lại bộ thẻ/nhân vật khi đổi trang.
+- [x] ADMIN-VERIFY-01 — Test local: service 10/10, section 17/17, uploader 9/9 pass; production build/prerender qua (cảnh báo cũ).
+- [ ] ADMIN-DEPLOY-02 — Commit/push, chạy CI/CD và nghiệm thu production: tạo release → bộ thẻ → thẻ; thử nút chép trên trình duyệt thật.
+- [ ] ADMIN-CONTENT-RELEASE — Production đang có 0 bản phát hành; UI tạo release/bộ thẻ đã có ở local nhưng chưa deploy/kiểm tra, nên chưa thể tạo thẻ trên production.
+
 ## Tải ảnh thẻ khi chưa có bản nháp (2026-10-25)
 
 - [x] ADMIN-UPLOAD-01 — Bỏ điều kiện DRAFT khỏi `[disabled]` của `CardImageUploadComponent` tại `/admin/cards`; chỉ khóa khi đang lưu thẻ, thêm gợi ý và đổi nhãn khóa. Không đổi API/quyền/kho ảnh.

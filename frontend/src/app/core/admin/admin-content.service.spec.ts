@@ -11,6 +11,7 @@ import {
   AdminCard,
   AdminAuditPage,
   CreateCardPayload,
+  CreateCardSetPayload,
   CloneReleasePayload,
 } from './admin-content.service';
 import { AuthService } from '../auth/auth.service';
@@ -253,6 +254,34 @@ describe('AdminContentService', () => {
     expect(req.request.headers.get('X-XSRF-TOKEN')).toBe('mock-csrf-token');
     expect(req.request.body).toEqual(payload);
     req.flush(mockResponse);
+  });
+
+  it('creates a card set POSTing to /v1/admin/content/releases/:release/card-sets with CSRF and credentials', () => {
+    const payload: CreateCardSetPayload = {
+      expectedVersion: 1,
+      code: 'SET-02',
+      slug: 'bo-mo-rong',
+      name: 'Bộ mở rộng',
+      description: null,
+      sortOrder: 2,
+    };
+
+    service.createCardSet('rel-1', payload).subscribe(res => {
+      expect(res.entityId).toBe('set-2');
+      expect(res.releaseVersion).toBe(2);
+      expect(res.item.code).toBe('SET-02');
+    });
+
+    const req = httpMock.expectOne('/api/v1/admin/content/releases/rel-1/card-sets');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.withCredentials).toBe(true);
+    expect(req.request.headers.get('X-XSRF-TOKEN')).toBe('mock-csrf-token');
+    expect(req.request.body).toEqual(payload);
+    req.flush({
+      entityId: 'set-2',
+      releaseVersion: 2,
+      item: { id: 'set-2', releaseId: 'rel-1', ...payload },
+    });
   });
 
   it('clones a release POSTing to /v1/admin/content/releases/:release/clone with CSRF and credentials', () => {

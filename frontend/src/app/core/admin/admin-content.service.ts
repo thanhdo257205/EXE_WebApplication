@@ -158,6 +158,21 @@ export interface CreateCardResponse {
   item: AdminCard;
 }
 
+export interface CreateCardSetPayload {
+  expectedVersion: number;
+  code: string;
+  slug: string;
+  name: string;
+  description?: string | null;
+  sortOrder?: number | null;
+}
+
+export interface CreateRevisionResponse<T> {
+  entityId: string;
+  releaseVersion: number;
+  item: T;
+}
+
 export interface AdminProblemDetail {
   status: number;
   title: string;
@@ -231,6 +246,24 @@ export class AdminContentService {
     return this.auth.getCsrf().pipe(
       switchMap(csrf =>
         this.http.post<CreateCardResponse>(`${this.base}/content/releases/${releaseId}/cards`, payload, {
+          withCredentials: true,
+          headers: new HttpHeaders({
+            'Content-Type': 'application/json',
+            [csrf.headerName]: csrf.token,
+          }),
+        })
+      ),
+      catchError(err => this.handleError(err))
+    );
+  }
+
+  /**
+   * POST /api/v1/admin/content/releases/{release}/card-sets
+   */
+  createCardSet(releaseId: string, payload: CreateCardSetPayload): Observable<CreateRevisionResponse<AdminCardSet>> {
+    return this.auth.getCsrf().pipe(
+      switchMap(csrf =>
+        this.http.post<CreateRevisionResponse<AdminCardSet>>(`${this.base}/content/releases/${releaseId}/card-sets`, payload, {
           withCredentials: true,
           headers: new HttpHeaders({
             'Content-Type': 'application/json',

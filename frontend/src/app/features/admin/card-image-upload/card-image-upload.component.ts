@@ -30,6 +30,7 @@ export class CardImageUploadComponent {
   readonly result = signal<{ url: string; bytes: number } | null>(null);
   readonly preview = signal('');
   readonly copied = signal(false);
+  readonly copyError = signal('');
 
   constructor() {
     this.destroyRef.onDestroy(() => {
@@ -85,12 +86,46 @@ export class CardImageUploadComponent {
   async copy(): Promise<void> {
     const url = this.result()?.url;
     if (!url) return;
+    this.copyError.set('');
+    const ok = await this.copyText(url);
+    this.copied.set(ok);
+    if (!ok) this.copyError.set('Trình duyệt chặn chép tự động. Bấm vào đường dẫn bên trên để chọn toàn bộ rồi chép thủ công.');
+  }
+
+  /** Bấm vào URL để chọn cả chuỗi, dùng được khi clipboard bị chặn. */
+  selectUrl(event: Event): void {
+    const selection = window.getSelection();
+    if (!selection) return;
+    const range = document.createRange();
+    range.selectNodeContents(event.currentTarget as Node);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+
+  private async copyText(text: string): Promise<boolean> {
     try {
-      await navigator.clipboard.writeText(url);
-      this.copied.set(true);
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
     } catch {
-      this.copied.set(false);
+      // Clipboard API có thể bị chặn khi tab không được focus; thử đường dự phòng bên dưới.
     }
+    const area = document.createElement('textarea');
+    area.value = text;
+    area.setAttribute('readonly', '');
+    area.style.position = 'fixed';
+    area.style.opacity = '0';
+    document.body.appendChild(area);
+    area.select();
+    let ok = false;
+    try {
+      ok = document.execCommand('copy');
+    } catch {
+      ok = false;
+    }
+    area.remove();
+    return ok;
   }
 
   reset(): void {
@@ -103,6 +138,7 @@ export class CardImageUploadComponent {
     this.result.set(null);
     this.error.set('');
     this.copied.set(false);
+    this.copyError.set('');
     this.setBusy(false);
   }
 

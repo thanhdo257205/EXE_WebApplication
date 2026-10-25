@@ -128,6 +128,8 @@ describe('AdminSectionPage', () => {
         });
       }),
       createCard: vi.fn(),
+      createRelease: vi.fn(),
+      createCardSet: vi.fn(),
       getRelease: vi.fn(() => of({ ...mockDraftRelease, version: 4 })),
       cloneRelease: vi.fn(),
       uploadCardImage: vi.fn(() => of({ url: '/media/cards/uploaded.webp', bytes: 1024, contentType: 'image/webp' })),
@@ -487,5 +489,79 @@ describe('AdminSectionPage', () => {
     expect(component.cardSets()).toEqual([]);
     expect(component.characters()).toEqual([]);
     expect(component.cardForm.cardSetId).toBe('');
+  });
+
+  it('creates the first DRAFT release and starts loading its content', () => {
+    const created: AdminRelease = { ...mockDraftRelease, id: 'rel-new', versionLabel: 'v3.0-draft', version: 0 };
+    adminApiSpy.createRelease = vi.fn(() => of(created));
+    component.releases.set([]);
+    component.activeRelease.set(null);
+    component.releaseForm = { versionLabel: 'v3.0-draft', title: 'Bản thảo V3', releaseNotes: '' };
+
+    component.createRelease();
+
+    expect(adminApiSpy.createRelease).toHaveBeenCalledWith({
+      versionLabel: 'v3.0-draft',
+      title: 'Bản thảo V3',
+      releaseNotes: null,
+    });
+    expect(component.releases().length).toBe(1);
+    expect(component.activeRelease()?.id).toBe('rel-new');
+    expect(component.releaseSuccessMsg()).toContain('v3.0-draft');
+  });
+
+  it('creates a card set in the DRAFT release and reloads the card section', () => {
+    adminApiSpy.createCardSet = vi.fn(() =>
+      of({
+        entityId: 'set-uuid-2',
+        releaseVersion: 2,
+        item: {
+          id: 'set-uuid-2',
+          revisionId: 'rev-s2',
+          releaseId: 'rel-draft-1',
+          code: 'SET-02',
+          slug: 'bo-mo-rong',
+          name: 'Bộ mở rộng',
+          description: null,
+          sortOrder: 2,
+        } as AdminCardSet,
+      })
+    );
+    component.activeRelease.set({ ...mockDraftRelease, version: 1 });
+    component.cardSetForm = { code: 'SET-02', name: 'Bộ mở rộng', slug: 'bo-mo-rong', description: '', sortOrder: 2 };
+
+    component.createCardSet();
+
+    expect(adminApiSpy.createCardSet).toHaveBeenCalledWith('rel-draft-1', {
+      expectedVersion: 1,
+      code: 'SET-02',
+      name: 'Bộ mở rộng',
+      slug: 'bo-mo-rong',
+      description: null,
+      sortOrder: 2,
+    });
+    expect(component.activeRelease()?.version).toBe(2);
+    expect(component.cardSetSuccessMsg()).toContain('SET-02');
+    expect(component.cardSets().length).toBe(1);
+  });
+
+  it('loads the requested cards page together with the search query', () => {
+    adminApiSpy.getRevisions.mockClear();
+    adminApiSpy.getRevisions.mockReturnValue(
+      of({ releaseVersion: 1, result: { items: [], totalElements: 120, page: 1, size: 50, totalPages: 3 } })
+    );
+    component.totalCardsCount.set(120);
+    component.cardSearchInput = 'mì';
+
+    component.onCardSearchSubmit();
+
+    expect(adminApiSpy.getRevisions).toHaveBeenLastCalledWith('rel-draft-1', 'cards', 0, 50, 'mì');
+    expect(component.cardsPage()).toBe(0);
+
+    component.goToCardsPage(1);
+
+    expect(component.cardsPage()).toBe(1);
+    expect(component.cardsTotalPages()).toBe(3);
+    expect(adminApiSpy.getRevisions).toHaveBeenLastCalledWith('rel-draft-1', 'cards', 1, 50, 'mì');
   });
 });
