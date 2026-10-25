@@ -4,7 +4,7 @@
 
 ## Cập nhật gần nhất
 
-### Lối vào đăng ký và chuyển động cho trang xác thực — 2026-10-25, local; chưa push/deploy
+### Lối vào đăng ký và chuyển động cho trang xác thực — 2026-10-25, đã lên main và deploy
 
 - Yêu cầu chủ dự án: hiện chỉ thấy giao diện đăng nhập, thiếu giao diện/nút đăng ký; cần đồng bộ phong cách website và chuyển động mượt.
 - Thực tế `/dang-ky` và `RegisterPage` đã tồn tại, render đủ form (tên hiển thị, email, mật khẩu, xác nhận, điều khoản, Google) và gọi `POST /api/v1/auth/register` hiện có. Thiếu khả năng khám phá: header khi chưa đăng nhập chỉ có "Đăng nhập"; link đăng ký nằm trong panel phụ và bản mobile.
@@ -14,7 +14,9 @@
 - Không đổi backend, API, route, schema hay dữ liệu production. Phần CSS CTA được tách sang `account-menu.css` để `global-bar.component.css` không vượt budget lỗi 10 kB.
 - Kiểm thử local: `login.page.spec.ts` 11/11, `register.page.spec.ts` 5/5, `global-bar.component.spec.ts` 6/6 (22/22) pass; production build/prerender qua, chỉ còn cảnh báo CSS budget/CommonJS có sẵn.
 - Kiểm tra trình duyệt dev server (viewport CSS ~638px): header hiện cả "Đăng nhập" và "Đăng ký"; `/dang-ky` hiển thị đúng heading, switch active "Đăng ký" và form đầy đủ; `/dang-nhap` hiển thị switch active "Đăng nhập".
-- Trạng thái: thay đổi còn local trên nhánh `deepseek`, chưa push/deploy; chưa kiểm tra production hoặc thiết bị thật.
+- GitHub/deploy: commit `f318f8acae27f43329af94103fa6276e96d3d5c8` fast-forward `deepseek` → `main`; [CI 40179629958](https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/40179629958) và [CD 40179698645](https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/40179698645) thành công (gồm smoke production). Cloudflare Pages deployment `802befa2-ca79-44f6-bc2f-9dc6ec09983d` có source `f318f8a`.
+- Nghiệm thu production (2026-10-25): `/dang-ky` trả 200, switch "Đăng nhập / Đăng ký" active "Đăng ký" với `aria-current="page"`, glider dịch sang phải, form có 4 field; bundle `main-ZQ6325F7.js` đang phục vụ chứa markup `account-cta`. Phiên trình duyệt đang là admin nên không thể quan sát CTA đăng ký ở trạng thái chưa đăng nhập trên production; nhánh này đã được kiểm tra trong dev server và unit test.
+- Chưa kiểm tra trên thiết bị thật hoặc ở màn hình ≤420px; logic responsive dựa trên CSS đã đặt.
 
 ### Nút chép ảnh + thiết lập bản phát hành/bộ thẻ cho quản lý thẻ — 2026-10-25, đã lên main và deploy
 

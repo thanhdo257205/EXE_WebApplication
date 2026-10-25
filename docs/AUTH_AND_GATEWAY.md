@@ -68,7 +68,8 @@ Angular có AuthService và UI `/dang-nhap`, `/dang-ky`, `/quen-mat-khau`, `/dat
 - Header công khai khi chưa đăng nhập hiển thị cả "Đăng nhập" (`/dang-nhap`) và CTA "Đăng ký" (`/dang-ky`). CTA là pill màu `#dafa76`, hover nhấc nhẹ và dịch mũi tên; dưới 500px ẩn link đăng nhập vì drawer di động đã có cả hai nút; dưới 420px thu gọn brand/CTA để tránh tràn ngang.
 - Hai trang auth có segmented switch "Đăng nhập / Đăng ký" ngay trên form; mục hiện tại có `aria-current="page"`, thanh trượt màu lime chuyển giữa hai mục. Link chéo trong panel phụ và liên kết mobile vẫn giữ nguyên.
 - Chuyển động vào trang dùng `auth-rise`/`auth-fade` cho header block, hai panel và các field (so le bằng `--stagger`); nút submit có phản hồi nhấn. Toàn bộ animation/transition tắt khi `prefers-reduced-motion: reduce`; chuyển route vẫn dùng view transition sẵn có.
-- CSS CTA nằm trong `account-menu.css` để `global-bar.component.css` không vượt ngưỡng lỗi 10 kB mỗi component style. Kiểm thử local: login/register/global-bar 22/22 pass, production build qua; chưa deploy.
+- CSS CTA nằm trong `account-menu.css` để `global-bar.component.css` không vượt ngưỡng lỗi 10 kB mỗi component style. Kiểm thử local: login/register/global-bar 22/22 pass, production build qua.
+- Đã deploy `f318f8a` ngày 2026-10-25 (CI 40179629958, CD 40179698645); `/dang-ky` production trả 200 với switch active "Đăng ký" và bundle chính chứa `account-cta`. Chưa quan sát CTA ở trạng thái chưa đăng nhập trên production vì phiên kiểm tra là admin; chưa thử màn hình ≤420px/thiết bị thật.
 
 Trình tự mật khẩu:
 

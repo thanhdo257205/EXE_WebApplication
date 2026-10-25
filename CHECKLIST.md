@@ -8,7 +8,8 @@ Cập nhật: 2026-10-25 (Asia/Saigon).
 - [x] AUTH-SWITCH-02 — Segmented switch "Đăng nhập / Đăng ký" trên cả hai form, active theo trang với `aria-current="page"`, glider trượt; giữ link chéo hiện có.
 - [x] AUTH-MOTION-03 — Header + hai panel trượt lên, field hiện so le, nút submit có phản hồi nhấn; tắt toàn bộ dưới `prefers-reduced-motion`.
 - [x] AUTH-VERIFY-04 — 22/22 test (login 11, register 5, global-bar 6) pass; production build/prerender qua; dev server hiển thị đúng header hai nút, `/dang-nhap` và `/dang-ky` đúng switch.
-- [ ] AUTH-PROD-05 — Chưa push/deploy; chưa kiểm tra production hoặc thiết bị thật.
+- [x] AUTH-PROD-05 — Main `f318f8a`; CI 40179629958 và CD 40179698645 thành công, Pages deployment source `f318f8a`. `/dang-ky` production có switch active "Đăng ký", `aria-current="page"`, glider dịch phải, 4 field; bundle chính chứa `account-cta`.
+- [ ] AUTH-DEVICE-06 — Kiểm tra header chưa đăng nhập trên production và màn hình ≤420px/thiết bị thật; phiên hiện tại là admin nên chưa quan sát CTA này trên production.
 
 ## Quản lý thẻ: chép URL, tạo release/bộ thẻ, tìm kiếm & phân trang (2026-10-25)
 

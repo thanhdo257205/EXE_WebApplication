@@ -24,7 +24,7 @@ Mobile≤1000px giữ drawer hiện có và thêm quyền riêng tư/điều kho
 
 Lens kính theo hover hoặc nhóm đang mở, giữ trên mục cha khi rê xuống panel, rồi trở về nhóm chứa route hiện tại. Các route câu chuyện/cư dân/pháp lý thuộc Khám phá, thư viện thuộc Thẻ bài, quỹ nhà thuộc Cách chơi, giỏ hàng thuộc Cửa hàng. Auth vẫn không giả chọn một nhóm. Directive map sự kiện button về link cha qua data-glass-item; cache geometry/lens writes vẫn giữ nguyên, data-glass-open chỉ invalidate khi nhóm mở đổi.
 
-Khi chưa đăng nhập (2026-10-25), cụm hành động của header hiển thị "Đăng nhập" (`/dang-nhap`) và CTA "Đăng ký" (`/dang-ky`) dạng pill lime, hover nhấc nhẹ + mũi tên dịch sang phải, tôn trọng `prefers-reduced-motion`. Dưới 500px ẩn link đăng nhập vì drawer di động đã có cả hai nút; dưới 420px thu gọn brand và CTA để không tràn ngang. Hai trang auth có thêm segmented switch "Đăng nhập / Đăng ký" ngay trên form.
+Khi chưa đăng nhập (2026-10-25), cụm hành động của header hiển thị "Đăng nhập" (`/dang-nhap`) và CTA "Đăng ký" (`/dang-ky`) dạng pill lime, hover nhấc nhẹ + mũi tên dịch sang phải, tôn trọng `prefers-reduced-motion`. Dưới 500px ẩn link đăng nhập vì drawer di động đã có cả hai nút; dưới 420px thu gọn brand và CTA để không tràn ngang. Hai trang auth có thêm segmented switch "Đăng nhập / Đăng ký" ngay trên form. Thay đổi đã deploy `f318f8a` ngày 2026-10-25 (CI 40179629958, CD 40179698645); CTA chưa được quan sát trên production ở trạng thái chưa đăng nhập vì phiên kiểm tra là admin.
 
 ## Mã nguồn và kiểm tra
 
