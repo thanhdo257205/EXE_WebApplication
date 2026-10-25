@@ -4,6 +4,14 @@
 
 ## Cập nhật gần nhất
 
+### Bật tải ảnh thẻ khi chưa có bản nháp — 2026-10-25, local (nhánh `deepseek`, chưa push)
+
+- Hiện tượng do chủ dự án báo: vào `/admin/cards` trên website production, nút chọn ảnh bị khóa nên không tải ảnh được.
+- Nguyên nhân: template khóa uploader theo trạng thái release (`[disabled]="!isDraftSelected() || cardSaving()"`). Đọc Turso production (chỉ SELECT) xác nhận bảng `content_releases` có **0 dòng**, nên `activeRelease` là null và nút bị khóa vĩnh viễn; trước đây trang chỉ hiện form nhân bản khi đã có release nên không có lối thoát. API `POST /api/v1/admin/media/card-image` không phụ thuộc release — nó chỉ cần ADMIN + CSRF và ghi ảnh theo hash.
+- Sửa: uploader chỉ bị khóa khi đang lưu thẻ (`cardSaving()`); thêm gợi ý "ảnh vẫn được lưu vào kho khi chưa có bản nháp, hãy chép đường dẫn"; đổi nhãn khóa thành "Tạm khóa tải ảnh". Không đổi backend, quyền, kho ảnh, schema hay dependency.
+- Kiểm thử: `admin-section.page.spec.ts` + `card-image-upload.component.spec.ts` **21/21 pass** (thêm test uploader bật khi release PUBLISHED hoặc không có release, chỉ tắt khi đang lưu); production build/prerender 6 route qua, còn cảnh báo CSS budget/CommonJS có sẵn. Chưa chạy toàn bộ suite trong đợt này.
+- Chưa nghiệm thu end-to-end: chưa đăng nhập admin production để upload thật. Hệ quả còn lại: vì production chưa có release nào, form tạo thẻ (cần DRAFT + ít nhất một bộ thẻ) vẫn không hiện sau khi upload; muốn tạo thẻ phải có release/bộ thẻ trước, hiện chưa có UI tạo bộ thẻ.
+
 ### Khôi phục vị trí cuộn khi chuyển route SPA và đồng bộ Lenis — 2026-10-24, đã lên main và deploy
 
 - Khắc phục lỗi điều hướng SPA giữ nguyên vị trí cuộn ở cuối trang của route trước (đặc biệt khi bấm các liên kết ở footer).

@@ -186,6 +186,20 @@ describe('AdminSectionPage', () => {
     expect(component.isDraftSelected()).toBe(true);
   });
 
+  it('keeps the image uploader enabled without a DRAFT release and disables it only while saving', () => {
+    component.activeRelease.set(mockPublishedRelease);
+    fixture.detectChanges();
+    expect(component.cardUploader()!.disabled()).toBe(false);
+
+    component.activeRelease.set(null);
+    fixture.detectChanges();
+    expect(component.cardUploader()!.disabled()).toBe(false);
+
+    component.cardSaving.set(true);
+    fixture.detectChanges();
+    expect(component.cardUploader()!.disabled()).toBe(true);
+  });
+
   it('correctly loads revisions from res.result.items and totalElements', () => {
     expect(component.cards().length).toBe(1);
     expect(component.cards()[0].code).toBe('CARD-001');

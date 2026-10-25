@@ -5,7 +5,7 @@
   </div>
   <label class="pick" [class.busy]="busy()" [class.disabled]="disabled()">
     <input type="file" accept="image/png,image/jpeg,image/webp" [disabled]="busy() || disabled()" (change)="choose($event)" />
-    <span>{{ busy() ? 'Đang xử lý…' : disabled() ? 'Khóa tải ảnh (Không phải bản nháp)' : 'Chọn ảnh thẻ' }}</span>
+    <span>{{ busy() ? 'Đang xử lý…' : disabled() ? 'Tạm khóa tải ảnh' : 'Chọn ảnh thẻ' }}</span>
   </label>
   @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
   @if (preview()) {

@@ -114,10 +114,15 @@
 
         <app-card-image-upload
           #cardUploader
-          [disabled]="!isDraftSelected() || cardSaving()"
+          [disabled]="cardSaving()"
           (uploaded)="onImageUploaded($event)"
           (busyChange)="onUploadBusyChange($event)"
         />
+        @if (!isDraftSelected()) {
+          <p class="text-xs text-slate-400 my-2">
+            Ảnh vẫn được lưu vào kho ngay cả khi chưa có bản nháp; chép đường dẫn để dùng khi tạo thẻ trong bản nháp.
+          </p>
+        }
 
         @if (!isDraftSelected() && activeRelease()) {
           <div class="clone-banner my-4 p-4 rounded-xl border border-amber-800/40 bg-amber-950/20">

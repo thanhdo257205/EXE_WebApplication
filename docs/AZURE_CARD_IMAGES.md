@@ -1,5 +1,11 @@
 # Ảnh thẻ trên Azure Blob Storage
 
+## Sửa nút tải ảnh bị khóa (2026-10-25, local)
+
+- Trước đây `/admin/cards` khóa ô chọn ảnh khi bản phát hành đang chọn không phải DRAFT. Production chưa có bản phát hành nào (`content_releases` = 0 dòng), nên nút luôn bị khóa dù kho Azure đã cấu hình.
+- Nay uploader chỉ bị khóa khi đang lưu thẻ. Tải ảnh là ghi vào kho theo hash, không sửa release, nên không cần điều kiện DRAFT; đường dẫn trả về vẫn tự điền vào form tạo thẻ khi form đang mở, hoặc chép tay khi chưa có bản nháp.
+- Kiểm thử: 21/21 test của hai spec admin liên quan qua, production build/prerender qua. Chưa đăng nhập admin production để upload thật. Xem `PROGRESS.md` để biết trạng thái mới nhất.
+
 ## Trạng thái 2026-10-24
 
 **Đã triển khai và xác minh production** tại `https://exe-webapp.pages.dev`, runtime commit `a18a18867071cb890ad23d7c2286a5b379399c66`. CI [40085221452](https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/40085221452) và CD [40085281301](https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/40085281301) thành công, gồm container 512 MB và smoke production. Toàn bộ 33 URL ảnh hiện có trả `X-Media-Storage: azure-blob` và khớp byte local.

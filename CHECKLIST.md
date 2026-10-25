@@ -1,6 +1,13 @@
 # EXE_WebApplication — Checklist triển khai
 
-Cập nhật: 2026-10-24 (Asia/Saigon).
+Cập nhật: 2026-10-25 (Asia/Saigon).
+
+## Tải ảnh thẻ khi chưa có bản nháp (2026-10-25)
+
+- [x] ADMIN-UPLOAD-01 — Bỏ điều kiện DRAFT khỏi `[disabled]` của `CardImageUploadComponent` tại `/admin/cards`; chỉ khóa khi đang lưu thẻ, thêm gợi ý và đổi nhãn khóa. Không đổi API/quyền/kho ảnh.
+- [x] ADMIN-UPLOAD-02 — Test hồi quy: uploader bật khi release PUBLISHED hoặc không có release, tắt khi `cardSaving`; 21/21 test hai file spec qua, production build/prerender qua (cảnh báo cũ).
+- [ ] ADMIN-UPLOAD-PROD — Đăng nhập admin production, chọn ảnh và xác nhận nhận URL `/media/cards/<hash>.webp` trả 201, mở URL thấy ảnh.
+- [ ] ADMIN-CONTENT-RELEASE — Production đang có 0 bản phát hành; cần tạo release/bộ thẻ (chưa có UI tạo bộ thẻ) trước khi có thể tạo thẻ trong bản nháp.
 
 ## Khôi phục vị trí cuộn SPA & Đồng bộ Lenis (2026-10-24)
 
