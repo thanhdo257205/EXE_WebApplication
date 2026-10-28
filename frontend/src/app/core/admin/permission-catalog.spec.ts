@@ -9,7 +9,7 @@ describe('admin permission catalog', () => {
     const grouped = PERMISSION_GROUPS.flatMap(group => group.items.map(item => item.key));
     expect(grouped).toEqual(ALL_PERMISSION_KEYS);
     expect(new Set(ALL_PERMISSION_KEYS).size).toBe(ALL_PERMISSION_KEYS.length);
-    expect(ALL_PERMISSION_KEYS).toHaveLength(32);
+    expect(ALL_PERMISSION_KEYS).toHaveLength(33);
   });
 
   it('gives every permission a Vietnamese label of its own', () => {

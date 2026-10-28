@@ -99,6 +99,12 @@ export class AdminSectionPage implements OnInit {
   readonly cloneErrorMsg = signal<string | null>(null);
   readonly cloneSuccessMsg = signal<string | null>(null);
 
+  // Publish release state
+  readonly publishSaving = signal(false);
+  readonly publishConfirmOpen = signal(false);
+  readonly publishErrorMsg = signal<string | null>(null);
+  readonly publishSuccessMsg = signal<string | null>(null);
+
   // Release / card-set bootstrap state
   readonly releaseSaving = signal(false);
   readonly releaseErrorMsg = signal<string | null>(null);
@@ -188,6 +194,7 @@ export class AdminSectionPage implements OnInit {
   // Every write here is a separate module:action right, so a co-admin only sees the forms they can submit.
   readonly canCreateRelease = computed(() => this.auth.hasPermission('releases:create'));
   readonly canCloneRelease = computed(() => this.auth.hasPermission('releases:clone'));
+  readonly canPublishRelease = computed(() => this.auth.hasPermission('releases:publish'));
   readonly canCreateCardSet = computed(() => this.auth.hasPermission('card-sets:create'));
   readonly canCreateCard = computed(() => this.auth.hasPermission('cards:create'));
   readonly canUploadMedia = computed(() => this.auth.hasPermission('media:upload'));
@@ -195,6 +202,7 @@ export class AdminSectionPage implements OnInit {
   readonly canImportCards = computed(() => this.canCreateCardSet() && this.canCreateCard());
 
   readonly clonePermissionLabel = permissionLabel('releases:clone');
+  readonly publishPermissionLabel = permissionLabel('releases:publish');
   readonly releasePermissionLabel = permissionLabel('releases:create');
   readonly cardSetPermissionLabel = permissionLabel('card-sets:create');
   readonly cardPermissionLabel = permissionLabel('cards:create');
@@ -290,7 +298,7 @@ export class AdminSectionPage implements OnInit {
   }
 
   loadSectionData(): void {
-    if (this.cardSaving() || this.cloneSaving() || this.importSaving()) return;
+    if (this.cardSaving() || this.cloneSaving() || this.importSaving() || this.publishSaving()) return;
     const key = this.sectionKey();
     this.loading.set(true);
     this.errorMsg.set(null);
@@ -828,7 +836,7 @@ export class AdminSectionPage implements OnInit {
   }
 
   onReleaseSelect(releaseId: string): void {
-    if (this.cardSaving() || this.cloneSaving() || this.importSaving()) return;
+    if (this.cardSaving() || this.cloneSaving() || this.importSaving() || this.publishSaving()) return;
     const target = this.releases().find(r => r.id === releaseId);
     if (target && target.id !== this.activeRelease()?.id) {
       this.selectRelease(target);
@@ -855,6 +863,9 @@ export class AdminSectionPage implements OnInit {
     this.importOpen.set(false);
     this.cloneErrorMsg.set(null);
     this.cloneSuccessMsg.set(null);
+    this.publishConfirmOpen.set(false);
+    this.publishErrorMsg.set(null);
+    this.publishSuccessMsg.set(null);
     this.loadReleaseContent(release.id, this.sectionKey());
   }
 
@@ -1021,7 +1032,7 @@ export class AdminSectionPage implements OnInit {
 
   reloadSelectedRelease(): void {
     const id = this.activeRelease()?.id;
-    if (!id || this.cardSaving() || this.cloneSaving() || this.importSaving() || this.loading()) return;
+    if (!id || this.cardSaving() || this.cloneSaving() || this.importSaving() || this.publishSaving() || this.loading()) return;
     this.loading.set(true);
     this.adminApi.getRelease(id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: release => {
@@ -1031,6 +1042,8 @@ export class AdminSectionPage implements OnInit {
         this.cardConflict.set(false);
         this.cardFormError.set(null);
         this.cloneErrorMsg.set(null);
+        this.publishConfirmOpen.set(false);
+        this.publishErrorMsg.set(null);
         this.loadReleaseContent(id, this.sectionKey());
       },
       error: err => {
@@ -1091,6 +1104,86 @@ export class AdminSectionPage implements OnInit {
           this.cloneErrorMsg.set(err.detail || err.title || 'Nhân bản bản phát hành thất bại.');
         }
       },
+    });
+  }
+
+  openPublishConfirm(): void {
+    if (!this.canPublishRelease() || this.publishSaving()) return;
+    const rel = this.activeRelease();
+    if (!rel || rel.status !== 'DRAFT') return;
+    this.publishErrorMsg.set(null);
+    this.publishSuccessMsg.set(null);
+    this.publishConfirmOpen.set(true);
+  }
+
+  cancelPublishConfirm(): void {
+    if (this.publishSaving()) return;
+    this.publishConfirmOpen.set(false);
+    this.publishErrorMsg.set(null);
+  }
+
+  submitPublish(): void {
+    if (!this.canPublishRelease() || this.publishSaving()) return;
+    const rel = this.activeRelease();
+    if (!rel) {
+      this.publishErrorMsg.set('Chưa chọn bản phát hành.');
+      return;
+    }
+    if (rel.status !== 'DRAFT') {
+      this.publishErrorMsg.set('Chỉ có thể xuất bản bản phát hành DRAFT.');
+      return;
+    }
+
+    this.publishSaving.set(true);
+    this.publishErrorMsg.set(null);
+    this.publishSuccessMsg.set(null);
+
+    this.adminApi.publishRelease(rel.id, rel.version).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (published) => {
+        this.publishSaving.set(false);
+        this.publishConfirmOpen.set(false);
+        this.activeRelease.set(published);
+        this.releases.update(list => list.map(item => item.id === published.id ? published : item));
+        this.publishSuccessMsg.set(
+          `Đã xuất bản ${published.versionLabel}. Nội dung công khai và trợ lý AI dùng ngay bản này; bản công khai trước đó (nếu có) đã được lưu trữ và vẫn đọc được theo mã.`
+        );
+        this.refreshReleaseList();
+        this.loadReleaseContent(published.id, this.sectionKey());
+      },
+      error: (err: AdminProblemDetail) => {
+        this.publishSaving.set(false);
+        if (this.activeRelease()?.id !== rel.id) return;
+        this.publishErrorMsg.set(this.describePublishProblem(err));
+      },
+    });
+  }
+
+  private describePublishProblem(err: AdminProblemDetail): string {
+    if (err?.code === 'RELEASE_EMPTY') {
+      return 'Bản thảo chưa có nội dung nào (thẻ, bộ thẻ, cư dân hoặc bài wiki) nên chưa thể xuất bản. Hãy thêm nội dung trước.';
+    }
+    if (err?.status === 401 || err?.code === 'SESSION_EXPIRED') {
+      return 'Phiên quản trị đã hết hạn, hãy đăng nhập lại.';
+    }
+    if (err?.status === 403) {
+      return `Tài khoản không có quyền “${this.publishPermissionLabel}” hoặc thiếu chữ ký CSRF.`;
+    }
+    if (err?.status === 409 || err?.code === 'VERSION_CONFLICT') {
+      return 'Xung đột phiên bản (409): bản thảo đã thay đổi. Hãy tải lại dữ liệu rồi xuất bản lại.';
+    }
+    return err?.detail || err?.title || 'Không thể xuất bản bản phát hành.';
+  }
+
+  /** Publishing archives the previous public release, so its dropdown row must come from the server, not a guess. */
+  private refreshReleaseList(): void {
+    this.adminApi.getReleases().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: page => {
+        this.releases.set(page.items);
+        const active = this.activeRelease();
+        const fresh = active ? page.items.find(item => item.id === active.id) : undefined;
+        if (fresh) this.activeRelease.set(fresh);
+      },
+      error: () => undefined,
     });
   }
 

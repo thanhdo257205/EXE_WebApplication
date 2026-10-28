@@ -22,6 +22,7 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
       { key: 'releases:create', label: 'Tạo bản phát hành' },
       { key: 'releases:update', label: 'Sửa bản phát hành nháp' },
       { key: 'releases:clone', label: 'Nhân bản bản phát hành' },
+      { key: 'releases:publish', label: 'Xuất bản bản phát hành' },
       { key: 'cards:create', label: 'Thêm thẻ' },
       { key: 'cards:update', label: 'Sửa thẻ' },
       { key: 'cards:delete', label: 'Xóa thẻ' },

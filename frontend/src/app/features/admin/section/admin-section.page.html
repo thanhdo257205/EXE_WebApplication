@@ -153,7 +153,7 @@
               <label for="release-selector" class="text-xs text-slate-400 font-medium">Bản phát hành:</label>
               <select
                 id="release-selector"
-                [disabled]="cardSaving() || cloneSaving()"
+                [disabled]="cardSaving() || cloneSaving() || publishSaving()"
                 class="admin-select text-xs font-bold text-sky-400 font-mono bg-slate-900 border border-slate-700 rounded px-2 py-1"
                 [ngModel]="activeRelease()?.id"
                 (ngModelChange)="onReleaseSelect($event)"
@@ -177,9 +177,47 @@
                       [class.text-slate-400]="rel.status === 'ARCHIVED'">
                   {{ rel.status }}
                 </span>
+                @if (rel.status === 'DRAFT' && canPublishRelease()) {
+                  <button
+                    type="button"
+                    id="publish-release-btn"
+                    class="action-btn-primary"
+                    [disabled]="publishSaving() || cardSaving() || cloneSaving() || importSaving()"
+                    (click)="openPublishConfirm()"
+                  >
+                    Xuất bản
+                  </button>
+                }
               </div>
             }
           </div>
+
+          @if (publishSuccessMsg()) {
+            <div class="p-3 mb-3 rounded bg-emerald-950/40 border border-emerald-800 text-xs text-emerald-300" role="status" id="publish-success">
+              {{ publishSuccessMsg() }}
+            </div>
+          }
+          @if (publishErrorMsg()) {
+            <p class="error mb-3" role="alert" id="publish-error">{{ publishErrorMsg() }}</p>
+          }
+
+          @if (publishConfirmOpen() && activeRelease(); as rel) {
+            <div class="publish-confirm my-3 p-4 rounded-xl border border-sky-800/50 bg-sky-950/20" role="alertdialog" aria-labelledby="publish-confirm-title">
+              <p id="publish-confirm-title" class="text-sm font-bold text-sky-200">Xuất bản {{ rel.versionLabel }}?</p>
+              <p class="text-xs text-slate-300 mt-1">
+                Toàn bộ nội dung công khai và câu trả lời của trợ lý AI sẽ chuyển sang bản này. Bản đang công khai (nếu có) được lưu trữ nhưng vẫn đọc được theo mã.
+                Bản đã xuất bản không sửa trực tiếp được nữa — muốn chỉnh sửa phải nhân bản sang bản nháp mới.
+              </p>
+              <div class="flex justify-end gap-2 mt-3">
+                <button type="button" id="cancel-publish-btn" class="text-xs font-semibold text-slate-300 border border-slate-700 rounded px-3 py-1.5 hover:border-slate-500 disabled:opacity-50 disabled:cursor-not-allowed" [disabled]="publishSaving()" (click)="cancelPublishConfirm()">
+                  Hủy
+                </button>
+                <button type="button" id="confirm-publish-btn" class="action-btn-primary" [disabled]="publishSaving()" (click)="submitPublish()">
+                  {{ publishSaving() ? 'Đang xuất bản…' : 'Xác nhận xuất bản' }}
+                </button>
+              </div>
+            </div>
+          }
         }
 
         @if (!isDraftSelected() && activeRelease()) {

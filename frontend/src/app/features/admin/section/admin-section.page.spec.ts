@@ -138,6 +138,7 @@ describe('AdminSectionPage', () => {
       createCardSet: vi.fn(),
       getRelease: vi.fn(() => of({ ...mockDraftRelease, version: 4 })),
       cloneRelease: vi.fn(),
+      publishRelease: vi.fn(),
       uploadCardImage: vi.fn(() => of({ url: '/media/cards/uploaded.webp', bytes: 1024, contentType: 'image/webp' })),
       getAuditEvents: vi.fn(() =>
         of({
@@ -457,6 +458,105 @@ describe('AdminSectionPage', () => {
     expect(component.activeRelease()?.id).toBe('rel-cloned-new');
     expect(component.isDraftSelected()).toBe(true);
     expect(component.cloneSuccessMsg()).toContain('v2.0-new-draft');
+  });
+
+  it('publishes the active draft with its expected version and switches the page to the published state', () => {
+    const published: AdminRelease = {
+      ...mockDraftRelease,
+      status: 'PUBLISHED',
+      currentSlot: 'PROD',
+      publishedAt: '2026-10-28T09:00:00Z',
+      version: 2,
+    };
+    adminApiSpy.publishRelease = vi.fn(() => of(published));
+    adminApiSpy.getReleases = vi.fn(() =>
+      of({
+        items: [published, { ...mockPublishedRelease, status: 'ARCHIVED', currentSlot: null }],
+        totalElements: 2,
+        page: 0,
+        size: 20,
+        totalPages: 1,
+      })
+    );
+
+    component.openPublishConfirm();
+    expect(component.publishConfirmOpen()).toBe(true);
+
+    component.submitPublish();
+
+    expect(adminApiSpy.publishRelease).toHaveBeenCalledWith(mockDraftRelease.id, 1);
+    expect(component.activeRelease()?.status).toBe('PUBLISHED');
+    expect(component.activeRelease()?.currentSlot).toBe('PROD');
+    expect(component.isDraftSelected()).toBe(false);
+    expect(component.publishConfirmOpen()).toBe(false);
+    expect(component.publishSuccessMsg()).toContain('v2.0-draft');
+    expect(component.releases().find(r => r.id === mockPublishedRelease.id)?.status).toBe('ARCHIVED');
+  });
+
+  it('renders the publish control only for a DRAFT when the account holds releases:publish', () => {
+    granted.set(['content:read', 'cards:create']);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('#publish-release-btn')).toBeNull();
+
+    granted.set(['content:read', 'releases:publish']);
+    fixture.detectChanges();
+    expect(el.querySelector('#publish-release-btn')).not.toBeNull();
+
+    component.onReleaseSelect(mockPublishedRelease.id);
+    fixture.detectChanges();
+    expect(el.querySelector('#publish-release-btn')).toBeNull();
+  });
+
+  it('opens and cancels the publish confirmation without calling the API', () => {
+    const el = fixture.nativeElement as HTMLElement;
+    (el.querySelector('#publish-release-btn') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(component.publishConfirmOpen()).toBe(true);
+    expect(el.querySelector('#confirm-publish-btn')).not.toBeNull();
+
+    (el.querySelector('#cancel-publish-btn') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(component.publishConfirmOpen()).toBe(false);
+    expect(adminApiSpy.publishRelease).not.toHaveBeenCalled();
+  });
+
+  it('refuses to publish without releases:publish even when a DRAFT is selected', () => {
+    granted.set(['content:read']);
+    fixture.detectChanges();
+
+    component.openPublishConfirm();
+    expect(component.publishConfirmOpen()).toBe(false);
+
+    component.submitPublish();
+    expect(adminApiSpy.publishRelease).not.toHaveBeenCalled();
+  });
+
+  it('explains an empty release and a version conflict and keeps the confirm panel open', () => {
+    adminApiSpy.publishRelease = vi.fn(() =>
+      throwError(() => ({ status: 409, code: 'RELEASE_EMPTY', title: 'Xung đột phiên bản' }))
+    );
+    component.openPublishConfirm();
+    component.submitPublish();
+
+    expect(component.publishErrorMsg()).toContain('chưa có nội dung');
+    expect(component.publishConfirmOpen()).toBe(true);
+    expect(component.publishSaving()).toBe(false);
+    expect(component.activeRelease()?.status).toBe('DRAFT');
+
+    adminApiSpy.publishRelease = vi.fn(() => throwError(() => ({ status: 409, code: 'VERSION_CONFLICT' })));
+    component.submitPublish();
+    expect(component.publishErrorMsg()).toContain('Xung đột phiên bản');
+  });
+
+  it('clears a pending publish confirmation when the release changes', () => {
+    component.openPublishConfirm();
+    expect(component.publishConfirmOpen()).toBe(true);
+
+    component.onReleaseSelect(mockPublishedRelease.id);
+
+    expect(component.publishConfirmOpen()).toBe(false);
+    expect(component.publishErrorMsg()).toBeNull();
   });
 
   it('reloads a conflicted version without losing input and requires explicit resubmission', () => {
