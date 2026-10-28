@@ -293,6 +293,53 @@ export const DEFAULT_MODELS: Readonly<Record<ProviderId, string>> = {
 export const DEFAULT_ORDER: readonly ProviderId[] = ['workers-ai', 'gemini', 'groq', 'openrouter'];
 export const isProviderId = (value: string): value is ProviderId => (DEFAULT_ORDER as readonly string[]).includes(value);
 
+export interface AssistantModelChoice {
+  id: string;
+  label: string;
+  /** Exactly one per provider: the free-tier model this app ships as its default. */
+  recommended?: boolean;
+  note: string;
+}
+
+// Free-tier chat lineups as of 2026-10. Retired ids are handled by RETIRED_MODEL_REPLACEMENTS;
+// a model removed by its provider should be dropped here in the same change.
+export const MODEL_CATALOG: Readonly<Record<ProviderId, readonly AssistantModelChoice[]>> = {
+  'workers-ai': [
+    { id: '@cf/meta/llama-3.1-8b-instruct', label: 'Llama 3.1 8B Instruct', recommended: true, note: 'Nhẹ, độ trễ thấp, phù hợp chat' },
+    { id: '@cf/moonshotai/kimi-k2.6', label: 'Kimi K2.6', note: 'Mạnh hơn, tốn nhiều neuron hơn' },
+    { id: '@cf/zai-org/glm-5.3-flash', label: 'GLM 5.3 Flash', note: 'Cân bằng tốc độ và chất lượng' },
+    { id: '@cf/zai-org/glm-5.3', label: 'GLM 5.3', note: 'Chất lượng cao' },
+    { id: '@cf/qwen/qwen3.8-27b', label: 'Qwen 3.8 27B', note: 'Đa ngôn ngữ' },
+    { id: '@cf/deepseek-ai/deepseek-v4-flash-0731', label: 'DeepSeek V4 Flash', note: 'Nhanh' },
+    { id: '@cf/deepseek-ai/deepseek-v4-pro-0813', label: 'DeepSeek V4 Pro', note: 'Chất lượng cao' },
+    { id: '@cf/google/gemma-4-26b-a4b-it', label: 'Gemma 4 26B', note: 'Mã nguồn mở của Google' },
+  ],
+  gemini: [
+    { id: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash-Lite', recommended: true, note: 'Miễn phí, nhanh, phù hợp chat' },
+    { id: 'gemini-3.8-flash', label: 'Gemini 3.8 Flash', note: 'Miễn phí, trả lời tốt hơn' },
+    { id: 'gemini-3.6-flash', label: 'Gemini 3.6 Flash', note: 'Miễn phí, bản ổn định' },
+    { id: 'gemini-3.1-flash-lite', label: 'Gemini 3.1 Flash-Lite', note: 'Miễn phí, bản cũ' },
+  ],
+  groq: [
+    { id: 'openai/gpt-oss-120b', label: 'GPT-OSS 120B', recommended: true, note: 'Miễn phí, 131K ngữ cảnh' },
+    { id: 'openai/gpt-oss-20b', label: 'GPT-OSS 20B', note: 'Miễn phí, nhẹ và nhanh' },
+    { id: 'qwen/qwen3.8-27b', label: 'Qwen 3.8 27B', note: 'Miễn phí, đa ngôn ngữ' },
+    { id: 'openai/gpt-oss-safeguard-20b', label: 'GPT-OSS Safeguard 20B', note: 'Miễn phí, lọc nội dung' },
+  ],
+  openrouter: [
+    { id: 'google/gemma-4-26b-a4b-it:free', label: 'Gemma 4 26B', recommended: true, note: 'Miễn phí, cần bật chính sách dữ liệu' },
+    { id: 'nvidia/nemotron-3-ultra-550b-a55b:free', label: 'Nemotron 3 Ultra 550B', note: 'Miễn phí, mạnh nhất trong nhóm' },
+    { id: 'nvidia/nemotron-3.5-lightning:free', label: 'Nemotron 3.5 Lightning', note: 'Miễn phí, nhanh' },
+    { id: 'thinkingmachines/inkling:free', label: 'Inkling', note: 'Miễn phí' },
+    { id: 'xingchen-agi/xing4.0-29b-a4b:free', label: 'Xing 4.0 29B', note: 'Miễn phí, đa ngôn ngữ' },
+    { id: 'recursive/flint-v1.0:free', label: 'Flint v1.0', note: 'Miễn phí, tối ưu lập trình' },
+    { id: 'liquid/lfm-2.5-2.6b:free', label: 'LFM 2.5 2.6B', note: 'Miễn phí, rất nhẹ' },
+  ],
+};
+
+export const isCatalogModel = (provider: ProviderId, model: string): boolean =>
+  MODEL_CATALOG[provider].some(choice => choice.id === model);
+
 const bounded = (value: string | undefined, fallback: number, min: number, max: number): number => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? Math.min(max, Math.max(min, parsed)) : fallback;

@@ -6,7 +6,7 @@ import type { Client } from '@libsql/client';
 import { database, initializeLocal, execute, one, scalar, uuid, now } from '../src/db.ts';
 import { createApp } from '../src/app.ts';
 import { initializeRbac } from '../src/rbac.ts';
-import { assistantFromEnv, DEFAULT_MODELS, type FetchLike } from '../src/assistant-providers.ts';
+import { assistantFromEnv, DEFAULT_MODELS, MODEL_CATALOG, type FetchLike } from '../src/assistant-providers.ts';
 import { decodeMasterKey, decryptSecret, encryptSecret, fingerprintSecret, maskAccount, maskSecret } from '../src/assistant-crypto.ts';
 import type { Config } from '../src/auth.ts';
 
@@ -24,6 +24,7 @@ function fetchFixture() {
     if (authorization === 'Bearer db-key-1234') return Response.json({ choices: [{ message: { content: 'db answer' } }] });
     if (authorization === 'Bearer env-key') return Response.json({ choices: [{ message: { content: 'env answer' } }] });
     if (authorization === 'Bearer delegated-key-9999') return Response.json({ choices: [{ message: { content: 'delegated answer' } }] });
+    if (authorization === 'Bearer override-key-5555') return Response.json({ choices: [{ message: { content: 'override answer' } }] });
     return new Response(null, { status: 429 });
   };
   return { fetch, calls, bodies };
@@ -166,6 +167,8 @@ test('active database keys are used before env keys and fall back after disable'
   const settings = await (await f.request('GET', '/api/v1/admin/assistant/settings', f.owner)).json();
   const groq = settings.providers.find((provider: any) => provider.id === 'groq');
   assert.deepEqual(groq.slots.map((slot: any) => slot.slot), [`db:${created.id}`, 'groq#1']);
+  assert.equal(groq.models.length, MODEL_CATALOG.groq.length);
+  assert.equal(groq.models.find((model: any) => model.recommended).id, DEFAULT_MODELS.groq);
 
   const first = await f.ask(f.customer, 'Cách chơi?');
   assert.equal(first.status, 200);
@@ -236,6 +239,21 @@ test('manual key test reports the provider outcome, is audited and never changes
   assert.equal(retry.status, 429);
   assert.equal((await retry.json()).code, 'KEY_TEST_COOLDOWN');
   assert.ok(Number(retry.headers.get('retry-after')) > 0);
+
+  const override = (await (await f.createKey(f.owner, { provider: 'groq', label: 'Model khác', apiKey: 'override-key-5555' })).json()).item;
+  const invalidModel = await f.request('POST', `/api/v1/admin/assistant/keys/${override.id}/test`, f.owner, { model: 'unknown/model' });
+  assert.equal(invalidModel.status, 400);
+  assert.equal((await invalidModel.json()).code, 'INVALID_MODEL');
+  // Validation happens before the cooldown starts and before any provider call.
+  assert.equal(f.fetchCalls.calls.includes('override-key-5555'), false);
+  const alternate = await f.request('POST', `/api/v1/admin/assistant/keys/${override.id}/test`, f.owner, { model: 'openai/gpt-oss-20b' });
+  assert.equal(alternate.status, 200);
+  const alternateBody = await alternate.json();
+  assert.equal(alternateBody.status, 'OK');
+  assert.equal(alternateBody.model, 'openai/gpt-oss-20b');
+  assert.equal(f.fetchCalls.bodies.find(call => call.key === 'override-key-5555')?.body.model, 'openai/gpt-oss-20b');
+  const alternateAudit = await one(f.db, "SELECT details_redacted FROM audit_events WHERE action='ASSISTANT_KEY_TESTED' AND entity_id=?", [override.id]);
+  assert.match(alternateAudit.details_redacted, /model=openai\/gpt-oss-20b/);
 
   assert.equal((await f.request('DELETE', `/api/v1/admin/assistant/keys/${good.id}`, f.owner)).status, 200);
   const revoked = await f.request('POST', `/api/v1/admin/assistant/keys/${good.id}/test`, f.owner);

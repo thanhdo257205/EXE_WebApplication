@@ -7,6 +7,7 @@ import type { Cache } from './cache.ts';
 import {
   DEFAULT_MODELS,
   DEFAULT_ORDER,
+  MODEL_CATALOG,
   PROVIDER_LABELS,
   isProviderId,
   type AssistantOptions,
@@ -173,6 +174,7 @@ const settingsView = (settings: AssistantSettings, options: AssistantOptions | n
     id,
     label: PROVIDER_LABELS[id],
     defaultModel: DEFAULT_MODELS[id],
+    models: MODEL_CATALOG[id],
     slots: (options?.providers ?? []).filter(provider => provider.id === id).map(provider => ({
       slot: provider.slot,
       disabled: settings.disabledSlots.includes(provider.slot),
