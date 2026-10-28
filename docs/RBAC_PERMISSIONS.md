@@ -297,7 +297,7 @@ Code đã hoàn tất ở local, **chưa commit/push/deploy** và **chưa kiểm
 
 ## 13. Kiểm chứng đợt bổ sung xuất bản bản phát hành (2026-10-28)
 
-Code ở local, **chưa commit/push/deploy** tại thời điểm ghi.
+Code đã commit/push và deploy production `a674b4e` (PR #37); phần kiểm chứng thi hành còn chờ phiên ADMIN để publish nội dung thật.
 
 - Danh mục tăng lên **33 quyền**; `releases:publish` nằm trong bộ mặc định của đồng quản trị và tự kèm `content:read` khi lưu.
 - Backend: `npm test` **113 pass / 1 skip (Turso remote) / 0 fail** (tổng 114). File mới `backend/server/test/content-publish.test.ts` có 3 ca: (1) xuất bản đưa bản nháp lên `current_slot=1`, API công khai và snapshot đọc được ngay (cache admin bị xóa), bản đã xuất bản bất biến (`409 RELEASE_IMMUTABLE`), audit có actor + version; (2) xuất bản bản mới lưu trữ bản đang công khai (giữ `published_at`, version tăng), bản cũ vẫn đọc được bằng `releaseId`; (3) thiếu `releases:publish` trả `403`, khách chưa đăng nhập bị chặn CSRF, version lệch trả `409 VERSION_CONFLICT`, bản nháp rỗng trả `409 RELEASE_EMPTY` và không đổi trạng thái.
