@@ -13,6 +13,8 @@ export interface Env {
   API_LIMITER: Limiter;
   LOGIN_LIMITER: Limiter;
   ACCOUNT_LIMITER: Limiter;
+  /** The assistant spends a shared, finite free AI quota, so it gets a much tighter per-IP budget. */
+  AI_LIMITER: Limiter;
   /** Bucket R2 chứa ảnh thẻ. Tùy chọn: chưa gắn thì `/media/*` trả 404 và gateway vẫn chạy bình thường. */
   CARD_IMAGES?: R2BucketLike;
   AZURE_MEDIA_ORIGIN?: string;
@@ -70,6 +72,7 @@ const REGISTER = '/api/v1/auth/register';
 const FORGOT_PASSWORD = '/api/v1/auth/forgot-password';
 const RESET_PASSWORD = '/api/v1/auth/reset-password';
 const PAYOS_WEBHOOK = '/api/v1/payments/payos/webhook';
+const ASSISTANT = '/api/v1/assistant/chat';
 const OAUTH_START = '/api/v1/auth/oauth2/authorization/google';
 const OAUTH_CALLBACK = '/api/v1/auth/oauth2/callback/google';
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
@@ -167,14 +170,16 @@ export async function handle(request: Request, env: Env, fetcher: typeof fetch =
     const notificationStream = request.method === 'GET' && pathname === '/api/v1/admin/notifications/stream';
     const paymentNavigation = request.method === 'GET' && /^\/api\/v1\/payments\/return\/[a-f0-9-]{36}$/.test(pathname);
     const webhook = request.method === 'POST' && pathname === PAYOS_WEBHOOK;
+    const assistant = request.method === 'POST' && pathname === ASSISTANT;
     if (pathname === PAYOS_WEBHOOK && !webhook) return problem(405, 'Method not allowed');
+    if (pathname === ASSISTANT && !assistant) return problem(405, 'Method not allowed');
     if (suppliedOrigin && suppliedOrigin !== publicUrl.origin) return problem(403, 'Origin not allowed');
     if (!webhook && !oauthNavigation && !paymentNavigation && suppliedOrigin !== publicUrl.origin
         && !(site === 'same-origin' && ['cors', 'same-origin'].includes(mode ?? ''))) {
       return problem(403, 'Browser request required');
     }
     if (!webhook && !SAFE_METHODS.has(request.method) && suppliedOrigin !== publicUrl.origin) return problem(403, 'Origin required');
-    if (webhook && !request.headers.get('Content-Type')?.toLowerCase().startsWith('application/json')) return problem(415, 'JSON required');
+    if ((webhook || assistant) && !request.headers.get('Content-Type')?.toLowerCase().startsWith('application/json')) return problem(415, 'JSON required');
     if (request.method === 'OPTIONS') {
       // This is intentionally a same-origin gateway; cross-origin browser API access is not supported.
       return new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store' } });
@@ -183,6 +188,7 @@ export async function handle(request: Request, env: Env, fetcher: typeof fetch =
     const recovery = request.method === 'POST' && [FORGOT_PASSWORD, RESET_PASSWORD].includes(pathname);
     const authAttempt = (request.method === 'POST' && [LOGIN, REGISTER].includes(pathname)) || pathname === OAUTH_START || recovery;
     if (authAttempt && !(await env.LOGIN_LIMITER.limit({ key: `login:${ip}` })).success) return problem(429, 'Too many login attempts', '60');
+    if (assistant && !(await env.AI_LIMITER.limit({ key: `assistant:${ip}` })).success) return problem(429, 'Too many assistant requests', '60');
     const body = SAFE_METHODS.has(request.method) ? undefined : await readLimitedBody(request, webhook ? 16384 : pathname === MEDIA_UPLOAD ? MEDIA_UPLOAD_MAX : 65536);
     if (body === null) return problem(413, 'Request too large');
     if (recovery) {
