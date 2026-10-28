@@ -6,7 +6,9 @@ import {
   AssistantKeyCreate,
   AssistantKeySecret,
   AssistantKeyStatus,
+  AssistantKeyTestOutcome,
   AssistantKeyTestResult,
+  AssistantModelOption,
   AssistantProviderConfig,
   AssistantSettingsResponse,
   AssistantUsage,
@@ -40,6 +42,22 @@ interface BudgetBar {
   over: boolean;
   warn: boolean;
   hasBudget: boolean;
+}
+
+interface BulkGroup {
+  provider: AssistantProviderConfig;
+  keys: AssistantKey[];
+  selected: number;
+}
+
+interface BulkOutcomeRow {
+  id: string;
+  label: string;
+  providerLabel: string;
+  status: 'OK' | 'FAILED' | 'ERROR';
+  text: string;
+  model: string;
+  latencyMs: number | null;
 }
 
 @Component({
@@ -91,6 +109,14 @@ export class AdminAssistantPage implements OnInit {
   readonly keyValue = signal('');
   readonly keyAccount = signal('');
 
+  readonly bulkOpen = signal(false);
+  readonly bulkSelection = signal<Record<string, boolean>>({});
+  readonly bulkModels = signal<Record<string, string>>({});
+  readonly bulkRunning = signal(false);
+  readonly bulkProgress = signal({ done: 0, total: 0 });
+  readonly bulkOutcomes = signal<Record<string, BulkOutcomeRow>>({});
+  readonly bulkSummary = signal('');
+
   readonly canManage = computed(() => this.settings()?.canManage ?? false);
   readonly needsAccount = computed(() => this.keyProvider() === 'workers-ai');
   readonly canAddKey = computed(() => this.keyStorage() && !this.keySaving()
@@ -98,10 +124,29 @@ export class AdminAssistantPage implements OnInit {
     && this.keyValue().trim().length >= 8
     && (!this.needsAccount() || this.keyAccount().trim().length > 0));
   readonly pendingKeyCount = computed(() => this.keys().filter(key => key.status === 'PENDING').length);
+  readonly testableKeys = computed(() => this.keys().filter(key => key.canTest));
   readonly orderedProviders = computed(() => {
     const providers = new Map((this.settings()?.providers ?? []).map(provider => [provider.id, provider]));
     return this.order().map(id => providers.get(id)).filter((provider): provider is AssistantProviderConfig => Boolean(provider));
   });
+  readonly bulkGroups = computed<BulkGroup[]>(() => {
+    const selection = this.bulkSelection();
+    const testable = this.testableKeys();
+    const groups: BulkGroup[] = [];
+    for (const provider of this.orderedProviders()) {
+      const keys = testable.filter(key => key.provider === provider.id);
+      if (!keys.length) continue;
+      groups.push({ provider, keys, selected: keys.filter(key => selection[key.id]).length });
+    }
+    return groups;
+  });
+  readonly bulkSelectedCount = computed(() => this.bulkGroups().reduce((total, group) => total + group.selected, 0));
+  readonly bulkCanRun = computed(() => this.bulkSelectedCount() > 0 && !this.bulkRunning() && !this.keyBusy());
+  readonly bulkPercent = computed(() => {
+    const { done, total } = this.bulkProgress();
+    return total ? Math.round(done / total * 100) : 0;
+  });
+  readonly bulkOutcomeRows = computed(() => Object.values(this.bulkOutcomes()));
   readonly cacheRate = computed(() => {
     const totals = this.usage()?.totals;
     return totals && totals.requests ? Math.round(totals.cacheHits / totals.requests * 100) : 0;
@@ -263,7 +308,7 @@ export class AdminAssistantPage implements OnInit {
   }
 
   testKey(key: AssistantKey): void {
-    if (!key.canTest || this.keyBusy()) return;
+    if (!key.canTest || this.keyBusy() || this.bulkRunning()) return;
     this.keyBusy.set(key.id);
     this.keyTesting.set(key.id);
     this.keyError.set('');
@@ -302,8 +347,109 @@ export class AdminAssistantPage implements OnInit {
       : `Kiểm tra ${when}: ${this.testFailureLabel(result.code)} · ${result.model}`;
   }
 
+  toggleBulkPanel(): void {
+    if (this.bulkRunning()) return;
+    const open = !this.bulkOpen();
+    this.bulkOpen.set(open);
+    if (!open) return;
+    const selection: Record<string, boolean> = {};
+    for (const key of this.testableKeys()) selection[key.id] = true;
+    this.bulkSelection.set(selection);
+    this.bulkSummary.set('');
+  }
+
+  selectAllBulk(): void {
+    if (this.bulkRunning()) return;
+    const selection: Record<string, boolean> = {};
+    for (const key of this.testableKeys()) selection[key.id] = true;
+    this.bulkSelection.set(selection);
+  }
+
+  clearBulk(): void {
+    if (this.bulkRunning()) return;
+    this.bulkSelection.set({});
+  }
+
+  toggleBulkKey(id: string): void {
+    if (this.bulkRunning()) return;
+    this.bulkSelection.update(selection => ({ ...selection, [id]: !selection[id] }));
+  }
+
+  setBulkGroup(group: BulkGroup, event: Event): void {
+    if (this.bulkRunning()) return;
+    const checked = (event.target as HTMLInputElement).checked;
+    this.bulkSelection.update(selection => {
+      const next = { ...selection };
+      for (const key of group.keys) next[key.id] = checked;
+      return next;
+    });
+  }
+
+  setBulkModel(providerId: string, event: Event): void {
+    const model = (event.target as HTMLSelectElement).value;
+    this.bulkModels.update(models => ({ ...models, [providerId]: model }));
+  }
+
+  bulkModelFor(provider: AssistantProviderConfig): string {
+    const chosen = this.bulkModels()[provider.id];
+    return chosen && this.modelOptions(provider).some(option => option.id === chosen) ? chosen : this.slotModel(provider);
+  }
+
+  isBulkSelected(id: string): boolean {
+    return this.bulkSelection()[id] ?? false;
+  }
+
+  runBulkTests(): void {
+    if (!this.bulkCanRun()) return;
+    const targets = this.bulkGroups().flatMap(group => group.keys
+      .filter(key => this.isBulkSelected(key.id))
+      .map(key => ({ key, model: this.bulkModelFor(group.provider) })));
+    if (!targets.length) return;
+    this.bulkRunning.set(true);
+    this.bulkProgress.set({ done: 0, total: targets.length });
+    this.bulkOutcomes.set({});
+    this.bulkSummary.set('');
+    this.keyError.set('');
+    this.keyNotice.set('');
+    this.api.testKeys(targets.map(target => ({ id: target.key.id, model: target.model }))).subscribe({
+      next: outcome => {
+        const target = targets.find(item => item.key.id === outcome.id);
+        if (!target) return;
+        const row = this.bulkRow(target.key, target.model, outcome);
+        this.bulkOutcomes.update(rows => ({ ...rows, [row.id]: row }));
+        const result = outcome.result;
+        if (result) this.testResults.update(results => ({ ...results, [row.id]: result }));
+        this.bulkProgress.update(progress => ({ ...progress, done: progress.done + 1 }));
+      },
+      error: error => {
+        this.bulkRunning.set(false);
+        this.keyError.set(this.keyMessage(error, 'Không chạy được kiểm tra hàng loạt.'));
+      },
+      complete: () => {
+        this.bulkRunning.set(false);
+        const rows = Object.values(this.bulkOutcomes());
+        const ok = rows.filter(row => row.status === 'OK').length;
+        this.bulkSummary.set(`Đã kiểm tra ${rows.length} key: ${ok} OK, ${rows.length - ok} lỗi.`);
+      },
+    });
+  }
+
+  private bulkRow(key: AssistantKey, model: string, outcome: AssistantKeyTestOutcome): BulkOutcomeRow {
+    const base = { id: key.id, label: key.label, providerLabel: key.providerLabel };
+    if (!outcome.result) {
+      return { ...base, status: 'ERROR', text: this.keyMessage(outcome.error, 'Không kiểm tra được key.'), model, latencyMs: null };
+    }
+    return {
+      ...base,
+      status: outcome.result.status,
+      text: outcome.result.status === 'OK' ? 'OK' : `Lỗi: ${this.testFailureLabel(outcome.result.code)}`,
+      model: outcome.result.model,
+      latencyMs: outcome.result.latencyMs,
+    };
+  }
+
   setKeyStatus(key: AssistantKey, status: 'ACTIVE' | 'DISABLED'): void {
-    if (!this.canManageKeys() || this.keyBusy()) return;
+    if (!this.canManageKeys() || this.keyBusy() || this.bulkRunning()) return;
     this.keyBusy.set(key.id);
     this.keyError.set('');
     this.keyNotice.set('');
@@ -322,7 +468,7 @@ export class AdminAssistantPage implements OnInit {
   }
 
   askRevoke(key: AssistantKey): void {
-    if (this.keyBusy()) return;
+    if (this.keyBusy() || this.bulkRunning()) return;
     this.revokeConfirm.set(key.id);
   }
 
@@ -331,7 +477,7 @@ export class AdminAssistantPage implements OnInit {
   }
 
   revokeKey(key: AssistantKey): void {
-    if (this.revokeConfirm() !== key.id || this.keyBusy()) return;
+    if (this.revokeConfirm() !== key.id || this.keyBusy() || this.bulkRunning()) return;
     this.keyBusy.set(key.id);
     this.keyError.set('');
     this.keyNotice.set('');
@@ -381,8 +527,25 @@ export class AdminAssistantPage implements OnInit {
     return this.models()[provider.id] ?? provider.defaultModel;
   }
 
+  modelOptions(provider: AssistantProviderConfig): AssistantModelOption[] {
+    const current = this.slotModel(provider);
+    const options = Array.isArray(provider.models) ? [...provider.models] : [];
+    // Legacy env overrides may sit outside the catalog; keep them selectable instead of silently changing the model.
+    if (current && !options.some(option => option.id === current)) {
+      options.unshift({ id: current, label: `${current} (ngoài danh mục)`, note: 'Model đang cấu hình ngoài danh mục' });
+    }
+    if (!options.length && provider.defaultModel) {
+      options.push({ id: provider.defaultModel, label: provider.defaultModel, note: 'Model mặc định của máy chủ' });
+    }
+    return options;
+  }
+
+  selectedModel(provider: AssistantProviderConfig): AssistantModelOption | null {
+    return this.modelOptions(provider).find(option => option.id === this.slotModel(provider)) ?? null;
+  }
+
   setModel(id: string, event: Event): void {
-    const value = (event.target as HTMLInputElement).value;
+    const value = (event.target as HTMLSelectElement).value;
     this.models.update(models => ({ ...models, [id]: value }));
     this.notice.set('');
   }

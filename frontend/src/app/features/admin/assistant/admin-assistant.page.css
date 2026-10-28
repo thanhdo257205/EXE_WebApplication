@@ -30,6 +30,33 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .warning { color: #fde68a; background: #2a2112; border: 1px solid #5a4a1f; }
 .warning code { overflow-wrap: anywhere; }
 .pending-badge { padding: .3rem .7rem; border-radius: 2rem; background: #403412; color: #fcd34d; font-size: .75rem; white-space: nowrap; }
+.keys-head-actions { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.keys-head-actions > button { min-height: 36px; padding: .35rem .75rem; font-size: .75rem; }
+
+.bulk-test { display: grid; gap: .9rem; padding: 1rem; background: #0d0f10; border: 1px solid #41463c; border-radius: .6rem; }
+.bulk-head { display: flex; justify-content: space-between; align-items: flex-start; gap: .75rem; flex-wrap: wrap; }
+.bulk-head p { margin: .3rem 0 0; font-size: .75rem; }
+.bulk-actions { display: flex; gap: .4rem; flex-wrap: wrap; }
+.bulk-actions button { min-height: 36px; padding: .35rem .7rem; font-size: .72rem; }
+.bulk-groups { display: grid; gap: .75rem; }
+.bulk-group { margin: 0; padding: .85rem; background: #121415; border: 1px solid #30352b; border-radius: .5rem; display: grid; gap: .7rem; }
+.bulk-group legend { padding: 0 .3rem; color: #dafa76; font-size: .78rem; font-weight: 700; }
+.bulk-group-head { display: flex; justify-content: space-between; align-items: end; gap: .75rem; flex-wrap: wrap; }
+.bulk-group-select { display: inline-flex; align-items: center; gap: .45rem; font-size: .78rem; }
+.bulk-group-select input, .bulk-key input { width: 15px; height: 15px; accent-color: #dafa76; }
+.bulk-model { display: grid; gap: .3rem; font-size: .72rem; color: #a6aaa3; min-width: min(100%, 320px); }
+.bulk-model select { min-height: 38px; padding: .4rem .6rem; background: #0d0f10; color: #f3f1ea; border: 1px solid #41463c; border-radius: .4rem; font-size: .78rem; }
+.bulk-keys { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: .45rem; }
+.bulk-key { display: grid; grid-template-columns: auto 1fr; gap: .1rem .45rem; align-items: center; padding: .5rem .65rem; background: #0d0f10; border: 1px solid #30352b; border-radius: .4rem; font-size: .76rem; cursor: pointer; }
+.bulk-key.selected { border-color: #6b7d4a; background: #192112; }
+.bulk-key span { overflow-wrap: anywhere; }
+.bulk-key small { grid-column: 2; color: #a6aaa3; font-size: .66rem; overflow-wrap: anywhere; }
+.bulk-run { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
+.bulk-summary { margin: 0; padding: .55rem .8rem; border-radius: .4rem; background: #192112; color: #dafa76; font-size: .78rem; }
+.bulk-result { font-size: .78rem; font-weight: 700; }
+.bulk-result.ok { color: #dafa76; }
+.bulk-result.failed, .bulk-result.error { color: #fca5a5; }
+.bulk-results caption { margin-top: .2rem; }
 
 .key-form { display: flex; flex-wrap: wrap; gap: .75rem; align-items: end; }
 .key-form label { flex: 1 1 180px; display: grid; gap: .35rem; font-size: .78rem; color: #a6aaa3; }
@@ -93,7 +120,8 @@ td.model { font-family: ui-monospace, monospace; font-size: .78rem; white-space:
 
 .provider-fields { display: grid; grid-template-columns: minmax(0, 2fr) minmax(200px, 1fr); gap: .75rem; align-items: start; }
 .model-field { display: grid; gap: .35rem; font-size: .78rem; color: #a6aaa3; }
-.model-field input { width: 100%; padding: .6rem .75rem; background: #121415; color: inherit; border: 1px solid #41463c; border-radius: .4rem; font-family: ui-monospace, monospace; font-size: .82rem; }
+.model-field select { width: 100%; min-height: 44px; padding: .6rem .75rem; background: #121415; color: inherit; border: 1px solid #41463c; border-radius: .4rem; font-size: .82rem; }
+.field-note code { font-family: ui-monospace, monospace; overflow-wrap: anywhere; }
 .budget-field { display: grid; gap: .35rem; font-size: .78rem; color: #a6aaa3; }
 .budget-field input { width: 100%; padding: .6rem .75rem; background: #121415; color: inherit; border: 1px solid #41463c; border-radius: .4rem; font-size: .82rem; font-variant-numeric: tabular-nums; }
 .field-note { font-size: .7rem; color: #a6aaa3; }
