@@ -9,7 +9,7 @@ import { initializeAssistantSettings } from '../src/assistant-settings.ts';
 import { initializeAssistantCredentials } from '../src/assistant-credentials.ts';
 import { initializeAssistantUsage } from '../src/assistant-usage.ts';
 import { initializeContentAuthorship } from '../src/content.ts';
-import { assistantFromEnv, type FetchLike } from '../src/assistant-providers.ts';
+import { assistantFromEnv, DEFAULT_MODELS, type FetchLike } from '../src/assistant-providers.ts';
 import { DEFAULT_DELEGATED_PERMISSIONS, GRANTABLE_PERMISSIONS, OWNER_ONLY_PERMISSIONS, decodePermissions, effectivePermissions, normalizePermissions } from '../src/rbac-policy.ts';
 import type { Config } from '../src/auth.ts';
 import type { MediaStore } from '../src/media.ts';
@@ -247,6 +247,71 @@ test('assistant settings require the permission of each changed field instead of
   assert.equal(noop.changed, false);
   assert.equal(noop.settings.version, 1);
   assert.equal(await scalar(f.db, "SELECT COUNT(*) FROM audit_events WHERE action='ASSISTANT_SETTINGS_UPDATED'"), 1);
+});
+
+test('slots:update toggles the editor\'s own key but never another admin\'s', async t => {
+  const f = await fixture(); t.after(() => f.db.close());
+  const ownerKey = (await (await f.request('POST', '/api/v1/admin/assistant/keys', f.owner, { provider: 'groq', label: 'Key chủ', apiKey: 'owner-key-1234' })).json()).item;
+  assert.equal(ownerKey.status, 'ACTIVE');
+  await f.assign(f.owner, f.co, ['assistant:slots:update', 'assistant:keys:create'], 0);
+  const coKey = (await (await f.request('POST', '/api/v1/admin/assistant/keys', f.co, { provider: 'groq', label: 'Key phụ', apiKey: 'co-key-5678' })).json()).item;
+  assert.equal(coKey.status, 'PENDING', 'only keys:manage activates through the API');
+  // The fixture promotes the co-admin's own key so its slot is offerable in the settings form.
+  await execute(f.db, "UPDATE assistant_credentials SET status='ACTIVE' WHERE id=?", [coKey.id]);
+  const ownerSlot = `db:${ownerKey.id}`, coSlot = `db:${coKey.id}`;
+  const body = async (disabledSlots: string[]) => {
+    const { settings } = await (await f.request('GET', '/api/v1/admin/assistant/settings', f.co)).json();
+    return { order: settings.order, models: settings.models, disabledSlots, tokenBudgets: settings.tokenBudgets, expectedVersion: settings.version };
+  };
+  const saved = async (disabledSlots: string[]) => {
+    const response = await f.request('PUT', '/api/v1/admin/assistant/settings', f.co, await body(disabledSlots));
+    return { status: response.status, view: await response.json() };
+  };
+  const audits = () => scalar(f.db, "SELECT COUNT(*) FROM audit_events WHERE action='ASSISTANT_SETTINGS_UPDATED'");
+
+  const own = await saved([coSlot]);
+  assert.equal(own.status, 200); assert.equal(own.view.changed, true);
+  assert.deepEqual(own.view.settings.disabledSlots, [coSlot]);
+  assert.equal((await saved([])).view.settings.disabledSlots.length, 0);
+
+  const written = await audits();
+  const foreign = await saved([ownerSlot]);
+  assert.equal(foreign.status, 403);
+  assert.equal(foreign.view.code, 'PERMISSION_REQUIRED');
+  assert.deepEqual((await (await f.request('GET', '/api/v1/admin/assistant/settings', f.co)).json()).settings.disabledSlots, []);
+  assert.equal(await audits(), written, 'a refused foreign flip writes nothing');
+
+  // The owner may park its own key; the foreign entry then has to survive verbatim in the next save.
+  assert.equal((await f.request('PUT', '/api/v1/admin/assistant/settings', f.owner, await body([ownerSlot]))).status, 200);
+  const alongside = await saved([ownerSlot, coSlot]);
+  assert.equal(alongside.status, 200); assert.deepEqual(alongside.view.settings.disabledSlots, [ownerSlot, coSlot]);
+  assert.equal((await saved([coSlot])).status, 403, 'removing someone else\'s slot is the same violation');
+
+  // keys:manage is the capability that reaches every key, so it unlocks the foreign toggle.
+  await f.assign(f.owner, f.co, ['assistant:slots:update', 'assistant:keys:create', 'assistant:keys:manage'], 1);
+  const managed = await saved([coSlot]);
+  assert.equal(managed.status, 200); assert.deepEqual(managed.view.settings.disabledSlots, [coSlot]);
+});
+
+test('an unsafe model id is refused at every admin input and ignored in stored rows', async t => {
+  const f = await fixture(); t.after(() => f.db.close());
+  const current = async () => (await (await f.request('GET', '/api/v1/admin/assistant/settings', f.owner)).json()).settings;
+  const body = async (models: Record<string, string>) => {
+    const settings = await current();
+    return { order: settings.order, models, disabledSlots: settings.disabledSlots, tokenBudgets: settings.tokenBudgets, expectedVersion: settings.version };
+  };
+  for (const model of ['..', 'groq/../x', '@cf/meta/../../secrets', 'a'.repeat(200), 'x y', '']) {
+    const response = await f.request('PUT', '/api/v1/admin/assistant/settings', f.owner, await body({ groq: model }));
+    assert.equal(response.status, 400, JSON.stringify(model));
+    assert.equal((await response.json()).code, 'INVALID_REQUEST');
+  }
+  const key = (await (await f.request('POST', '/api/v1/admin/assistant/keys', f.owner, { provider: 'groq', label: 'Key thử', apiKey: 'owner-key-1234' })).json()).item;
+  assert.equal((await f.request('POST', `/api/v1/admin/assistant/keys/${key.id}/test`, f.owner, { model: '../x' })).status, 400);
+
+  // A row written outside the API (import, older build) is re-validated on load, never passed to a provider URL.
+  assert.equal((await f.request('PUT', '/api/v1/admin/assistant/settings', f.owner, await body({ groq: 'groq-fast' }))).status, 200);
+  await execute(f.db, "UPDATE assistant_settings SET model_overrides='{\"groq\":\"../vault\"}' WHERE slot=1", []);
+  assert.equal((await current()).models.groq, DEFAULT_MODELS.groq);
 });
 
 test('key permissions scope each action to the creator unless keys:manage is granted', async t => {

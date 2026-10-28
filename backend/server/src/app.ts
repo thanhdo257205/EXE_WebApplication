@@ -22,6 +22,10 @@ export function createApp(db: Client, config: Config, provider: Provider | null 
   const app = new Hono<ApiEnv>();
   const cache = createCache();
   const usage = createUsageRecorder(db);
+  // index.ts only accepts http for the two loopback hosts, so any other public origin is a real
+  // deployment and must arrive through the gateway: the gate arms on the origin, not on NODE_ENV.
+  // A missing secret then fails closed, because an unverified X-Origin-Verify proves nothing.
+  const edgeGate = config.production || !/^http:\/\/(?:localhost|127\.0\.0\.1)(?::\d{1,5})?$/.test(config.publicOrigin);
   app.onError((error, c) => {
     let status = 500, code = 'INTERNAL_ERROR';
     if (error instanceof Problem) { status = error.status; code = error.code; }
@@ -35,7 +39,7 @@ export function createApp(db: Client, config: Config, provider: Provider | null 
   app.use('*', async (c, next) => {
     c.header('Cache-Control', 'no-store'); c.header('X-Content-Type-Options', 'nosniff');
     const health = c.req.method === 'GET' && c.req.path === '/actuator/health';
-    if (config.production && !health && (!config.proxySecret || !same(c.req.header('X-Origin-Verify') || '', config.proxySecret))) return fail(403, 'PROXY_REQUIRED');
+    if (edgeGate && !health && (!config.proxySecret || !same(c.req.header('X-Origin-Verify') || '', config.proxySecret))) return fail(403, 'PROXY_REQUIRED');
     // Protect the reconcile endpoint even in local mode: it has no user/CSRF authentication.
     if (c.req.path === '/api/v1/internal/payments/reconcile' && (!config.proxySecret || !same(c.req.header('X-Origin-Verify') || '', config.proxySecret))) return fail(403, 'PROXY_REQUIRED');
     const origin = c.req.header('Origin');
@@ -78,7 +82,7 @@ export function createApp(db: Client, config: Config, provider: Provider | null 
   assistantRoutes(app, db, cache, assistant, usage);
   assistantAdminRoutes(app, db, cache, assistant);
   assistantCredentialRoutes(app, db, assistant);
-  const payments = new Payments(db, provider, config.publicOrigin); paymentRoutes(app, db, payments);
+  const payments = new Payments(db, provider, config.publicOrigin); paymentRoutes(app, db, payments, cache);
   app.notFound(c => c.json({ type: 'about:blank', title: 'Not Found', status: 404 }, 404));
   return { app, payments, cache, usage };
 }

@@ -152,19 +152,20 @@ export async function readCardImportWorkbook(file: File): Promise<XlsxSheetResul
 }
 
 export async function parseXlsxWorkbook(bytes: Uint8Array): Promise<XlsxSheetResult> {
+  const budget: ExpansionBudget = { expanded: 0 };
   const zip = readZipDirectory(bytes);
   const workbookEntry = zip.get('xl/workbook.xml');
   if (!workbookEntry) throw new Error('File không phải bảng tính Excel .xlsx hợp lệ (thiếu xl/workbook.xml).');
 
-  const workbookXml = decodeBytes(await extractEntry(bytes, workbookEntry));
-  const sheetPath = await resolveFirstSheetPath(zip, workbookXml, bytes);
+  const workbookXml = decodeBytes(await extractEntry(bytes, workbookEntry, budget));
+  const sheetPath = await resolveFirstSheetPath(zip, workbookXml, bytes, budget);
   const sheetEntry = zip.get(sheetPath) ?? zip.get('xl/worksheets/sheet1.xml');
   if (!sheetEntry) throw new Error('Không tìm thấy sheet dữ liệu trong file Excel.');
 
   const sharedEntry = zip.get('xl/sharedStrings.xml');
-  const shared = sharedEntry ? parseSharedStrings(decodeBytes(await extractEntry(bytes, sharedEntry))) : [];
-  const matrix = parseSheetXml(decodeBytes(await extractEntry(bytes, sheetEntry)), shared);
-  const images = await extractEmbeddedImages(zip, sheetPath, bytes);
+  const shared = sharedEntry ? parseSharedStrings(decodeBytes(await extractEntry(bytes, sharedEntry, budget))) : [];
+  const matrix = parseSheetXml(decodeBytes(await extractEntry(bytes, sheetEntry, budget)), shared);
+  const images = await extractEmbeddedImages(zip, sheetPath, bytes, budget);
 
   return { matrix, images };
 }
@@ -426,6 +427,26 @@ interface ZipEntry {
   flags: number;
 }
 
+/**
+ * The dialog only caps the *compressed* file, but a workbook is an attacker-chipped container:
+ * deflate reaches ~1000:1 and a sheet can name row numbers far above the rows it actually holds.
+ * Everything below is a bound on the expansion the admin's own tab has to pay for, counted while
+ * the bytes arrive rather than after, so the peak never exceeds the limit by more than one chunk.
+ */
+const MAX_ZIP_ENTRIES = 2_000;
+/** Same ceiling the per-image validation already reports to the user, so nothing newly fails. */
+const MAX_ENTRY_EXPANDED_BYTES = 25 * 1024 * 1024;
+const MAX_WORKBOOK_EXPANDED_BYTES = 50 * 1024 * 1024;
+/** OOXML allows 1,048,576 rows, but a card import is a sheet of cards, not a spreadsheet stress test. */
+const MAX_SHEET_ROWS = 50_000;
+const MAX_SHEET_COLUMNS = 16_384;
+const MAX_SHEET_CELLS = 200_000;
+
+/** Raised only by the byte/index budgets, so it must never be swallowed as an unreadable entry. */
+class ImportLimitError extends Error {}
+
+interface ExpansionBudget { expanded: number }
+
 function readZipDirectory(bytes: Uint8Array): Map<string, ZipEntry> {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   let eocd = -1;
@@ -441,9 +462,12 @@ function readZipDirectory(bytes: Uint8Array): Map<string, ZipEntry> {
   const directoryOffset = view.getUint32(eocd + 16, true);
   const decoder = new TextDecoder();
   const entries = new Map<string, ZipEntry>();
+  if (count > MAX_ZIP_ENTRIES) throw new ImportLimitError(`File .xlsx có quá nhiều mục nén (giới hạn ${MAX_ZIP_ENTRIES}).`);
   let cursor = directoryOffset;
 
   for (let index = 0; index < count; index++) {
+    // nameLength/extraLength/commentLength are file-supplied, so the walk must stay inside the buffer.
+    if (cursor < 0 || cursor + 46 > bytes.length) throw new Error('Cấu trúc ZIP của file .xlsx bị hỏng.');
     if (view.getUint32(cursor, true) !== 0x02014b50) throw new Error('Cấu trúc ZIP của file .xlsx bị hỏng.');
     const flags = view.getUint16(cursor + 8, true);
     const method = view.getUint16(cursor + 10, true);
@@ -462,8 +486,17 @@ function readZipDirectory(bytes: Uint8Array): Map<string, ZipEntry> {
   return entries;
 }
 
-async function extractEntry(bytes: Uint8Array, entry: ZipEntry): Promise<Uint8Array> {
+/** Charge one decoded chunk against the workbook-wide budget, aborting as soon as it is over. */
+function chargeExpansion(budget: ExpansionBudget, bytes: number): void {
+  budget.expanded += bytes;
+  if (budget.expanded > MAX_WORKBOOK_EXPANDED_BYTES) {
+    throw new ImportLimitError(`File .xlsx giải nén vượt ${(MAX_WORKBOOK_EXPANDED_BYTES / 1024 / 1024).toFixed(0)} MB (giới hạn an toàn khi nhập liệu).`);
+  }
+}
+
+async function extractEntry(bytes: Uint8Array, entry: ZipEntry, budget: ExpansionBudget): Promise<Uint8Array> {
   if (entry.flags & 1) throw new Error('File .xlsx đang được bảo vệ bằng mật khẩu; hãy bỏ mật khẩu trước khi nhập.');
+  if (entry.localOffset < 0 || entry.localOffset + 30 > bytes.length) throw new Error('Cấu trúc ZIP của file .xlsx bị hỏng.');
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   if (view.getUint32(entry.localOffset, true) !== 0x04034b50) throw new Error('Cấu trúc ZIP của file .xlsx bị hỏng.');
   const nameLength = view.getUint16(entry.localOffset + 26, true);
@@ -471,27 +504,52 @@ async function extractEntry(bytes: Uint8Array, entry: ZipEntry): Promise<Uint8Ar
   const start = entry.localOffset + 30 + nameLength + extraLength;
   const data = bytes.subarray(start, start + entry.compressedSize);
 
-  if (entry.method === 0) return data;
+  if (entry.method === 0) {
+    chargeExpansion(budget, data.byteLength);
+    return data;
+  }
   if (entry.method !== 8) throw new Error(`File .xlsx dùng kiểu nén ZIP không hỗ trợ (${entry.method}).`);
   if (typeof DecompressionStream === 'undefined') {
     throw new Error('Trình duyệt không hỗ trợ giải nén .xlsx. Hãy dùng Chrome, Edge, Firefox hoặc Safari mới.');
   }
+  // Chunk-wise: Response(stream).arrayBuffer() would materialize the whole expansion first, which
+  // is exactly the amplification a sub-50 MB container is supposed to be unable to buy.
   const stream = new Response(arrayBufferOf(data)).body!.pipeThrough(new DecompressionStream('deflate-raw'));
-  return new Uint8Array(await new Response(stream).arrayBuffer());
+  const reader = stream.getReader();
+  const chunks: Uint8Array[] = [];
+  let expanded = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      expanded += value.byteLength;
+      if (expanded > MAX_ENTRY_EXPANDED_BYTES) {
+        throw new ImportLimitError(`Mục "${entry.name.slice(0, 80)}" giải nén vượt ${(MAX_ENTRY_EXPANDED_BYTES / 1024 / 1024).toFixed(0)} MB.`);
+      }
+      chargeExpansion(budget, value.byteLength);
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  const result = new Uint8Array(expanded);
+  let offset = 0;
+  for (const chunk of chunks) { result.set(chunk, offset); offset += chunk.byteLength; }
+  return result;
 }
 
 function arrayBufferOf(data: Uint8Array): ArrayBuffer {
   return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer;
 }
 
-async function resolveFirstSheetPath(zip: Map<string, ZipEntry>, workbookXml: string, bytes: Uint8Array): Promise<string> {
+async function resolveFirstSheetPath(zip: Map<string, ZipEntry>, workbookXml: string, bytes: Uint8Array, budget: ExpansionBudget): Promise<string> {
   const sheetTag = /<sheet\b[^>]*>/i.exec(workbookXml)?.[0];
   const relationshipId = sheetTag ? /\br:id="([^"]+)"/i.exec(sheetTag)?.[1] : undefined;
   if (!relationshipId) return 'xl/worksheets/sheet1.xml';
 
   const relsEntry = zip.get('xl/_rels/workbook.xml.rels');
   if (!relsEntry) return 'xl/worksheets/sheet1.xml';
-  const relsXml = decodeBytes(await extractEntry(bytes, relsEntry));
+  const relsXml = decodeBytes(await extractEntry(bytes, relsEntry, budget));
   const relTag = new RegExp(`<Relationship\\b[^>]*\\bId="${escapeRegExp(relationshipId)}"[^>]*>`, 'i').exec(relsXml)?.[0];
   const target = relTag ? /\bTarget="([^"]+)"/i.exec(relTag)?.[1] : undefined;
   return target ? resolveZipPath('xl/workbook.xml', decodeXml(target)) : 'xl/worksheets/sheet1.xml';
@@ -539,7 +597,8 @@ function mimeTypeForExtension(fileName: string): string {
 async function extractEmbeddedImages(
   zip: Map<string, ZipEntry>,
   sheetPath: string,
-  bytes: Uint8Array
+  bytes: Uint8Array,
+  budget: ExpansionBudget
 ): Promise<Map<number, CardEmbeddedImage>> {
   const images = new Map<number, CardEmbeddedImage>();
 
@@ -551,7 +610,7 @@ async function extractEmbeddedImages(
   const sheetRelsEntry = zip.get(sheetRelsPath);
   if (!sheetRelsEntry) return images;
 
-  const sheetRelsXml = decodeBytes(await extractEntry(bytes, sheetRelsEntry));
+  const sheetRelsXml = decodeBytes(await extractEntry(bytes, sheetRelsEntry, budget));
   const sheetRels = parseAllRelationships(sheetRelsXml);
 
   const drawingRel = sheetRels.find(r => r.type.includes('drawing') || r.type.endsWith('/drawing'));
@@ -569,13 +628,13 @@ async function extractEmbeddedImages(
   const drawingRelsEntry = zip.get(drawingRelsPath);
   const drawingRels = new Map<string, string>();
   if (drawingRelsEntry) {
-    const drawingRelsXml = decodeBytes(await extractEntry(bytes, drawingRelsEntry));
+    const drawingRelsXml = decodeBytes(await extractEntry(bytes, drawingRelsEntry, budget));
     for (const rel of parseAllRelationships(drawingRelsXml)) {
       drawingRels.set(rel.id, rel.target);
     }
   }
 
-  const drawingXml = decodeBytes(await extractEntry(bytes, drawingEntry));
+  const drawingXml = decodeBytes(await extractEntry(bytes, drawingEntry, budget));
   const anchorRe = /<(?:[a-zA-Z0-9]+:)?(?:twoCellAnchor|oneCellAnchor)\b[\s\S]*?<\/(?:[a-zA-Z0-9]+:)?(?:twoCellAnchor|oneCellAnchor)>/gi;
   let match: RegExpExecArray | null;
 
@@ -600,7 +659,7 @@ async function extractEmbeddedImages(
         const imageEntry = zip.get(imageZipPath);
         if (imageEntry) {
           try {
-            const imageBytes = await extractEntry(bytes, imageEntry);
+            const imageBytes = await extractEntry(bytes, imageEntry, budget);
             const fileName = imageZipPath.split('/').pop() ?? 'image.png';
             const mimeType = mimeTypeForExtension(fileName);
 
@@ -614,8 +673,10 @@ async function extractEmbeddedImages(
                 col,
               });
             }
-          } catch {
-            // Ignore unreadable image entry
+          } catch (error) {
+            // A malformed anchor must not abort the whole preview, but a budget breach is the
+            // container saying it wants the admin's tab to die — that has to reach the caller.
+            if (error instanceof ImportLimitError) throw error;
           }
         }
       }
@@ -641,9 +702,16 @@ function parseSheetXml(xml: string, shared: string[]): string[][] {
   const rowRe = /<row\b([^>]*?)(?:\/>|>([\s\S]*?)<\/row>)/gi;
   let rowMatch: RegExpExecArray | null;
   let lastRow = 0;
+  let cellsRead = 0;
 
   while ((rowMatch = rowRe.exec(sheetData))) {
     const rowNumber = Number(/\br="(\d+)"/i.exec(rowMatch[1])?.[1] ?? lastRow + 1);
+    // `r` is document-supplied and becomes an array length a few lines below, so it is bounded
+    // before anything is allocated: one <row r="4294967294"> would otherwise ask for four
+    // billion holes in the matrix the preview then has to walk.
+    if (!Number.isSafeInteger(rowNumber) || rowNumber < 1 || rowNumber > MAX_SHEET_ROWS) {
+      throw new ImportLimitError(`File Excel có chỉ số dòng không hợp lệ (tối đa ${MAX_SHEET_ROWS} dòng).`);
+    }
     lastRow = rowNumber;
     const cells: string[] = [];
     const cellRe = /<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/gi;
@@ -654,6 +722,14 @@ function parseSheetXml(xml: string, shared: string[]): string[][] {
       const attributes = cellMatch[1];
       const reference = /\br="([A-Z]+)\d+"/i.exec(attributes)?.[1];
       const column = reference ? columnIndex(reference) : lastColumn;
+      // Same reason for the column letter run: "ZZZ1" is index 18277, and a longer letter string
+      // overflows into the millions before any cell is ever read.
+      if (!Number.isSafeInteger(column) || column < 0 || column >= MAX_SHEET_COLUMNS) {
+        throw new ImportLimitError(`File Excel có chỉ số cột không hợp lệ (tối đa ${MAX_SHEET_COLUMNS} cột).`);
+      }
+      if (++cellsRead > MAX_SHEET_CELLS) {
+        throw new ImportLimitError(`File Excel có quá nhiều ô đã điền (tối đa ${MAX_SHEET_CELLS}).`);
+      }
       lastColumn = column + 1;
       const type = /\bt="([^"]+)"/i.exec(attributes)?.[1] ?? 'n';
       cells[column] = cellValue(cellMatch[2] ?? '', type, shared);

@@ -117,6 +117,16 @@ async function postJson(provider: ProviderId, fetcher: FetchLike, url: string, h
   catch { throw new ProviderError(provider, 'INVALID'); }
 }
 
+/**
+ * Model ids reach a URL path for Workers AI and Gemini, and a JSON body for the others.
+ * Dot segments must never survive: `..` in an admin-set override would walk the Cloudflare
+ * path and send the AI-Run bearer token to a different endpoint of the same account.
+ * Every shipped catalog id satisfies this, so safe values are passed through byte-identical.
+ */
+export const isSafeModelPath = (model: string): boolean =>
+  model.length > 0 && model.length <= 120
+  && model.split('/').every(segment => /^[A-Za-z0-9@:._+-]{1,80}$/.test(segment) && segment !== '.' && segment !== '..');
+
 export interface WorkersAiOptions { accountId: string; token: string; model?: string; slot?: string; fetch?: FetchLike; }
 export function workersAiProvider(options: WorkersAiOptions): ChatProvider {
   const fetcher = options.fetch ?? fetch;
@@ -124,6 +134,7 @@ export function workersAiProvider(options: WorkersAiOptions): ChatProvider {
     id: 'workers-ai', slot, model,
     withModel: next => build(next, slot),
     async complete(request) {
+      if (!isSafeModelPath(model)) throw new ProviderError('workers-ai', 'INVALID');
       const data = await postJson('workers-ai', fetcher,
         `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(options.accountId)}/ai/run/${model}`,
         { Authorization: `Bearer ${options.token}` },

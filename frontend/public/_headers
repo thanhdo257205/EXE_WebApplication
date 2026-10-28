@@ -1,3 +1,11 @@
+# The SPA fallback in _redirects serves index.html for every route, so the document path is the
+# only place a framing policy can be attached. The gateway's Origin/Sec-Fetch gates cannot tell a
+# framed document from a tab: an embedded page sends same-origin values by construction.
+# Same intent as the payment-return document (backend/server/src/payments.ts).
+/*
+  Content-Security-Policy: frame-ancestors 'none'
+  X-Frame-Options: DENY
+  Referrer-Policy: no-referrer
 /assets/fonts/*
   Cache-Control: public, max-age=2592000
 /assets/models/*
