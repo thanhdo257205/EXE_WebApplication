@@ -3,12 +3,28 @@ import assert from 'node:assert/strict';
 import { randomBytes, createHmac } from 'node:crypto';
 import { SignJWT } from 'jose';
 import bcrypt from 'bcryptjs';
+import type { Client } from '@libsql/client';
 import { database, initializeLocal, execute, one, all, scalar, now, at, uuid } from '../src/db.ts';
 import { createApp } from '../src/app.ts';
 import { type Config, type Actor } from '../src/auth.ts';
 import { type Provider, checkoutSchema, payosProvider } from '../src/payments.ts';
+import { type AssistantOptions, type ChatProvider, ProviderError } from '../src/assistant-providers.ts';
 
-async function fixture(options: { provider?: Provider | null; mail?: (email: string, url: string) => Promise<void>; reset?: boolean } = {}) {
+const chatProvider = (id: ChatProvider['id'], complete: ChatProvider['complete'], model = 'test-model'): ChatProvider => ({ id, model, complete });
+
+async function publishKnowledge(db: Client) {
+  const release = uuid(), set = uuid(), card = uuid(), page = uuid();
+  await execute(db, "INSERT INTO content_releases(id,version_label,title,status,current_slot,published_at) VALUES (?,'test-v1','Bản thử','PUBLISHED',1,?)", [release, now()]);
+  await execute(db, "INSERT INTO card_sets(id,code,slug) VALUES (?,'SET','bo-thu')", [set]);
+  await execute(db, "INSERT INTO card_set_revisions(id,card_set_id,release_id,name,description,sort_order) VALUES (?,?,?,'Bộ thử','Mô tả bộ thử.',0)", [uuid(), set, release]);
+  await execute(db, "INSERT INTO game_cards(id,code,slug) VALUES (?,'CARD','the-nguoi-moi')", [card]);
+  await execute(db, "INSERT INTO card_revisions(id,card_id,release_id,card_set_id,name,effect_text,ruling_notes,rule_status,copies_in_deck,sort_order) VALUES (?,?,?,?,'Thẻ Người Mới','Khi bắt đầu tháng, nhận 1 Tiền.','Áp dụng một lần.','CONFIRMED',2,0)", [uuid(), card, release, set]);
+  await execute(db, "INSERT INTO wiki_pages(id,slug,page_type) VALUES (?,'luat-co-ban','RULE')", [page]);
+  await execute(db, "INSERT INTO wiki_page_revisions(id,page_id,release_id,title,summary,body_markdown,rule_status) VALUES (?,?,?,'Luật cơ bản','Cách trả hóa đơn.','Mỗi tháng mỗi người góp 0–4 Tiền vào Quỹ Chung. Hóa đơn cơ bản là 8 Tiền.','CONFIRMED')", [uuid(), page, release]);
+  return release;
+}
+
+async function fixture(options: { provider?: Provider | null; mail?: (email: string, url: string) => Promise<void>; reset?: boolean; assistant?: AssistantOptions | null } = {}) {
   const db = database('file::memory:'); await initializeLocal(db);
   const config: Config = { production: false, publicOrigin: 'http://localhost:4200', proxySecret: 'test-proxy-secret-at-least-32-characters', jwtSecret: randomBytes(32).toString('base64'), googleClientId: '', googleClientSecret: '', googleEnabled: false, resetEnabled: options.reset ?? false, resendKey: '', mailFrom: '' };
   const user = uuid(), admin = uuid(), other = uuid();
@@ -25,7 +41,7 @@ async function fixture(options: { provider?: Provider | null; mail?: (email: str
     cancel: async code => ({ orderCode: code, amount: 2000, amountPaid: 0, id: 'link-' + code, status: 'CANCELLED', transactions: [] }),
     verify: async b => { if (b.signature !== 'signed-test-fixture') throw new Error('Invalid'); return b.data; },
   };
-  const { app, payments } = createApp(db, config, options.provider === undefined ? mock : options.provider, options.mail);
+  const { app, payments } = createApp(db, config, options.provider === undefined ? mock : options.provider, options.mail, undefined, options.assistant ?? null);
   const tokens = new Map<string, string>();
   async function token(id: string, version = 0, expiry = '30m') { return new SignJWT({ ver: version }).setProtectedHeader({ alg: 'HS256', typ: 'JWT' }).setIssuer('exe-web-api').setAudience('exe-web').setSubject(id).setJti(uuid()).setIssuedAt().setExpirationTime(expiry).sign(Buffer.from(config.jwtSecret, 'base64')); }
   for (const id of [user, admin, other]) tokens.set(id, await token(id));
@@ -408,4 +424,85 @@ test('address book rejects invalid input, requires CSRF and keeps the checkout s
   await f.request('DELETE', `/api/v1/addresses/${saved.id}`);
   const row = await one(f.db, 'SELECT shipping_address_line,shipping_province FROM orders WHERE id=?', [order.id]);
   assert.equal(row.shipping_address_line, '12 Đường Thử'); assert.equal(row.shipping_province, 'Hà Nội');
+});
+
+test('assistant is public, falls back on quota and grounds the prompt in published content', async t => {
+  const attempts: string[] = []; let prompt = ''; let messages: { role: string; content: string }[] = [];
+  const assistant: AssistantOptions = {
+    timeoutMs: 2_000, attemptTimeoutMs: 1_000, maxOutputTokens: 300, temperature: 0.2,
+    providers: [
+      chatProvider('workers-ai', async () => { attempts.push('workers-ai'); throw new ProviderError('workers-ai', 'QUOTA'); }),
+      chatProvider('gemini', async request => { attempts.push('gemini'); prompt = request.system; messages = request.messages; return 'Mỗi người góp 0–4 Tiền [1].'; }),
+    ],
+  };
+  const f = await fixture({ assistant }); t.after(() => f.db.close());
+  await publishKnowledge(f.db);
+  const response = await f.request('POST', '/api/v1/assistant/chat', {
+    message: 'Quỹ chung góp bao nhiêu?',
+    history: [{ role: 'user', content: 'Chào bạn' }, { role: 'assistant', content: 'Chào bạn!' }],
+  }, null);
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.answer, 'Mỗi người góp 0–4 Tiền [1].');
+  assert.equal(body.release.versionLabel, 'test-v1');
+  assert.ok(body.sources.some((source: any) => source.url === '/wiki/luat-co-ban'));
+  assert.deepEqual(attempts, ['workers-ai', 'gemini']);
+  assert.match(prompt, /TÀI LIỆU/); assert.match(prompt, /Luật cơ bản/); assert.match(prompt, /Quỹ Chung/);
+  assert.deepEqual(messages.map(message => message.role), ['user', 'assistant', 'user']);
+});
+
+test('assistant caches answers per release and conversation without sharing across histories', async t => {
+  let calls = 0;
+  const assistant: AssistantOptions = {
+    timeoutMs: 2_000, attemptTimeoutMs: 1_000, maxOutputTokens: 300, temperature: 0.2,
+    providers: [chatProvider('groq', async () => { calls++; return `Trả lời ${calls}`; })],
+  };
+  const f = await fixture({ assistant }); t.after(() => f.db.close());
+  await publishKnowledge(f.db);
+  const ask = (message = 'Cách chơi?', history: { role: 'user' | 'assistant'; content: string }[] = []) =>
+    f.request('POST', '/api/v1/assistant/chat', { message, history }, null);
+  assert.equal((await (await ask()).json()).answer, 'Trả lời 1');
+  assert.equal((await (await ask('  cách chơi  ')).json()).answer, 'Trả lời 1');
+  assert.equal((await (await ask('Cách chơi!')).json()).answer, 'Trả lời 1');
+  assert.equal(calls, 1);
+  const prior = [{ role: 'user' as const, content: 'Hỏi trước đó' }];
+  assert.equal((await (await ask('Cách chơi?', prior)).json()).answer, 'Trả lời 2');
+  assert.equal((await (await ask('Cách chơi?', prior)).json()).answer, 'Trả lời 2');
+  assert.equal(calls, 2);
+  assert.equal((await (await ask('Cách chơi?', [{ role: 'user', content: 'Hỏi khác' }])).json()).answer, 'Trả lời 3');
+  assert.equal(calls, 3);
+});
+
+test('assistant fails closed with AI_UNAVAILABLE and answers gracefully without a release', async t => {
+  const failing: AssistantOptions = {
+    timeoutMs: 2_000, attemptTimeoutMs: 1_000, maxOutputTokens: 300, temperature: 0.2,
+    providers: [
+      chatProvider('workers-ai', async () => { throw new ProviderError('workers-ai', 'AUTH'); }),
+      chatProvider('openrouter', async () => { throw new ProviderError('openrouter', 'UNAVAILABLE'); }),
+    ],
+  };
+  const f = await fixture({ assistant: failing }); t.after(() => f.db.close());
+  await publishKnowledge(f.db);
+  const failed = await f.request('POST', '/api/v1/assistant/chat', { message: 'Luật là gì?' }, null);
+  assert.equal(failed.status, 503); assert.equal((await failed.json()).code, 'AI_UNAVAILABLE');
+
+  let calls = 0;
+  const g = await fixture({ assistant: { ...failing, providers: [chatProvider('groq', async () => { calls++; return 'không dùng'; })] } }); t.after(() => g.db.close());
+  const empty = await g.request('POST', '/api/v1/assistant/chat', { message: 'Cách chơi?' }, null);
+  assert.equal(empty.status, 200);
+  const body = await empty.json();
+  assert.equal(body.release, null); assert.match(body.answer, /chưa có bản nội dung/);
+  assert.equal(calls, 0);
+});
+
+test('assistant validates input and fails closed when no provider is configured', async t => {
+  const f = await fixture(); t.after(() => f.db.close());
+  const send = (body: any) => f.request('POST', '/api/v1/assistant/chat', body, null);
+  assert.equal((await send({ message: '   ' })).status, 400);
+  assert.equal((await send({ message: 'x'.repeat(1001) })).status, 400);
+  assert.equal((await send({ message: 'hỏi', history: Array.from({ length: 9 }, () => ({ role: 'user', content: 'x' })) })).status, 400);
+  assert.equal((await send({ message: 'hỏi', history: [{ role: 'user', content: 'x'.repeat(601) }] })).status, 400);
+  const unavailable = await send({ message: 'Cách chơi?' });
+  assert.equal(unavailable.status, 503); assert.equal((await unavailable.json()).code, 'AI_UNAVAILABLE');
+  assert.equal((await f.request('GET', '/api/v1/assistant/chat', undefined, null)).status, 404);
 });

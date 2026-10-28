@@ -8,6 +8,7 @@ import type { Config } from './auth.ts';
 import bcrypt from 'bcryptjs';
 import { initializeRbac } from './rbac.ts';
 import { initializeRegistrationNotifications } from './registration-notifications.ts';
+import { assistantFromEnv } from './assistant-providers.ts';
 
 const production = process.env.NODE_ENV === 'production';
 const config: Config = {
@@ -38,6 +39,9 @@ await initializeRbac(db);
 await initializeRegistrationNotifications(db);
 const r2 = r2Config(process.env);
 const azure = azureMediaConfig(process.env);
-const { app } = createApp(db, config, payosProvider(process.env), undefined, azure ? azureMediaStore(azure) : r2 ? r2Store(r2) : null);
+const assistant = assistantFromEnv(process.env);
+if (assistant.providers.length) console.log('AI providers configured', { providers: assistant.providers.map(provider => provider.id) });
+else console.warn('No AI provider credentials: /api/v1/assistant/chat will return AI_UNAVAILABLE');
+const { app } = createApp(db, config, payosProvider(process.env), undefined, azure ? azureMediaStore(azure) : r2 ? r2Store(r2) : null, assistant);
 const server = serve({ fetch: app.fetch, port: Number(process.env.PORT || 8080), hostname: '0.0.0.0' }, () => console.log('API listening'));
 for (const signal of ['SIGTERM', 'SIGINT'] as const) process.once(signal, () => { server.close(() => { db.close(); process.exit(0); }); setTimeout(() => { if ('closeAllConnections' in server) server.closeAllConnections(); db.close(); process.exit(0); }, 50_000).unref(); });

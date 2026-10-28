@@ -64,9 +64,10 @@ export function authRoutes(app: Api, db: Client, cfg: Config, sendMail?: (email:
     const token = getCookie(c, 'XSRF-TOKEN') || csrf(c);
     return c.json({ headerName: 'X-XSRF-TOKEN', token });
   });
-  // Enforce CSRF before every mutation except signature/credential-protected provider endpoints.
+  // Enforce CSRF before every mutation except signature/credential-protected provider endpoints and the
+  // public, read-only assistant (same-origin enforced and rate-limited by the gateway).
   app.use('/api/*', async (c, next) => {
-    const exempt = ['/api/v1/payments/payos/webhook', '/api/v1/internal/payments/reconcile'].includes(c.req.path);
+    const exempt = ['/api/v1/payments/payos/webhook', '/api/v1/internal/payments/reconcile', '/api/v1/assistant/chat'].includes(c.req.path);
     if (!['GET', 'HEAD', 'OPTIONS'].includes(c.req.method) && !exempt) {
       const token = getCookie(c, 'XSRF-TOKEN'); const supplied = c.req.header('X-XSRF-TOKEN');
       if (!token || !supplied || !same(token, supplied)) return fail(403, 'CSRF_REQUIRED');
