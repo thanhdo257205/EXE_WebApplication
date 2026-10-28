@@ -165,9 +165,12 @@
                   } @else {
                     <span class="hint">{{ key.hint }}</span>
                     @if (key.accountHint) { <small class="cell-note">Account: {{ key.accountHint }}</small> }
+                    @if (testResult(key.id); as result) {
+                      <small class="cell-note test-result" [class.ok]="result.status === 'OK'" [class.failed]="result.status === 'FAILED'">{{ keyTestLabel(result) }}</small>
+                    }
                     @if (key.canReveal) {
                       <button type="button" class="link-button" (click)="revealKey(key)" [disabled]="keyBusy() === key.id">
-                        {{ keyBusy() === key.id ? 'Đang mở…' : 'Xem' }}
+                        {{ keyBusy() === key.id && keyTesting() !== key.id ? 'Đang mở…' : 'Xem' }}
                       </button>
                     }
                   }
@@ -179,6 +182,11 @@
                   </span>
                 </td>
                 <td class="actions">
+                  @if (key.canTest) {
+                    <button type="button" (click)="testKey(key)" [disabled]="keyBusy() === key.id">
+                      {{ keyTesting() === key.id ? 'Đang kiểm tra…' : 'Kiểm tra' }}
+                    </button>
+                  }
                   @if (canManageKeys() && key.status === 'PENDING') {
                     <button type="button" (click)="setKeyStatus(key, 'ACTIVE')" [disabled]="keyBusy() === key.id">Duyệt</button>
                   }

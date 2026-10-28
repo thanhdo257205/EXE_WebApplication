@@ -68,7 +68,8 @@ test('AES-256-GCM credentials round-trip, bind owner/provider and reject tamperi
   assert.equal(decryptSecret(master, encoded, 'aad-1'), '{"key":"secret-key"}');
   assert.throws(() => decryptSecret(master, encoded, 'aad-2'));
   assert.throws(() => decryptSecret(Buffer.alloc(32, 8), encoded, 'aad-1'));
-  const tampered = encoded.slice(0, -1) + (encoded.endsWith('A') ? 'B' : 'A');
+  // Flip the first Base64 character of the IV: the last character can share decoded bytes via unused bits.
+  const tampered = encoded.slice(0, 3) + (encoded[3] === 'A' ? 'B' : 'A') + encoded.slice(4);
   assert.throws(() => decryptSecret(master, tampered, 'aad-1'));
   assert.equal(fingerprintSecret(master, 'groq', 'secret-key'), fingerprintSecret(master, 'groq', 'secret-key'));
   assert.notEqual(fingerprintSecret(master, 'groq', 'secret-key'), fingerprintSecret(master, 'gemini', 'secret-key'));
@@ -99,6 +100,7 @@ test('owner keys activate immediately, stay masked and every reveal is audited',
   assert.equal('secretEnc' in list.items[0], false);
   assert.equal('apiKey' in list.items[0], false);
   assert.equal(list.storageAvailable, true);
+  assert.equal(list.items[0].canTest, true);
 
   const duplicate = await f.createKey(f.owner, { provider: 'groq', label: 'Trùng', apiKey: 'db-key-1234' });
   assert.equal(duplicate.status, 409);
@@ -188,4 +190,71 @@ test('without the master key key management is disabled while env providers keep
   assert.equal(created.status, 503);
   assert.equal((await created.json()).code, 'KEY_STORAGE_UNAVAILABLE');
   assert.equal((await f.ask(f.customer, 'Cách chơi?')).status, 200);
+  const tested = await f.request('POST', `/api/v1/admin/assistant/keys/${uuid()}/test`, f.owner);
+  assert.equal(tested.status, 503);
+  assert.equal((await tested.json()).code, 'KEY_STORAGE_UNAVAILABLE');
+});
+
+test('manual key test reports the provider outcome, is audited and never changes key state', async t => {
+  const f = await fixture(); t.after(() => f.db.close());
+  const good = (await (await f.createKey(f.owner, { provider: 'groq', label: 'Key tốt', apiKey: 'db-key-1234' })).json()).item;
+  const exhausted = (await (await f.createKey(f.owner, { provider: 'groq', label: 'Hết hạn mức', apiKey: 'quota-key-0000' })).json()).item;
+
+  const ok = await f.request('POST', `/api/v1/admin/assistant/keys/${good.id}/test`, f.owner);
+  assert.equal(ok.status, 200);
+  const okBody = await ok.json();
+  assert.equal(okBody.status, 'OK');
+  assert.equal(okBody.code, null);
+  assert.equal(okBody.provider, 'groq');
+  assert.equal(okBody.model, 'env-model');
+  assert.equal(typeof okBody.latencyMs, 'number');
+  assert.match(okBody.testedAt, /^\d{4}-\d{2}-\d{2}T/);
+  assert.equal(JSON.stringify(okBody).includes('db-key-1234'), false);
+  assert.ok(f.fetchCalls.calls.includes('db-key-1234'));
+  assert.equal((await one(f.db, 'SELECT status FROM assistant_credentials WHERE id=?', [good.id])).status, 'ACTIVE');
+  const auditRow = await one(f.db, "SELECT * FROM audit_events WHERE action='ASSISTANT_KEY_TESTED' AND entity_id=?", [good.id]);
+  assert.equal(auditRow.outcome, 'SUCCESS');
+  assert.equal(String(auditRow.details_redacted).includes('db-key-1234'), false);
+  assert.match(auditRow.details_redacted, /result=OK/);
+
+  const failed = await f.request('POST', `/api/v1/admin/assistant/keys/${exhausted.id}/test`, f.owner);
+  assert.equal(failed.status, 200);
+  const failedBody = await failed.json();
+  assert.equal(failedBody.status, 'FAILED');
+  assert.equal(failedBody.code, 'QUOTA');
+  assert.equal((await one(f.db, 'SELECT status FROM assistant_credentials WHERE id=?', [exhausted.id])).status, 'ACTIVE');
+  const failedAudit = await one(f.db, "SELECT * FROM audit_events WHERE action='ASSISTANT_KEY_TESTED' AND entity_id=?", [exhausted.id]);
+  assert.equal(failedAudit.outcome, 'FAILURE');
+  assert.match(failedAudit.details_redacted, /code=QUOTA/);
+
+  const retry = await f.request('POST', `/api/v1/admin/assistant/keys/${exhausted.id}/test`, f.owner);
+  assert.equal(retry.status, 429);
+  assert.equal((await retry.json()).code, 'KEY_TEST_COOLDOWN');
+  assert.ok(Number(retry.headers.get('retry-after')) > 0);
+
+  assert.equal((await f.request('DELETE', `/api/v1/admin/assistant/keys/${good.id}`, f.owner)).status, 200);
+  const revoked = await f.request('POST', `/api/v1/admin/assistant/keys/${good.id}/test`, f.owner);
+  assert.equal(revoked.status, 409);
+  assert.equal((await revoked.json()).code, 'KEY_REVOKED');
+});
+
+test('key tests follow reveal scoping and leave pending keys pending', async t => {
+  const f = await fixture(); t.after(() => f.db.close());
+  const ownerKey = (await (await f.createKey(f.owner, { provider: 'groq', label: 'Owner key', apiKey: 'db-key-1234' })).json()).item;
+  const pending = (await (await f.createKey(f.delegated, { provider: 'groq', label: 'Key phụ', apiKey: 'delegated-key-9999' })).json()).item;
+
+  const foreign = await f.request('POST', `/api/v1/admin/assistant/keys/${ownerKey.id}/test`, f.delegated);
+  assert.equal(foreign.status, 404);
+  assert.equal((await f.request('POST', `/api/v1/admin/assistant/keys/${pending.id}/test`, f.customer)).status, 403);
+  // Without a session the CSRF middleware rejects the unsafe method before authentication.
+  assert.equal((await f.request('POST', `/api/v1/admin/assistant/keys/${pending.id}/test`, null)).status, 403);
+
+  const own = await f.request('POST', `/api/v1/admin/assistant/keys/${pending.id}/test`, f.delegated);
+  assert.equal(own.status, 200);
+  assert.equal((await own.json()).status, 'OK');
+  assert.equal((await one(f.db, 'SELECT status FROM assistant_credentials WHERE id=?', [pending.id])).status, 'PENDING');
+
+  const ownerTest = await f.request('POST', `/api/v1/admin/assistant/keys/${ownerKey.id}/test`, f.owner);
+  assert.equal(ownerTest.status, 200);
+  assert.equal((await ownerTest.json()).status, 'OK');
 });

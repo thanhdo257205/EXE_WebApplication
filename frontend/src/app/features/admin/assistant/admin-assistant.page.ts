@@ -6,6 +6,7 @@ import {
   AssistantKeyCreate,
   AssistantKeySecret,
   AssistantKeyStatus,
+  AssistantKeyTestResult,
   AssistantProviderConfig,
   AssistantSettingsResponse,
   AssistantUsage,
@@ -16,6 +17,15 @@ const KEY_STATUS_LABELS: Record<AssistantKeyStatus, string> = {
   ACTIVE: 'Đang dùng',
   DISABLED: 'Tạm tắt',
   REVOKED: 'Đã thu hồi',
+};
+
+const TEST_FAILURE_LABELS: Record<string, string> = {
+  QUOTA: 'hết hạn mức',
+  AUTH: 'key sai hoặc đã hết hiệu lực',
+  TIMEOUT: 'quá thời gian chờ',
+  UNAVAILABLE: 'nhà cung cấp không sẵn sàng',
+  INVALID: 'cấu hình không hợp lệ',
+  EMPTY: 'không có câu trả lời',
 };
 
 @Component({
@@ -55,9 +65,11 @@ export class AdminAssistantPage implements OnInit {
   readonly keysLoading = signal(false);
   readonly keySaving = signal(false);
   readonly keyBusy = signal('');
+  readonly keyTesting = signal('');
   readonly keyError = signal('');
   readonly keyNotice = signal('');
   readonly revealed = signal<Record<string, AssistantKeySecret>>({});
+  readonly testResults = signal<Record<string, AssistantKeyTestResult>>({});
   readonly revokeConfirm = signal<string | null>(null);
   readonly keyProvider = signal('gemini');
   readonly keyLabel = signal('');
@@ -217,6 +229,46 @@ export class AdminAssistantPage implements OnInit {
     });
   }
 
+  testKey(key: AssistantKey): void {
+    if (!key.canTest || this.keyBusy()) return;
+    this.keyBusy.set(key.id);
+    this.keyTesting.set(key.id);
+    this.keyError.set('');
+    this.keyNotice.set('');
+    this.api.testKey(key.id).subscribe({
+      next: result => {
+        this.keyBusy.set('');
+        this.keyTesting.set('');
+        this.testResults.update(map => ({ ...map, [key.id]: result }));
+        if (result.status === 'OK') {
+          this.keyNotice.set(`Key "${key.label}" hoạt động bình thường: ${result.model} trả lời trong ${result.latencyMs} ms.`);
+        } else {
+          this.keyError.set(`Key "${key.label}" không dùng được: ${this.testFailureLabel(result.code)}. Trạng thái key không thay đổi.`);
+        }
+      },
+      error: error => {
+        this.keyBusy.set('');
+        this.keyTesting.set('');
+        this.keyError.set(this.keyMessage(error, 'Không kiểm tra được key.'));
+      },
+    });
+  }
+
+  testResult(id: string): AssistantKeyTestResult | null {
+    return this.testResults()[id] ?? null;
+  }
+
+  testFailureLabel(code: string | null): string {
+    return code ? TEST_FAILURE_LABELS[code] ?? 'lỗi không xác định' : 'lỗi không xác định';
+  }
+
+  keyTestLabel(result: AssistantKeyTestResult): string {
+    const when = new Date(result.testedAt).toLocaleTimeString('vi-VN');
+    return result.status === 'OK'
+      ? `Kiểm tra ${when}: OK · ${result.model} · ${result.latencyMs} ms`
+      : `Kiểm tra ${when}: ${this.testFailureLabel(result.code)} · ${result.model}`;
+  }
+
   setKeyStatus(key: AssistantKey, status: 'ACTIVE' | 'DISABLED'): void {
     if (!this.canManageKeys() || this.keyBusy()) return;
     this.keyBusy.set(key.id);
@@ -255,6 +307,11 @@ export class AdminAssistantPage implements OnInit {
         this.keyBusy.set('');
         this.revokeConfirm.set(null);
         this.hideKey(key.id);
+        this.testResults.update(map => {
+          const next = { ...map };
+          delete next[key.id];
+          return next;
+        });
         this.keys.update(list => list.filter(item => item.id !== key.id));
         this.keyNotice.set(`Đã thu hồi key "${key.label}". Nội dung key đã bị xoá khỏi máy chủ.`);
         this.load();
@@ -368,6 +425,7 @@ export class AdminAssistantPage implements OnInit {
     if (code === 'KEY_STORAGE_UNAVAILABLE') return 'Máy chủ chưa cấu hình ASSISTANT_KEY_SECRET nên không lưu được key mới.';
     if (code === 'INVALID_ACCOUNT_ID') return 'Cloudflare Workers AI cần Account ID hợp lệ (chỉ chữ, số, gạch ngang/gạch dưới).';
     if (code === 'KEY_REVOKED') return 'Key này đã bị thu hồi nên không thể xem hoặc đổi trạng thái.';
+    if (code === 'KEY_TEST_COOLDOWN') return 'Vừa kiểm tra key này. Chờ khoảng 30 giây rồi thử lại để tránh tốn hạn mức.';
     if (code === 'KEY_UNREADABLE') return 'Không giải mã được key. ASSISTANT_KEY_SECRET có thể đã thay đổi; hãy thu hồi và thêm lại key.';
     return this.messageFor(error, fallback);
   }

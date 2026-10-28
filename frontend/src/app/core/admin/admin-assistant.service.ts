@@ -92,6 +92,7 @@ export interface AssistantKey {
   ownerDisplayName: string;
   isMine: boolean;
   canReveal: boolean;
+  canTest: boolean;
   canManageStatus: boolean;
   createdAt: string;
   updatedAt: string;
@@ -115,6 +116,15 @@ export interface AssistantKeyCreate {
 export interface AssistantKeySecret {
   apiKey: string;
   accountId: string | null;
+}
+
+export interface AssistantKeyTestResult {
+  status: 'OK' | 'FAILED';
+  code: string | null;
+  provider: string;
+  model: string;
+  latencyMs: number;
+  testedAt: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -165,6 +175,15 @@ export class AdminAssistantService {
   setKeyStatus(id: string, status: 'ACTIVE' | 'DISABLED') {
     return this.auth.getCsrf().pipe(switchMap(csrf =>
       this.http.patch<{ item: AssistantKey; changed: boolean }>(`${this.base}/keys/${encodeURIComponent(id)}`, { status }, {
+        withCredentials: true,
+        headers: new HttpHeaders({ [csrf.headerName]: csrf.token }),
+      })
+    ));
+  }
+
+  testKey(id: string) {
+    return this.auth.getCsrf().pipe(switchMap(csrf =>
+      this.http.post<AssistantKeyTestResult>(`${this.base}/keys/${encodeURIComponent(id)}/test`, {}, {
         withCredentials: true,
         headers: new HttpHeaders({ [csrf.headerName]: csrf.token }),
       })
