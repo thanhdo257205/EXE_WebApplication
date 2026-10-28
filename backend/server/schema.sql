@@ -559,3 +559,51 @@ CREATE TABLE admin_registration_notification_reads (
     read_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000Z','now')),
     PRIMARY KEY (notification_id,user_id)
 );
+
+-- V12__assistant_settings_and_usage.sql
+CREATE TABLE assistant_settings (
+    slot INTEGER NOT NULL PRIMARY KEY CHECK (slot = 1),
+    provider_order TEXT NOT NULL,
+    model_overrides TEXT NOT NULL,
+    disabled_slots TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 1 CHECK (version >= 1),
+    updated_by TEXT REFERENCES app_users(id) ON DELETE SET NULL,
+    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000Z','now'))
+);
+
+-- Aggregate provider telemetry only: never question/answer text or user identity.
+CREATE TABLE assistant_usage_daily (
+    day TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    slot TEXT NOT NULL,
+    model TEXT NOT NULL,
+    requests INTEGER NOT NULL DEFAULT 0 CHECK (requests >= 0),
+    cache_hits INTEGER NOT NULL DEFAULT 0 CHECK (cache_hits >= 0),
+    failures INTEGER NOT NULL DEFAULT 0 CHECK (failures >= 0),
+    latency_ms_sum INTEGER NOT NULL DEFAULT 0 CHECK (latency_ms_sum >= 0),
+    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000Z','now')),
+    PRIMARY KEY (day, provider, slot, model)
+);
+
+-- V13__assistant_credentials.sql
+-- Admin-managed provider keys: AES-256-GCM ciphertext, masked hint and HMAC fingerprint only.
+-- Delegated admins create PENDING rows; the owner activates them. Revocation clears secret_enc.
+CREATE TABLE assistant_credentials (
+    id TEXT NOT NULL PRIMARY KEY,
+    provider TEXT NOT NULL CHECK (provider IN ('workers-ai','gemini','groq','openrouter')),
+    owner_id TEXT NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+    label TEXT NOT NULL,
+    secret_enc TEXT NOT NULL,
+    key_hint TEXT NOT NULL,
+    account_hint TEXT,
+    fingerprint TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING','ACTIVE','DISABLED','REVOKED')),
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000Z','now')),
+    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000Z','now')),
+    approved_by TEXT REFERENCES app_users(id) ON DELETE SET NULL,
+    approved_at TEXT,
+    revoked_at TEXT
+);
+CREATE UNIQUE INDEX ux_assistant_credentials_fingerprint ON assistant_credentials(provider,fingerprint) WHERE status <> 'REVOKED';
+CREATE INDEX ix_assistant_credentials_owner ON assistant_credentials(owner_id,created_at);
+CREATE INDEX ix_assistant_credentials_active ON assistant_credentials(status,created_at);

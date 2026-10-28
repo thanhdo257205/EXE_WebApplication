@@ -12,7 +12,7 @@ function environment(overrides = {}) {
   return {
     PUBLIC_ORIGIN: ORIGIN, BACKEND_ORIGIN: 'https://backend.example.test', FRONTEND_ORIGIN: 'https://frontend.example.test',
     ORIGIN_PROXY_SECRET: SECRET, TURNSTILE_SECRET_KEY: 'test-secret',
-    API_LIMITER: limiter(), LOGIN_LIMITER: limiter(), ACCOUNT_LIMITER: limiter(), ...overrides,
+    API_LIMITER: limiter(), LOGIN_LIMITER: limiter(), ACCOUNT_LIMITER: limiter(), AI_LIMITER: limiter(), ...overrides,
   };
 }
 function browser(path = '/api/v1/info', options = {}) {
@@ -193,6 +193,28 @@ test('API rate limit returns 429 and Retry-After without contacting backend', as
   const limited = await handle(browser(), env, noUpstream);
   assert.equal(limited.status, 429); assert.equal(limited.headers.get('Retry-After'), '60');
 });
+test('assistant requires same-origin JSON and has an independent per-IP budget', async () => {
+  const send = (ip = '192.0.2.9') => browser('/api/v1/assistant/chat', {
+    method: 'POST', body: JSON.stringify({ message: 'Cách chơi thế nào?' }),
+    headers: { Origin: ORIGIN, 'Content-Type': 'application/json', 'CF-Connecting-IP': ip },
+  });
+  assert.equal((await handle(send(), environment({ AI_LIMITER: limiter(0) }), noUpstream)).status, 429);
+  assert.equal((await handle(browser('/api/v1/assistant/chat', {
+    method: 'POST', body: '{}', headers: { Origin: ORIGIN, 'Content-Type': 'text/plain' },
+  }), environment(), noUpstream)).status, 415);
+  assert.equal((await handle(browser('/api/v1/assistant/chat', { headers: { Origin: ORIGIN } }), environment(), noUpstream)).status, 405);
+  const env = environment({ AI_LIMITER: limiter(1) });
+  const response = await handle(send(), env, async (input, init) => {
+    assert.equal(String(input), 'https://backend.example.test/api/v1/assistant/chat');
+    assert.equal(init.headers.get('Content-Type'), 'application/json');
+    assert.equal(init.headers.get('X-Origin-Verify'), SECRET);
+    return Response.json({ answer: 'Câu trả lời thử.' });
+  });
+  assert.equal(response.status, 200);
+  assert.equal((await handle(send(), env, noUpstream)).status, 429);
+  assert.equal((await handle(send('192.0.2.10'), env, async () => Response.json({ answer: 'ok' }))).status, 200, 'another IP has its own budget');
+});
+
 test('login IP and account limits are applied before authentication', async () => {
   assert.equal((await handle(login(), environment({ LOGIN_LIMITER: limiter(0) }), noUpstream)).status, 429);
   assert.equal((await handle(login(), environment({ ACCOUNT_LIMITER: limiter(0) }), noUpstream)).status, 429);

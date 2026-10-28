@@ -1,0 +1,276 @@
+<section class="assistant-page">
+  <a routerLink="/admin" class="back-link">← Tổng quan quản trị</a>
+  <header>
+    <p class="eyebrow">Trợ lý AI &amp; hạn mức</p>
+    <h1>Bộ định tuyến AI</h1>
+    <p>Sắp thứ tự nhà cung cấp, đổi model và tạm khóa từng API key. Khi một key hết hạn mức, hệ thống tự chuyển sang key kế tiếp.</p>
+  </header>
+
+  <div class="access-note" role="note">
+    {{ canManage() ? 'Bạn có quyền thay đổi cấu hình. Mọi thay đổi được ghi vào audit log.' : 'Bạn chỉ xem được cấu hình và số liệu. Chỉ admin chính được thay đổi.' }}
+    Key hệ thống trong biến môi trường chỉ hiển thị vị trí, không thể xem nội dung. Key do quản trị viên thêm được quản lý ở mục “API key trong trang quản trị” bên dưới.
+  </div>
+
+  @if (error()) { <div class="error" role="alert">{{ error() }} <button type="button" (click)="load()" [disabled]="loading()">Tải lại</button></div> }
+  @if (notice()) { <p class="notice" role="status">{{ notice() }}</p> }
+
+  <section class="panel" aria-labelledby="usage-title">
+    <div class="panel-head">
+      <div>
+        <h2 id="usage-title">Số liệu sử dụng</h2>
+        <p class="muted">Chỉ đếm theo nhà cung cấp, key và model. Không lưu câu hỏi hay nội dung trả lời.</p>
+      </div>
+      <div class="day-filter" role="group" aria-label="Khoảng thời gian">
+        @for (option of dayOptions; track option) {
+          <button type="button" [class.active]="days() === option" (click)="setDays(option)" [disabled]="usageLoading()">{{ option }} ngày</button>
+        }
+      </div>
+    </div>
+
+    @if (usage(); as data) {
+      <dl class="totals" [attr.aria-busy]="usageLoading()">
+        <div><dt>Câu hỏi</dt><dd>{{ data.totals.requests }}</dd></div>
+        <div><dt>Đã trả lời</dt><dd>{{ data.totals.answered }}</dd></div>
+        <div><dt>Cache</dt><dd>{{ data.totals.cacheHits }} <small>({{ cacheRate() }}%)</small></dd></div>
+        <div><dt>Lỗi</dt><dd>{{ data.totals.failures }}</dd></div>
+        <div><dt>Độ trễ TB</dt><dd>{{ data.totals.avgLatencyMs }} <small>ms</small></dd></div>
+      </dl>
+
+      @if (data.providers.length) {
+        <div class="table-wrap">
+          <table>
+            <caption>Hiệu suất theo nhà cung cấp</caption>
+            <thead><tr><th scope="col">Nhà cung cấp</th><th scope="col">Câu hỏi</th><th scope="col">Lỗi</th><th scope="col">Độ trễ TB</th></tr></thead>
+            <tbody>
+              @for (row of data.providers; track row.provider) {
+                <tr>
+                  <td>{{ providerLabel(row.provider) }}</td>
+                  <td>{{ row.requests }}</td>
+                  <td>{{ row.failures }}</td>
+                  <td>{{ row.avgLatencyMs }} ms</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      } @else {
+        <p class="muted">Chưa có câu hỏi nào trong khoảng thời gian này.</p>
+      }
+
+      @if (data.slots.length) {
+        <div class="table-wrap">
+          <table>
+            <caption>Chi tiết từng key</caption>
+            <thead><tr><th scope="col">Key</th><th scope="col">Model</th><th scope="col">Câu hỏi</th><th scope="col">Lỗi</th><th scope="col">Độ trễ TB</th></tr></thead>
+            <tbody>
+              @for (row of data.slots; track row.slot) {
+                <tr>
+                  <td>{{ row.slot }}</td>
+                  <td class="model">{{ row.model }}</td>
+                  <td>{{ row.requests }}</td>
+                  <td>{{ row.failures }}</td>
+                  <td>{{ row.avgLatencyMs }} ms</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+
+      @if (data.daily.length) {
+        <div class="table-wrap">
+          <table>
+            <caption>Theo ngày (UTC)</caption>
+            <thead><tr><th scope="col">Ngày</th><th scope="col">Câu hỏi</th><th scope="col">Cache</th><th scope="col">Lỗi</th></tr></thead>
+            <tbody>
+              @for (row of data.daily; track row.day) {
+                <tr><td>{{ row.day }}</td><td>{{ row.requests }}</td><td>{{ row.cacheHits }}</td><td>{{ row.failures }}</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    } @else if (usageLoading()) {
+      <p class="muted" role="status">Đang tải số liệu…</p>
+    }
+  </section>
+
+  <section class="panel" aria-labelledby="keys-title">
+    <div class="panel-head">
+      <div>
+        <h2 id="keys-title">API key trong trang quản trị</h2>
+        <p class="muted">Key được mã hoá AES-256-GCM và chỉ hiển thị 4 ký tự cuối. Admin chính thấy mọi key; admin phụ chỉ thấy key của mình. Key do admin phụ thêm phải được admin chính duyệt.</p>
+      </div>
+      @if (canManageKeys() && pendingKeyCount()) {
+        <span class="pending-badge">{{ pendingKeyCount() }} chờ duyệt</span>
+      }
+    </div>
+
+    @if (!keyStorage()) {
+      <p class="warning" role="note">Máy chủ chưa cấu hình <code>ASSISTANT_KEY_SECRET</code>. Không thể thêm key qua giao diện; key trong biến môi trường vẫn hoạt động bình thường. Quản trị viên máy chủ cần đặt biến này rồi khởi động lại API.</p>
+    } @else {
+      <form class="key-form" (submit)="$event.preventDefault(); createKey()">
+        <label>
+          <span>Nhà cung cấp</span>
+          <select [value]="keyProvider()" (change)="setKeyProvider($event)" [disabled]="keySaving()">
+            @for (option of providerOptions; track option.id) {
+              <option [value]="option.id">{{ option.label }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          <span>Nhãn</span>
+          <input type="text" [value]="keyLabel()" (input)="setKeyLabel($event)" maxlength="80" placeholder="VD: Gemini dự phòng" autocomplete="off" [disabled]="keySaving()" />
+        </label>
+        @if (needsAccount()) {
+          <label>
+            <span>Cloudflare Account ID</span>
+            <input type="text" [value]="keyAccount()" (input)="setKeyAccount($event)" maxlength="64" spellcheck="false" autocomplete="off" [disabled]="keySaving()" />
+          </label>
+        }
+        <label class="key-secret-field">
+          <span>API key</span>
+          <input type="password" [value]="keyValue()" (input)="setKeyValue($event)" maxlength="4096" autocomplete="new-password" spellcheck="false" [disabled]="keySaving()" />
+        </label>
+        <button type="submit" class="primary" [disabled]="!canAddKey()">{{ keySaving() ? 'Đang thêm…' : 'Thêm key' }}</button>
+      </form>
+      <p class="muted form-note">
+        {{ canManageKeys() ? 'Key do admin chính thêm được dùng ngay.' : 'Key do admin phụ thêm ở trạng thái chờ duyệt; admin chính kích hoạt thì mới được dùng.' }}
+        Tối đa {{ keyLimits().perOwner }} key mỗi quản trị viên và {{ keyLimits().active }} key hoạt động toàn hệ thống.
+      </p>
+    }
+
+    @if (keyError()) { <div class="error" role="alert">{{ keyError() }}</div> }
+    @if (keyNotice()) { <p class="notice" role="status">{{ keyNotice() }}</p> }
+
+    @if (keysLoading() && !keys().length) {
+      <p class="muted" role="status">Đang tải danh sách key…</p>
+    } @else if (!keys().length) {
+      <p class="muted">Chưa có key nào do quản trị viên thêm. Key trong biến môi trường (nếu có) vẫn được dùng và không hiển thị nội dung ở đây.</p>
+    } @else {
+      <div class="table-wrap">
+        <table>
+          <caption>Key do quản trị viên thêm</caption>
+          <thead><tr><th scope="col">Nhà cung cấp</th><th scope="col">Nhãn</th><th scope="col">Key</th><th scope="col">Người thêm</th><th scope="col">Trạng thái</th><th scope="col">Thao tác</th></tr></thead>
+          <tbody>
+            @for (key of keys(); track key.id) {
+              <tr>
+                <td>{{ key.providerLabel }}</td>
+                <td>{{ key.label }}<small class="cell-note">{{ formatKeyDate(key.createdAt) }}</small></td>
+                <td class="key-cell">
+                  @if (revealed()[key.id]; as secret) {
+                    <code class="secret">{{ secret.apiKey }}</code>
+                    @if (secret.accountId) { <small class="cell-note">Account: {{ secret.accountId }}</small> }
+                    <button type="button" class="link-button" (click)="hideKey(key.id)">Ẩn</button>
+                  } @else {
+                    <span class="hint">{{ key.hint }}</span>
+                    @if (key.accountHint) { <small class="cell-note">Account: {{ key.accountHint }}</small> }
+                    @if (key.canReveal) {
+                      <button type="button" class="link-button" (click)="revealKey(key)" [disabled]="keyBusy() === key.id">
+                        {{ keyBusy() === key.id ? 'Đang mở…' : 'Xem' }}
+                      </button>
+                    }
+                  }
+                </td>
+                <td>{{ keyOwnerLabel(key) }}</td>
+                <td>
+                  <span class="status" [class.pending]="key.status === 'PENDING'" [class.active]="key.status === 'ACTIVE'" [class.temporarily-off]="key.status === 'DISABLED'">
+                    {{ keyStatusLabel(key.status) }}
+                  </span>
+                </td>
+                <td class="actions">
+                  @if (canManageKeys() && key.status === 'PENDING') {
+                    <button type="button" (click)="setKeyStatus(key, 'ACTIVE')" [disabled]="keyBusy() === key.id">Duyệt</button>
+                  }
+                  @if (canManageKeys() && key.status === 'ACTIVE') {
+                    <button type="button" (click)="setKeyStatus(key, 'DISABLED')" [disabled]="keyBusy() === key.id">Tạm tắt</button>
+                  }
+                  @if (canManageKeys() && key.status === 'DISABLED') {
+                    <button type="button" (click)="setKeyStatus(key, 'ACTIVE')" [disabled]="keyBusy() === key.id">Bật lại</button>
+                  }
+                  @if (canManageKeys() || key.isMine) {
+                    @if (revokeConfirm() === key.id) {
+                      <button type="button" class="danger" (click)="revokeKey(key)" [disabled]="keyBusy() === key.id">Xác nhận thu hồi</button>
+                      <button type="button" (click)="cancelRevoke()" [disabled]="keyBusy() === key.id">Hủy</button>
+                    } @else {
+                      <button type="button" (click)="askRevoke(key)" [disabled]="keyBusy() === key.id">Thu hồi</button>
+                    }
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+
+  <section class="panel" aria-labelledby="config-title">
+    <div class="panel-head">
+      <div>
+        <h2 id="config-title">Thứ tự &amp; model</h2>
+        <p class="muted">{{ updatedLabel() }}</p>
+      </div>
+      @if (canManage()) {
+        <button type="button" class="primary" (click)="save()" [disabled]="saving() || loading()">
+          {{ saving() ? 'Đang lưu…' : 'Lưu cấu hình' }}
+        </button>
+      }
+    </div>
+
+    @if (loading()) {
+      <p class="muted" role="status">Đang tải cấu hình…</p>
+    } @else if (!orderedProviders().length) {
+      <p class="muted">Chưa có nhà cung cấp nào hoạt động. Thêm key ở mục API key phía trên hoặc cấu hình biến môi trường; trợ lý sẽ trả lỗi AI_UNAVAILABLE cho tới khi có key.</p>
+    } @else {
+      <ol class="providers">
+        @for (provider of orderedProviders(); track provider.id; let index = $index) {
+          <li class="provider">
+            <div class="provider-head">
+              <span class="rank" aria-hidden="true">{{ index + 1 }}</span>
+              <div class="provider-title">
+                <h3>{{ provider.label }}</h3>
+                <span class="muted">{{ provider.id === 'workers-ai' ? 'Key Cloudflare' : 'API key' }}: {{ provider.slots.length }}</span>
+              </div>
+              @if (canManage()) {
+                <div class="order-actions">
+                  <button type="button" (click)="move(index, -1)" [disabled]="index === 0" [attr.aria-label]="'Đưa ' + provider.label + ' lên trước'">↑</button>
+                  <button type="button" (click)="move(index, 1)" [disabled]="index === orderedProviders().length - 1" [attr.aria-label]="'Đưa ' + provider.label + ' xuống sau'">↓</button>
+                </div>
+              }
+            </div>
+
+            <label class="model-field">
+              <span>Model</span>
+              <input
+                type="text"
+                [value]="slotModel(provider)"
+                (input)="setModel(provider.id, $event)"
+                [disabled]="!canManage() || saving()"
+                maxlength="120"
+                [attr.aria-label]="'Model cho ' + provider.label"
+                spellcheck="false"
+              />
+            </label>
+
+            <fieldset class="slots">
+              <legend>Key đang dùng</legend>
+              @for (slot of provider.slots; track slot.slot) {
+                <label class="slot">
+                  <input
+                    type="checkbox"
+                    [checked]="isSlotEnabled(slot.slot)"
+                    (change)="toggleSlot(slot.slot)"
+                    [disabled]="!canManage() || saving()"
+                  />
+                  <span [title]="slot.slot">{{ slotLabel(slot.slot) }}</span>
+                  <small [class.off]="!isSlotEnabled(slot.slot)">{{ isSlotEnabled(slot.slot) ? 'Bật' : 'Tạm khóa' }}</small>
+                </label>
+              }
+            </fieldset>
+          </li>
+        }
+      </ol>
+    }
+  </section>
+</section>

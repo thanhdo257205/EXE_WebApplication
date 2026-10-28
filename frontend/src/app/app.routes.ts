@@ -111,6 +111,11 @@ export const routes: Routes = [
     loadComponent: () => import('./features/public-content/public-content.page').then(m => m.PublicContentPage),
   },
   {
+    path: 'tro-ly',
+    title: 'Trợ lý boardgame — Nhà Này Hơi Báo!',
+    loadComponent: () => import('./features/assistant/assistant.page').then(m => m.AssistantPage),
+  },
+  {
     path: 'quy-nha',
     title: 'Quỹ Nhà Chung — Nhà Này Hơi Báo!',
     loadComponent: () => import('./features/fund/fund.page').then(m => m.FundPage),

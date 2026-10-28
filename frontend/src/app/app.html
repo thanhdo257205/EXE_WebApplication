@@ -58,6 +58,10 @@
         <app-morph-icon name="rules" [size]="18" color="#dafa76"></app-morph-icon>
         <span>Wiki luật</span>
       </a>
+      <a routerLink="/tro-ly" (click)="toggleMobileMenu()" class="drawer-link flex items-center gap-3">
+        <app-morph-icon name="search" [size]="18" color="#dafa76"></app-morph-icon>
+        <span>Trợ lý hỏi đáp</span>
+      </a>
       <a routerLink="/thu-vien" (click)="toggleMobileMenu()" class="drawer-link flex items-center gap-3">
         <app-morph-icon name="cards" [size]="18" color="#dafa76"></app-morph-icon>
         <span>Thư viện thẻ (148 thẻ)</span>

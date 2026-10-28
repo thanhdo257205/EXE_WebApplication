@@ -28,3 +28,6 @@ frontend/.playwright-cli/
 frontend/output/
 .impeccable/review/
 .impeccable/questions/
+
+# Local code index
+.codegraph/

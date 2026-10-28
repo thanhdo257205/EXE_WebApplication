@@ -1,0 +1,54 @@
+/* Bảng hội thoại kính: đầu bảng, vệt trả lời và nội dung câu trả lời */
+.console {
+  position: relative; display: flex; flex-direction: column; min-height: 570px; max-height: min(740px, calc(100svh - 120px));
+  border: 1px solid var(--line-strong); border-radius: 26px; overflow: hidden;
+  background: linear-gradient(160deg, rgba(255, 255, 255, .045), transparent 42%), var(--glass-2);
+  backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+  box-shadow: 0 40px 120px -45px rgba(0, 0, 0, .95), inset 0 1px 0 rgba(255, 255, 255, .08);
+}
+.console::after { content: ''; position: absolute; inset: 0; padding: 1px; border-radius: inherit; pointer-events: none;
+  background: linear-gradient(150deg, rgba(218, 250, 118, .45), transparent 38%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
+:host-context([data-perf='low']) .console { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(18, 24, 40, .97); }
+.console-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 17px 22px; border-bottom: 1px solid var(--line); }
+.identity { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.avatar { display: grid; place-items: center; width: 42px; height: 42px; flex: none; border-radius: 14px; background: radial-gradient(circle at 30% 20%, #f0ffb0, var(--accent) 60%, #86b52e); color: #183c2b; font: 900 18px/1 var(--sans); box-shadow: 0 0 24px -6px rgba(218, 250, 118, .7); }
+.identity h2 { margin: 0; font-size: 14.5px; font-weight: 800; letter-spacing: -.01em; }
+.identity p { display: flex; align-items: center; gap: 7px; margin: 4px 0 0; font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.identity p i { width: 6px; height: 6px; flex: none; border-radius: 50%; background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+.clear { flex: none; padding: 6px 2px; border: 0; background: none; color: var(--muted); font-size: 11.5px; font-weight: 600; text-decoration: underline; text-underline-offset: 4px; transition: color .2s; }
+.clear:hover:not(:disabled) { color: var(--ink); }
+.clear:disabled { opacity: .35; }
+
+.transcript { flex: 1; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; padding: 22px; scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, .18) transparent; }
+.transcript::-webkit-scrollbar { width: 6px; }
+.transcript::-webkit-scrollbar-thumb { border-radius: 999px; background: rgba(255, 255, 255, .16); }
+.turn { display: flex; }
+.turn.user { justify-content: flex-end; }
+.bubble { max-width: 90%; padding: 13px 16px; border: 1px solid var(--line); border-radius: 16px; background: rgba(255, 255, 255, .045); font-size: 14.5px; line-height: 1.7; }
+.turn.assistant .bubble { border-top-left-radius: 5px; }
+.turn.user .bubble { border-top-right-radius: 5px; border-color: rgba(218, 250, 118, .26); background: rgba(218, 250, 118, .12); color: #f7ffe0; }
+.bubble > p { margin: 0; }
+.bubble > p + p { margin-top: 10px; }
+.bubble strong { color: #fff; }
+.answer { overflow-wrap: anywhere; }
+:host ::ng-deep .answer :is(h2, h3, h4) { margin: 14px 0 6px; font-size: 15px; letter-spacing: -.01em; color: #fff; }
+:host ::ng-deep .answer :is(h2, h3, h4):first-child { margin-top: 0; }
+:host ::ng-deep .answer p { margin: 0 0 8px; }
+:host ::ng-deep .answer p:last-child { margin-bottom: 0; }
+:host ::ng-deep .answer :is(ul, ol) { margin: 6px 0 0; padding-left: 20px; }
+:host ::ng-deep .answer li { margin: 3px 0; }
+:host ::ng-deep .answer li::marker { color: var(--accent); }
+:host ::ng-deep .answer code { padding: 1px 5px; border-radius: 5px; background: rgba(255, 255, 255, .09); font-size: .9em; }
+:host ::ng-deep .answer blockquote { margin: 10px 0 0; padding: 2px 0 2px 12px; border-left: 2px solid var(--accent); color: var(--muted); }
+
+@media (max-width: 1080px) {
+  .console { min-height: 520px; max-height: none; }
+  .transcript { max-height: 52vh; }
+}
+@media (max-width: 560px) {
+  .console-top, .transcript { padding-inline: 16px; }
+  .bubble { max-width: 95%; font-size: 14px; }
+  .identity p { max-width: 46vw; }
+  .clear { font-size: 10.5px; }
+}

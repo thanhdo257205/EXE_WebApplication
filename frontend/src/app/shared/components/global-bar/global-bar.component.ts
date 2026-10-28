@@ -40,8 +40,9 @@ export class GlobalBarComponent implements OnInit {
       { label: 'Hướng dẫn cách chơi', path: '/cach-choi', description: 'Thiết lập bàn chơi và bắt đầu một lượt.' },
       { label: 'Quỹ nhà chung', path: '/quy-nha', description: 'Tìm hiểu chuyện đóng quỹ và hóa đơn.' },
     ] },
-    { id: 'wiki', label: 'Wiki luật', path: '/wiki', activePaths: ['/wiki'], children: [
+    { id: 'wiki', label: 'Wiki luật', path: '/wiki', activePaths: ['/wiki', '/tro-ly'], children: [
       { label: 'Tra cứu wiki', path: '/wiki', description: 'Đọc luật và các bài viết đã phát hành.' },
+      { label: 'Trợ lý hỏi đáp', path: '/tro-ly', description: 'Hỏi nhanh về luật, thẻ bài và dự án.' },
       { label: 'Hướng dẫn cách chơi', path: '/cach-choi', description: 'Xem lại những bước cơ bản.' },
     ] },
     { id: 'shop', label: 'Cửa hàng', path: '/cua-hang', activePaths: ['/cua-hang', '/gio-hang'], children: [

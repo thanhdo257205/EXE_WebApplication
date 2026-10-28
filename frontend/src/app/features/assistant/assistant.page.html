@@ -1,0 +1,163 @@
+<div class="aura" aria-hidden="true"></div>
+
+<header class="hero">
+  <div class="hero-copy">
+    <p class="badge" appReveal><span class="dot"></span>Trợ lý AI · {{ game.name }}</p>
+    <h1 [appReveal]="60">Hỏi nhà,<br><em>đáp ngay</em>.</h1>
+    <p class="sub" [appReveal]="140">Mình đọc wiki, thẻ bài và hướng dẫn đã phát hành để trả lời câu hỏi về dự án và cách chơi. Đăng nhập để hỏi trợ lý.</p>
+    <dl class="stats" [appReveal]="220">
+      @for (stat of stats; track stat.label) {
+        <div><dt>{{ stat.label }}</dt><dd>{{ stat.value }}</dd></div>
+      }
+    </dl>
+    <p class="notice" [appReveal]="280">
+      <app-morph-icon name="shield" [size]="16" color="#dafa76" />
+      <span>Chỉ câu hỏi của bạn và nội dung công khai được gửi tới nhà cung cấp AI. Không gửi mật khẩu, email hay thông tin thanh toán.</span>
+    </p>
+  </div>
+
+  <section class="console" [appReveal]="100" aria-labelledby="assistant-title">
+    <div class="console-top">
+      <div class="identity">
+        <span class="avatar" aria-hidden="true">N</span>
+        <div>
+          <h2 id="assistant-title">Trợ lý Nhà Chung</h2>
+          <p [title]="latestRelease()?.title ?? 'Nội dung công khai đang phát hành'"><i aria-hidden="true"></i>{{ releaseLabel() }}</p>
+        </div>
+      </div>
+      <button type="button" class="clear" (click)="reset()" [disabled]="!messages().length && !error()">Xóa hội thoại</button>
+    </div>
+
+    <div #transcript class="transcript" role="log" aria-live="polite" aria-relevant="additions text" [attr.aria-busy]="pending()">
+      <article class="turn assistant">
+        <div class="bubble">
+          <p>Chào bạn! Mình là trợ lý của <strong>Nhà Này Hơi Báo!</strong> Mình trả lời về luật chơi, thẻ bài, cư dân và Quỹ Nhà Chung dựa trên nội dung đã phát hành.</p>
+          <p>Bạn muốn biết gì trước?</p>
+        </div>
+      </article>
+
+      @for (message of messages(); track message.id) {
+        <article class="turn" [class.user]="message.role === 'user'" [class.assistant]="message.role === 'assistant'">
+          <div class="bubble">
+            @if (message.role === 'assistant') {
+              <div class="answer" [innerHTML]="message.html"></div>
+              @if (message.sources?.length) {
+                <div class="sources">
+                  <span class="sources-label">Nguồn</span>
+                  @for (source of message.sources ?? []; track $index) {
+                    <a [routerLink]="source.url" class="source"><b>{{ $index + 1 }}</b>{{ source.title }}</a>
+                  }
+                </div>
+              }
+            } @else {
+              <p>{{ message.content }}</p>
+            }
+          </div>
+        </article>
+      }
+
+      @if (pending()) {
+        <article class="turn assistant">
+          <div class="bubble typing">
+            <span></span><span></span><span></span>
+            <small>Đang tra nội dung đã phát hành…</small>
+          </div>
+        </article>
+      }
+
+      @if (error(); as errorMessage) {
+        <article class="turn assistant">
+          <div class="bubble failure" role="alert">
+            <p>{{ errorMessage }}</p>
+            <div class="failure-actions">
+              @if (signedIn()) {
+                <button type="button" (click)="retry()" [disabled]="pending() || !lastQuestion()">Thử lại</button>
+              } @else {
+                <a routerLink="/dang-nhap" [queryParams]="{ returnUrl: '/tro-ly' }">Đăng nhập lại</a>
+              }
+              <a routerLink="/wiki">Mở Wiki luật</a>
+              <a routerLink="/cach-choi">Hướng dẫn cách chơi</a>
+            </div>
+          </div>
+        </article>
+      }
+    </div>
+
+    @if (signedIn() && !messages().length && !pending() && !error()) {
+      <div class="suggestions">
+        <p>Gợi ý để bắt đầu</p>
+        <div class="chips">
+          @for (suggestion of suggestions; track suggestion) {
+            <button type="button" class="chip" (click)="ask(suggestion)">{{ suggestion }}</button>
+          }
+        </div>
+      </div>
+    }
+
+    @if (signedIn()) {
+      <form class="composer" (submit)="submit($event)">
+        <label class="sr" for="assistant-question">Câu hỏi của bạn</label>
+        <textarea #input id="assistant-question" rows="2" [value]="draft()" (input)="onInput($event)" (keydown.enter)="onEnter($event)"
+          [attr.maxlength]="maxQuestion" placeholder="Ví dụ: Cuối tháng Quỹ Nhà Chung được trả thế nào?" autocomplete="off"></textarea>
+        <div class="composer-foot">
+          <span class="count">{{ draft().length }}/{{ maxQuestion }}</span>
+          <button type="submit" class="send" [disabled]="pending() || !draft().trim()">
+            @if (pending()) { Đang trả lời } @else { Gửi câu hỏi <span aria-hidden="true">→</span> }
+          </button>
+        </div>
+      </form>
+    } @else if (auth.checkingSession()) {
+      <p class="login-note">Đang kiểm tra phiên đăng nhập…</p>
+    } @else {
+      <div class="login-gate">
+        <p>Trợ lý dùng chung hạn mức AI miễn phí nên chỉ dành cho tài khoản đã đăng nhập.</p>
+        <a routerLink="/dang-nhap" [queryParams]="{ returnUrl: '/tro-ly' }" class="login-cta">Đăng nhập để hỏi trợ lý</a>
+      </div>
+    }
+    <p class="disclaimer">Trợ lý có thể sai. Đối chiếu Wiki luật cho các quyết định quan trọng.</p>
+  </section>
+</header>
+
+<section class="section" aria-labelledby="knows-title">
+  <header class="section-head">
+    <p class="eyebrow" appReveal>Trong đầu trợ lý có gì</p>
+    <h2 id="knows-title" [appReveal]="60">Ba khu vực, một câu trả lời có nguồn.</h2>
+    <p [appReveal]="120">Mỗi câu trả lời được ghép từ bản nội dung đang phát hành. Trợ lý dẫn link để bạn tự kiểm tra.</p>
+  </header>
+  <ul class="knowledge">
+    @for (item of knowledge; track item.title; let i = $index) {
+      <li class="glass card" [appReveal]="i * 90">
+        <span class="icon"><app-morph-icon [name]="item.icon" [size]="22" color="#dafa76" /></span>
+        <h3>{{ item.title }}</h3>
+        <p>{{ item.text }}</p>
+        <a [routerLink]="item.link" class="card-link">{{ item.label }} <span aria-hidden="true">→</span></a>
+      </li>
+    }
+  </ul>
+</section>
+
+<section class="section flow" aria-labelledby="flow-title">
+  <div class="flow-copy">
+    <p class="eyebrow" appReveal>Cách trợ lý trả lời</p>
+    <h2 id="flow-title" [appReveal]="60">Hỏi tự nhiên.<br><em>Tra đúng chỗ.</em></h2>
+    <p [appReveal]="120">Không đoán mò. Trợ lý tìm trong nội dung đã phát hành rồi mới trả lời. Nếu không thấy, trợ lý nói thẳng và chỉ bạn tới trang phù hợp.</p>
+    <a routerLink="/cach-choi" class="kit-pill" [appReveal]="180">Xem cách chơi <span class="kit-arrow" aria-hidden="true">→</span></a>
+  </div>
+  <ol class="steps">
+    @for (step of steps; track step.title; let i = $index) {
+      <li class="glass" [appReveal]="i * 90"><span>0{{ i + 1 }}</span><div><h3>{{ step.title }}</h3><p>{{ step.text }}</p></div></li>
+    }
+  </ol>
+</section>
+
+<section class="section closing">
+  <div class="glass cta-card" appReveal>
+    <p class="eyebrow">Khi trợ lý bận</p>
+    <h2>Trợ lý nghỉ,<br><em>wiki không nghỉ.</em></h2>
+    <p>Lượt AI miễn phí có hạn. Nếu trợ lý tạm nghỉ, bạn vẫn tra được luật và thẻ bài ngay trên web.</p>
+    <div class="actions">
+      <a routerLink="/wiki" class="kit-pill">Mở Wiki luật <span class="kit-arrow" aria-hidden="true">→</span></a>
+      <a routerLink="/thu-vien" class="kit-pill ghost">Thư viện thẻ <span class="kit-arrow" aria-hidden="true">→</span></a>
+    </div>
+  </div>
+</section>

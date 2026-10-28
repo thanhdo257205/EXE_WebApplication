@@ -12,10 +12,16 @@ import { addressRoutes } from './addresses.ts';
 import { mediaRoutes, MAX_IMAGE_BYTES, type MediaStore } from './media.ts';
 import { Payments, paymentRoutes, type Provider } from './payments.ts';
 import { rbacRoutes } from './rbac.ts';
+import { assistantRoutes } from './assistant.ts';
+import { assistantAdminRoutes } from './assistant-settings.ts';
+import { assistantCredentialRoutes } from './assistant-credentials.ts';
+import { createUsageRecorder } from './assistant-usage.ts';
+import type { AssistantOptions } from './assistant-providers.ts';
 
-export function createApp(db: Client, config: Config, provider: Provider | null = null, sendMail?: (email: string, url: string) => Promise<void>, media: MediaStore | null = null) {
+export function createApp(db: Client, config: Config, provider: Provider | null = null, sendMail?: (email: string, url: string) => Promise<void>, media: MediaStore | null = null, assistant: AssistantOptions | null = null) {
   const app = new Hono<ApiEnv>();
   const cache = createCache();
+  const usage = createUsageRecorder(db);
   app.onError((error, c) => {
     let status = 500, code = 'INTERNAL_ERROR';
     if (error instanceof Problem) { status = error.status; code = error.code; }
@@ -51,6 +57,7 @@ export function createApp(db: Client, config: Config, provider: Provider | null 
   app.get('/actuator/health', async c => { await scalar(db, 'SELECT 1'); return c.json({ status: 'UP' }); });
   app.get('/api/v1/info', c => c.json({ application: 'EXE_WebApplication', version: '0.1.0', stage: config.production ? 'production' : 'local', commit: process.env.RENDER_GIT_COMMIT || process.env.RELEASE_SHA || 'local', storage: 'turso' }));
   // Public reads never use the actor, so skip the per-request user lookup (one Turso round trip) for them.
+  // The assistant is not public: it spends a shared AI quota, so it authenticates every request.
   const publicRead = (method: string, path: string) => method === 'GET' && (path.startsWith('/api/v1/content/')
     || ['/api/v1/shop/products', '/api/v1/payments/config', '/api/v1/auth/config', '/api/v1/auth/csrf'].includes(path));
   app.use('/api/*', async (c, next) => {
@@ -68,7 +75,10 @@ export function createApp(db: Client, config: Config, provider: Provider | null 
   mediaRoutes(app, db, media);
   feedbackRoutes(app, db, config);
   addressRoutes(app, db);
+  assistantRoutes(app, db, cache, assistant, usage);
+  assistantAdminRoutes(app, db, cache, assistant);
+  assistantCredentialRoutes(app, db, assistant);
   const payments = new Payments(db, provider, config.publicOrigin); paymentRoutes(app, db, payments);
   app.notFound(c => c.json({ type: 'about:blank', title: 'Not Found', status: 404 }, 404));
-  return { app, payments, cache };
+  return { app, payments, cache, usage };
 }

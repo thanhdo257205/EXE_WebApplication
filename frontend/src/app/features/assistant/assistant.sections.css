@@ -1,0 +1,46 @@
+/* Các khối nội dung dưới bảng hội thoại: phạm vi kiến thức, quy trình trả lời, lời mời cuối trang */
+.section { position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; padding: clamp(80px, 10vw, 140px) var(--gutter) 0; }
+.section-head { max-width: 720px; margin: 0 auto clamp(40px, 5vw, 64px); text-align: center; }
+.eyebrow { margin: 0 0 18px; color: var(--accent); }
+h2 { margin: 0; font: 800 clamp(30px, 4.2vw, 54px)/1.06 var(--sans); letter-spacing: -.03em; text-shadow: 0 2px 40px rgba(0, 0, 0, .6); }
+h2 em { font-style: normal; background: linear-gradient(180deg, var(--accent), var(--accent-2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.section-head p:not(.eyebrow) { margin: 18px 0 0; font-size: 16.5px; line-height: 1.65; color: var(--muted); }
+.glass { border: 1px solid var(--line); border-radius: 18px; background: var(--glass); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+:host-context([data-perf='low']) .glass { background: rgba(14, 19, 32, .94); backdrop-filter: none; -webkit-backdrop-filter: none; }
+
+.knowledge { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin: 0; padding: 0; list-style: none; }
+.card { display: flex; flex-direction: column; padding: 30px; transition: transform .3s, border-color .3s, background .3s; }
+.card:hover { transform: translateY(-4px); border-color: var(--line-strong); background: var(--glass-2); }
+.icon { display: grid; place-items: center; width: 46px; height: 46px; margin-bottom: 20px; border: 1px solid rgba(218, 250, 118, .2); border-radius: 12px; background: rgba(218, 250, 118, .1); }
+.card h3 { margin: 0 0 10px; font-size: 19px; font-weight: 700; letter-spacing: -.01em; }
+.card p { margin: 0 0 22px; font-size: 14.5px; line-height: 1.65; color: var(--muted); }
+.card-link { display: inline-flex; align-items: center; gap: 8px; margin-top: auto; font-size: 13px; font-weight: 700; color: var(--accent); }
+.card-link span { transition: transform .2s; }
+.card-link:hover span { transform: translateX(3px); }
+
+.flow { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: clamp(36px, 6vw, 72px); align-items: start; }
+.flow-copy p:not(.eyebrow) { max-width: 44ch; margin: 20px 0 0; font-size: 16.5px; line-height: 1.7; color: var(--muted); }
+.flow-copy .kit-pill { margin-top: 30px; }
+.steps { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.steps li { display: flex; gap: 20px; align-items: flex-start; padding: 24px 26px; }
+.steps li > span { flex: none; font: 800 26px/1 var(--sans); color: var(--accent); letter-spacing: -.03em; opacity: .9; }
+.steps h3 { margin: 0 0 6px; font-size: 17px; font-weight: 700; }
+.steps p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--muted); }
+
+.closing { padding-bottom: clamp(80px, 10vw, 140px); }
+.cta-card { max-width: 800px; margin: 0 auto; padding: clamp(44px, 6vw, 72px) clamp(24px, 5vw, 60px); border-color: var(--line-strong); border-radius: 26px; text-align: center;
+  background: radial-gradient(120% 140% at 50% 0%, rgba(218, 250, 118, .12), transparent 55%), var(--glass-2); box-shadow: 0 30px 80px -30px rgba(0, 0, 0, .75); }
+.cta-card > p:not(.eyebrow) { max-width: 520px; margin: 18px auto 0; font-size: 16px; line-height: 1.65; color: var(--muted); }
+.actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 30px; }
+
+@media (max-width: 900px) {
+  .knowledge { grid-template-columns: 1fr; }
+  .flow { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .card { padding: 24px 22px; }
+  .steps li { padding: 20px; gap: 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card, .card-link span { transition: none; }
+}

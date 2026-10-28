@@ -36,6 +36,7 @@ export class AdminLayoutComponent {
     { label: 'Đơn hàng & Vận chuyển', link: '/admin/orders', icon: 'store', badge: 'Mới' },
     { label: 'Thanh toán PayOS', link: '/admin/payments', icon: 'fund' },
     { label: 'Tài khoản cư dân', link: '/admin/users', icon: 'user' },
+    { label: 'Trợ lý AI & hạn mức', link: '/admin/assistant', icon: 'search' },
     { label: 'Hệ thống & Audit Log', link: '/admin/system', icon: 'database' },
   ];
 
