@@ -139,9 +139,16 @@
         <h2 id="keys-title">API key trong trang quản trị</h2>
         <p class="muted">Key được mã hoá AES-256-GCM và chỉ hiển thị 4 ký tự cuối. Admin chính thấy mọi key; admin phụ chỉ thấy key của mình. Key do admin phụ thêm phải được admin chính duyệt.</p>
       </div>
-      @if (canManageKeys() && pendingKeyCount()) {
-        <span class="pending-badge">{{ pendingKeyCount() }} chờ duyệt</span>
-      }
+      <div class="keys-head-actions">
+        @if (testableKeys().length) {
+          <button type="button" (click)="toggleBulkPanel()" [attr.aria-expanded]="bulkOpen()" aria-controls="bulk-test-panel" [disabled]="bulkRunning()">
+            {{ bulkOpen() ? 'Đóng kiểm tra hàng loạt' : 'Kiểm tra hàng loạt' }}
+          </button>
+        }
+        @if (canManageKeys() && pendingKeyCount()) {
+          <span class="pending-badge">{{ pendingKeyCount() }} chờ duyệt</span>
+        }
+      </div>
     </div>
 
     @if (!keyStorage()) {
@@ -181,6 +188,95 @@
     @if (keyError()) { <div class="error" role="alert">{{ keyError() }}</div> }
     @if (keyNotice()) { <p class="notice" role="status">{{ keyNotice() }}</p> }
 
+    @if (bulkOpen()) {
+      <section id="bulk-test-panel" class="bulk-test" aria-labelledby="bulk-title">
+        <div class="bulk-head">
+          <div>
+            <h3 id="bulk-title">Kiểm tra nhiều key</h3>
+            <p class="muted">Chọn key theo nhà cung cấp và model dùng để kiểm tra, rồi chạy một lượt. Mỗi key được kiểm tra tối đa một lần trong 30 giây; hệ thống chạy song song 3 key.</p>
+          </div>
+          <div class="bulk-actions">
+            <button type="button" (click)="selectAllBulk()" [disabled]="bulkRunning()">Chọn tất cả</button>
+            <button type="button" (click)="clearBulk()" [disabled]="bulkRunning()">Bỏ chọn</button>
+          </div>
+        </div>
+
+        @if (!bulkGroups().length) {
+          <p class="muted">Không có key nào bạn có quyền kiểm tra.</p>
+        } @else {
+          <div class="bulk-groups">
+            @for (group of bulkGroups(); track group.provider.id) {
+              <fieldset class="bulk-group">
+                <legend>{{ group.provider.label }}</legend>
+                <div class="bulk-group-head">
+                  <label class="bulk-group-select">
+                    <input
+                      type="checkbox"
+                      [checked]="group.selected === group.keys.length"
+                      [indeterminate]="group.selected > 0 && group.selected < group.keys.length"
+                      (change)="setBulkGroup(group, $event)"
+                      [disabled]="bulkRunning()"
+                    />
+                    <span>Chọn cả nhóm ({{ group.selected }}/{{ group.keys.length }})</span>
+                  </label>
+                  <label class="bulk-model">
+                    <span>Model kiểm tra</span>
+                    <select [value]="bulkModelFor(group.provider)" (change)="setBulkModel(group.provider.id, $event)" [disabled]="bulkRunning()">
+                      @for (option of modelOptions(group.provider); track option.id) {
+                        <option [value]="option.id">{{ option.label }}{{ option.recommended ? ' · Khuyến nghị' : '' }}</option>
+                      }
+                    </select>
+                  </label>
+                </div>
+                <div class="bulk-keys">
+                  @for (key of group.keys; track key.id) {
+                    <label class="bulk-key" [class.selected]="isBulkSelected(key.id)">
+                      <input type="checkbox" [checked]="isBulkSelected(key.id)" (change)="toggleBulkKey(key.id)" [disabled]="bulkRunning()" />
+                      <span>{{ key.label }}</span>
+                      <small>{{ key.hint }} · {{ keyStatusLabel(key.status) }}</small>
+                    </label>
+                  }
+                </div>
+              </fieldset>
+            }
+          </div>
+
+          <div class="bulk-run">
+            <button type="button" class="primary" (click)="runBulkTests()" [disabled]="!bulkCanRun()">
+              {{ bulkRunning() ? 'Đang kiểm tra ' + bulkProgress().done + '/' + bulkProgress().total + '…' : 'Kiểm tra ' + bulkSelectedCount() + ' key đã chọn' }}
+            </button>
+            @if (bulkSummary()) { <p class="bulk-summary" role="status">{{ bulkSummary() }}</p> }
+          </div>
+
+          @if (bulkProgress().total) {
+            <div class="bar" role="progressbar" [attr.aria-valuenow]="bulkProgress().done" aria-valuemin="0" [attr.aria-valuemax]="bulkProgress().total" aria-label="Tiến độ kiểm tra key">
+              <span [style.width.%]="bulkPercent()"></span>
+            </div>
+          }
+
+          @if (bulkOutcomeRows().length) {
+            <div class="table-wrap">
+              <table class="bulk-results">
+                <caption>Kết quả kiểm tra hàng loạt</caption>
+                <thead><tr><th scope="col">Key</th><th scope="col">Nhà cung cấp</th><th scope="col">Model</th><th scope="col">Kết quả</th><th scope="col">Độ trễ</th></tr></thead>
+                <tbody>
+                  @for (row of bulkOutcomeRows(); track row.id) {
+                    <tr>
+                      <td>{{ row.label }}</td>
+                      <td>{{ row.providerLabel }}</td>
+                      <td class="model">{{ row.model }}</td>
+                      <td><span class="bulk-result" [class.ok]="row.status === 'OK'" [class.failed]="row.status === 'FAILED'" [class.error]="row.status === 'ERROR'">{{ row.text }}</span></td>
+                      <td>{{ row.latencyMs === null ? '—' : row.latencyMs + ' ms' }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        }
+      </section>
+    }
+
     @if (keysLoading() && !keys().length) {
       <p class="muted" role="status">Đang tải danh sách key…</p>
     } @else if (!keys().length) {
@@ -207,7 +303,7 @@
                       <small class="cell-note test-result" [class.ok]="result.status === 'OK'" [class.failed]="result.status === 'FAILED'">{{ keyTestLabel(result) }}</small>
                     }
                     @if (key.canReveal) {
-                      <button type="button" class="link-button" (click)="revealKey(key)" [disabled]="keyBusy() === key.id">
+                      <button type="button" class="link-button" (click)="revealKey(key)" [disabled]="keyBusy() === key.id || bulkRunning()">
                         {{ keyBusy() === key.id && keyTesting() !== key.id ? 'Đang mở…' : 'Xem' }}
                       </button>
                     }
@@ -221,25 +317,25 @@
                 </td>
                 <td class="actions">
                   @if (key.canTest) {
-                    <button type="button" (click)="testKey(key)" [disabled]="keyBusy() === key.id">
+                    <button type="button" (click)="testKey(key)" [disabled]="keyBusy() === key.id || bulkRunning()">
                       {{ keyTesting() === key.id ? 'Đang kiểm tra…' : 'Kiểm tra' }}
                     </button>
                   }
                   @if (canManageKeys() && key.status === 'PENDING') {
-                    <button type="button" (click)="setKeyStatus(key, 'ACTIVE')" [disabled]="keyBusy() === key.id">Duyệt</button>
+                    <button type="button" (click)="setKeyStatus(key, 'ACTIVE')" [disabled]="keyBusy() === key.id || bulkRunning()">Duyệt</button>
                   }
                   @if (canManageKeys() && key.status === 'ACTIVE') {
-                    <button type="button" (click)="setKeyStatus(key, 'DISABLED')" [disabled]="keyBusy() === key.id">Tạm tắt</button>
+                    <button type="button" (click)="setKeyStatus(key, 'DISABLED')" [disabled]="keyBusy() === key.id || bulkRunning()">Tạm tắt</button>
                   }
                   @if (canManageKeys() && key.status === 'DISABLED') {
-                    <button type="button" (click)="setKeyStatus(key, 'ACTIVE')" [disabled]="keyBusy() === key.id">Bật lại</button>
+                    <button type="button" (click)="setKeyStatus(key, 'ACTIVE')" [disabled]="keyBusy() === key.id || bulkRunning()">Bật lại</button>
                   }
                   @if (canManageKeys() || key.isMine) {
                     @if (revokeConfirm() === key.id) {
-                      <button type="button" class="danger" (click)="revokeKey(key)" [disabled]="keyBusy() === key.id">Xác nhận thu hồi</button>
-                      <button type="button" (click)="cancelRevoke()" [disabled]="keyBusy() === key.id">Hủy</button>
+                      <button type="button" class="danger" (click)="revokeKey(key)" [disabled]="keyBusy() === key.id || bulkRunning()">Xác nhận thu hồi</button>
+                      <button type="button" (click)="cancelRevoke()" [disabled]="keyBusy() === key.id || bulkRunning()">Hủy</button>
                     } @else {
-                      <button type="button" (click)="askRevoke(key)" [disabled]="keyBusy() === key.id">Thu hồi</button>
+                      <button type="button" (click)="askRevoke(key)" [disabled]="keyBusy() === key.id || bulkRunning()">Thu hồi</button>
                     }
                   }
                 </td>
@@ -289,15 +385,17 @@
             <div class="provider-fields">
               <label class="model-field">
                 <span>Model</span>
-                <input
-                  type="text"
+                <select
                   [value]="slotModel(provider)"
-                  (input)="setModel(provider.id, $event)"
+                  (change)="setModel(provider.id, $event)"
                   [disabled]="!canManage() || saving()"
-                  maxlength="120"
                   [attr.aria-label]="'Model cho ' + provider.label"
-                  spellcheck="false"
-                />
+                >
+                  @for (option of modelOptions(provider); track option.id) {
+                    <option [value]="option.id">{{ option.label }}{{ option.recommended ? ' · Khuyến nghị' : '' }}</option>
+                  }
+                </select>
+                <small class="field-note">ID: <code>{{ slotModel(provider) }}</code>@if (selectedModel(provider); as choice) {<span> · {{ choice.note }}</span>}</small>
               </label>
               <label class="budget-field">
                 <span>Ngân sách token/ngày</span>

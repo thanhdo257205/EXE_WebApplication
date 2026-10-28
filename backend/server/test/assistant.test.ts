@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  assistantFromEnv, DEFAULT_MODELS, geminiProvider, groqProvider, NoProviderAvailable, openRouterProvider,
+  assistantFromEnv, DEFAULT_MODELS, DEFAULT_ORDER, MODEL_CATALOG, geminiProvider, groqProvider, NoProviderAvailable, openRouterProvider,
   ProviderError, ProviderRouter, workersAiProvider,
   type ChatProvider, type CompletionRequest, type CompletionResult, type FetchLike,
 } from '../src/assistant-providers.ts';
@@ -268,4 +268,16 @@ test('citations keep [n] aligned with sources when a page is split into several 
     assert.equal(result.sources[index].url, doc.url);
     assert.ok(blocks[index].startsWith(`[${index + 1}] ${doc.title}`));
   });
+});
+
+test('model catalog recommends exactly one model per provider and includes every shipped default', () => {
+  for (const provider of DEFAULT_ORDER) {
+    const choices = MODEL_CATALOG[provider];
+    assert.ok(choices.length > 1, `${provider} needs alternatives`);
+    assert.equal(new Set(choices.map(choice => choice.id)).size, choices.length, `${provider} ids must be unique`);
+    const recommended = choices.filter(choice => choice.recommended);
+    assert.equal(recommended.length, 1, `${provider} needs one recommendation`);
+    assert.equal(recommended[0].id, DEFAULT_MODELS[provider], `${provider} default must be the recommendation`);
+    assert.ok(choices.every(choice => choice.label.length > 0 && choice.note.length > 0));
+  }
 });

@@ -12,18 +12,27 @@ import {
   AssistantKeyTestResult,
 } from '../../../core/admin/admin-assistant.service';
 
+const geminiModels = [
+  { id: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash-Lite', recommended: true, note: 'Miễn phí, nhanh' },
+  { id: 'gemini-3.8-flash', label: 'Gemini 3.8 Flash', note: 'Miễn phí, mạnh hơn' },
+];
+const groqModels = [
+  { id: 'openai/gpt-oss-120b', label: 'GPT-OSS 120B', recommended: true, note: 'Miễn phí, 131K ngữ cảnh' },
+  { id: 'openai/gpt-oss-20b', label: 'GPT-OSS 20B', note: 'Miễn phí, nhẹ' },
+];
+
 const settingsResponse = (canManage = true, version = 3): AssistantSettingsResponse => ({
   settings: {
     order: ['gemini', 'groq'],
-    models: { gemini: 'gemini-2.5-flash-lite', groq: 'llama-3.1-8b-instant' },
+    models: { gemini: 'gemini-3.5-flash-lite', groq: 'openai/gpt-oss-120b' },
     disabledSlots: ['groq#2'],
     tokenBudgets: { gemini: 100_000, groq: 3_000 },
     version,
     updatedAt: '2026-10-28T10:00:00.000Z',
   },
   providers: [
-    { id: 'gemini', label: 'Google Gemini', defaultModel: 'gemini-2.0-flash-lite', slots: [{ slot: 'gemini#1', disabled: false }, { slot: 'gemini#2', disabled: false }] },
-    { id: 'groq', label: 'Groq', defaultModel: 'llama-3.1-8b-instant', slots: [{ slot: 'groq#1', disabled: false }, { slot: 'groq#2', disabled: true }] },
+    { id: 'gemini', label: 'Google Gemini', defaultModel: 'gemini-3.5-flash-lite', models: geminiModels, slots: [{ slot: 'gemini#1', disabled: false }, { slot: 'gemini#2', disabled: false }] },
+    { id: 'groq', label: 'Groq', defaultModel: 'openai/gpt-oss-120b', models: groqModels, slots: [{ slot: 'groq#1', disabled: false }, { slot: 'groq#2', disabled: true }] },
   ],
   canManage,
 });
@@ -33,7 +42,7 @@ const usage: AssistantUsage = {
   since: '2026-10-22',
   totals: { requests: 10, cacheHits: 4, failures: 1, answered: 6, avgLatencyMs: 820, tokensIn: 8_000, tokensOut: 2_000 },
   providers: [{ provider: 'groq', requests: 6, failures: 1, avgLatencyMs: 900, tokensIn: 2_000, tokensOut: 500 }],
-  slots: [{ slot: 'groq#1', provider: 'groq', model: 'llama-3.1-8b-instant', requests: 6, failures: 1, avgLatencyMs: 900, tokensIn: 2_000, tokensOut: 500 }],
+  slots: [{ slot: 'groq#1', provider: 'groq', model: 'openai/gpt-oss-120b', requests: 6, failures: 1, avgLatencyMs: 900, tokensIn: 2_000, tokensOut: 500 }],
   daily: [{ day: '2026-10-28', requests: 10, cacheHits: 4, failures: 1, tokensIn: 8_000, tokensOut: 2_000 }],
   today: {
     day: '2026-10-28',
@@ -64,6 +73,15 @@ const activeKey: AssistantKey = {
   approvedAt: '2026-10-28T09:00:00.000Z',
 };
 
+const geminiKey: AssistantKey = {
+  ...activeKey,
+  id: '22222222-2222-4222-8222-222222222222',
+  provider: 'gemini',
+  providerLabel: 'Google Gemini',
+  label: 'Gemini chính',
+  hint: '••••5678',
+};
+
 const keysResponse = (canManage = true, storageAvailable = true, items: AssistantKey[] = [activeKey]): AssistantKeysResponse => ({
   items,
   canManage,
@@ -75,7 +93,7 @@ const keyTestResult = (overrides: Partial<AssistantKeyTestResult> = {}): Assista
   status: 'OK',
   code: null,
   provider: 'groq',
-  model: 'llama-3.1-8b-instant',
+  model: 'openai/gpt-oss-120b',
   latencyMs: 412,
   testedAt: '2026-10-28T10:05:00.000Z',
   ...overrides,
@@ -92,6 +110,7 @@ describe('AdminAssistantPage', () => {
     setKeyStatus: ReturnType<typeof vi.fn>;
     revokeKey: ReturnType<typeof vi.fn>;
     testKey: ReturnType<typeof vi.fn>;
+    testKeys: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(() => {
@@ -105,6 +124,7 @@ describe('AdminAssistantPage', () => {
       setKeyStatus: vi.fn(() => of({ item: { ...activeKey, status: 'DISABLED' }, changed: true })),
       revokeKey: vi.fn(() => of({ removed: true })),
       testKey: vi.fn(() => of(keyTestResult())),
+      testKeys: vi.fn(() => of({ id: activeKey.id, result: keyTestResult(), error: null })),
     };
     TestBed.configureTestingModule({
       imports: [AdminAssistantPage],
@@ -127,8 +147,8 @@ describe('AdminAssistantPage', () => {
     expect(api.getKeys).toHaveBeenCalledTimes(1);
     expect(el.querySelectorAll('.provider')).toHaveLength(2);
     expect(el.textContent).toContain('Google Gemini');
-    expect([...el.querySelectorAll<HTMLInputElement>('.model-field input')].map(input => input.value))
-      .toEqual(['gemini-2.5-flash-lite', 'llama-3.1-8b-instant']);
+    expect([...el.querySelectorAll<HTMLSelectElement>('.model-field select')].map(select => select.value))
+      .toEqual(['gemini-3.5-flash-lite', 'openai/gpt-oss-120b']);
     expect([...el.querySelectorAll<HTMLInputElement>('.budget-field input')].map(input => input.value))
       .toEqual(['100000', '3000']);
     expect(el.querySelectorAll('.budget')).toHaveLength(2);
@@ -138,6 +158,29 @@ describe('AdminAssistantPage', () => {
     expect(el.textContent).toContain('40%');
     expect(el.textContent).toContain('820');
     expect(el.textContent).toContain('groq#1');
+  });
+
+  it('replaces the model textbox with a catalog dropdown and marks the recommendation', () => {
+    const { el } = setup();
+    expect(el.querySelector('.model-field input')).toBeNull();
+    const selects = [...el.querySelectorAll<HTMLSelectElement>('.model-field select')];
+    expect(selects).toHaveLength(2);
+    const geminiOptions = [...selects[0].options];
+    expect(geminiOptions.map(option => option.value)).toEqual(['gemini-3.5-flash-lite', 'gemini-3.8-flash']);
+    expect(geminiOptions[0].textContent).toContain('Khuyến nghị');
+    expect(geminiOptions[1].textContent).not.toContain('Khuyến nghị');
+    expect(el.querySelector('.model-field .field-note')?.textContent).toContain('Miễn phí, nhanh');
+  });
+
+  it('keeps a legacy override outside the catalog selectable', () => {
+    const response = settingsResponse();
+    response.settings.models['groq'] = 'legacy/custom-model';
+    api.getSettings.mockReturnValue(of(response));
+    const { el } = setup();
+    const select = el.querySelectorAll<HTMLSelectElement>('.model-field select')[1];
+    expect(select.value).toBe('legacy/custom-model');
+    expect([...select.options].find(option => option.value === 'legacy/custom-model')?.textContent)
+      .toContain('ngoài danh mục');
   });
 
   it('lists masked admin keys and never renders plaintext before reveal', () => {
@@ -155,14 +198,14 @@ describe('AdminAssistantPage', () => {
     const { page } = setup();
     page.move(0, 1);
     page.toggleSlot('gemini#1');
-    page.setModel('groq', event('llama-3.3-70b-versatile'));
+    page.setModel('groq', event('openai/gpt-oss-20b'));
     page.setBudget('groq', event('2000'));
     page.setBudget('gemini', event(''));
     page.save();
 
     expect(api.saveSettings).toHaveBeenCalledExactlyOnceWith({
       order: ['groq', 'gemini'],
-      models: { gemini: 'gemini-2.5-flash-lite', groq: 'llama-3.3-70b-versatile' },
+      models: { gemini: 'gemini-3.5-flash-lite', groq: 'openai/gpt-oss-20b' },
       disabledSlots: ['groq#2', 'gemini#1'],
       tokenBudgets: { groq: 2000 },
       expectedVersion: 3,
@@ -215,6 +258,7 @@ describe('AdminAssistantPage', () => {
       .toEqual(['Kiểm tra', 'Thu hồi']);
     expect([...el.querySelectorAll<HTMLInputElement>('.slot input')].every(input => input.disabled)).toBe(true);
     expect([...el.querySelectorAll<HTMLInputElement>('.budget-field input')].every(input => input.disabled)).toBe(true);
+    expect([...el.querySelectorAll<HTMLSelectElement>('.model-field select')].every(select => select.disabled)).toBe(true);
     page.move(0, 1);
     page.toggleSlot('gemini#1');
     page.save();
@@ -261,7 +305,7 @@ describe('AdminAssistantPage', () => {
     expect(page.keyNotice()).toContain('hoạt động bình thường');
     expect(page.keyNotice()).toContain('412');
     fixture.detectChanges();
-    expect(el.querySelector('.test-result.ok')?.textContent).toContain('llama-3.1-8b-instant');
+    expect(el.querySelector('.test-result.ok')?.textContent).toContain('openai/gpt-oss-120b');
     expect(el.querySelector('.test-result.ok')?.textContent).toContain('412');
     expect(page.keyTesting()).toBe('');
   });
@@ -285,6 +329,73 @@ describe('AdminAssistantPage', () => {
     expect(page.keyError()).toContain('30 giây');
     expect(page.keyTesting()).toBe('');
     expect(page.testResults()[activeKey.id]).toBeUndefined();
+  });
+
+  it('opens a bulk panel with all testable keys selected and each provider model', () => {
+    api.getKeys.mockReturnValue(of(keysResponse(true, true, [activeKey, geminiKey])));
+    const { fixture, page, el } = setup();
+    page.toggleBulkPanel();
+    fixture.detectChanges();
+    expect(page.bulkOpen()).toBe(true);
+    expect(page.bulkGroups().map(group => group.provider.id)).toEqual(['gemini', 'groq']);
+    expect(page.bulkSelectedCount()).toBe(2);
+    expect(page.bulkModelFor(page.bulkGroups()[0].provider)).toBe('gemini-3.5-flash-lite');
+    expect(el.querySelectorAll('.bulk-key')).toHaveLength(2);
+    expect(el.querySelector('.bulk-test')).not.toBeNull();
+  });
+
+  it('selects every key, clears and toggles a whole provider group', () => {
+    api.getKeys.mockReturnValue(of(keysResponse(true, true, [activeKey, geminiKey])));
+    const { page } = setup();
+    page.toggleBulkPanel();
+    const groq = page.bulkGroups().find(group => group.provider.id === 'groq')!;
+    page.setBulkGroup(groq, { target: { checked: false } } as unknown as Event);
+    expect(page.bulkSelectedCount()).toBe(1);
+    expect(page.isBulkSelected(activeKey.id)).toBe(false);
+    page.toggleBulkKey(activeKey.id);
+    expect(page.isBulkSelected(activeKey.id)).toBe(true);
+    page.clearBulk();
+    expect(page.bulkSelectedCount()).toBe(0);
+    expect(page.bulkCanRun()).toBe(false);
+    page.selectAllBulk();
+    expect(page.bulkSelectedCount()).toBe(2);
+  });
+
+  it('runs selected keys with the chosen provider model and reports every outcome', () => {
+    api.getKeys.mockReturnValue(of(keysResponse(true, true, [activeKey, geminiKey])));
+    api.testKeys.mockReturnValue(of(
+      { id: geminiKey.id, result: keyTestResult({ provider: 'gemini', model: 'gemini-3.8-flash' }), error: null },
+      { id: activeKey.id, result: null, error: { status: 429, error: { code: 'KEY_TEST_COOLDOWN' } } },
+    ));
+    const { fixture, page, el } = setup();
+    page.toggleBulkPanel();
+    page.setBulkModel('gemini', event('gemini-3.8-flash'));
+    page.runBulkTests();
+
+    expect(api.testKeys).toHaveBeenCalledExactlyOnceWith([
+      { id: geminiKey.id, model: 'gemini-3.8-flash' },
+      { id: activeKey.id, model: 'openai/gpt-oss-120b' },
+    ]);
+    expect(page.bulkRunning()).toBe(false);
+    expect(page.bulkProgress()).toEqual({ done: 2, total: 2 });
+    expect(page.bulkSummary()).toBe('Đã kiểm tra 2 key: 1 OK, 1 lỗi.');
+    expect(page.testResults()[geminiKey.id]?.model).toBe('gemini-3.8-flash');
+    fixture.detectChanges();
+    expect(el.querySelectorAll('.bulk-results tbody tr')).toHaveLength(2);
+    expect(el.querySelector('.bulk-result.ok')?.textContent).toContain('OK');
+    expect(el.querySelector('.bulk-result.error')?.textContent).toContain('30 giây');
+  });
+
+  it('shows the bulk toggle to delegated admins for their own testable keys', () => {
+    api.getSettings.mockReturnValue(of(settingsResponse(false)));
+    api.getKeys.mockReturnValue(of(keysResponse(false, true, [activeKey])));
+    const { fixture, page, el } = setup();
+    expect(el.querySelector('.keys-head-actions button')?.textContent).toContain('Kiểm tra hàng loạt');
+    page.toggleBulkPanel();
+    fixture.detectChanges();
+    expect(page.bulkSelectedCount()).toBe(1);
+    expect(page.bulkGroups()[0]?.provider.id).toBe('groq');
+    expect(el.querySelectorAll('.bulk-model select')).toHaveLength(1);
   });
 
   it('hides and blocks testing when the server does not allow it', () => {

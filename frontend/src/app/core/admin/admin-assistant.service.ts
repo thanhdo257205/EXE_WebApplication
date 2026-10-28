@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { switchMap } from 'rxjs';
+import { catchError, from, map, mergeMap, of, switchMap } from 'rxjs';
 import { AuthService } from '../auth/auth.service';
 import { environment } from '../../../environments/environment';
 
@@ -9,10 +9,18 @@ export interface AssistantProviderSlot {
   disabled: boolean;
 }
 
+export interface AssistantModelOption {
+  id: string;
+  label: string;
+  recommended?: boolean;
+  note: string;
+}
+
 export interface AssistantProviderConfig {
   id: string;
   label: string;
   defaultModel: string;
+  models: AssistantModelOption[];
   slots: AssistantProviderSlot[];
 }
 
@@ -144,6 +152,17 @@ export interface AssistantKeyTestResult {
   testedAt: string;
 }
 
+export interface AssistantKeyTestRequest {
+  id: string;
+  model?: string;
+}
+
+export interface AssistantKeyTestOutcome {
+  id: string;
+  result: AssistantKeyTestResult | null;
+  error: unknown;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AdminAssistantService {
   private readonly http = inject(HttpClient);
@@ -198,13 +217,27 @@ export class AdminAssistantService {
     ));
   }
 
-  testKey(id: string) {
+  testKey(id: string, model?: string) {
     return this.auth.getCsrf().pipe(switchMap(csrf =>
-      this.http.post<AssistantKeyTestResult>(`${this.base}/keys/${encodeURIComponent(id)}/test`, {}, {
+      this.http.post<AssistantKeyTestResult>(`${this.base}/keys/${encodeURIComponent(id)}/test`, model ? { model } : {}, {
         withCredentials: true,
         headers: new HttpHeaders({ [csrf.headerName]: csrf.token }),
       })
     ));
+  }
+
+  /** One CSRF fetch, then three probes in flight; a failing key becomes an outcome instead of an error. */
+  testKeys(requests: readonly AssistantKeyTestRequest[]) {
+    return this.auth.getCsrf().pipe(switchMap(csrf => from(requests).pipe(
+      mergeMap(request => this.http.post<AssistantKeyTestResult>(
+        `${this.base}/keys/${encodeURIComponent(request.id)}/test`,
+        request.model ? { model: request.model } : {},
+        { withCredentials: true, headers: new HttpHeaders({ [csrf.headerName]: csrf.token }) },
+      ).pipe(
+        map(result => ({ id: request.id, result, error: null }) as AssistantKeyTestOutcome),
+        catchError(error => of({ id: request.id, result: null, error } as AssistantKeyTestOutcome)),
+      ), 3)
+    )));
   }
 
   revokeKey(id: string) {

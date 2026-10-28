@@ -9,6 +9,7 @@ import {
   PROVIDER_LABELS,
   geminiProvider,
   groqProvider,
+  isCatalogModel,
   isProviderId,
   openRouterProvider,
   workersAiProvider,
@@ -171,6 +172,7 @@ const createSchema = z.object({
 }).strict();
 
 const patchSchema = z.object({ status: z.enum(['ACTIVE', 'DISABLED']) }).strict();
+const testSchema = z.object({ model: z.string().trim().max(120).regex(MODEL_PATTERN).optional() }).strict();
 
 export function assistantCredentialRoutes(app: Api, db: Client, options: AssistantOptions | null) {
   // In-memory cooldown per key: admins can re-test after 30s, but a stuck key cannot burn quota in a loop.
@@ -300,6 +302,7 @@ export function assistantCredentialRoutes(app: Api, db: Client, options: Assista
   app.post('/api/v1/admin/assistant/keys/:id/test', async c => {
     const actor = requireActor(c, true);
     const id = z.string().uuid().parse(c.req.param('id'));
+    const body = testSchema.parse(await c.req.json().catch(() => ({})));
     const master = options?.credentialKey;
     if (!master) return fail(503, 'KEY_STORAGE_UNAVAILABLE');
     // Reading and decrypting happen in one short transaction; the provider call must not hold a DB lock.
@@ -325,9 +328,15 @@ export function assistantCredentialRoutes(app: Api, db: Client, options: Assista
         ownerId: row.owner_id,
         provider: row.provider,
         payload,
-        model: testModelFor(row.provider, modelOverrides, options),
+        configuredModel: testModelFor(row.provider, modelOverrides, options),
       };
     }, 'read');
+
+    // A bulk run may probe a catalog alternative; anything else must be the model the router already uses.
+    const model = body.model ?? target.configuredModel;
+    if (body.model && body.model !== target.configuredModel && !isCatalogModel(target.provider, body.model)) {
+      return fail(400, 'INVALID_MODEL');
+    }
 
     testCooldown.set(id, Date.now() + KEY_TEST_COOLDOWN_MS);
     if (testCooldown.size > 500) {
@@ -339,7 +348,7 @@ export function assistantCredentialRoutes(app: Api, db: Client, options: Assista
     let status: 'OK' | 'FAILED' = 'OK';
     let code: ProviderFailure | null = null;
     try {
-      const provider = factoryFor(target.provider, target.payload.key, target.payload.accountId, target.model, `db:${id}`, options, options.fetch ?? fetch);
+      const provider = factoryFor(target.provider, target.payload.key, target.payload.accountId, model, `db:${id}`, options, options.fetch ?? fetch);
       await provider.complete({
         system: 'You are a connectivity probe. Reply with the single word OK.',
         messages: [{ role: 'user', content: 'ping' }],
@@ -355,9 +364,9 @@ export function assistantCredentialRoutes(app: Api, db: Client, options: Assista
     const latencyMs = Date.now() - started;
     const testedAt = now();
     await audit(db, target.actorId, 'ASSISTANT_KEY_TESTED', id,
-      `provider=${target.provider};owner=${target.ownerId};result=${status}${code ? `;code=${code}` : ''};latency=${latencyMs}`,
+      `provider=${target.provider};owner=${target.ownerId};model=${model};result=${status}${code ? `;code=${code}` : ''};latency=${latencyMs}`,
       status === 'OK' ? 'SUCCESS' : 'FAILURE');
     // A failed test never changes the key state: the admin decides whether to disable or revoke it.
-    return c.json({ status, code, provider: target.provider, model: target.model, latencyMs, testedAt });
+    return c.json({ status, code, provider: target.provider, model, latencyMs, testedAt });
   });
 }
