@@ -547,6 +547,15 @@ CREATE TABLE admin_invites (
 );
 CREATE INDEX ix_admin_invites_created ON admin_invites(created_at);
 
+-- Fine-grained permissions for delegated admins. Absent row = role default.
+CREATE TABLE admin_permission_sets (
+    user_id TEXT NOT NULL PRIMARY KEY REFERENCES app_users(id) ON DELETE CASCADE,
+    permissions TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 1 CHECK (version >= 1),
+    updated_by TEXT REFERENCES app_users(id) ON DELETE SET NULL,
+    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000Z','now'))
+);
+
 -- Registration events use separate storage to preserve existing feedback IDs/read receipts.
 CREATE TABLE admin_registration_notifications (
     id INTEGER PRIMARY KEY,
@@ -568,6 +577,8 @@ CREATE TABLE assistant_settings (
     disabled_slots TEXT NOT NULL,
     -- JSON map provider -> daily token budget; NULL/absent disables the progress bar.
     token_budgets TEXT NOT NULL DEFAULT '{}',
+    -- JSON map credential id -> daily token budget, so each stored key reports its own quota.
+    key_budgets TEXT NOT NULL DEFAULT '{}',
     version INTEGER NOT NULL DEFAULT 1 CHECK (version >= 1),
     updated_by TEXT REFERENCES app_users(id) ON DELETE SET NULL,
     updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000Z','now'))
@@ -606,7 +617,13 @@ CREATE TABLE assistant_credentials (
     updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000Z','now')),
     approved_by TEXT REFERENCES app_users(id) ON DELETE SET NULL,
     approved_at TEXT,
-    revoked_at TEXT
+    revoked_at TEXT,
+    -- Last manual connectivity probe; advisory only and never part of status.
+    last_test_status TEXT,
+    last_test_code TEXT,
+    last_test_model TEXT,
+    last_test_latency_ms INTEGER,
+    last_tested_at TEXT
 );
 CREATE UNIQUE INDEX ux_assistant_credentials_fingerprint ON assistant_credentials(provider,fingerprint) WHERE status <> 'REVOKED';
 CREATE INDEX ix_assistant_credentials_owner ON assistant_credentials(owner_id,created_at);

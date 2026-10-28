@@ -1,8 +1,7 @@
 import { z } from 'zod';
 import type { Client } from '@libsql/client';
 import { all, execute, fail, now, one, scalar, transaction, uuid, type Executor, type Row } from './db.ts';
-import { authorize, requireActor, type Api } from './auth.ts';
-import { accessView } from './rbac-policy.ts';
+import { authorizePermission, requireActor, type Actor, type Api } from './auth.ts';
 import type { Cache } from './cache.ts';
 import {
   DEFAULT_MODELS,
@@ -53,6 +52,13 @@ export async function initializeAssistantCredentials(db: Client): Promise<void> 
     ON assistant_credentials(provider,fingerprint) WHERE status <> 'REVOKED'`);
   await execute(db, 'CREATE INDEX IF NOT EXISTS ix_assistant_credentials_owner ON assistant_credentials(owner_id,created_at)');
   await execute(db, 'CREATE INDEX IF NOT EXISTS ix_assistant_credentials_active ON assistant_credentials(status,created_at)');
+  // Test telemetry is advisory: it never changes the key status, but admins need to see the last outcome.
+  for (const [column, type] of [
+    ['last_test_status', 'TEXT'], ['last_test_code', 'TEXT'], ['last_test_model', 'TEXT'],
+    ['last_test_latency_ms', 'INTEGER'], ['last_tested_at', 'TEXT'],
+  ] as const) {
+    await execute(db, `ALTER TABLE assistant_credentials ADD COLUMN ${column} ${type}`).catch(() => undefined);
+  }
 }
 
 const aadFor = (provider: string, ownerId: string): string => `assistant-credential:v1:${provider}:${ownerId}`;
@@ -116,8 +122,28 @@ export const assistantRuntimeOptions = (cache: Cache, db: Executor, options: Ass
 const keySelect = `SELECT c.*,u.email AS owner_email,u.display_name AS owner_display_name
   FROM assistant_credentials c JOIN app_users u ON u.id=c.owner_id`;
 
-const keyView = (row: Row, viewerIsOwner: boolean, viewerId: string) => {
-  const isMine = row.owner_id === viewerId;
+const KEY_PERMISSIONS = {
+  read: 'assistant:keys:read',
+  create: 'assistant:keys:create',
+  reveal: 'assistant:keys:reveal',
+  test: 'assistant:keys:test',
+  revoke: 'assistant:keys:revoke',
+  manage: 'assistant:keys:manage',
+} as const;
+
+type KeyAction = keyof typeof KEY_PERMISSIONS;
+
+interface KeyViewer {
+  id: string;
+  permissions: string[];
+  manage: boolean;
+  holds: (permission: string) => boolean;
+  /** `assistant:keys:manage` reaches every key; otherwise only the creator's own key, and only for the action granted. */
+  reaches: (row: Row, action: KeyAction) => boolean;
+}
+
+const keyView = (row: Row, viewer: KeyViewer) => {
+  const isMine = row.owner_id === viewer.id;
   return {
     id: row.id,
     provider: row.provider,
@@ -130,17 +156,36 @@ const keyView = (row: Row, viewerIsOwner: boolean, viewerId: string) => {
     ownerEmail: row.owner_email,
     ownerDisplayName: row.owner_display_name,
     isMine,
-    canReveal: isMine || viewerIsOwner,
-    canTest: isMine || viewerIsOwner,
-    canManageStatus: viewerIsOwner,
+    canReveal: viewer.reaches(row, 'reveal'),
+    canTest: viewer.reaches(row, 'test'),
+    canRevoke: viewer.reaches(row, 'revoke'),
+    canManageStatus: viewer.manage,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     approvedAt: row.approved_at ?? null,
+    lastTest: typeof row.last_tested_at === 'string' ? {
+      status: row.last_test_status === 'OK' ? 'OK' : 'FAILED',
+      code: typeof row.last_test_code === 'string' ? row.last_test_code : null,
+      model: typeof row.last_test_model === 'string' ? row.last_test_model : null,
+      latencyMs: Number(row.last_test_latency_ms) || 0,
+      testedAt: row.last_tested_at,
+    } : null,
   };
 };
 
-const isOwner = async (db: Executor, user: Row): Promise<boolean> =>
-  (await accessView(db, user)).permissions.includes('users:manage-roles');
+async function keyViewer(db: Executor, actor: Actor, action: KeyAction): Promise<KeyViewer> {
+  const { user, access } = await authorizePermission(db, actor, KEY_PERMISSIONS[action]);
+  const permissions = access.permissions;
+  const holds = (permission: string) => permissions.includes(permission);
+  const manage = holds(KEY_PERMISSIONS.manage);
+  return {
+    id: user.id,
+    permissions,
+    manage,
+    holds,
+    reaches: (row, key) => manage || (row.owner_id === user.id && holds(KEY_PERMISSIONS[key])),
+  };
+}
 
 const audit = (db: Executor, actorId: string, action: string, id: string, details: string, outcome: 'SUCCESS' | 'FAILURE' = 'SUCCESS') =>
   execute(db, "INSERT INTO audit_events(id,actor_id,action,entity_type,entity_id,outcome,details_redacted) VALUES (?,?,?,'ASSISTANT_KEY',?,?,?)",
@@ -181,14 +226,15 @@ export function assistantCredentialRoutes(app: Api, db: Client, options: Assista
   app.get('/api/v1/admin/assistant/keys', async c => {
     const actor = requireActor(c, true);
     return c.json(await transaction(db, async tx => {
-      const current = await authorize(tx, actor, true);
-      const owner = await isOwner(tx, current);
-      const rows = owner
-        ? await all(tx, keySelect + " WHERE c.status<>'REVOKED' ORDER BY c.created_at DESC,c.id")
-        : await all(tx, keySelect + " WHERE c.owner_id=? AND c.status<>'REVOKED' ORDER BY c.created_at DESC,c.id", [current.id]);
+      const viewer = await keyViewer(tx, actor, 'read');
+      const rows = await all(tx, viewer.manage
+        ? keySelect + " WHERE c.status<>'REVOKED' ORDER BY c.created_at DESC,c.id"
+        : keySelect + " WHERE c.owner_id=? AND c.status<>'REVOKED' ORDER BY c.created_at DESC,c.id",
+        viewer.manage ? [] : [viewer.id]);
       return {
-        items: rows.map(row => keyView(row, owner, current.id)),
-        canManage: owner,
+        items: rows.map(row => keyView(row, viewer)),
+        canManage: viewer.manage,
+        canCreate: viewer.holds(KEY_PERMISSIONS.create),
         storageAvailable: Boolean(options?.credentialKey),
         limits: { perOwner: MAX_KEYS_PER_OWNER, active: MAX_ACTIVE_KEYS },
       };
@@ -204,30 +250,29 @@ export function assistantCredentialRoutes(app: Api, db: Client, options: Assista
     const secret = body.provider === 'workers-ai' ? `${body.accountId}:${body.apiKey}` : body.apiKey;
     const fingerprint = fingerprintSecret(master, body.provider, secret);
     return c.json(await transaction(db, async tx => {
-      const current = await authorize(tx, actor, true);
-      const owner = await isOwner(tx, current);
-      const live = await scalar(tx, "SELECT COUNT(*) FROM assistant_credentials WHERE owner_id=? AND status<>'REVOKED'", [current.id]);
+      const viewer = await keyViewer(tx, actor, 'create');
+      const live = await scalar(tx, "SELECT COUNT(*) FROM assistant_credentials WHERE owner_id=? AND status<>'REVOKED'", [viewer.id]);
       if (live >= MAX_KEYS_PER_OWNER) return fail(409, 'KEY_LIMIT_REACHED');
       if ((await all(tx, "SELECT id FROM assistant_credentials WHERE provider=? AND fingerprint=? AND status<>'REVOKED'", [body.provider, fingerprint])).length) {
         return fail(409, 'DUPLICATE_KEY');
       }
-      const status: CredentialStatus = owner ? 'ACTIVE' : 'PENDING';
+      const status: CredentialStatus = viewer.manage ? 'ACTIVE' : 'PENDING';
       if (status === 'ACTIVE' && await scalar(tx, "SELECT COUNT(*) FROM assistant_credentials WHERE status='ACTIVE'") >= MAX_ACTIVE_KEYS) {
         return fail(409, 'KEY_LIMIT_REACHED');
       }
       const id = uuid(), timestamp = now();
-      const encrypted = encryptSecret(master, encodeSecret({ key: body.apiKey, ...(body.accountId ? { accountId: body.accountId } : {}) }), aadFor(body.provider, current.id));
+      const encrypted = encryptSecret(master, encodeSecret({ key: body.apiKey, ...(body.accountId ? { accountId: body.accountId } : {}) }), aadFor(body.provider, viewer.id));
       if (status === 'ACTIVE') {
         await execute(tx, `INSERT INTO assistant_credentials(id,provider,owner_id,label,secret_enc,key_hint,account_hint,fingerprint,status,created_at,updated_at,approved_by,approved_at)
           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-          [id, body.provider, current.id, body.label, encrypted, maskSecret(body.apiKey), body.accountId ? maskAccount(body.accountId) : null, fingerprint, status, timestamp, timestamp, current.id, timestamp]);
+          [id, body.provider, viewer.id, body.label, encrypted, maskSecret(body.apiKey), body.accountId ? maskAccount(body.accountId) : null, fingerprint, status, timestamp, timestamp, viewer.id, timestamp]);
       } else {
         await execute(tx, `INSERT INTO assistant_credentials(id,provider,owner_id,label,secret_enc,key_hint,account_hint,fingerprint,status,created_at,updated_at)
           VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
-          [id, body.provider, current.id, body.label, encrypted, maskSecret(body.apiKey), body.accountId ? maskAccount(body.accountId) : null, fingerprint, status, timestamp, timestamp]);
+          [id, body.provider, viewer.id, body.label, encrypted, maskSecret(body.apiKey), body.accountId ? maskAccount(body.accountId) : null, fingerprint, status, timestamp, timestamp]);
       }
-      await audit(tx, current.id, 'ASSISTANT_KEY_CREATED', id, `provider=${body.provider};status=${status};owner=${current.id}`);
-      return { item: keyView(await one(tx, keySelect + ' WHERE c.id=?', [id]), owner, current.id) };
+      await audit(tx, viewer.id, 'ASSISTANT_KEY_CREATED', id, `provider=${body.provider};status=${status};owner=${viewer.id}`);
+      return { item: keyView(await one(tx, keySelect + ' WHERE c.id=?', [id]), viewer) };
     }));
   });
 
@@ -237,18 +282,17 @@ export function assistantCredentialRoutes(app: Api, db: Client, options: Assista
     const master = options?.credentialKey;
     if (!master) return fail(503, 'KEY_STORAGE_UNAVAILABLE');
     return c.json(await transaction(db, async tx => {
-      const current = await authorize(tx, actor, true);
-      const owner = await isOwner(tx, current);
+      const viewer = await keyViewer(tx, actor, 'reveal');
       const row = await one(tx, keySelect + ' WHERE c.id=?', [id]);
-      // Delegated admins get 404 for a foreign key so they cannot probe which keys exist.
-      if (!owner && row.owner_id !== current.id) return fail(404, 'KEY_NOT_FOUND');
+      // Admins without reach get 404 for a foreign key so they cannot probe which keys exist.
+      if (!viewer.reaches(row, 'reveal')) return fail(404, 'KEY_NOT_FOUND');
       if (row.status === 'REVOKED' || !row.secret_enc) return fail(409, 'KEY_REVOKED');
       let payload: SecretPayload;
       try { payload = decodeSecret(decryptSecret(master, row.secret_enc, aadFor(row.provider, row.owner_id))); }
       catch { return fail(409, 'KEY_UNREADABLE'); }
       // The audit row is part of the transaction: a failed audit withholds the plaintext.
-      await audit(tx, current.id, 'ASSISTANT_KEY_REVEALED', id,
-        `provider=${row.provider};owner=${row.owner_id};scope=${row.owner_id === current.id ? 'own' : 'owner'}`);
+      await audit(tx, viewer.id, 'ASSISTANT_KEY_REVEALED', id,
+        `provider=${row.provider};owner=${row.owner_id};scope=${row.owner_id === viewer.id ? 'own' : 'managed'}`);
       return { apiKey: payload.key, accountId: payload.accountId ?? null };
     }));
   });
@@ -258,12 +302,11 @@ export function assistantCredentialRoutes(app: Api, db: Client, options: Assista
     const id = z.string().uuid().parse(c.req.param('id'));
     const body = patchSchema.parse(await c.req.json());
     return c.json(await transaction(db, async tx => {
-      const current = await authorize(tx, actor, true);
-      if (!await isOwner(tx, current)) return fail(403, 'OWNER_REQUIRED');
+      const viewer = await keyViewer(tx, actor, 'manage');
       const row = await one(tx, keySelect + ' WHERE c.id=?', [id]);
       if (row.status === 'REVOKED') return fail(409, 'KEY_REVOKED');
       if (!statusSchema.safeParse(row.status).success) return fail(409, 'KEY_UNREADABLE');
-      if (row.status === body.status) return { item: keyView(row, true, current.id), changed: false };
+      if (row.status === body.status) return { item: keyView(row, viewer), changed: false };
       if (body.status === 'ACTIVE' && row.status !== 'ACTIVE'
         && await scalar(tx, "SELECT COUNT(*) FROM assistant_credentials WHERE status='ACTIVE'") >= MAX_ACTIVE_KEYS) {
         return fail(409, 'KEY_LIMIT_REACHED');
@@ -271,13 +314,13 @@ export function assistantCredentialRoutes(app: Api, db: Client, options: Assista
       const timestamp = now();
       if (body.status === 'ACTIVE') {
         await execute(tx, 'UPDATE assistant_credentials SET status=?,updated_at=?,approved_by=?,approved_at=? WHERE id=?',
-          [body.status, timestamp, current.id, timestamp, id]);
+          [body.status, timestamp, viewer.id, timestamp, id]);
       } else {
         await execute(tx, 'UPDATE assistant_credentials SET status=?,updated_at=? WHERE id=?', [body.status, timestamp, id]);
       }
       const action = body.status === 'ACTIVE' ? (row.status === 'PENDING' ? 'ASSISTANT_KEY_APPROVED' : 'ASSISTANT_KEY_REENABLED') : 'ASSISTANT_KEY_DISABLED';
-      await audit(tx, current.id, action, id, `provider=${row.provider};from=${row.status};to=${body.status};owner=${row.owner_id}`);
-      return { item: keyView(await one(tx, keySelect + ' WHERE c.id=?', [id]), true, current.id), changed: true };
+      await audit(tx, viewer.id, action, id, `provider=${row.provider};from=${row.status};to=${body.status};owner=${row.owner_id}`);
+      return { item: keyView(await one(tx, keySelect + ' WHERE c.id=?', [id]), viewer), changed: true };
     }));
   });
 
@@ -285,16 +328,15 @@ export function assistantCredentialRoutes(app: Api, db: Client, options: Assista
     const actor = requireActor(c, true);
     const id = z.string().uuid().parse(c.req.param('id'));
     return c.json(await transaction(db, async tx => {
-      const current = await authorize(tx, actor, true);
-      const owner = await isOwner(tx, current);
+      const viewer = await keyViewer(tx, actor, 'revoke');
       const row = await one(tx, keySelect + ' WHERE c.id=?', [id]);
-      if (!owner && row.owner_id !== current.id) return fail(404, 'KEY_NOT_FOUND');
+      if (!viewer.reaches(row, 'revoke')) return fail(404, 'KEY_NOT_FOUND');
       if (row.status === 'REVOKED') return fail(409, 'KEY_REVOKED');
       const timestamp = now();
       // Revocation removes the ciphertext but keeps metadata for the audit trail.
       await execute(tx, "UPDATE assistant_credentials SET status='REVOKED',secret_enc='',updated_at=?,revoked_at=? WHERE id=?",
         [timestamp, timestamp, id]);
-      await audit(tx, current.id, 'ASSISTANT_KEY_REVOKED', id, `provider=${row.provider};owner=${row.owner_id};status=${row.status}`);
+      await audit(tx, viewer.id, 'ASSISTANT_KEY_REVOKED', id, `provider=${row.provider};owner=${row.owner_id};status=${row.status}`);
       return { removed: true };
     }));
   });
@@ -307,10 +349,9 @@ export function assistantCredentialRoutes(app: Api, db: Client, options: Assista
     if (!master) return fail(503, 'KEY_STORAGE_UNAVAILABLE');
     // Reading and decrypting happen in one short transaction; the provider call must not hold a DB lock.
     const target = await transaction(db, async tx => {
-      const current = await authorize(tx, actor, true);
-      const owner = await isOwner(tx, current);
+      const viewer = await keyViewer(tx, actor, 'test');
       const row = await one(tx, keySelect + ' WHERE c.id=?', [id]);
-      if (!owner && row.owner_id !== current.id) return fail(404, 'KEY_NOT_FOUND');
+      if (!viewer.reaches(row, 'test')) return fail(404, 'KEY_NOT_FOUND');
       if (row.status === 'REVOKED' || !row.secret_enc) return fail(409, 'KEY_REVOKED');
       if (!isProviderId(row.provider)) return fail(409, 'KEY_UNREADABLE');
       const waitMs = (testCooldown.get(id) ?? 0) - Date.now();
@@ -324,7 +365,7 @@ export function assistantCredentialRoutes(app: Api, db: Client, options: Assista
       const settingsRow = (await all(tx, 'SELECT model_overrides FROM assistant_settings WHERE slot=1'))[0];
       const modelOverrides = typeof settingsRow?.model_overrides === 'string' ? settingsRow.model_overrides : undefined;
       return {
-        actorId: current.id,
+        actorId: viewer.id,
         ownerId: row.owner_id,
         provider: row.provider,
         payload,
@@ -363,6 +404,8 @@ export function assistantCredentialRoutes(app: Api, db: Client, options: Assista
     }
     const latencyMs = Date.now() - started;
     const testedAt = now();
+    await execute(db, 'UPDATE assistant_credentials SET last_test_status=?,last_test_code=?,last_test_model=?,last_test_latency_ms=?,last_tested_at=? WHERE id=?',
+      [status, code, model, latencyMs, testedAt, id]);
     await audit(db, target.actorId, 'ASSISTANT_KEY_TESTED', id,
       `provider=${target.provider};owner=${target.ownerId};model=${model};result=${status}${code ? `;code=${code}` : ''};latency=${latencyMs}`,
       status === 'OK' ? 'SUCCESS' : 'FAILURE');

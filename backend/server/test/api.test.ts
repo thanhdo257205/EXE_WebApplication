@@ -540,7 +540,8 @@ test('admins configure provider order, models and slots while usage stays provid
 
   const plan = {
     order: ['groq', 'gemini'], models: { groq: 'groq-fast', gemini: 'gemini-base' },
-    disabledSlots: ['gemini#2'], tokenBudgets: { groq: 5_000, gemini: 12_000 }, expectedVersion: 0,
+    disabledSlots: ['gemini#2'], tokenBudgets: { groq: 5_000, gemini: 12_000 },
+    keyBudgets: { '7a4e5c92-1d3b-4f60-9a11-2c5d8e9f0a1b': 1_500 }, expectedVersion: 0,
   };
   assert.equal((await f.request('PUT', '/api/v1/admin/assistant/settings', plan, f.user)).status, 403);
   assert.equal((await f.request('PUT', '/api/v1/admin/assistant/settings', { order: plan.order, models: plan.models, disabledSlots: plan.disabledSlots, expectedVersion: 0 }, f.admin)).status, 400);
@@ -548,12 +549,19 @@ test('admins configure provider order, models and slots while usage stays provid
   assert.equal((await f.request('PUT', '/api/v1/admin/assistant/settings', { ...plan, tokenBudgets: { unknown: 5 } }, f.admin)).status, 400);
   assert.equal((await f.request('PUT', '/api/v1/admin/assistant/settings', { ...plan, tokenBudgets: { groq: 0 } }, f.admin)).status, 400);
   assert.equal((await f.request('PUT', '/api/v1/admin/assistant/settings', { ...plan, tokenBudgets: { groq: 1.5 } }, f.admin)).status, 400);
+  // Per-key budgets are keyed by credential id, so a slot name can never address one.
+  assert.equal((await f.request('PUT', '/api/v1/admin/assistant/settings', { ...plan, keyBudgets: { 'groq#1': 500 } }, f.admin)).status, 400);
   const saved = await f.request('PUT', '/api/v1/admin/assistant/settings', plan, f.admin);
   assert.equal(saved.status, 200);
   const savedBody = await saved.json();
   assert.equal(savedBody.settings.version, 1);
   assert.deepEqual(savedBody.settings.tokenBudgets, { groq: 5_000, gemini: 12_000 });
+  assert.deepEqual(savedBody.settings.keyBudgets, plan.keyBudgets);
   assert.deepEqual((await (await f.request('GET', '/api/v1/admin/assistant/settings', undefined, f.admin)).json()).settings.tokenBudgets, { groq: 5_000, gemini: 12_000 });
+  // A provider-only save must not silently clear the per-key budgets set from the key tab.
+  const { keyBudgets, ...withoutKeyBudgets } = plan;
+  assert.equal((await f.request('PUT', '/api/v1/admin/assistant/settings', { ...withoutKeyBudgets, expectedVersion: 1 }, f.admin)).status, 200);
+  assert.deepEqual((await (await f.request('GET', '/api/v1/admin/assistant/settings', undefined, f.admin)).json()).settings.keyBudgets, keyBudgets);
   assert.equal((await f.request('PUT', '/api/v1/admin/assistant/settings', plan, f.admin)).status, 409);
 
   const ask = (message = 'Cách chơi?') => f.request('POST', '/api/v1/assistant/chat', { message }, f.user);
@@ -574,8 +582,14 @@ test('admins configure provider order, models and slots while usage stays provid
   assert.equal(usage.slots.find((slot: any) => slot.slot === 'groq#1').model, 'groq-fast');
   assert.equal(usage.today.day, new Date().toISOString().slice(0, 10));
   assert.deepEqual(usage.today.providers, [{ provider: 'groq', tokensIn: 30, tokensOut: 10 }]);
+  // Per-slot rows are what lets each API key card report its own consumption.
+  assert.deepEqual(usage.keys.map((row: any) => [row.slot, row.provider, row.requests, row.failures, row.tokensIn, row.tokensOut]),
+    [['groq#1', 'groq', 2, 0, 30, 10]]);
+  assert.equal(typeof usage.keys[0].avgLatencyMs, 'number');
+  assert.deepEqual(usage.today.slots, [{ slot: 'groq#1', provider: 'groq', requests: 2, failures: 0, tokensIn: 30, tokensOut: 10 }]);
   assert.equal((await f.request('GET', '/api/v1/admin/assistant/usage', undefined, f.user)).status, 403);
-  const audit = await one(f.db, "SELECT * FROM audit_events WHERE action='ASSISTANT_SETTINGS_UPDATED'");
+  const audit = await one(f.db, "SELECT * FROM audit_events WHERE action='ASSISTANT_SETTINGS_UPDATED' AND details_redacted LIKE 'version=1;%'");
   assert.equal(audit.outcome, 'SUCCESS');
   assert.match(audit.details_redacted, /version=1;order=groq,gemini/);
+  assert.match(audit.details_redacted, /key_budgets=\{"7a4e5c92-1d3b-4f60-9a11-2c5d8e9f0a1b":1500\}/);
 });
