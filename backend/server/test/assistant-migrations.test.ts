@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { all, database, execute } from '../src/db.ts';
 import { createUsageRecorder, initializeAssistantUsage, usageSummary } from '../src/assistant-usage.ts';
 import { initializeAssistantSettings, loadAssistantSettings } from '../src/assistant-settings.ts';
+import { DEFAULT_MODELS } from '../src/assistant-providers.ts';
 
 test('assistant tables created before token accounting are upgraded in place', async t => {
   const db = database('file::memory:');
@@ -27,6 +28,10 @@ test('assistant tables created before token accounting are upgraded in place', a
   )`);
   const today = new Date().toISOString().slice(0, 10);
   await execute(db, "INSERT INTO assistant_usage_daily(day,provider,slot,model,requests) VALUES (?,'groq','groq#1','m',5)", [today]);
+  await execute(db, `INSERT INTO assistant_settings(slot,provider_order,model_overrides,disabled_slots) VALUES (1,?,?, '[]')`, [
+    JSON.stringify(['gemini', 'groq', 'openrouter']),
+    JSON.stringify({ gemini: 'gemini-2.5-flash', groq: 'llama-3.3-70b-versatile', openrouter: 'vendor/custom-model' }),
+  ]);
 
   await initializeAssistantUsage(db);
   await initializeAssistantSettings(db);
@@ -46,5 +51,14 @@ test('assistant tables created before token accounting are upgraded in place', a
   assert.equal(summary.totals.tokensIn, 12);
   assert.equal(summary.totals.tokensOut, 3);
   assert.deepEqual(summary.today.providers, [{ provider: 'groq', tokensIn: 12, tokensOut: 3 }]);
-  assert.deepEqual((await loadAssistantSettings(db, null)).tokenBudgets, {});
+  const settings = await loadAssistantSettings(db, null);
+  // Retired product defaults are rewritten once, while a custom admin model survives untouched.
+  assert.equal(settings.models.gemini, DEFAULT_MODELS.gemini);
+  assert.equal(settings.models.groq, DEFAULT_MODELS.groq);
+  assert.equal(settings.models.openrouter, 'vendor/custom-model');
+  assert.equal(settings.version, 2);
+  assert.deepEqual(settings.tokenBudgets, {});
+  // Repeat startup must be a no-op: the rewritten ids no longer match, so the version stays put.
+  await initializeAssistantSettings(db);
+  assert.equal((await loadAssistantSettings(db, null)).version, 2);
 });

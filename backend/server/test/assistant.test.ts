@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  assistantFromEnv, geminiProvider, groqProvider, NoProviderAvailable, openRouterProvider,
+  assistantFromEnv, DEFAULT_MODELS, geminiProvider, groqProvider, NoProviderAvailable, openRouterProvider,
   ProviderError, ProviderRouter, workersAiProvider,
   type ChatProvider, type CompletionRequest, type CompletionResult, type FetchLike,
 } from '../src/assistant-providers.ts';
@@ -62,6 +62,37 @@ test('Gemini adapter sends systemInstruction, maps assistant to model and joins 
   assert.equal(body.generationConfig.maxOutputTokens, 123);
   const blocked = geminiProvider({ apiKey: 'k', fetch: async () => Response.json({ promptFeedback: { blockReason: 'SAFETY' } }) });
   await assert.rejects(blocked.complete(request()), isFailure('EMPTY'));
+});
+
+test('Gemini adapter treats a 400 API_KEY_INVALID as an auth failure', async () => {
+  const adapter = geminiProvider({
+    apiKey: 'bad-key', model: 'gemini-test',
+    fetch: async () => Response.json({
+      error: {
+        code: 400,
+        message: 'API key not valid. Please pass a valid API key.',
+        status: 'INVALID_ARGUMENT',
+        details: [{ reason: 'API_KEY_INVALID' }],
+      },
+    }, { status: 400 }),
+  });
+  await assert.rejects(adapter.complete(request()), isFailure('AUTH'));
+  const messageOnly = geminiProvider({
+    apiKey: 'bad-key', model: 'gemini-test',
+    fetch: async () => Response.json({ error: { code: 400, message: 'API key not valid. Please pass a valid API key.' } }, { status: 400 }),
+  });
+  await assert.rejects(messageOnly.complete(request()), isFailure('AUTH'));
+  const other = geminiProvider({
+    apiKey: 'k', model: 'gemini-test',
+    fetch: async () => Response.json({ error: { code: 400, message: 'Model not found', status: 'INVALID_ARGUMENT' } }, { status: 400 }),
+  });
+  await assert.rejects(other.complete(request()), isFailure('INVALID'));
+  // Only Gemini's 400 is special: another provider returning the same shape stays INVALID.
+  const groq = groqProvider({
+    apiKey: 'k', model: 'groq-test',
+    fetch: async () => Response.json({ error: { code: 400, details: [{ reason: 'API_KEY_INVALID' }] } }, { status: 400 }),
+  });
+  await assert.rejects(groq.complete(request()), isFailure('INVALID'));
 });
 
 test('Groq and OpenRouter adapters use OpenAI-compatible bodies and normalize failures', async () => {
@@ -168,6 +199,10 @@ test('assistantFromEnv keeps configured order, skips missing credentials and cla
   }, fetchStub);
   assert.deepEqual(options.providers.map(provider => provider.id), ['groq', 'gemini']);
   assert.deepEqual(options.providers.map(provider => provider.slot), ['groq#1', 'gemini#1']);
+  // Missing env model variables must pick up the current provider lineup, not a retired id.
+  assert.deepEqual(options.providers.map(provider => provider.model), [DEFAULT_MODELS.groq, DEFAULT_MODELS.gemini]);
+  assert.equal(options.models?.groq, DEFAULT_MODELS.groq);
+  assert.equal(options.models?.gemini, DEFAULT_MODELS.gemini);
   assert.equal(options.timeoutMs, 5_000);
   assert.equal(options.attemptTimeoutMs, 5_000);
   assert.equal(options.maxOutputTokens, 2_048);

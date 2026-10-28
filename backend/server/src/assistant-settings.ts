@@ -32,6 +32,34 @@ const MODEL_PATTERN = /^[A-Za-z0-9@._:/+-]+$/;
 const SLOT_PATTERN = /^(?:[a-z0-9-]+#\d{1,3}|db:[0-9a-f-]{36})$/;
 const MAX_TOKEN_BUDGET = 2_000_000_000;
 
+// Providers retired these ids, so any stored override would fail every request with INVALID.
+// Only exact ids shipped as product defaults are rewritten; custom admin choices stay untouched.
+const RETIRED_MODEL_REPLACEMENTS: Readonly<Record<ProviderId, Readonly<Record<string, string>>>> = {
+  'workers-ai': {},
+  gemini: {
+    'gemini-2.5-flash': DEFAULT_MODELS.gemini,
+    'gemini-2.5-flash-lite': DEFAULT_MODELS.gemini,
+  },
+  groq: {
+    'llama-3.3-70b-versatile': DEFAULT_MODELS.groq,
+    'llama-3.1-8b-instant': DEFAULT_MODELS.groq,
+  },
+  openrouter: {
+    'meta-llama/llama-3.3-70b-instruct:free': DEFAULT_MODELS.openrouter,
+  },
+};
+
+function upgradedModelOverrides(raw: string): string | null {
+  const overrides = jsonObject(raw);
+  let changed = false;
+  for (const provider of Object.keys(RETIRED_MODEL_REPLACEMENTS) as ProviderId[]) {
+    const model = overrides[provider];
+    const replacement = typeof model === 'string' ? RETIRED_MODEL_REPLACEMENTS[provider][model] : undefined;
+    if (replacement) { overrides[provider] = replacement; changed = true; }
+  }
+  return changed ? JSON.stringify(overrides) : null;
+}
+
 export async function initializeAssistantSettings(db: Client): Promise<void> {
   await execute(db, `CREATE TABLE IF NOT EXISTS assistant_settings (
     slot INTEGER PRIMARY KEY CHECK (slot=1),
@@ -44,6 +72,11 @@ export async function initializeAssistantSettings(db: Client): Promise<void> {
     updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000Z','now'))
   )`);
   await execute(db, "ALTER TABLE assistant_settings ADD COLUMN token_budgets TEXT NOT NULL DEFAULT '{}'").catch(() => undefined);
+  const stored = (await all(db, 'SELECT model_overrides FROM assistant_settings WHERE slot=1'))[0];
+  if (typeof stored?.model_overrides === 'string') {
+    const upgraded = upgradedModelOverrides(stored.model_overrides);
+    if (upgraded) await execute(db, 'UPDATE assistant_settings SET model_overrides=?,version=version+1 WHERE slot=1', [upgraded]);
+  }
 }
 
 export function defaultAssistantSettings(options: AssistantOptions | null): AssistantSettings {

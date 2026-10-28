@@ -6,7 +6,7 @@ import type { Client } from '@libsql/client';
 import { database, initializeLocal, execute, one, scalar, uuid, now } from '../src/db.ts';
 import { createApp } from '../src/app.ts';
 import { initializeRbac } from '../src/rbac.ts';
-import { assistantFromEnv, type FetchLike } from '../src/assistant-providers.ts';
+import { assistantFromEnv, DEFAULT_MODELS, type FetchLike } from '../src/assistant-providers.ts';
 import { decodeMasterKey, decryptSecret, encryptSecret, fingerprintSecret, maskAccount, maskSecret } from '../src/assistant-crypto.ts';
 import type { Config } from '../src/auth.ts';
 
@@ -30,7 +30,7 @@ async function publishRelease(db: Client) {
   await execute(db, "INSERT INTO content_releases(id,version_label,title,status,current_slot,published_at) VALUES (?,'v1','Bản thử','PUBLISHED',1,?)", [uuid(), now()]);
 }
 
-async function fixture(options: { secret?: string | null } = {}) {
+async function fixture(options: { secret?: string | null; fetch?: FetchLike } = {}) {
   const db = database('file::memory:'); await initializeLocal(db);
   const owner = uuid(), delegated = uuid(), customer = uuid();
   await execute(db, 'INSERT INTO app_users(id,email,display_name,role) VALUES (?,?,?,?)', [owner, owner + '@example.test', 'Chủ sở hữu', 'ADMIN']);
@@ -42,7 +42,7 @@ async function fixture(options: { secret?: string | null } = {}) {
   const config: Config = { production: false, publicOrigin: 'http://localhost:4200', proxySecret: '', jwtSecret: randomBytes(32).toString('base64'), googleClientId: '', googleClientSecret: '', googleEnabled: false, resetEnabled: false, resendKey: '', mailFrom: '' };
   const env = { GROQ_API_KEY: 'env-key', GROQ_MODEL: 'env-model' };
   const fetchCalls = fetchFixture();
-  const assistant = assistantFromEnv({ ...env, ...(options.secret === null ? {} : { ASSISTANT_KEY_SECRET: options.secret ?? masterBase64 }) }, fetchCalls.fetch);
+  const assistant = assistantFromEnv({ ...env, ...(options.secret === null ? {} : { ASSISTANT_KEY_SECRET: options.secret ?? masterBase64 }) }, options.fetch ?? fetchCalls.fetch);
   const { app, usage } = createApp(db, config, null, undefined, undefined, assistant);
   const token = (id: string, version = 0) => new SignJWT({ ver: version }).setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
     .setIssuer('exe-web-api').setAudience('exe-web').setSubject(id).setJti(uuid()).setIssuedAt().setExpirationTime('30m')
@@ -236,6 +236,31 @@ test('manual key test reports the provider outcome, is audited and never changes
   const revoked = await f.request('POST', `/api/v1/admin/assistant/keys/${good.id}/test`, f.owner);
   assert.equal(revoked.status, 409);
   assert.equal((await revoked.json()).code, 'KEY_REVOKED');
+});
+
+test('Gemini key test uses the current default model and reports an invalid key as AUTH', async t => {
+  const fetch: FetchLike = async () => Response.json({
+    error: {
+      code: 400,
+      message: 'API key not valid. Please pass a valid API key.',
+      status: 'INVALID_ARGUMENT',
+      details: [{ reason: 'API_KEY_INVALID' }],
+    },
+  }, { status: 400 });
+  const f = await fixture({ fetch }); t.after(() => f.db.close());
+  const created = (await (await f.createKey(f.owner, { provider: 'gemini', label: 'Gemini key', apiKey: 'gemini-key-1234' })).json()).item;
+
+  const tested = await f.request('POST', `/api/v1/admin/assistant/keys/${created.id}/test`, f.owner);
+  assert.equal(tested.status, 200);
+  const body = await tested.json();
+  assert.equal(body.status, 'FAILED');
+  assert.equal(body.code, 'AUTH');
+  assert.equal(body.provider, 'gemini');
+  assert.equal(body.model, DEFAULT_MODELS.gemini);
+  assert.equal((await one(f.db, 'SELECT status FROM assistant_credentials WHERE id=?', [created.id])).status, 'ACTIVE');
+  const auditRow = await one(f.db, "SELECT * FROM audit_events WHERE action='ASSISTANT_KEY_TESTED' AND entity_id=?", [created.id]);
+  assert.match(auditRow.details_redacted, /result=FAILED;code=AUTH/);
+  assert.equal(String(auditRow.details_redacted).includes('gemini-key-1234'), false);
 });
 
 test('key tests follow reveal scoping and leave pending keys pending', async t => {
