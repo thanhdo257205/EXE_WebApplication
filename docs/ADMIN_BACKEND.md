@@ -8,7 +8,7 @@ Hợp đồng phiên bản 0.1.0, ngày 2026-10-20. Frontend do AI khác phụ t
 
 Đợt này có dashboard nội dung, release nháp, clone release, CRUD revision cho nhân vật/bộ thẻ/thẻ/wiki, tìm kiếm/phân trang, xem trước riêng tư, tra cứu ID cố định và đọc nhật ký thay đổi nội dung. Dashboard không trả doanh thu, số đơn hoặc số liệu minh họa.
 
-Import CSV/JSON, xuất bản/rollback lên Pages, quản trị người dùng, upload ảnh, quản trị commerce và hệ thống đối soát/refund còn ở backlog. Backend moderation phản hồi và API public/snapshot đã bổ sung local, hợp đồng riêng tại [FEEDBACK_API.md](FEEDBACK_API.md) và [PUBLIC_CONTENT_API.md](PUBLIC_CONTENT_API.md); chưa nghiệm thu UI/production và chưa nằm trong OpenAPI admin content 0.1.0. Không có API đánh dấu release PUBLISHED, chạy SQL tùy ý hoặc sửa trạng thái PAID. Việc tạo/xem trước nội dung không làm website public thay đổi.
+Import CSV/JSON, xuất bản/rollback lên Pages, quản trị người dùng, upload ảnh, quản trị commerce và hệ thống đối soát/refund còn ở backlog. Backend moderation phản hồi và API public/snapshot đã bổ sung local, hợp đồng riêng tại [FEEDBACK_API.md](FEEDBACK_API.md) và [PUBLIC_CONTENT_API.md](PUBLIC_CONTENT_API.md); chưa nghiệm thu UI/production và chưa nằm trong OpenAPI admin content 0.1.0. Từ 2026-10-28 có thêm `POST /content/releases/{release}/publish` (quyền `releases:publish`) để đưa một bản nháp lên kênh công khai: bản đang ở `current_slot=1` bị lưu trữ, bản nháp nhận `published_at`, cả hai tăng version và ghi audit. Đây là xuất bản **nội dung trong database**, không phải deploy Pages. Không có API đánh dấu release PUBLISHED ngoài endpoint này, chạy SQL tùy ý hoặc sửa trạng thái PAID. Việc tạo/xem trước nội dung không làm website public thay đổi; chỉ publish mới đổi.
 
 ## Cấu trúc và mô hình dữ liệu
 
@@ -31,6 +31,8 @@ flowchart LR
 Một ID cố định (`game_characters`, `card_sets`, `game_cards`, `wiki_pages`) có tối đa một revision trong mỗi release. Code/slug/pageType không đổi qua API này. Revision trong DRAFT có thể sửa; các release PUBLISHED/ARCHIVED chỉ đọc. Để làm bản mới, clone release sang DRAFT: giữ ID/code/slug, tạo ID revision mới, version bắt đầu 0. Lịch sử ở cấp release và audit, không phải một bản chụp đầy đủ cho mỗi lần gõ/sửa trong draft.
 
 DELETE chỉ bỏ revision ở draft, không xóa ID cố định hoặc dữ liệu ở release khác. Nếu nhân vật/bộ thẻ còn được thẻ cùng draft tham chiếu, trả `CONTENT_IN_USE`. API identities tìm được cả ID không còn revision, để thêm lại bằng entityId. Các FK V3 bảo đảm bộ thẻ/nhân vật tham chiếu phải cùng release với thẻ.
+
+Xuất bản là thao tác duy nhất chuyển một release sang PUBLISHED. Trong một transaction: kiểm tra `releases:publish`; bản phải DRAFT và đúng `expectedVersion`; phải có ít nhất một revision thuộc bốn loại (rỗng trả `409 RELEASE_EMPTY`, không đổi trạng thái); lưu trữ bản đang `current_slot=1` (ARCHIVED, `current_slot=NULL`, version+1, audit `CONTENT_RELEASE_ARCHIVED` kèm `replacedBy`); rồi đặt bản nháp thành PUBLISHED, `current_slot=1`, `published_at=now`, version+1, audit `CONTENT_RELEASE_PUBLISHED` (kèm `archived` nếu có bản bị thay thế). Không kiểm tra đủ 8 cư dân/11 bộ thẻ — ngưỡng "đủ nội dung" vẫn là quyết định sản phẩm mở. Middleware admin-write xóa cache public trong tiến trình sau khi publish, nên API công khai và knowledge của trợ lý AI đọc bản mới ngay; không cần deploy lại.
 
 ## Quyền và giao dịch
 
@@ -56,6 +58,7 @@ Tiền tố `/api/v1/admin`. `{kind}` chỉ nhận `characters`, `card-sets`, `c
 | GET | `/content/releases/{release}` | Metadata và version |
 | PUT | `/content/releases/{release}` | Sửa title/releaseNotes của draft, cần expectedVersion |
 | POST | `/content/releases/{release}/clone` | Clone nhất quán, cần sourceVersion và versionLabel mới |
+| POST | `/content/releases/{release}/publish` | Xuất bản bản nháp, cần expectedVersion; lưu trữ bản đang công khai rồi đặt bản này làm `current_slot=1` |
 | GET | `/content/releases/{release}/preview` | Snapshot có previewOnly=true; chỉ ADMIN, không phải public export |
 | GET | `/content/identities/{kind}` | Tìm ID/code/slug hoặc pageType cố định, kể cả ID đã bỏ khỏi draft |
 | GET | `/content/releases/{release}/{kind}` | Danh sách revision, tìm q, phân trang, trả releaseVersion |
@@ -65,7 +68,7 @@ Tiền tố `/api/v1/admin`. `{kind}` chỉ nhận `characters`, `card-sets`, `c
 | DELETE | `/content/releases/{release}/{kind}/{id}?expectedVersion=...` | Bỏ revision khỏi draft |
 | GET | `/content/audit-events?releaseId=...` | Nhật ký nội dung có phân trang; releaseId tùy chọn |
 
-POST tạo trả 201; GET/PUT/DELETE trả 200. Response admin đều no-store. DELETE trả `{entityId,releaseVersion}` để frontend giữ version mới. Chưa hỗ trợ PATCH hoặc đổi code/slug, lọc theo bộ thẻ/nhân vật, sort tùy ý hoặc upload file.
+POST tạo trả 201; GET/PUT/DELETE trả 200. Riêng `/publish` là POST nhưng trả 200 vì không tạo tài nguyên mới. Response admin đều no-store. DELETE trả `{entityId,releaseVersion}` để frontend giữ version mới. Chưa hỗ trợ PATCH hoặc đổi code/slug, lọc theo bộ thẻ/nhân vật, sort tùy ý hoặc upload file.
 
 Phân trang: `page` bắt đầu 0, tối đa 10000; `size` mặc định 20, tối đa 100; `q` tối đa 100 ký tự. Ký tự `%`, `_`, `!` trong q được tìm như văn bản, không phải wildcard. Revision sắp theo sortOrder, name/title, UUID; identities theo slug, UUID; release/audit theo createdAt giảm dần rồi UUID. Không có offset bất định khi tên trùng.
 
@@ -144,7 +147,7 @@ Lỗi domain có dạng ProblemDetail, ví dụ:
 | 400 | VALIDATION_FAILED, INVALID_REQUEST, INVALID_QUERY, INVALID_IMAGE_URL | Hiển thị lỗi; validation có errors[].field/message, không có rejectedValue |
 | 401/403 | Có thể không có code ở security/gateway | Xử lý theo HTTP status, không phụ thuộc mọi lỗi có cùng body |
 | 404 | NOT_FOUND | Đối tượng không còn trong release hoặc kind không được hỗ trợ |
-| 409 | VERSION_CONFLICT, RELEASE_IMMUTABLE, IDENTITY_IMMUTABLE | Tải lại; clone release nếu muốn sửa bản đã xuất bản |
+| 409 | VERSION_CONFLICT, RELEASE_IMMUTABLE, IDENTITY_IMMUTABLE, RELEASE_EMPTY | Tải lại; clone release nếu muốn sửa bản đã xuất bản; thêm nội dung trước khi xuất bản bản rỗng |
 | 409 | REFERENCE_NOT_IN_RELEASE, CONTENT_IN_USE, RESOURCE_CONFLICT | Sửa tham chiếu, phụ thuộc hoặc định danh trùng |
 | 413 | PREVIEW_TOO_LARGE hoặc giới hạn gateway | Dùng phân trang/giảm payload |
 | 429/503 | Có thể không có code | Backoff, thông báo backend đang khởi động; không gửi lặp liên tục |

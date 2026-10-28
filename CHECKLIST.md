@@ -2,6 +2,16 @@
 
 Cập nhật: 2026-10-28 (Asia/Saigon).
 
+## Xuất bản bản phát hành (publish) — 2026-10-28 (local, chưa deploy)
+
+- [x] ADMIN-PUBLISH-01 — Quyền thứ 33 `releases:publish` trong `GRANTABLE_PERMISSIONS`, thuộc bộ mặc định đồng quản trị, tự kèm `content:read`; không có fallback theo tác giả. Đồng bộ catalog frontend + 2 spec đếm quyền (32 → 33).
+- [x] ADMIN-PUBLISH-02 — `POST /api/v1/admin/content/releases/:release/publish` nhận `expectedVersion`; kiểm tra DRAFT + version; `409 RELEASE_EMPTY` khi chưa có revision; lưu trữ bản `current_slot=1` trước (ARCHIVED, slot NULL, version+1, audit `CONTENT_RELEASE_ARCHIVED` + `replacedBy`) rồi promote bản nháp (PUBLISHED, slot 1, `published_at`, version+1, audit `CONTENT_RELEASE_PUBLISHED`). Cache public + knowledge trợ lý AI được middleware admin-write xóa ngay.
+- [x] ADMIN-PUBLISH-03 — Test backend `content-publish.test.ts` 3 ca gồm public/snapshot sau publish, bất biến release đã publish, lưu trữ bản cũ vẫn đọc theo `releaseId`, quyền/CSRF/version/rỗng. `npm run check` qua; `npm test` **113 pass / 1 skip (Turso remote) / 0 fail** (tổng 114).
+- [x] ADMIN-PUBLISH-04 — Frontend `publishRelease()` + nút Xuất bản chỉ hiện với DRAFT và `releases:publish`, hộp xác nhận có cảnh báo lưu trữ, lỗi riêng cho `RELEASE_EMPTY`/`VERSION_CONFLICT`/403, method kiểm tra lại quyền, publish xong tải lại danh sách release từ server. `ng test` **57 file / 432 pass**; `ng build` exit 0, không thêm warning budget.
+- [x] ADMIN-PUBLISH-05 — Cập nhật RBAC_PERMISSIONS, RBAC, ADMIN_BACKEND, PUBLIC_CONTENT_API, DATABASE_DESIGN, OpenAPI admin-content và PROGRESS trong cùng đợt.
+- [ ] ADMIN-PUBLISH-06 — Quyết định sản phẩm còn mở: chưa chặn publish khi thiếu 8 cư dân/11 bộ thẻ/148 thẻ; hiện chỉ yêu cầu ≥1 revision.
+- [ ] ADMIN-PUBLISH-07 — Chưa commit/push/deploy. Sau deploy cần phiên ADMIN tạo nội dung → publish → xác nhận API công khai và trợ lý AI trả lời theo release mới; kiểm tra thêm hai admin publish đồng thời (một người phải nhận `409`).
+
 ## Stylesheet trang trợ lý AI trong ngưỡng budget `anyComponentStyle` (2026-10-28, đã deploy production `2bb745e`)
 
 - [x] AI-CSS-01 — Rà soát size thật: 142 selector, **không có CSS chết** (mọi class đều có trong template; không có `[class]`, không có nội suy class, không có `classList`/`renderer.addClass`), nên không thể giảm bằng cách xóa rule. File gốc 9,87 kB chỉ còn ~132 byte dưới ngưỡng **error 10 kB** của `angular.json`.
@@ -21,7 +31,7 @@ Cập nhật: 2026-10-28 (Asia/Saigon).
 
 ## RBAC chi tiết: phân quyền từng thao tác cho đồng quản trị (2026-10-28, local)
 
-- [x] RBAC-FG-01 — Nghiệp vụ và danh mục 32 quyền `module:action` được chốt trước khi code: [docs/RBAC_PERMISSIONS.md](docs/RBAC_PERMISSIONS.md); `docs/RBAC.md` dẫn chiếu sang tài liệu này.
+- [x] RBAC-FG-01 — Nghiệp vụ và danh mục quyền `module:action` được chốt trước khi code (32 quyền gốc, 33 sau đợt bổ sung `releases:publish`): [docs/RBAC_PERMISSIONS.md](docs/RBAC_PERMISSIONS.md); `docs/RBAC.md` dẫn chiếu sang tài liệu này.
 - [x] RBAC-FG-02 — Backend `GRANTABLE_PERMISSIONS` + `DEFAULT_DELEGATED_PERMISSIONS` (mọi quyền trừ `assistant:keys:manage`) + `normalizePermissions()` tự thêm quyền phụ thuộc (`content:read`, `assistant:read`, `assistant:keys:read`, `keys:manage` → reveal/test/revoke), khử trùng, tối đa 64 khóa, sắp theo thứ tự danh mục.
 - [x] RBAC-FG-03 — Bảng `admin_permission_sets` trong `schema.sql` và tạo idempotent lúc khởi động; không có dòng = bộ mặc định; không đổi `runtime_schema`/enum role/dữ liệu nội dung.
 - [x] RBAC-FG-04 — `accessView()` đọc role + bộ quyền từ DB mỗi request; JWT chỉ còn `ver`. Không tin `permissions` từ token, body hoặc localStorage.
@@ -608,7 +618,7 @@ Backend — trạng thái theo source và kiểm thử từng phần:
 - [x] ADMIN-BE-03: API thẻ/bộ thẻ/nhân vật có list/detail/create/update/remove revision, draft/clone/preview, ID/code/slug cố định, FK cùng release và expectedVersion chống ghi đè. Ảnh chỉ nhận HTTPS hoặc /assets/; chưa có upload và chưa chọn dịch vụ upload mới.
 - [x] ADMIN-BE-04: API wiki STORY/RULE/GUIDE/FAQ/DEVLOG theo release có validation, draft/clone/preview, trả Markdown dưới dạng dữ liệu; frontend phải sanitize khi render. Draft chỉ ADMIN đọc được; API public local bổ sung riêng theo CONTENT-03-API.
 - [ ] ADMIN-BE-05: Import JSON/CSV có mẫu, dry-run, báo lỗi theo dòng/trường, kiểm tra trùng ID/tham chiếu và commit import có transaction; không tự tạo dữ liệu minh họa thay nội dung chính thức (ADMIN-07).
-- [ ] ADMIN-BE-06: API release snapshot/xuất bản, trạng thái build/deploy và rollback; nội dung public dùng được khi Render ngủ, chỉ báo đã xuất bản sau kết quả triển khai thực tế (ADMIN-08). Đã có private preview/clone và public snapshot/export local; còn duyệt/xuất bản/build/deploy/rollback và UI đọc file tĩnh; chưa được coi đã xuất bản.
+- [ ] ADMIN-BE-06: API release snapshot/xuất bản, trạng thái build/deploy và rollback; nội dung public dùng được khi Render ngủ, chỉ báo đã xuất bản sau kết quả triển khai thực tế (ADMIN-08). Đã có private preview/clone, public snapshot/export local và **API publish nội dung trong database** (ADMIN-PUBLISH-01..05); còn build/deploy/rollback và UI đọc file tĩnh; chưa được coi đã deploy nội dung production.
 - [x] ADMIN-BE-07: Backend tiếp nhận phản hồi từ người đăng nhập, gắn thẻ/wiki/release đã xuất bản; admin lọc/phân trang/xem riêng tư/ghi chú/chuyển trạng thái, version chống ghi đè và audit đã kiểm tra local H2/HTTP (2026-10-20). Hợp đồng: [FEEDBACK_API.md](docs/FEEDBACK_API.md); chưa nghiệm thu UI/PostgreSQL/production.
 - [ ] ADMIN-BE-07-PG: Chạy lại 5 tình huống feedback trên PostgreSQL disposable (test đã được kế thừa trong PostgresAdminContentFlowTests); local chưa có database thử nghiệm.
 - [ ] ADMIN-BE-07-DEPLOY: Deploy migration V9 và feedback API, nghiệm thu ADMIN/CUSTOMER/CSRF/throttle trên môi trường đích; nối UI theo ADMIN-09/CONTENT-04.
@@ -639,7 +649,7 @@ Frontend — **AI khác phụ trách**, chưa nghiệm thu:
 - [ ] ADMIN-07: Import JSON/CSV có template, dry-run, lỗi theo dòng/trường và xác nhận; đối chiếu 148 thẻ/11 bộ/8 nhân vật, chống ID trùng và tham chiếu hỏng; không ghi dữ liệu khi validation thất bại (CONTENT-01).
   - Một phần (2026-10-25): frontend có import `.xlsx` phía client trên `/admin/cards`, file mẫu, xem trước/lỗi theo dòng và tạo bộ thẻ + thẻ tuần tự trong release DRAFT; đã deploy commit `5cda101` nhưng chưa có dry-run/commit phía backend, chưa hỗ trợ JSON/CSV, chưa đối chiếu đủ 148 thẻ/11 bộ và chưa nghiệm thu E2E bằng ADMIN trên production. [Chi tiết](docs/ADMIN_CARD_IMPORT.md).
   - Tự động bóc tách ảnh nhúng & tải lên Azure (2026-10-28): hỗ trợ chèn ảnh thẻ trực tiếp vào ô Excel (.xlsx), tự động trích xuất drawings/OpenXML media, nâng giới hạn file lên 50 MB, nén WebP chuẩn qua `prepareCardImage`, tự động upload lên Azure Blob Storage (`POST /api/v1/admin/media/card-image`) và gán URL vào thẻ khi import; 14/14 test import spec, 24/24 test admin section spec, toàn suite 365/365 pass, build/prerender qua.
-- [ ] ADMIN-08: Xuất bản release snapshot, theo dõi build/deploy, báo lỗi đúng và rollback snapshot; public/search chỉ dùng release đã xuất bản, hoạt động khi backend ngủ (CONTENT-02/03).
+- [ ] ADMIN-08: Xuất bản release snapshot, theo dõi build/deploy, báo lỗi đúng và rollback snapshot; public/search chỉ dùng release đã xuất bản, hoạt động khi backend ngủ (CONTENT-02/03). Publish nội dung vào database đã có (ADMIN-PUBLISH); build/deploy/rollback vẫn thiếu.
 - [ ] ADMIN-09: Hộp phản hồi theo thẻ/luật/version: lọc, trạng thái, ghi chú xử lý và bảo vệ thông tin người gửi (CONTENT-04).
 - [ ] ADMIN-14: Quản trị người dùng: danh sách/phân trang, role/trạng thái/phương thức login, khóa/mở và yêu cầu dữ liệu; đổi quyền cần xác thực lại, thu hồi phiên theo thiết kế và không làm mất admin cuối cùng. Không hiện password/hash/token; chưa thêm EDITOR khi chưa chốt quyền.
 - [ ] ADMIN-15: Nhật ký thao tác admin có actor/đối tượng/thời gian/lý do/kết quả; lưu thay đổi quan trọng và lọc bí mật/PII không cần thiết; không cho sửa/xóa audit từ UI (OPS-05).

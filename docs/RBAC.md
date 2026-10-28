@@ -90,7 +90,7 @@ Email mời rỗng hoặc chỉ có khoảng trắng không gửi được (nút
 
 ## Xác minh đợt 2026-10-28 (phân quyền chi tiết theo module)
 
-- Lớp quyền `module:action` cho đồng quản trị đã triển khai xong ở local và được mô tả/nghiệm thu trong `docs/RBAC_PERMISSIONS.md` (danh mục 32 quyền, bộ mặc định, quyền phụ thuộc, API `PUT /admin/users/:id/permissions`, cờ khả năng cho giao diện).
+- Lớp quyền `module:action` cho đồng quản trị đã triển khai xong ở local và được mô tả/nghiệm thu trong `docs/RBAC_PERMISSIONS.md` (danh mục 33 quyền, bộ mặc định, quyền phụ thuộc, API `PUT /admin/users/:id/permissions`, cờ khả năng cho giao diện).
 - Hai quyền `users:manage-roles` và `permissions:manage` vẫn chỉ owner và không nằm trong danh mục gán được; chủ tài khoản thấy ghi chú "Chỉ admin chính" thay vì nút phân quyền.
 - Backend 106 pass / 1 skip (Turso remote), frontend 57 file / 424 test, hai typecheck và `ng build` exit 0. Chi tiết từng nhóm test ở mục 12 của tài liệu trên.
 - Thay đổi **chưa commit/push/deploy**, chưa chạy Chromium với API thật và chưa đụng dữ liệu production.
