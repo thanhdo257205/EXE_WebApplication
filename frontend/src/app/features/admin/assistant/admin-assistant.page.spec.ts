@@ -9,6 +9,7 @@ import {
   AssistantKeysResponse,
   AssistantSettingsResponse,
   AssistantUsage,
+  AssistantKeyTestResult,
 } from '../../../core/admin/admin-assistant.service';
 
 const settingsResponse = (canManage = true, version = 3): AssistantSettingsResponse => ({
@@ -48,6 +49,7 @@ const activeKey: AssistantKey = {
   ownerDisplayName: 'Chủ sở hữu',
   isMine: true,
   canReveal: true,
+  canTest: true,
   canManageStatus: true,
   createdAt: '2026-10-28T09:00:00.000Z',
   updatedAt: '2026-10-28T09:00:00.000Z',
@@ -61,6 +63,16 @@ const keysResponse = (canManage = true, storageAvailable = true, items: Assistan
   limits: { perOwner: 10, active: 32 },
 });
 
+const keyTestResult = (overrides: Partial<AssistantKeyTestResult> = {}): AssistantKeyTestResult => ({
+  status: 'OK',
+  code: null,
+  provider: 'groq',
+  model: 'llama-3.1-8b-instant',
+  latencyMs: 412,
+  testedAt: '2026-10-28T10:05:00.000Z',
+  ...overrides,
+});
+
 describe('AdminAssistantPage', () => {
   let api: {
     getSettings: ReturnType<typeof vi.fn>;
@@ -71,6 +83,7 @@ describe('AdminAssistantPage', () => {
     revealKey: ReturnType<typeof vi.fn>;
     setKeyStatus: ReturnType<typeof vi.fn>;
     revokeKey: ReturnType<typeof vi.fn>;
+    testKey: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(() => {
@@ -83,6 +96,7 @@ describe('AdminAssistantPage', () => {
       revealKey: vi.fn(() => of({ apiKey: 'db-key-1234', accountId: null })),
       setKeyStatus: vi.fn(() => of({ item: { ...activeKey, status: 'DISABLED' }, changed: true })),
       revokeKey: vi.fn(() => of({ removed: true })),
+      testKey: vi.fn(() => of(keyTestResult())),
     };
     TestBed.configureTestingModule({
       imports: [AdminAssistantPage],
@@ -121,7 +135,7 @@ describe('AdminAssistantPage', () => {
     expect(el.querySelectorAll('.key-form label')).toHaveLength(3);
     expect(el.querySelector('.status.active')?.textContent).toContain('Đang dùng');
     expect([...el.querySelectorAll('.actions button')].map(button => button.textContent?.trim()))
-      .toEqual(['Tạm tắt', 'Thu hồi']);
+      .toEqual(['Kiểm tra', 'Tạm tắt', 'Thu hồi']);
   });
 
   it('sends order, model overrides, disabled slots and the expected version', () => {
@@ -158,6 +172,8 @@ describe('AdminAssistantPage', () => {
     const { page, el } = setup();
     expect(el.querySelectorAll('.order-actions button')).toHaveLength(0);
     expect(el.querySelector('.panel[aria-labelledby="config-title"] button.primary')).toBeNull();
+    expect([...el.querySelectorAll('.actions button')].map(button => button.textContent?.trim()))
+      .toEqual(['Kiểm tra', 'Thu hồi']);
     expect([...el.querySelectorAll<HTMLInputElement>('.slot input')].every(input => input.disabled)).toBe(true);
     page.move(0, 1);
     page.toggleSlot('gemini#1');
@@ -196,6 +212,48 @@ describe('AdminAssistantPage', () => {
     expect(page.keyNotice()).toContain('audit');
     page.hideKey(key.id);
     expect(page.revealed()[key.id]).toBeUndefined();
+  });
+
+  it('tests a stored key on demand and shows the normalized result inline', () => {
+    const { fixture, page, el } = setup();
+    page.testKey(page.keys()[0]);
+    expect(api.testKey).toHaveBeenCalledExactlyOnceWith(activeKey.id);
+    expect(page.keyNotice()).toContain('hoạt động bình thường');
+    expect(page.keyNotice()).toContain('412');
+    fixture.detectChanges();
+    expect(el.querySelector('.test-result.ok')?.textContent).toContain('llama-3.1-8b-instant');
+    expect(el.querySelector('.test-result.ok')?.textContent).toContain('412');
+    expect(page.keyTesting()).toBe('');
+  });
+
+  it('surfaces a failed key test without changing the key status', () => {
+    api.testKey.mockReturnValue(of(keyTestResult({ status: 'FAILED', code: 'QUOTA' })));
+    const { fixture, page, el } = setup();
+    page.testKey(page.keys()[0]);
+    expect(page.keyError()).toContain('hết hạn mức');
+    expect(page.keyError()).toContain('Trạng thái key không thay đổi');
+    expect(api.setKeyStatus).not.toHaveBeenCalled();
+    fixture.detectChanges();
+    expect(el.querySelector('.test-result.failed')?.textContent).toContain('hết hạn mức');
+    expect(el.querySelector('.status.active')?.textContent).toContain('Đang dùng');
+  });
+
+  it('explains the test cooldown and clears the pending test state', () => {
+    api.testKey.mockReturnValue(throwError(() => ({ status: 429, error: { code: 'KEY_TEST_COOLDOWN' } })));
+    const { page } = setup();
+    page.testKey(page.keys()[0]);
+    expect(page.keyError()).toContain('30 giây');
+    expect(page.keyTesting()).toBe('');
+    expect(page.testResults()[activeKey.id]).toBeUndefined();
+  });
+
+  it('hides and blocks testing when the server does not allow it', () => {
+    api.getKeys.mockReturnValue(of(keysResponse(true, true, [{ ...activeKey, canTest: false }])));
+    const { page, el } = setup();
+    expect([...el.querySelectorAll('.actions button')].map(button => button.textContent?.trim()))
+      .toEqual(['Tạm tắt', 'Thu hồi']);
+    page.testKey(page.keys()[0]);
+    expect(api.testKey).not.toHaveBeenCalled();
   });
 
   it('requires a second click before revoking and removes the row afterwards', () => {
