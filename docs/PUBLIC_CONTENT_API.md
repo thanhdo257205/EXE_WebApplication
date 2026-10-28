@@ -1,8 +1,10 @@
 # API nội dung công khai
 
+> Cập nhật 2026-10-29: production đã có bản công khai thật — `Bản phát hành mẫu` 1.0 (1 cư dân, 1 bộ thẻ, 1 thẻ, 1 wiki mẫu), publish ngày 2026-10-28T19:12Z; bản nháp thử trước đó được lưu trữ tự động. `/api/v1/content/release` và cả 4 endpoint `{kind}` trả 200, trợ lý AI dùng đúng release này để trả lời. Nội dung hiện là **mẫu nghiệm thu**, chủ dự án sẽ thay bằng nội dung thật rồi publish bản mới.
+>
 > Cập nhật 2026-10-28: backend chạy Hono/libSQL và API public đã deploy cùng web; các đoạn Spring Boot/Pages bên dưới chỉ còn giá trị lịch sử. Admin đã có `POST /api/v1/admin/content/releases/{release}/publish` (quyền `releases:publish`) để đưa một bản nháp lên kênh công khai; quy tắc đọc bên dưới không đổi. Xem [ADMIN_BACKEND.md](ADMIN_BACKEND.md).
 
-Đã triển khai source và kiểm tra local ngày 2026-10-20. Frontend local hiện nối thư viện thẻ, cư dân và wiki; source/backend vẫn chưa push/deploy hoặc được nghiệm thu với release public thật. [OpenAPI](api/public-content.openapi.json) là hợp đồng riêng, không thay OpenAPI admin content. API chỉ đọc; không yêu cầu đăng nhập nhưng production vẫn đi qua gateway cùng origin, origin proxy guard và rate limit hiện có.
+Đã triển khai source và kiểm tra local ngày 2026-10-20; source/backend sau đó đã deploy và được nghiệm thu với release công khai thật từ 2026-10-29. Frontend local hiện nối thư viện thẻ, cư dân và wiki. [OpenAPI](api/public-content.openapi.json) là hợp đồng riêng, không thay OpenAPI admin content. API chỉ đọc; không yêu cầu đăng nhập nhưng production vẫn đi qua gateway cùng origin, origin proxy guard và rate limit hiện có.
 
 ## Release được phép đọc
 

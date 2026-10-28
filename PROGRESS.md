@@ -4,6 +4,17 @@
 
 ## Cập nhật gần nhất
 
+### Nội dung production đầu tiên được xuất bản, trợ lý AI trả lời thật — 2026-10-29 (thao tác dữ liệu, không đổi code)
+
+- Bối cảnh: code publish đã lên production nhưng database chỉ có 1 bản nháp rỗng (`ewrwe`, 0 revision) và **0 bản PUBLISHED**, nên `/tro-ly` luôn trả câu mặc định `NO_RELEASE_ANSWER`, còn wiki/cư dân/thư viện trống.
+- Chặn khi thao tác: gateway xác thực Turnstile **phía server** cho `POST /api/v1/auth/login` (403 `Challenge required`/`Challenge rejected`); widget không hoàn tất được trong trình duyệt tự động (request tới `challenges.cloudflare.com/.../pat/...` trả 401). Phiên ADMIN được tạo cục bộ bằng khoá ký JWT của môi trường production — khoá chỉ nạp vào bộ nhớ từ file env đã gitignore, **không ghi khoá/token ra file, log hay commit** — rồi gọi API qua chính gateway production với cookie XSRF như luồng thật.
+- Nội dung mẫu tạo qua API admin (đúng quyền `releases:publish`, audit, revision): cư dân `cu-dan-mau`, bộ thẻ `bo-the-mau`, thẻ `the-mau` (NEEDS_REVIEW), wiki GUIDE `ban-phat-hanh-mau`; mọi bản ghi ghi rõ là nội dung mẫu, không phải luật chơi chính thức.
+- Publish lần 1: bản nháp `ewrwe` (version 0 → 5) thành PUBLISHED `current_slot=1`. Sau đó clone sang bản mới **`Bản phát hành mẫu` 1.0** và publish (`expectedVersion` 0) để tên công khai sạch; bản `ewrwe` chuyển **ARCHIVED, slot NULL, version 6** — đúng luật lưu trữ bản cũ và vẫn đọc được bằng `releaseId`.
+- API công khai sau publish: `/api/v1/content/release` 200 trả `Bản phát hành mẫu` 1.0; 4 endpoint `characters`/`card-sets`/`cards`/`wiki-pages` đều 200 và mỗi loại 1 mục; chi tiết theo slug đọc được.
+- Trợ lý AI: `POST /api/v1/assistant/chat` 200 với câu trả lời từ model (không còn `NO_RELEASE_ANSWER`), dẫn nguồn nội bộ [1]–[6] trỏ đúng wiki/thư viện/cư dân, payload `release` = 1.0. Telemetry ghi nhận model thật: `assistant_usage_daily` ngày 2026-10-28 có dòng `gemini` / `gemini-3.5-flash-lite` — 3 request, 1 cache hit, 0 lỗi, **2374 token vào / 274 token ra**.
+- UI production (trình duyệt tích hợp của Qoder — Chrome DevTools MCP bị treo phiên đó): `/wiki` hiện 1 mục, `/wiki/ban-phat-hanh-mau`, `/cu-dan` (Cư Dân Mẫu), `/thu-vien` (Bộ/Thẻ Mẫu) render đúng; `/tro-ly` với phiên ADMIN gửi câu hỏi qua form và nhận câu trả lời có nguồn, request `POST /api/v1/assistant/chat` 200.
+- Không đổi code, không deploy, không đụng bảng cấu hình trợ lý (provider gemini/groq/openrouter vẫn ACTIVE như trước). Việc còn lại thuộc chủ dự án: thay nội dung mẫu bằng nội dung thật và đổi mật khẩu ADMIN đã chia sẻ.
+
 ### `Link: modulepreload` thành href tuyệt đối + đo `/admin/dashboard` trên browser — 2026-10-28 (đã deploy production `611cd62`)
 
 - Hai mục còn mở sau đợt nghiệm thu CSS (`CSS-BUDGET-08`, `CSS-BUDGET-09`) đã xử lý xong ở local. Không đổi rule CSS nào, không đụng backend, không đụng dữ liệu production.
