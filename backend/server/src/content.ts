@@ -2,7 +2,7 @@ import { z } from 'zod';
 import type { Client, InValue } from '@libsql/client';
 import { all, one, scalar, execute, transaction, batchRead, uuid, now, camel, page, fail, type Executor, type Row } from './db.ts';
 import { PUBLIC_TTL_MS, type Cache } from './cache.ts';
-import { authorizePermission, requireActor, type Api, type Actor } from './auth.ts';
+import { authorizePermission, permissionView, requireActor, type Api, type Actor } from './auth.ts';
 
 export const kinds = {
   characters: { identity: 'game_characters', revision: 'character_revisions', fk: 'character_id', label: 'name', columns: ['name', 'biography', 'ability_text', 'portrait_url', 'sort_order'] },
@@ -66,6 +66,14 @@ const writes = {
 };
 const releaseWrite = z.object({ title: z.string().trim().min(1).max(200), releaseNotes: optionalText(10000) });
 const createRelease = releaseWrite.extend({ versionLabel: z.string().max(40).regex(/^[A-Za-z0-9][A-Za-z0-9._-]*$/) });
+const authorColumn = 'created_by TEXT REFERENCES app_users(id) ON DELETE SET NULL';
+
+/** Existing databases get the author column lazily: SQLite has no ADD COLUMN IF NOT EXISTS. */
+export async function initializeContentAuthorship(db: Executor) {
+  for (const k of Object.values(kinds)) await execute(db, `ALTER TABLE ${k.revision} ADD COLUMN ${authorColumn}`).catch(() => undefined);
+}
+/** Row authorship only opens update/delete while the account can still read content. */
+const ownsRow = (permissions: string[], createdBy: unknown, userId: string) => createdBy === userId && permissions.includes('content:read');
 
 export function contentRoutes(app: Api, db: Client, cache: Cache) {
   const cached = cache.cached;
@@ -144,7 +152,12 @@ export function contentRoutes(app: Api, db: Client, cache: Cache) {
   });
   app.put('/api/v1/admin/content/releases/:release', async c => {
     const id = z.string().uuid().parse(c.req.param('release')), actor = requireActor(c, true); const b = releaseWrite.extend({ expectedVersion: z.number().int().nonnegative() }).parse(await c.req.json());
-    return c.json(await transaction(db, async tx => { await authorizePermission(tx, actor, 'releases:update'); editable(await release(tx, id), b.expectedVersion);
+    return c.json(await transaction(db, async tx => {
+      const { user, access } = await permissionView(tx, actor);
+      const direct = access.permissions.includes('releases:update');
+      if (!direct && !access.permissions.includes('content:read')) return fail(403, 'PERMISSION_REQUIRED');
+      const current = await release(tx, id); editable(current, b.expectedVersion);
+      if (!direct && !ownsRow(access.permissions, current.created_by, user.id)) return fail(403, 'PERMISSION_REQUIRED');
       await execute(tx, 'UPDATE content_releases SET title=?,release_notes=?,version=version+1 WHERE id=?', [b.title, b.releaseNotes, id]);
       await audit(tx, actor, 'CONTENT_RELEASE_UPDATED', 'CONTENT_RELEASE', id, id, b.expectedVersion + 1); return camel(await release(tx, id)); }));
   });
@@ -154,7 +167,8 @@ export function contentRoutes(app: Api, db: Client, cache: Cache) {
       await authorizePermission(tx, actor, 'releases:clone'); if ((await release(tx, source)).version !== b.sourceVersion) return fail(409, 'VERSION_CONFLICT'); await budget(tx, source);
       const id = uuid(); await execute(tx, 'INSERT INTO content_releases(id,version_label,title,release_notes,created_by) VALUES (?,?,?,?,?)', [id, b.versionLabel, b.title, b.releaseNotes, actor.id]);
       // INSERT SELECT copies the bounded release inside the same transaction without N network round trips.
-      for (const k of Object.values(kinds)) await execute(tx, `INSERT INTO ${k.revision}(id,${k.fk},release_id,${k.columns}) SELECT lower(hex(randomblob(4)))||'-'||lower(hex(randomblob(2)))||'-4'||substr(lower(hex(randomblob(2))),2)||'-a'||substr(lower(hex(randomblob(2))),2)||'-'||lower(hex(randomblob(6))),${k.fk},?,${k.columns} FROM ${k.revision} WHERE release_id=?`, [id, source]);
+      // The copy belongs to the cloning account, the source rows keep their original author.
+      for (const k of Object.values(kinds)) await execute(tx, `INSERT INTO ${k.revision}(id,${k.fk},release_id,${k.columns},created_by) SELECT lower(hex(randomblob(4)))||'-'||lower(hex(randomblob(2)))||'-4'||substr(lower(hex(randomblob(2))),2)||'-a'||substr(lower(hex(randomblob(2))),2)||'-'||lower(hex(randomblob(6))),${k.fk},?,${k.columns},? FROM ${k.revision} WHERE release_id=?`, [id, actor.id, source]);
       await audit(tx, actor, 'CONTENT_RELEASE_CLONED', 'CONTENT_RELEASE', id, id, 0); return camel(await release(tx, id));
     }), 201);
   });
@@ -194,9 +208,16 @@ export function contentRoutes(app: Api, db: Client, cache: Cache) {
     const id = z.string().uuid().parse(c.req.param('release')), kind = kindOf(c.req.param('kind')), k = kinds[kind], actor = requireActor(c, true), create = method === 'post';
     const b: Row = writes[kind].parse(await c.req.json()); const entity = create ? b.entityId || uuid() : z.string().uuid().parse(c.req.param('id'));
     return c.json(await transaction(db, async tx => {
-      await authorizePermission(tx, actor, `${writePermission[kind]}:${create ? 'create' : 'update'}`); editable(await release(tx, id), b.expectedVersion);
+      const { user, access } = await permissionView(tx, actor);
+      const direct = access.permissions.includes(`${writePermission[kind]}:${create ? 'create' : 'update'}`);
+      // Creating always needs the module right; editing falls back to authorship plus content:read.
+      if (!direct && (create || !access.permissions.includes('content:read'))) return fail(403, 'PERMISSION_REQUIRED');
+      editable(await release(tx, id), b.expectedVersion);
       if (!create && b.entityId && b.entityId !== entity) return fail(409, 'IDENTITY_IMMUTABLE');
-      if (!create) await one(tx, baseSelect(kind) + ' WHERE r.release_id=? AND i.id=?', [id, entity]);
+      if (!create) {
+        const current = await one(tx, `SELECT r.created_by FROM ${k.identity} i JOIN ${k.revision} r ON r.${k.fk}=i.id WHERE r.release_id=? AND i.id=?`, [id, entity]);
+        if (!direct && !ownsRow(access.permissions, current.created_by, user.id)) return fail(403, 'PERMISSION_REQUIRED');
+      }
       const existing = (await all(tx, `SELECT * FROM ${k.identity} WHERE id=?`, [entity]))[0];
       if (!existing) {
         if (!create || b.entityId) return fail(404, 'NOT_FOUND');
@@ -207,7 +228,7 @@ export function contentRoutes(app: Api, db: Client, cache: Cache) {
       if (kind === 'cards') for (const [reference, table, column] of [[b.cardSetId, 'card_set_revisions', 'card_set_id'], [b.characterId, 'character_revisions', 'character_id']]) {
         if (reference && await scalar(tx, `SELECT COUNT(*) FROM ${table} WHERE release_id=? AND ${column}=?`, [id, reference]) !== 1) return fail(409, 'REFERENCE_NOT_IN_RELEASE');
       }
-      if (create) await execute(tx, `INSERT INTO ${k.revision}(id,${k.fk},release_id,${k.columns}) VALUES (${Array(k.columns.length + 3).fill('?')})`, [uuid(), entity, id, ...k.columns.map(col => fields[col])]);
+      if (create) await execute(tx, `INSERT INTO ${k.revision}(id,${k.fk},release_id,${k.columns},created_by) VALUES (${Array(k.columns.length + 4).fill('?')})`, [uuid(), entity, id, ...k.columns.map(col => fields[col]), user.id]);
       else await execute(tx, `UPDATE ${k.revision} SET ${k.columns.map(col => col + '=?')} WHERE release_id=? AND ${k.fk}=?`, [...k.columns.map(col => fields[col]), id, entity]);
       await execute(tx, 'UPDATE content_releases SET version=version+1 WHERE id=?', [id]);
       await audit(tx, actor, `CONTENT_${auditKind[kind]}_${create ? 'CREATED' : 'UPDATED'}`, auditKind[kind], entity, id, b.expectedVersion + 1);
@@ -217,7 +238,12 @@ export function contentRoutes(app: Api, db: Client, cache: Cache) {
   app.delete('/api/v1/admin/content/releases/:release/:kind/:id', async c => {
     const id = z.string().uuid().parse(c.req.param('release')), entity = z.string().uuid().parse(c.req.param('id')), kind = kindOf(c.req.param('kind')), k = kinds[kind], actor = requireActor(c, true), expected = z.coerce.number().int().nonnegative().parse(c.req.query('expectedVersion'));
     return c.json(await transaction(db, async tx => {
-      await authorizePermission(tx, actor, `${writePermission[kind]}:delete`); editable(await release(tx, id), expected); await one(tx, baseSelect(kind) + ' WHERE r.release_id=? AND i.id=?', [id, entity]);
+      const { user, access } = await permissionView(tx, actor);
+      const direct = access.permissions.includes(`${writePermission[kind]}:delete`);
+      if (!direct && !access.permissions.includes('content:read')) return fail(403, 'PERMISSION_REQUIRED');
+      editable(await release(tx, id), expected);
+      const current = await one(tx, `SELECT r.created_by FROM ${k.identity} i JOIN ${k.revision} r ON r.${k.fk}=i.id WHERE r.release_id=? AND i.id=?`, [id, entity]);
+      if (!direct && !ownsRow(access.permissions, current.created_by, user.id)) return fail(403, 'PERMISSION_REQUIRED');
       if (kind === 'card-sets' || kind === 'characters') if (await scalar(tx, `SELECT COUNT(*) FROM card_revisions WHERE release_id=? AND ${kind === 'card-sets' ? 'card_set_id' : 'character_id'}=?`, [id, entity])) return fail(409, 'CONTENT_IN_USE');
       await execute(tx, `DELETE FROM ${k.revision} WHERE release_id=? AND ${k.fk}=?`, [id, entity]); await execute(tx, 'UPDATE content_releases SET version=version+1 WHERE id=?', [id]);
       await audit(tx, actor, `CONTENT_${auditKind[kind]}_REMOVED`, auditKind[kind], entity, id, expected + 1); return { entityId: entity, releaseVersion: expected + 1 };

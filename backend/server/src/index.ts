@@ -12,6 +12,7 @@ import { assistantFromEnv } from './assistant-providers.ts';
 import { initializeAssistantSettings } from './assistant-settings.ts';
 import { initializeAssistantCredentials } from './assistant-credentials.ts';
 import { initializeAssistantUsage } from './assistant-usage.ts';
+import { initializeContentAuthorship } from './content.ts';
 
 const production = process.env.NODE_ENV === 'production';
 const config: Config = {
@@ -39,6 +40,7 @@ if (bootstrapEmail || bootstrapPassword) {
   if (!(await all(db, 'SELECT id FROM app_users WHERE email=?', [email])).length) await execute(db, 'INSERT INTO app_users(id,email,password_hash,display_name,role) VALUES (?,?,?,?,?)', [uuid(), email, await bcrypt.hash(bootstrapPassword, 12), 'Administrator', 'ADMIN']);
 }
 await initializeRbac(db);
+await initializeContentAuthorship(db);
 await initializeRegistrationNotifications(db);
 await initializeAssistantSettings(db);
 await initializeAssistantCredentials(db);
