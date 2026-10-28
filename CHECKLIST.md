@@ -2,6 +2,14 @@
 
 Cập nhật: 2026-10-28 (Asia/Saigon).
 
+## Trợ lý AI: độ trễ trung bình nhất quán giữa các bảng số liệu (2026-10-28, đã push GLM-5.3, chưa deploy)
+
+- [x] AI-LAT-01 — `usageSummary().slots[].avgLatencyMs` chia cho `answered = requests − cache_hits` như `providers`/`keys`/`totals`, vẫn trả 0 khi provider `cache` hoặc không có câu trả lời (`backend/server/src/assistant-usage.ts`).
+- [x] AI-LAT-02 — Test hồi quy `assistant-migrations.test.ts`: 2 request 300/100 ms + 1 cache hit trên cùng `(provider, slot, model)` → 200 ms cho cả `totals`, `providers`, `slots`, `keys`. Bằng chứng đỏ khi revert bộ chia về `requests`: `actual: [3, 133]` / `expected: [3, 200]`.
+- [x] AI-LAT-03 — Backend typecheck (`npm run check`) qua; `node --test test/*.test.ts` **107 pass / 1 skip (Turso remote) / 0 fail**.
+- [x] AI-LAT-04 — Lỗi gate UI theo từng cờ quyền đã được xử lý trong `8b6381d` (`canReorder/canEditModels/canManageSlots/canEditBudgets/canReadUsage` dùng ở method + template); không còn việc còn lại của đợt "sửa hai lỗi kia".
+- [ ] AI-LAT-05 — Chạy live browser check tab số liệu với DB tạm có cache hit để đối chiếu con số hiển thị giữa bảng slot và thẻ key sau khi deploy.
+
 ## RBAC chi tiết: phân quyền từng thao tác cho đồng quản trị (2026-10-28, local)
 
 - [x] RBAC-FG-01 — Nghiệp vụ và danh mục 32 quyền `module:action` được chốt trước khi code: [docs/RBAC_PERMISSIONS.md](docs/RBAC_PERMISSIONS.md); `docs/RBAC.md` dẫn chiếu sang tài liệu này.
