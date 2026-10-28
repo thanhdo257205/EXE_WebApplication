@@ -107,8 +107,11 @@ export class AdminSectionPage implements OnInit {
   readonly cardSetSuccessMsg = signal<string | null>(null);
   readonly cardSetFormOpen = signal(false);
 
+  // Card creation mode option (Excel vs Manual)
+  readonly cardCreationMode = signal<'EXCEL' | 'MANUAL'>('EXCEL');
+
   // Excel card-set import state
-  readonly importOpen = signal(false);
+  readonly importOpen = signal(true);
   readonly importParsing = signal(false);
   readonly importSaving = signal(false);
   readonly importStatusText = signal<string | null>(null);

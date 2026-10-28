@@ -478,7 +478,7 @@ describe('AdminSectionPage', () => {
     fixture.detectChanges();
     await fixture.whenStable();
     expect(fixture.nativeElement.querySelector('#release-selector').disabled).toBe(true);
-    expect(fixture.nativeElement.querySelector('fieldset').disabled).toBe(true);
+    expect((fixture.nativeElement.querySelector('#card-form fieldset') as HTMLFieldSetElement).disabled).toBe(true);
     pending.error({ status: 500, detail: 'Không thể lưu' });
     expect(component.cardForm.name).toBe('Thẻ mới');
     expect(component.cardSaving()).toBe(false);
@@ -713,6 +713,24 @@ describe('AdminSectionPage', () => {
     expect(component.importRows()).toEqual([]);
     expect(component.importForm.code).toBe('');
     expect(component.importFileName()).toBe('');
+  });
+
+  it('toggles cardCreationMode between EXCEL and MANUAL via option buttons', () => {
+    expect(component.cardCreationMode()).toBe('EXCEL');
+
+    const manualBtn: HTMLButtonElement = fixture.nativeElement.querySelector('#mode-manual-btn');
+    expect(manualBtn).toBeTruthy();
+    manualBtn.click();
+    fixture.detectChanges();
+
+    expect(component.cardCreationMode()).toBe('MANUAL');
+
+    const excelBtn: HTMLButtonElement = fixture.nativeElement.querySelector('#mode-excel-btn');
+    expect(excelBtn).toBeTruthy();
+    excelBtn.click();
+    fixture.detectChanges();
+
+    expect(component.cardCreationMode()).toBe('EXCEL');
   });
 });
 
