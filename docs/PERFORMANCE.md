@@ -19,9 +19,27 @@ Cách giữ size là tách file, không phải thu nhỏ CSS: không nâng ngư�
 
 Chi phí thật của cách làm này là **số file**, không phải dung lượng: trình duyệt tải cùng một lượng CSS, chỉ khác ở chỗ nó nằm trong nhiều mục `styles:[…]`; đổi lại là thêm một rule vào trang nào thì phải chọn đúng file, và file vượt 10 kB sẽ làm `ng build` fail chứ không chỉ cảnh báo.
 
-Kiểm chứng tương đương (không đo lại bố cục trên browser): ghép các phần khớp file cũ **từng dòng**; script đối chiếu mọi mảng `styles:[…]` trong `dist/exe-web/browser/*.js` xác nhận **8/8 component** phát ra đúng số stylesheet, đúng thứ tự source và chuỗi selector giống hệt. Điểm hay gặp khi tự viết script như vậy: compiler thêm token scoping `[_ngcontent-%COMP%]`/`[_nghost-%COMP%]`, scope tên `@keyframes`, và **nở một rule `:host-context([x]) .y` thành group hai selector tương đương** — ba biến đổi này là artifact có sẵn, không phải mất rule.
+Kiểm chứng tương đương ở tầng bundle: ghép các phần khớp file cũ **từng dòng**; script đối chiếu mọi mảng `styles:[…]` trong `dist/exe-web/browser/*.js` xác nhận **8/8 component** phát ra đúng số stylesheet, đúng thứ tự source và chuỗi selector giống hệt. Điểm hay gặp khi tự viết script như vậy: compiler thêm token scoping `[_ngcontent-%COMP%]`/`[_nghost-%COMP%]`, scope tên `@keyframes`, và **nở một rule `:host-context([x]) .y` thành group hai selector tương đương** — ba biến đổi này là artifact có sẵn, không phải mất rule.
 
 Trên production `968ee43` (PR #36): tải `main-TJMIMUJH.js` rồi lần theo 24 chunk lazy từ `https://exe-webapp.pages.dev` và đọc các mảng `styles:[…]` — `main.js` 4.36/4.56/3.31 (global-bar + menu + account-menu) · login 2.06/5.19 · register 2.06/5.25 · home 5.36/0.99/1.65/4.80/2.21 · fund 4.21/3.69/4.37/2.74 · admin-dashboard 3.40/2.86 · public-content 4.36/1.63/0.60/2.76/2.97/1.04 · admin-assistant 4.67/5.24. Không sheet nào chạm 6 kB. Cách xác minh này dùng được cho mọi thay đổi CSS: file CSS của component nằm trong chunk JS (`styles:[\`…\`]`), không có file `.css` riêng để đo.
+
+Nghiệm thu bố cục trên browser production (`968ee43`, Chrome DevTools MCP): đo `getComputedStyle` của chính selector nằm trong file vừa tách, ở **1282px và 420px**. Phải dùng **emulate viewport** chứ không `resize_page`, vì cửa sổ Chrome có min width nên 420px vẫn bị thành `innerWidth` 502 và các nhánh `@media (max-width: 500/520/560/420px)` không bao giờ bật. Mỗi file tách phải có một bằng chứng thuộc **riêng nó**, không phải bằng chứng chung của trang:
+
+| file tách ra | bằng chứng browser |
+| --- | --- |
+| `home.responsive.css` | `.hero` `min-height 0` / `padding-bottom 28px`, `.hero-top` `column` gap `22px`, `.product-scene` `matrix(0.6,…)` `margin-bottom -192px` (nhánh ≤520px) |
+| `global-bar.menu.css` | desktop: `.nav-dropdown` `absolute` `360px` `z-index 5` `top 42px` + `.submenu-surface` `padding 12px`; mobile: `.nav-cluster`/`.account-link` `none`, `.public-header` `padding-inline 12px` `gap 10px`, `.brand-logo` `36×36px` (nhánh ≤420px) |
+| `login.form.css` / `register.form.css` | `.auth-form-panel` `flex`/`column` với `animation-name` đã scope `…_auth-rise`, `.auth-switch` `1fr 1fr` → `158.4px`/cột `radius 999px`, glider `calc(50% - 6px)`, `.submit-btn` `330.4px` |
+| `fund-dashboard.summary.css` | `.total` `margin-top 24px` `padding-top 22px` `border-top 0.8px` (rule ranh giới) + `.dashboard` `18px`, `.total dd` `34px`, `.rows li` `74px 1fr auto`, `.bars` `gap 10px` (nhánh ≤560px) |
+| `public-content.lists.css` + `…headings.css` | `.wiki-list[…] { border-top … }` và group `.reader-heading[…] h1[…], .detail-sheet[…] h1[…]` có trong `document.styleSheets` (scope `ng-c1869048754`) |
+
+Hai điểm trắng của đợt nghiệm thu này, đều **không phải** do tách CSS: `/admin/dashboard` bị guard ADMIN đá về `/dang-nhap` nên chưa đo được bố cục bảng (mới có bằng chứng bundle `chunk-CjFXZLRH.js` = 2 sheet, sheet 2 mở đầu bằng `.table-container`); và `.wiki-list` / `.reader-heading` không có node DOM để đo vì production còn 0 bản phát hành PUBLISHED (`404 /api/v1/content/wiki-pages`). Không trang nào đo được tràn ngang (`scrollWidth` = `innerWidth` ở cả 420 và 1282).
+
+## Link header modulepreload trên route con — 2026-10-28 (phát hiện khi nghiệm thu CSS, chưa sửa)
+
+Vào `https://exe-webapp.pages.dev/wiki` nhận **308 → `/wiki/`** (route này có HTML prerender trong thư mục `wiki/`), và mọi HTML response của Pages kèm `Link: <chunk-XXX.js>; rel="modulepreload"` với **href tương đối**. Browser resolve header này theo **URL của response** chứ không theo `<base href="/">` của tài liệu, nên nó gọi `/wiki/chunk-XXX.js`; đường dẫn không tồn tại nên SPA fallback trả lại đúng index.html với `content-type: text/html` → 9 request vô ích và 9 lỗi console *"Failed to load module script: Expected a JavaScript-or-Wasm module script but the server responded with a MIME type of text/html"*. App vẫn chạy đủ vì `<link rel="modulepreload">` **trong HTML** (có `<base href="/">` che) đã tải cùng 9 chunk từ gốc — bằng chứng: mỗi chunk xuất hiện hai lần trong network log, `/wiki/chunk-*` (text/html) rồi `/chunk-*` (200 JS).
+
+`frontend/public/_headers` đã kiểm và **không** đặt header `Link` (chỉ có CSP/frame-ancestors, Referrer-Policy và Cache-Control), nên header này do chính Cloudflare Pages sinh từ các tag modulepreload của HTML. Hướng sửa: để href tuyệt đối (`/chunk-…`) ở nơi sinh ra header, hoặc tắt prerender/redirect thư mục cho `/wiki`. Liên quan: `index.html` fallback ở gốc mang `<title>Nhà Này Hơi Báo! — Wiki</title>` nên `/` và `/quy-nha` hiển thị title sai, chỉ `/wiki/` prerender là đúng.
 
 ## Sân đấu WebGPU `/san-dau` — local, mới nhất
 
