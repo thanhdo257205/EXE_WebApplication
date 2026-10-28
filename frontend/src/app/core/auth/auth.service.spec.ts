@@ -123,4 +123,32 @@ describe('Authentication API contract', () => {
 
     expect(auth.currentUser()?.displayName).toBe('New User');
   });
+
+  it('reads fine-grained rights only from the server-provided admin session', () => {
+    expect(auth.hasPermission('content:read')).toBe(false);
+    auth.currentUser.set({ id: '1', email: 'm@example.test', displayName: 'M', role: 'CUSTOMER', permissions: ['content:read'] });
+    expect(auth.hasPermission('content:read')).toBe(false);
+    expect(auth.hasAnyPermission(['content:read', 'users:read'])).toBe(false);
+
+    auth.currentUser.set({ id: '2', email: 'a@example.test', displayName: 'A', role: 'ADMIN', adminLevel: 'DELEGATED', permissions: ['users:read'] });
+    expect(auth.hasPermission('users:read')).toBe(true);
+    expect(auth.hasPermission('content:read')).toBe(false);
+    expect(auth.hasAnyPermission(['content:read', 'users:read'])).toBe(true);
+    expect(auth.hasAnyPermission([])).toBe(false);
+
+    // An admin whose /me payload predates the permission feature behaves like a locked co-admin.
+    auth.currentUser.set({ id: '3', email: 'b@example.test', displayName: 'B', role: 'ADMIN' });
+    expect(auth.hasPermission('users:read')).toBe(false);
+  });
+
+  it('stores the permission list delivered by /auth/me', () => {
+    auth.loadCurrentUser().subscribe();
+    http.expectOne('/api/v1/auth/me').flush({
+      id: '2', email: 'a@example.test', displayName: 'A', role: 'ADMIN',
+      adminLevel: 'DELEGATED', permissions: ['content:read', 'cards:update'],
+    });
+    expect(auth.currentUser()?.permissions).toEqual(['content:read', 'cards:update']);
+    expect(auth.hasPermission('cards:update')).toBe(true);
+    expect(auth.checkingSession()).toBe(false);
+  });
 });

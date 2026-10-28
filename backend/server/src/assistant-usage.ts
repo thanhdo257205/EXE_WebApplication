@@ -113,9 +113,16 @@ export async function usageSummary(db: Executor, days: number) {
   const daily = await all(db, `SELECT day,SUM(requests) requests,SUM(cache_hits) cache_hits,SUM(failures) failures,
     SUM(tokens_in) tokens_in,SUM(tokens_out) tokens_out
     FROM assistant_usage_daily WHERE day>=? GROUP BY day ORDER BY day`, [since]);
-  // Budgets are daily, so the progress bars need today's provider totals regardless of the selected range.
+  // Per-key stats aggregate models so one key card shows one row, not one row per model.
+  const keyRows = await all(db, `SELECT provider,slot,SUM(requests) requests,SUM(cache_hits) cache_hits,
+    SUM(failures) failures,SUM(latency_ms_sum) latency,SUM(tokens_in) tokens_in,SUM(tokens_out) tokens_out
+    FROM assistant_usage_daily WHERE day>=? GROUP BY provider,slot ORDER BY requests DESC`, [since]);
+  // Budgets are daily, so the progress bars need today's totals per provider and per key slot.
   const todayRows = await all(db, `SELECT provider,SUM(tokens_in) tokens_in,SUM(tokens_out) tokens_out
     FROM assistant_usage_daily WHERE day=? AND provider NOT IN ('cache','none') GROUP BY provider`, [today]);
+  const todaySlots = await all(db, `SELECT provider,slot,SUM(requests) requests,SUM(failures) failures,
+    SUM(tokens_in) tokens_in,SUM(tokens_out) tokens_out
+    FROM assistant_usage_daily WHERE day=? AND provider NOT IN ('cache','none') GROUP BY provider,slot`, [today]);
 
   const number = (value: unknown): number => Number(value) || 0;
   const totals = { requests: 0, cacheHits: 0, failures: 0, answered: 0, avgLatencyMs: 0, tokensIn: 0, tokensOut: 0 };
@@ -158,6 +165,16 @@ export async function usageSummary(db: Executor, days: number) {
       }))
       .sort((a, b) => b.requests - a.requests),
     slots,
+    keys: keyRows.map(row => {
+      const requests = number(row.requests);
+      const answered = Math.max(0, requests - number(row.cache_hits));
+      return {
+        slot: String(row.slot), provider: String(row.provider),
+        requests, failures: number(row.failures),
+        tokensIn: number(row.tokens_in), tokensOut: number(row.tokens_out),
+        avgLatencyMs: answered ? Math.round(number(row.latency) / answered) : 0,
+      };
+    }),
     daily: daily.map(row => ({
       day: String(row.day), requests: number(row.requests),
       cacheHits: number(row.cache_hits), failures: number(row.failures),
@@ -167,6 +184,11 @@ export async function usageSummary(db: Executor, days: number) {
       day: today,
       providers: todayRows.map(row => ({
         provider: String(row.provider),
+        tokensIn: number(row.tokens_in), tokensOut: number(row.tokens_out),
+      })),
+      slots: todaySlots.map(row => ({
+        slot: String(row.slot), provider: String(row.provider),
+        requests: number(row.requests), failures: number(row.failures),
         tokensIn: number(row.tokens_in), tokensOut: number(row.tokens_out),
       })),
     },

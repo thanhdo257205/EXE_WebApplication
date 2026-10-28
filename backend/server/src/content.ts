@@ -2,7 +2,7 @@ import { z } from 'zod';
 import type { Client, InValue } from '@libsql/client';
 import { all, one, scalar, execute, transaction, batchRead, uuid, now, camel, page, fail, type Executor, type Row } from './db.ts';
 import { PUBLIC_TTL_MS, type Cache } from './cache.ts';
-import { authorize, requireActor, type Api, type Actor } from './auth.ts';
+import { authorizePermission, requireActor, type Api, type Actor } from './auth.ts';
 
 export const kinds = {
   characters: { identity: 'game_characters', revision: 'character_revisions', fk: 'character_id', label: 'name', columns: ['name', 'biography', 'ability_text', 'portrait_url', 'sort_order'] },
@@ -12,6 +12,7 @@ export const kinds = {
 } as const;
 type Kind = keyof typeof kinds;
 const auditKind = { characters: 'CHARACTERS', 'card-sets': 'SETS', cards: 'CARDS', 'wiki-pages': 'WIKI' };
+const writePermission = { characters: 'characters', 'card-sets': 'card-sets', cards: 'cards', 'wiki-pages': 'wiki' } as const;
 const kindOf = (value: string): Kind => Object.hasOwn(kinds, value) ? value as Kind : fail(404, 'NOT_FOUND');
 const optionalId = z.string().uuid().optional();
 const querySchema = z.object({ page: z.coerce.number().int().min(0).max(10000).default(0), size: z.coerce.number().int().min(1).max(100).default(20), q: z.string().max(100).default('') });
@@ -124,6 +125,7 @@ export function contentRoutes(app: Api, db: Client, cache: Cache) {
     draft: await scalar(tx, "SELECT COUNT(*) FROM content_releases WHERE status='DRAFT'"), published: await scalar(tx, "SELECT COUNT(*) FROM content_releases WHERE status='PUBLISHED'"), archived: await scalar(tx, "SELECT COUNT(*) FROM content_releases WHERE status='ARCHIVED'"),
   }, feedbackNew: await scalar(tx, "SELECT COUNT(*) FROM player_feedback WHERE status='NEW'"), cardsNeedingReview: await scalar(tx, "SELECT COUNT(*) FROM card_revisions r JOIN content_releases c ON c.id=r.release_id WHERE c.status='DRAFT' AND r.rule_status='NEEDS_REVIEW'") }), 'read')));
   app.get('/api/v1/admin/content/releases', async c => c.json(await transaction(db, async tx => {
+    const actor = requireActor(c, true); await authorizePermission(tx, actor, 'content:read');
     const q = querySchema.parse(c.req.query()); const status = z.enum(['DRAFT', 'PUBLISHED', 'ARCHIVED']).optional().parse(c.req.query('status'));
     const where = status ? ' WHERE status=?' : '', args: InValue[] = status ? [status] : [];
     const count = await scalar(tx, 'SELECT COUNT(*) FROM content_releases' + where, args);
@@ -131,22 +133,25 @@ export function contentRoutes(app: Api, db: Client, cache: Cache) {
   }, 'read')));
   app.post('/api/v1/admin/content/releases', async c => {
     const b = createRelease.parse(await c.req.json()), actor = requireActor(c, true);
-    return c.json(await transaction(db, async tx => { await authorize(tx, actor, true); const id = uuid();
+    return c.json(await transaction(db, async tx => { await authorizePermission(tx, actor, 'releases:create'); const id = uuid();
       await execute(tx, 'INSERT INTO content_releases(id,version_label,title,release_notes,created_by) VALUES (?,?,?,?,?)', [id, b.versionLabel, b.title, b.releaseNotes, actor.id]);
       await audit(tx, actor, 'CONTENT_RELEASE_CREATED', 'CONTENT_RELEASE', id, id, 0); return camel(await release(tx, id));
     }), 201);
   });
-  app.get('/api/v1/admin/content/releases/:release', async c => c.json(camel(await release(db, z.string().uuid().parse(c.req.param('release'))))));
+  app.get('/api/v1/admin/content/releases/:release', async c => {
+    await authorizePermission(db, requireActor(c, true), 'content:read');
+    return c.json(camel(await release(db, z.string().uuid().parse(c.req.param('release')))));
+  });
   app.put('/api/v1/admin/content/releases/:release', async c => {
     const id = z.string().uuid().parse(c.req.param('release')), actor = requireActor(c, true); const b = releaseWrite.extend({ expectedVersion: z.number().int().nonnegative() }).parse(await c.req.json());
-    return c.json(await transaction(db, async tx => { await authorize(tx, actor, true); editable(await release(tx, id), b.expectedVersion);
+    return c.json(await transaction(db, async tx => { await authorizePermission(tx, actor, 'releases:update'); editable(await release(tx, id), b.expectedVersion);
       await execute(tx, 'UPDATE content_releases SET title=?,release_notes=?,version=version+1 WHERE id=?', [b.title, b.releaseNotes, id]);
       await audit(tx, actor, 'CONTENT_RELEASE_UPDATED', 'CONTENT_RELEASE', id, id, b.expectedVersion + 1); return camel(await release(tx, id)); }));
   });
   app.post('/api/v1/admin/content/releases/:release/clone', async c => {
     const source = z.string().uuid().parse(c.req.param('release')), actor = requireActor(c, true); const b = createRelease.extend({ sourceVersion: z.number().int().nonnegative() }).parse(await c.req.json());
     return c.json(await transaction(db, async tx => {
-      await authorize(tx, actor, true); if ((await release(tx, source)).version !== b.sourceVersion) return fail(409, 'VERSION_CONFLICT'); await budget(tx, source);
+      await authorizePermission(tx, actor, 'releases:clone'); if ((await release(tx, source)).version !== b.sourceVersion) return fail(409, 'VERSION_CONFLICT'); await budget(tx, source);
       const id = uuid(); await execute(tx, 'INSERT INTO content_releases(id,version_label,title,release_notes,created_by) VALUES (?,?,?,?,?)', [id, b.versionLabel, b.title, b.releaseNotes, actor.id]);
       // INSERT SELECT copies the bounded release inside the same transaction without N network round trips.
       for (const k of Object.values(kinds)) await execute(tx, `INSERT INTO ${k.revision}(id,${k.fk},release_id,${k.columns}) SELECT lower(hex(randomblob(4)))||'-'||lower(hex(randomblob(2)))||'-4'||substr(lower(hex(randomblob(2))),2)||'-a'||substr(lower(hex(randomblob(2))),2)||'-'||lower(hex(randomblob(6))),${k.fk},?,${k.columns} FROM ${k.revision} WHERE release_id=?`, [id, source]);
@@ -154,22 +159,26 @@ export function contentRoutes(app: Api, db: Client, cache: Cache) {
     }), 201);
   });
   app.get('/api/v1/admin/content/releases/:release/preview', async c => c.json(await transaction(db, async tx => {
+    await authorizePermission(tx, requireActor(c, true), 'content:read');
     const id = z.string().uuid().parse(c.req.param('release')); const r = await release(tx, id); await budget(tx, id); const content: Row = {};
     for (const kind of Object.keys(kinds) as Kind[]) content[kind] = (await all(tx, baseSelect(kind, true) + ' WHERE r.release_id=? ORDER BY r.sort_order,i.id', [id])).map(camel);
     return { release: camel(r), content, previewOnly: true };
   }, 'read')));
   app.get('/api/v1/admin/content/identities/:kind', async c => c.json(await transaction(db, async tx => {
+    await authorizePermission(tx, requireActor(c, true), 'content:read');
     const kind = kindOf(c.req.param('kind')), k = kinds[kind], q = querySchema.parse(c.req.query()), search = escaped(q.q), label = kind === 'wiki-pages' ? 'page_type' : 'code';
     const where = ` WHERE lower(slug) LIKE ? ESCAPE '!' OR lower(${label}) LIKE ? ESCAPE '!'`;
     const count = await scalar(tx, `SELECT COUNT(*) FROM ${k.identity}` + where, [search, search]);
     return page((await all(tx, `SELECT id,slug,${label} FROM ${k.identity}` + where + ' ORDER BY slug,id LIMIT ? OFFSET ?', [search, search, q.size, q.page * q.size])).map(camel), q.page, q.size, count);
   }, 'read')));
   app.get('/api/v1/admin/content/audit-events', async c => c.json(await transaction(db, async tx => {
+    await authorizePermission(tx, requireActor(c, true), 'content:read');
     const q = querySchema.parse(c.req.query()), id = optionalId.parse(c.req.query('releaseId')); const args: InValue[] = [], where = " WHERE action LIKE 'CONTENT!_%' ESCAPE '!'" + (id ? ' AND details_redacted LIKE ?' : '');
     if (id) args.push(`releaseId=${id};version=%`); const count = await scalar(tx, 'SELECT COUNT(*) FROM audit_events' + where, args);
     return page((await all(tx, 'SELECT * FROM audit_events' + where + ' ORDER BY created_at DESC,id LIMIT ? OFFSET ?', [...args, q.size, q.page * q.size])).map(camel), q.page, q.size, count);
   }, 'read')));
   app.get('/api/v1/admin/content/releases/:release/:kind', async c => c.json(await transaction(db, async tx => {
+    await authorizePermission(tx, requireActor(c, true), 'content:read');
     const id = z.string().uuid().parse(c.req.param('release')), kind = kindOf(c.req.param('kind')), k = kinds[kind], q = querySchema.parse(c.req.query()); const r = await release(tx, id);
     const search = escaped(q.q); const where = ` WHERE r.release_id=? AND (lower(r.${k.label}) LIKE ? ESCAPE '!' OR lower(i.slug) LIKE ? ESCAPE '!'${kind === 'wiki-pages' ? '' : " OR lower(i.code) LIKE ? ESCAPE '!'"})`;
     const args: InValue[] = [id, search, search]; if (kind !== 'wiki-pages') args.push(search);
@@ -177,6 +186,7 @@ export function contentRoutes(app: Api, db: Client, cache: Cache) {
     return { releaseVersion: r.version, result: page((await all(tx, baseSelect(kind, true) + where + ` ORDER BY r.sort_order,r.${k.label},i.id LIMIT ? OFFSET ?`, [...args, q.size, q.page * q.size])).map(camel), q.page, q.size, count) };
   }, 'read')));
   app.get('/api/v1/admin/content/releases/:release/:kind/:id', async c => c.json(await transaction(db, async tx => {
+    await authorizePermission(tx, requireActor(c, true), 'content:read');
     const id = z.string().uuid().parse(c.req.param('release')), kind = kindOf(c.req.param('kind')), entity = z.string().uuid().parse(c.req.param('id'));
     return { releaseVersion: (await release(tx, id)).version, item: camel(await one(tx, baseSelect(kind, true) + ' WHERE r.release_id=? AND i.id=?', [id, entity])) };
   }, 'read')));
@@ -184,7 +194,7 @@ export function contentRoutes(app: Api, db: Client, cache: Cache) {
     const id = z.string().uuid().parse(c.req.param('release')), kind = kindOf(c.req.param('kind')), k = kinds[kind], actor = requireActor(c, true), create = method === 'post';
     const b: Row = writes[kind].parse(await c.req.json()); const entity = create ? b.entityId || uuid() : z.string().uuid().parse(c.req.param('id'));
     return c.json(await transaction(db, async tx => {
-      await authorize(tx, actor, true); editable(await release(tx, id), b.expectedVersion);
+      await authorizePermission(tx, actor, `${writePermission[kind]}:${create ? 'create' : 'update'}`); editable(await release(tx, id), b.expectedVersion);
       if (!create && b.entityId && b.entityId !== entity) return fail(409, 'IDENTITY_IMMUTABLE');
       if (!create) await one(tx, baseSelect(kind) + ' WHERE r.release_id=? AND i.id=?', [id, entity]);
       const existing = (await all(tx, `SELECT * FROM ${k.identity} WHERE id=?`, [entity]))[0];
@@ -207,7 +217,7 @@ export function contentRoutes(app: Api, db: Client, cache: Cache) {
   app.delete('/api/v1/admin/content/releases/:release/:kind/:id', async c => {
     const id = z.string().uuid().parse(c.req.param('release')), entity = z.string().uuid().parse(c.req.param('id')), kind = kindOf(c.req.param('kind')), k = kinds[kind], actor = requireActor(c, true), expected = z.coerce.number().int().nonnegative().parse(c.req.query('expectedVersion'));
     return c.json(await transaction(db, async tx => {
-      await authorize(tx, actor, true); editable(await release(tx, id), expected); await one(tx, baseSelect(kind) + ' WHERE r.release_id=? AND i.id=?', [id, entity]);
+      await authorizePermission(tx, actor, `${writePermission[kind]}:delete`); editable(await release(tx, id), expected); await one(tx, baseSelect(kind) + ' WHERE r.release_id=? AND i.id=?', [id, entity]);
       if (kind === 'card-sets' || kind === 'characters') if (await scalar(tx, `SELECT COUNT(*) FROM card_revisions WHERE release_id=? AND ${kind === 'card-sets' ? 'card_set_id' : 'character_id'}=?`, [id, entity])) return fail(409, 'CONTENT_IN_USE');
       await execute(tx, `DELETE FROM ${k.revision} WHERE release_id=? AND ${k.fk}=?`, [id, entity]); await execute(tx, 'UPDATE content_releases SET version=version+1 WHERE id=?', [id]);
       await audit(tx, actor, `CONTENT_${auditKind[kind]}_REMOVED`, auditKind[kind], entity, id, expected + 1); return { entityId: entity, releaseVersion: expected + 1 };

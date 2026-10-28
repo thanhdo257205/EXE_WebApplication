@@ -89,6 +89,16 @@ export class AuthService {
     );
   }
 
+  /** Fine-grained admin permissions always come from the server, never from a local cache of claims. */
+  hasPermission(permission: string): boolean {
+    const user = this.currentUser();
+    return user?.role === 'ADMIN' && (user.permissions ?? []).includes(permission);
+  }
+
+  hasAnyPermission(permissions: readonly string[]): boolean {
+    return permissions.some(permission => this.hasPermission(permission));
+  }
+
   login(email: string, password: string, turnstileToken = '') {
     return this.csrf().pipe(
       switchMap(csrf =>

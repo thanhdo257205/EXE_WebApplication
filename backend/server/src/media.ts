@@ -1,6 +1,6 @@
 import { createHash, createHmac } from 'node:crypto';
 import type { Hono } from 'hono';
-import { authorize, requireActor, type ApiEnv } from './auth.ts';
+import { authorizePermission, requireActor, type ApiEnv } from './auth.ts';
 import { execute, fail, uuid } from './db.ts';
 import type { Client } from '@libsql/client';
 
@@ -88,14 +88,14 @@ export function detectImage(bytes: Uint8Array): { ext: 'png' | 'jpg' | 'webp'; t
 }
 
 /**
- * POST /api/v1/admin/media/card-image — thân là byte ảnh thô. Chỉ ADMIN, qua CSRF/origin như mọi ghi admin.
+ * POST /api/v1/admin/media/card-image — thân là byte ảnh thô. Cần ADMIN + quyền `media:upload`, qua CSRF/origin như mọi ghi admin.
  * Khóa đối tượng = hash nội dung (`cards/<sha256>.<ext>`): tải lại cùng ảnh không tạo bản sao, URL không đổi nên cache vĩnh viễn được.
  */
 export function mediaRoutes(app: Hono<ApiEnv>, db: Client, store: MediaStore | null) {
   app.post('/api/v1/admin/media/card-image', async c => {
     const actor = requireActor(c, true);
     if (!store) return fail(503, 'MEDIA_STORAGE_DISABLED');
-    await authorize(db, actor, true);
+    await authorizePermission(db, actor, 'media:upload');
     const declared = Number(c.req.header('Content-Length') ?? 0);
     if (declared > MAX_IMAGE_BYTES) return fail(413, 'IMAGE_TOO_LARGE');
     const bytes = new Uint8Array(await c.req.arrayBuffer());

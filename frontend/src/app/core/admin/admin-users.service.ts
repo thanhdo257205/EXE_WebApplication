@@ -13,6 +13,10 @@ export interface AdminAccount {
   enabled: boolean;
   version: number;
   createdAt: string;
+  /** Only present when the requester holds permissions:manage. */
+  permissions?: string[];
+  permissionsVersion?: number;
+  customPermissions?: boolean;
 }
 export interface AdminAccountsPage {
   items: AdminAccount[];
@@ -21,6 +25,7 @@ export interface AdminAccountsPage {
   totalElements: number;
   totalPages: number;
   canManageRoles: boolean;
+  canManagePermissions: boolean;
 }
 export interface AdminInvite {
   id: string;
@@ -35,6 +40,10 @@ export interface AdminInvitesResult {
 export type AdminInviteResult =
   | { status: 'INVITED'; invite: AdminInvite }
   | { status: 'PROMOTED'; account: AdminAccount };
+export interface AdminPermissionsResult {
+  account: AdminAccount;
+  changed: boolean;
+}
 
 @Injectable({ providedIn: 'root' })
 export class AdminUsersService {
@@ -60,10 +69,21 @@ export class AdminUsersService {
     ));
   }
 
+  /** Owner-only write; expectedVersion is the permission-set version, not the account's auth version. */
+  updatePermissions(account: AdminAccount, permissions: readonly string[]) {
+    return this.auth.getCsrf().pipe(switchMap(csrf =>
+      this.http.put<AdminPermissionsResult>(`${this.base}/${account.id}/permissions`, {
+        permissions: [...permissions], expectedVersion: account.permissionsVersion ?? 0,
+      }, {
+        withCredentials: true,
+        headers: new HttpHeaders({ [csrf.headerName]: csrf.token }),
+      })
+    ));
+  }
+
   listInvites() {
     return this.http.get<AdminInvitesResult>(`${this.base}/invites`, { withCredentials: true });
   }
-
   invite(email: string) {
     return this.auth.getCsrf().pipe(switchMap(csrf =>
       this.http.post<AdminInviteResult>(`${this.base}/invites`, { email }, {

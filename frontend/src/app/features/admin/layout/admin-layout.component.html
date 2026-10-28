@@ -65,7 +65,7 @@
       </div>
 
       <nav class="sidebar-nav">
-        @for (item of navItems; track item.link) {
+        @for (item of visibleNavItems(); track item.link) {
           <a
             [routerLink]="item.link"
             routerLinkActive="active-nav-item"
@@ -100,6 +100,15 @@
 
     <!-- Main Content Area -->
     <main class="admin-main-viewport">
+      @if (permissionNotice()) {
+        <div class="permission-notice" role="alert">
+          <app-morph-icon name="shield" [size]="16" color="currentColor"></app-morph-icon>
+          <span>{{ permissionNotice() }}</span>
+          <button type="button" class="permission-notice-close" (click)="dismissPermissionNotice()" aria-label="Đóng thông báo thiếu quyền">
+            <app-morph-icon name="close" [size]="14" color="currentColor"></app-morph-icon>
+          </button>
+        </div>
+      }
       <router-outlet />
     </main>
   </div>

@@ -105,6 +105,7 @@ test('owner keys activate immediately, stay masked and every reveal is audited',
   assert.equal('apiKey' in list.items[0], false);
   assert.equal(list.storageAvailable, true);
   assert.equal(list.items[0].canTest, true);
+  assert.equal(list.items[0].lastTest, null);
 
   const duplicate = await f.createKey(f.owner, { provider: 'groq', label: 'Trùng', apiKey: 'db-key-1234' });
   assert.equal(duplicate.status, 409);
@@ -234,6 +235,18 @@ test('manual key test reports the provider outcome, is audited and never changes
   const failedAudit = await one(f.db, "SELECT * FROM audit_events WHERE action='ASSISTANT_KEY_TESTED' AND entity_id=?", [exhausted.id]);
   assert.equal(failedAudit.outcome, 'FAILURE');
   assert.match(failedAudit.details_redacted, /code=QUOTA/);
+
+  // The outcome survives a reload, so an out-of-quota key cannot silently look healthy again.
+  const listed = (await (await f.request('GET', '/api/v1/admin/assistant/keys', f.owner)).json()).items;
+  const listedGood = listed.find((row: any) => row.id === good.id);
+  assert.equal(listedGood.lastTest.status, 'OK');
+  assert.equal(listedGood.lastTest.code, null);
+  assert.equal(listedGood.lastTest.model, 'env-model');
+  assert.match(String(listedGood.lastTest.testedAt), /^\d{4}-\d{2}-\d{2}T/);
+  const listedExhausted = listed.find((row: any) => row.id === exhausted.id);
+  assert.equal(listedExhausted.lastTest.status, 'FAILED');
+  assert.equal(listedExhausted.lastTest.code, 'QUOTA');
+  assert.equal(JSON.stringify(listed).includes('quota-key-0000'), false);
 
   const retry = await f.request('POST', `/api/v1/admin/assistant/keys/${exhausted.id}/test`, f.owner);
   assert.equal(retry.status, 429);

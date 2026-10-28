@@ -36,6 +36,23 @@ describe('AdminUsersService', () => {
     req.flush({item:{id:'target',role:'ADMIN',version:8},changed:true});
   });
 
+  it('stores a fine-grained set with its own version and CSRF, never the auth version', () => {
+    api.updatePermissions({id:'target',version:7,permissionsVersion:3} as AdminAccount, ['content:read','cards:update']).subscribe();
+    const req = http.expectOne('/api/v1/admin/users/target/permissions');
+    expect(req.request.method).toBe('PUT');
+    expect(req.request.body).toEqual({permissions:['content:read','cards:update'],expectedVersion:3});
+    expect(req.request.withCredentials).toBe(true);
+    expect(req.request.headers.get('X-XSRF-TOKEN')).toBe('test-csrf');
+    req.flush({account:{id:'target',permissions:['content:read','cards:update'],permissionsVersion:4,customPermissions:true},changed:true});
+  });
+
+  it('sends an empty set to lock a co-admin out and keeps the version when none is stored yet', () => {
+    api.updatePermissions({id:'target'} as AdminAccount, []).subscribe();
+    const req = http.expectOne('/api/v1/admin/users/target/permissions');
+    expect(req.request.body).toEqual({permissions:[],expectedVersion:0});
+    req.flush({account:{id:'target',permissions:[],permissionsVersion:1,customPermissions:true},changed:true});
+  });
+
   it('lists pending invites with session credentials', () => {
     api.listInvites().subscribe();
     const req = http.expectOne('/api/v1/admin/users/invites');

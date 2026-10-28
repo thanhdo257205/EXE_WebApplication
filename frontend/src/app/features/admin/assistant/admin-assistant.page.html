@@ -8,7 +8,8 @@
   </header>
 
   <div class="access-note" role="note">
-    {{ canManage() ? 'Bạn có quyền thay đổi cấu hình. Mọi thay đổi được ghi vào audit log.' : 'Bạn chỉ xem được cấu hình và số liệu. Chỉ admin chính được thay đổi.' }}
+    {{ canManage() ? 'Bạn có quyền thay đổi cấu hình, nhưng chỉ ở những mục đã được cấp. Mọi thay đổi được ghi vào audit log.' : 'Bạn chỉ xem được cấu hình và số liệu. Chỉ admin chính được thay đổi.' }}
+    @if (!canReadUsage()) { Không có quyền xem số liệu sử dụng, nên các thanh hạn mức chỉ hiện ngân sách đã đặt và chưa trừ token đã dùng. }
     Key hệ thống trong biến môi trường chỉ hiển thị vị trí, không thể xem nội dung. Key do quản trị viên thêm được quản lý ở tab “API key”.
   </div>
 
@@ -34,15 +35,17 @@
       [class.active]="view() === 'keys'"
       (click)="setView('keys')"
     >API key <span class="tab-count">{{ keys().length }}</span></button>
-    <button
-      type="button"
-      role="tab"
-      id="tab-usage"
-      aria-controls="panel-usage"
-      [attr.aria-selected]="view() === 'usage'"
-      [class.active]="view() === 'usage'"
-      (click)="setView('usage')"
-    >Số liệu</button>
+    @if (canReadUsage()) {
+      <button
+        type="button"
+        role="tab"
+        id="tab-usage"
+        aria-controls="panel-usage"
+        [attr.aria-selected]="view() === 'usage'"
+        [class.active]="view() === 'usage'"
+        (click)="setView('usage')"
+      >Số liệu</button>
+    }
   </nav>
 
   <section class="panel tab-panel" id="panel-providers" role="tabpanel" aria-labelledby="tab-providers" [hidden]="view() !== 'providers'">
@@ -63,59 +66,55 @@
     } @else if (!orderedProviders().length) {
       <p class="muted">Chưa có nhà cung cấp nào hoạt động. Thêm key ở tab “API key” hoặc cấu hình biến môi trường; trợ lý sẽ trả lỗi AI_UNAVAILABLE cho tới khi có key.</p>
     } @else {
-      <ol class="providers">
-        @for (card of providerCards(); track card.provider.id; let index = $index) {
+      <ol class="provider-rows">
+        @for (row of providerRows(); track row.provider.id; let index = $index) {
           <li class="provider">
             <div class="provider-head">
               <span class="rank" aria-hidden="true">{{ index + 1 }}</span>
               <div class="provider-title">
-                <h3>{{ card.provider.label }}</h3>
-                <small class="muted">{{ card.activeKeys }}/{{ card.keys }} key hoạt động · {{ card.provider.slots.length }} slot</small>
+                <h3>{{ row.provider.label }}</h3>
+                <small class="muted">Ưu tiên {{ index + 1 }}/{{ providerRows().length }} · {{ row.triedKeys }}/{{ row.cards.length }} key đang thử</small>
               </div>
-              @if (canManage()) {
+              @if (canReorder()) {
                 <div class="order-actions">
-                  <button type="button" (click)="move(index, -1)" [disabled]="index === 0" [attr.aria-label]="'Đưa ' + card.provider.label + ' lên trước'">↑</button>
-                  <button type="button" (click)="move(index, 1)" [disabled]="index === orderedProviders().length - 1" [attr.aria-label]="'Đưa ' + card.provider.label + ' xuống sau'">↓</button>
+                  <button type="button" (click)="move(index, -1)" [disabled]="index === 0" [attr.aria-label]="'Đưa ' + row.provider.label + ' lên trước'">↑</button>
+                  <button type="button" (click)="move(index, 1)" [disabled]="index === providerRows().length - 1" [attr.aria-label]="'Đưa ' + row.provider.label + ' xuống sau'">↓</button>
                 </div>
               }
             </div>
 
-            <div class="quota budget" [class.warn]="card.quota.warn" [class.over]="card.quota.over">
+            <div class="quota budget" [class.warn]="row.quota.warn" [class.over]="row.quota.over">
               <div class="quota-line">
-                <small>Hạn mức hôm nay</small>
-                @if (card.quota.hasBudget) {
-                  <span class="quota-value">{{ formatTokens(card.quota.used) }} / {{ formatTokens(card.quota.budget) }} token · {{ card.quota.percent }}%</span>
-                } @else {
-                  <span class="quota-value">{{ formatTokens(card.quota.used) }} token</span>
-                }
+                <small>Hạn mức hôm nay của nhà cung cấp</small>
+                <span class="quota-value">{{ formatTokens(row.quota.used) }}{{ row.quota.hasBudget ? ' / ' + formatTokens(row.quota.budget) : '' }} token</span>
               </div>
-              @if (card.quota.hasBudget) {
-                <div class="bar" role="progressbar" [attr.aria-valuenow]="card.quota.percent" aria-valuemin="0" aria-valuemax="100" [attr.aria-label]="'Ngân sách token ' + card.provider.label">
-                  <span [style.width.%]="card.quota.percent"></span>
+              @if (row.quota.hasBudget) {
+                <div class="bar" role="progressbar" [attr.aria-valuenow]="row.quota.percent" aria-valuemin="0" aria-valuemax="100" [attr.aria-label]="'Ngân sách token ' + row.provider.label">
+                  <span [style.width.%]="row.quota.percent"></span>
                 </div>
-                <small>{{ card.quota.over ? 'Đã vượt ' + formatTokens(card.quota.used - card.quota.budget) + ' token' : 'Còn ' + formatTokens(card.quota.remaining) + ' token' }} · mốc ngày UTC, làm mới 07:00 giờ Việt Nam</small>
+                <small>{{ row.quota.over ? 'Đã vượt ' + formatTokens(row.quota.used - row.quota.budget) + ' token' : 'Còn ' + formatTokens(row.quota.remaining) + ' token' }} · {{ row.quota.percent }}% · mốc ngày UTC</small>
               } @else {
-                <div class="bar empty" aria-hidden="true"><span></span></div>
-                <small>Chưa đặt ngân sách · nhập “Ngân sách token/ngày” bên dưới để theo dõi tiến trình.</small>
+                <div class="bar unset" aria-hidden="true"></div>
+                <small>Chưa đặt ngân sách · nhập “Ngân sách token/ngày” để bật thanh tiến trình.</small>
               }
             </div>
 
-            <p class="provider-stats">{{ days() }} ngày · {{ card.requests }} câu hỏi · {{ card.failures }} lỗi · {{ card.avgLatencyMs }} ms</p>
+            <p class="provider-stats">{{ days() }} ngày · {{ row.requests }} câu hỏi · {{ row.failures }} lỗi · {{ row.avgLatencyMs }} ms</p>
 
             <div class="provider-fields">
               <label class="model-field">
                 <span>Model</span>
                 <select
-                  [value]="slotModel(card.provider)"
-                  (change)="setModel(card.provider.id, $event)"
-                  [disabled]="!canManage() || saving()"
-                  [attr.aria-label]="'Model cho ' + card.provider.label"
+                  [value]="slotModel(row.provider)"
+                  (change)="setModel(row.provider.id, $event)"
+                  [disabled]="!canEditModels() || saving()"
+                  [attr.aria-label]="'Model cho ' + row.provider.label"
                 >
-                  @for (option of modelOptions(card.provider); track option.id) {
+                  @for (option of modelOptions(row.provider); track option.id) {
                     <option [value]="option.id">{{ option.label }}{{ option.recommended ? ' · Khuyến nghị' : '' }}</option>
                   }
                 </select>
-                <small class="field-note">ID: <code>{{ slotModel(card.provider) }}</code>@if (selectedModel(card.provider); as choice) {<span> · {{ choice.note }}</span>}</small>
+                <small class="field-note">ID: <code>{{ slotModel(row.provider) }}</code>@if (selectedModel(row.provider); as choice) {<span> · {{ choice.note }}</span>}</small>
               </label>
               <label class="budget-field">
                 <span>Ngân sách token/ngày</span>
@@ -125,36 +124,97 @@
                   max="2000000000"
                   step="1"
                   inputmode="numeric"
-                  [value]="budgets()[card.provider.id] ?? ''"
-                  (input)="setBudget(card.provider.id, $event)"
-                  [disabled]="!canManage() || saving()"
+                  [value]="budgets()[row.provider.id] ?? ''"
+                  (input)="setBudget(row.provider.id, $event)"
+                  [disabled]="!canEditBudgets() || saving()"
                   placeholder="Không đặt"
-                  [attr.aria-label]="'Ngân sách token mỗi ngày cho ' + card.provider.label"
+                  [attr.aria-label]="'Ngân sách token mỗi ngày cho ' + row.provider.label"
                 />
-                <small class="field-note">Để trống nếu không theo dõi.</small>
+                <small class="field-note">Áp dụng cho key hệ thống; key quản trị có hạn mức riêng.</small>
               </label>
             </div>
 
-            <fieldset class="slots">
-              <legend>Key đang dùng</legend>
-              @for (slot of card.provider.slots; track slot.slot) {
-                <label class="slot">
-                  <input
-                    type="checkbox"
-                    [checked]="isSlotEnabled(slot.slot)"
-                    (change)="toggleSlot(slot.slot)"
-                    [disabled]="!canManage() || saving()"
-                  />
-                  <span [title]="slot.slot">{{ slotLabel(slot.slot) }}</span>
-                  <small [class.off]="!isSlotEnabled(slot.slot)">{{ isSlotEnabled(slot.slot) ? 'Bật' : 'Tạm khóa' }}</small>
-                </label>
+            <div class="key-cards">
+              @for (card of row.cards; track card.slot) {
+                <article class="key-card" [class.off]="!card.enabled" [class.warn]="card.quota.warn" [class.over]="card.quota.over">
+                  <header class="key-card-head">
+                    <strong class="key-card-title" [title]="card.slot">{{ card.title }}</strong>
+                    @if (card.key; as key) {
+                      <span class="status" [class.pending]="key.status === 'PENDING'" [class.active]="key.status === 'ACTIVE'" [class.temporarily-off]="key.status === 'DISABLED'">{{ keyStatusLabel(key.status) }}</span>
+                    } @else {
+                      <span class="status system">Key hệ thống</span>
+                    }
+                  </header>
+                  <small class="cell-note">{{ card.key ? keyOwnerLabel(card.key) + ' · ' + card.key.hint : 'Biến môi trường máy chủ · ' + card.slot }}</small>
+
+                  <div class="quota" [class.warn]="card.quota.warn" [class.over]="card.quota.over">
+                    <div class="quota-line">
+                      <small>Hạn mức hôm nay</small>
+                      <span class="quota-value">{{ formatTokens(card.quota.used) }}{{ card.quota.hasBudget ? ' / ' + formatTokens(card.quota.budget) : '' }} token</span>
+                    </div>
+                    @if (card.quota.hasBudget) {
+                      <div class="bar" role="progressbar" [attr.aria-valuenow]="card.quota.percent" aria-valuemin="0" aria-valuemax="100" [attr.aria-label]="'Hạn mức token hôm nay cho ' + card.title">
+                        <span [style.width.%]="card.quota.percent"></span>
+                      </div>
+                      <small>{{ card.quota.over ? 'Đã vượt ' + formatTokens(card.quota.used - card.quota.budget) + ' token' : 'Còn ' + formatTokens(card.quota.remaining) + ' token' }} · {{ card.quota.percent }}%</small>
+                    } @else {
+                      <div class="bar unset" aria-hidden="true"></div>
+                      <small>{{ card.key ? 'Chưa đặt hạn mức riêng cho key này' : 'Chưa có ngân sách nhà cung cấp' }}</small>
+                    }
+                  </div>
+
+                  <p class="card-stats">{{ card.requests }} câu hỏi · {{ card.failures }} lỗi · {{ card.avgLatencyMs }} ms · {{ formatTokens(card.tokens) }} token hôm nay</p>
+
+                  @if (card.key; as key) {
+                    @if (testChip(key); as chip) {
+                      <small class="cell-note test-result" [class.ok]="chip.status === 'OK'" [class.failed]="chip.status === 'FAILED'">{{ keyTestLabel(chip) }}</small>
+                    }
+                    @if (canEditBudgets()) {
+                      <label class="key-budget-field">
+                        <span>Hạn mức token/ngày của key</span>
+                        <input
+                          type="number"
+                          min="1"
+                          max="2000000000"
+                          step="1"
+                          inputmode="numeric"
+                          [value]="keyBudgets()[key.id] ?? ''"
+                          (input)="setKeyBudget(key.id, $event)"
+                          [disabled]="saving()"
+                          placeholder="Không đặt"
+                          [attr.aria-label]="'Hạn mức token mỗi ngày cho key ' + key.label"
+                        />
+                      </label>
+                    }
+                  }
+
+                  <div class="card-actions">
+                    <label class="slot">
+                      <input
+                        type="checkbox"
+                        [checked]="card.enabled"
+                        (change)="toggleSlot(card.slot)"
+                        [disabled]="!canManageSlots() || saving()"
+                        [attr.aria-label]="'Bật key ' + card.title"
+                      />
+                      <small [class.off]="!card.enabled">{{ card.enabled ? 'Đang bật' : 'Tạm khóa' }}</small>
+                    </label>
+                    @if (card.key; as key) {
+                      @if (key.canTest) {
+                        <button type="button" (click)="testKey(key)" [disabled]="keyBusy() === key.id || bulkRunning()">
+                          {{ keyTesting() === key.id ? 'Đang kiểm tra…' : 'Kiểm tra' }}
+                        </button>
+                      }
+                    }
+                  </div>
+                </article>
               }
-            </fieldset>
+            </div>
           </li>
         }
       </ol>
       @if (!hasBudgets()) {
-        <p class="muted form-note">Đặt ngân sách token mỗi ngày để thanh tiến trình hiển thị đầy đủ.</p>
+        <p class="muted form-note">Đặt ngân sách token mỗi ngày cho nhà cung cấp hoặc từng key để thanh tiến trình hiển thị.</p>
       }
     }
   </section>
@@ -163,7 +223,7 @@
     <div class="panel-head">
       <div>
         <h2>API key trong trang quản trị</h2>
-        <p class="muted">Key được mã hoá AES-256-GCM và chỉ hiển thị 4 ký tự cuối. Admin chính thấy mọi key; admin phụ chỉ thấy key của mình. Key do admin phụ thêm phải được admin chính duyệt.</p>
+        <p class="muted">Key được mã hoá AES-256-GCM và chỉ hiển thị 4 ký tự cuối. Admin chính thấy mọi key; admin phụ chỉ thấy key của mình. Key do admin phụ thêm phải được admin chính duyệt. Mỗi nút chỉ hiện khi bạn có quyền tương ứng.</p>
       </div>
       <div class="keys-head-actions">
         @if (testableKeys().length) {
@@ -179,6 +239,8 @@
 
     @if (!keyStorage()) {
       <p class="warning" role="note">Máy chủ chưa cấu hình <code>ASSISTANT_KEY_SECRET</code>. Không thể thêm key qua giao diện; key trong biến môi trường vẫn hoạt động bình thường. Quản trị viên máy chủ cần đặt biến này rồi khởi động lại API.</p>
+    } @else if (!canCreateKey()) {
+      <p class="warning" role="note">Tài khoản của bạn chưa được cấp quyền thêm API key nên biểu mẫu nhập key bị ẩn. Bạn vẫn có thể xem, kiểm tra và thu hồi key của mình tùy theo quyền đã cấp.</p>
     } @else {
       <form class="key-form" (submit)="$event.preventDefault(); createKey()">
         <label>
@@ -335,8 +397,8 @@
                     } @else {
                       <span class="hint">{{ key.hint }}</span>
                       @if (key.accountHint) { <small class="cell-note">Account: {{ key.accountHint }}</small> }
-                      @if (testResult(key.id); as result) {
-                        <small class="cell-note test-result" [class.ok]="result.status === 'OK'" [class.failed]="result.status === 'FAILED'">{{ keyTestLabel(result) }}</small>
+                      @if (testChip(key); as chip) {
+                        <small class="cell-note test-result" [class.ok]="chip.status === 'OK'" [class.failed]="chip.status === 'FAILED'">{{ keyTestLabel(chip) }}</small>
                       }
                       @if (key.canReveal) {
                         <button type="button" class="link-button" (click)="revealKey(key)" [disabled]="keyBusy() === key.id || bulkRunning()">
@@ -351,16 +413,16 @@
                         {{ keyTesting() === key.id ? 'Đang kiểm tra…' : 'Kiểm tra' }}
                       </button>
                     }
-                    @if (canManageKeys() && key.status === 'PENDING') {
+                    @if (key.canManageStatus && key.status === 'PENDING') {
                       <button type="button" (click)="setKeyStatus(key, 'ACTIVE')" [disabled]="keyBusy() === key.id || bulkRunning()">Duyệt</button>
                     }
-                    @if (canManageKeys() && key.status === 'ACTIVE') {
+                    @if (key.canManageStatus && key.status === 'ACTIVE') {
                       <button type="button" (click)="setKeyStatus(key, 'DISABLED')" [disabled]="keyBusy() === key.id || bulkRunning()">Tạm tắt</button>
                     }
-                    @if (canManageKeys() && key.status === 'DISABLED') {
+                    @if (key.canManageStatus && key.status === 'DISABLED') {
                       <button type="button" (click)="setKeyStatus(key, 'ACTIVE')" [disabled]="keyBusy() === key.id || bulkRunning()">Bật lại</button>
                     }
-                    @if (canManageKeys() || key.isMine) {
+                    @if (key.canRevoke) {
                       @if (revokeConfirm() === key.id) {
                         <button type="button" class="danger" (click)="revokeKey(key)" [disabled]="keyBusy() === key.id || bulkRunning()">Xác nhận thu hồi</button>
                         <button type="button" (click)="cancelRevoke()" [disabled]="keyBusy() === key.id || bulkRunning()">Hủy</button>

@@ -191,7 +191,7 @@ test('admin plan applies provider order, model override and disabled slots', () 
     chatProvider('groq', async () => 'q', 'groq-test', 'groq#1'),
   ];
   const active = activeProviders(providers, {
-    order: ['groq', 'gemini'], models: { gemini: 'gemini-custom' }, disabledSlots: ['gemini#2'], tokenBudgets: {}, version: 1, updatedAt: null,
+    order: ['groq', 'gemini'], models: { gemini: 'gemini-custom' }, disabledSlots: ['gemini#2'], tokenBudgets: {}, keyBudgets: {}, version: 1, updatedAt: null,
   });
   assert.deepEqual(active.map(provider => provider.slot), ['groq#1', 'gemini#1']);
   assert.equal(active[1].model, 'gemini-custom');

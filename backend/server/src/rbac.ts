@@ -1,8 +1,17 @@
 import { z } from 'zod';
 import type { Client } from '@libsql/client';
-import { all, execute, fail, one, page, scalar, transaction, uuid, type Row } from './db.ts';
+import { all, execute, fail, one, page, scalar, transaction, uuid, now, type Row } from './db.ts';
 import { authorize, requireActor, type Api } from './auth.ts';
-import { accessView } from './rbac-policy.ts';
+import {
+  accessView,
+  decodePermissions,
+  DEFAULT_DELEGATED_PERMISSIONS,
+  isGrantablePermission,
+  normalizePermissions,
+  OWNER_ONLY_PERMISSIONS,
+  permissionSnapshot,
+  type PermissionSnapshot,
+} from './rbac-policy.ts';
 import { initializeAdminInvites, inviteView, selectInvites } from './admin-invites.ts';
 
 // Ownership is a persistent account ID, never an email match or a request payload.
@@ -11,11 +20,19 @@ const ownerTable = `CREATE TABLE IF NOT EXISTS rbac_owner (
   user_id TEXT NOT NULL UNIQUE REFERENCES app_users(id) ON DELETE RESTRICT,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000Z','now'))
 )`;
+const permissionTable = `CREATE TABLE IF NOT EXISTS admin_permission_sets (
+  user_id TEXT NOT NULL PRIMARY KEY REFERENCES app_users(id) ON DELETE CASCADE,
+  permissions TEXT NOT NULL,
+  version INTEGER NOT NULL DEFAULT 1 CHECK (version >= 1),
+  updated_by TEXT REFERENCES app_users(id) ON DELETE SET NULL,
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000Z','now'))
+)`;
 
 /** Additive upgrade: bind the sole existing enabled ADMIN once; fail closed on ambiguity. */
 export async function initializeRbac(db: Client): Promise<void> {
   await initializeAdminInvites(db);
   await execute(db, ownerTable);
+  await execute(db, permissionTable);
   await transaction(db, async tx => {
     if ((await all(tx, 'SELECT user_id FROM rbac_owner WHERE slot=1')).length) return;
     const admins = await all(tx, "SELECT id,enabled FROM app_users WHERE role='ADMIN' LIMIT 2");
@@ -29,13 +46,18 @@ export async function initializeRbac(db: Client): Promise<void> {
 
 const userColumns = 'u.id,u.email,u.display_name,u.role,u.enabled,u.auth_version,u.created_at,o.user_id AS owner_id';
 const selectUsers = `SELECT ${userColumns} FROM app_users u LEFT JOIN rbac_owner o ON o.user_id=u.id AND o.slot=1`;
-const accountView = (u: Row) => ({
+const accountView = (u: Row, permissions?: PermissionSnapshot) => ({
   id: u.id, email: u.email, displayName: u.display_name, role: u.role,
   enabled: Boolean(u.enabled), version: u.auth_version, createdAt: u.created_at,
   adminLevel: u.role === 'ADMIN' ? (u.owner_id === u.id ? 'OWNER' : 'DELEGATED') : null,
+  ...(permissions ? permissions : {}),
 });
 
 const inviteEmail = z.string().trim().email().max(254).transform(s => s.toLowerCase());
+const permissionsBody = z.object({
+  permissions: z.array(z.string().trim().min(1).max(80)).max(64),
+  expectedVersion: z.number().int().nonnegative(),
+}).strict();
 
 export function rbacRoutes(app: Api, db: Client) {
   app.get('/api/v1/admin/users', async c => {
@@ -47,14 +69,81 @@ export function rbacRoutes(app: Api, db: Client) {
     }).parse(c.req.query());
     return c.json(await transaction(db, async tx => {
       const current = await authorize(tx, actor, true);
+      const access = await accessView(tx, current);
+      if (!access.permissions.includes('users:read')) return fail(403, 'PERMISSION_REQUIRED');
       const escaped = `%${q.q.toLowerCase().replace(/[!%_]/g, ch => '!' + ch)}%`;
       const where = " WHERE lower(u.email) LIKE ? ESCAPE '!' OR lower(u.display_name) LIKE ? ESCAPE '!'";
       const args = [escaped, escaped];
       const count = await scalar(tx, 'SELECT COUNT(*) FROM app_users u' + where, args);
       const users = await all(tx, selectUsers + where + ' ORDER BY u.created_at,u.id LIMIT ? OFFSET ?', [...args, q.size, q.page * q.size]);
-      const access = await accessView(tx, current);
-      return { ...page(users.map(accountView), q.page, q.size, count), canManageRoles: access.permissions.includes('users:manage-roles') };
+      const canManagePermissions = access.permissions.includes('permissions:manage');
+      let stored = new Map<string, Row>();
+      if (canManagePermissions && users.length) {
+        const rows = await all(tx, `SELECT user_id,permissions,version FROM admin_permission_sets WHERE user_id IN (${users.map(() => '?').join(',')})`, users.map(u => u.id));
+        stored = new Map(rows.map(row => [row.user_id as string, row]));
+      }
+      const items = users.map(u => accountView(u, canManagePermissions && u.role === 'ADMIN'
+        ? permissionSnapshot(u.role, u.owner_id === u.id, stored.get(u.id))
+        : undefined));
+      return {
+        ...page(items, q.page, q.size, count),
+        canManageRoles: access.permissions.includes('users:manage-roles'),
+        canManagePermissions,
+      };
     }, 'read'));
+  });
+
+  // Owner stores an explicit set for one delegated admin. Owner's own set is implicit and immutable.
+  app.put('/api/v1/admin/users/:id/permissions', async c => {
+    const actor = requireActor(c, true);
+    const targetId = z.string().uuid().parse(c.req.param('id'));
+    const b = permissionsBody.parse(await c.req.json());
+    const invalid = b.permissions.filter(permission => !isGrantablePermission(permission));
+    if (invalid.length) {
+      return invalid.some(permission => (OWNER_ONLY_PERMISSIONS as readonly string[]).includes(permission))
+        ? fail(400, 'PERMISSION_NOT_GRANTABLE')
+        : fail(400, 'INVALID_REQUEST');
+    }
+    return c.json(await transaction(db, async tx => {
+      const current = await authorize(tx, actor, true);
+      if (!(await accessView(tx, current)).permissions.includes('permissions:manage')) return fail(403, 'OWNER_REQUIRED');
+      const target = await one(tx, selectUsers + ' WHERE u.id=?', [targetId]);
+      if (target.owner_id === target.id) return fail(403, 'OWNER_PROTECTED');
+      if (target.role !== 'ADMIN') return fail(409, 'TARGET_NOT_ADMIN');
+      if (!target.enabled) return fail(409, 'ACCOUNT_DISABLED');
+
+      const stored = (await all(tx, 'SELECT permissions,version FROM admin_permission_sets WHERE user_id=?', [targetId]))[0];
+      const version = stored ? Number(stored.version) || 0 : 0;
+      if (version !== b.expectedVersion) return fail(409, 'VERSION_CONFLICT');
+
+      const permissions = normalizePermissions(b.permissions);
+      const previous = stored ? decodePermissions(stored.permissions) : [...DEFAULT_DELEGATED_PERMISSIONS];
+      if (permissions.join(',') === previous.join(',')) {
+        const unchanged = stored
+          ? permissionSnapshot(target.role, false, stored)
+          : permissionSnapshot(target.role, false);
+        return { account: accountView(target, unchanged), changed: false };
+      }
+
+      if (stored) {
+        await execute(tx, 'UPDATE admin_permission_sets SET permissions=?,version=version+1,updated_by=?,updated_at=? WHERE user_id=? AND version=?',
+          [JSON.stringify(permissions), actor.id, now(), targetId, version]);
+      } else {
+        await execute(tx, 'INSERT INTO admin_permission_sets(user_id,permissions,version,updated_by) VALUES (?,?,1,?)',
+          [targetId, JSON.stringify(permissions), actor.id]);
+      }
+      const added = permissions.filter(permission => !previous.includes(permission));
+      const removed = previous.filter(permission => !permissions.includes(permission));
+      await execute(tx, "INSERT INTO audit_events(id,actor_id,action,entity_type,entity_id,outcome,details_redacted) VALUES (?,?,'USER_PERMISSIONS_CHANGED','USER',?,'SUCCESS',?)",
+        [uuid(), actor.id, targetId, `added=${added.join(',')};removed=${removed.join(',')};version=${version + 1};source=admin-permissions`]);
+      const saved = await one(tx, selectUsers + ' WHERE u.id=?', [targetId]);
+      return {
+        account: accountView(saved, {
+          permissions, permissionsVersion: version + 1, customPermissions: true,
+        }),
+        changed: true,
+      };
+    }));
   });
 
   app.get('/api/v1/admin/users/invites', async c => {
@@ -84,6 +173,7 @@ export function rbacRoutes(app: Api, db: Client) {
         await execute(tx, "UPDATE app_users SET role='ADMIN',auth_version=auth_version+1 WHERE id=?", [target.id]);
         await execute(tx, 'DELETE FROM password_reset_tokens WHERE user_id=?', [target.id]);
         await execute(tx, 'DELETE FROM admin_invites WHERE email=?', [b.email]);
+        await execute(tx, 'DELETE FROM admin_permission_sets WHERE user_id=?', [target.id]);
         await execute(tx, "INSERT INTO audit_events(id,actor_id,action,entity_type,entity_id,outcome,details_redacted) VALUES (?,?,'USER_ROLE_CHANGED','USER',?,'SUCCESS',?)",
           [uuid(), actor.id, target.id, `role=${target.role}->ADMIN;version=${target.auth_version + 1};source=admin-invite`]);
         return { status: 'PROMOTED', account: accountView(await one(tx, selectUsers + ' WHERE u.id=?', [target.id])) };
@@ -125,6 +215,8 @@ export function rbacRoutes(app: Api, db: Client) {
       if (target.role === b.role) return { item: accountView(target), changed: false };
       await execute(tx, 'UPDATE app_users SET role=?,auth_version=auth_version+1 WHERE id=? AND auth_version=?', [b.role, target.id, b.expectedVersion]);
       await execute(tx, 'DELETE FROM password_reset_tokens WHERE user_id=?', [target.id]);
+      // Promotion starts from the default set; demotion must not leave stale grants behind.
+      await execute(tx, 'DELETE FROM admin_permission_sets WHERE user_id=?', [target.id]);
       await execute(tx, "INSERT INTO audit_events(id,actor_id,action,entity_type,entity_id,outcome,details_redacted) VALUES (?,?,'USER_ROLE_CHANGED','USER',?,'SUCCESS',?)",
         [uuid(), actor.id, target.id, `role=${target.role}->${b.role};version=${b.expectedVersion + 1}`]);
       return { item: accountView(await one(tx, selectUsers + ' WHERE u.id=?', [target.id])), changed: true };

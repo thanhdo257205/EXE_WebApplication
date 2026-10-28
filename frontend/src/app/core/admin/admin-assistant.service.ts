@@ -29,6 +29,7 @@ export interface AssistantSettings {
   models: Record<string, string>;
   disabledSlots: string[];
   tokenBudgets: Record<string, number>;
+  keyBudgets: Record<string, number>;
   version: number;
   updatedAt: string | null;
 }
@@ -37,6 +38,11 @@ export interface AssistantSettingsResponse {
   settings: AssistantSettings;
   providers: AssistantProviderConfig[];
   canManage: boolean;
+  canReorder: boolean;
+  canEditModels: boolean;
+  canManageSlots: boolean;
+  canEditBudgets: boolean;
+  canReadUsage: boolean;
 }
 
 export interface AssistantUsageTotals {
@@ -84,14 +90,35 @@ export interface AssistantUsageTodayProvider {
   tokensOut: number;
 }
 
+/** One stored key or env slot aggregated across models, so a key card can show its own totals. */
+export interface AssistantUsageKey {
+  slot: string;
+  provider: string;
+  requests: number;
+  failures: number;
+  avgLatencyMs: number;
+  tokensIn: number;
+  tokensOut: number;
+}
+
+export interface AssistantUsageTodaySlot {
+  slot: string;
+  provider: string;
+  requests: number;
+  failures: number;
+  tokensIn: number;
+  tokensOut: number;
+}
+
 export interface AssistantUsage {
   days: number;
   since: string;
   totals: AssistantUsageTotals;
   providers: AssistantUsageProvider[];
   slots: AssistantUsageSlot[];
+  keys: AssistantUsageKey[];
   daily: AssistantUsageDay[];
-  today: { day: string; providers: AssistantUsageTodayProvider[] };
+  today: { day: string; providers: AssistantUsageTodayProvider[]; slots: AssistantUsageTodaySlot[] };
 }
 
 export interface AssistantSettingsSave {
@@ -99,10 +126,20 @@ export interface AssistantSettingsSave {
   models: Record<string, string>;
   disabledSlots: string[];
   tokenBudgets: Record<string, number>;
+  keyBudgets: Record<string, number>;
   expectedVersion: number;
 }
 
 export type AssistantKeyStatus = 'PENDING' | 'ACTIVE' | 'DISABLED' | 'REVOKED';
+
+/** Last probe outcome persisted on the key, so a quota failure stays visible after a reload. */
+export interface AssistantKeyLastTest {
+  status: 'OK' | 'FAILED';
+  code: string | null;
+  model: string | null;
+  latencyMs: number;
+  testedAt: string;
+}
 
 export interface AssistantKey {
   id: string;
@@ -118,15 +155,18 @@ export interface AssistantKey {
   isMine: boolean;
   canReveal: boolean;
   canTest: boolean;
+  canRevoke: boolean;
   canManageStatus: boolean;
   createdAt: string;
   updatedAt: string;
   approvedAt: string | null;
+  lastTest: AssistantKeyLastTest | null;
 }
 
 export interface AssistantKeysResponse {
   items: AssistantKey[];
   canManage: boolean;
+  canCreate: boolean;
   storageAvailable: boolean;
   limits: { perOwner: number; active: number };
 }

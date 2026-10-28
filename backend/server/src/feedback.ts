@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { getCookie } from 'hono/cookie';
 import { streamSSE } from 'hono/streaming';
 import { all, one, scalar, execute, transaction, uuid, now, at, camel, page, fail, type Executor } from './db.ts';
-import { authorize, requireActor, authenticate, type Api, type Config } from './auth.ts';
+import { authorize, authorizePermission, requireActor, authenticate, type Api, type Config } from './auth.ts';
 
 const category = z.enum(['RULE_QUESTION', 'CARD_ISSUE', 'PLAYTEST', 'OTHER']);
 const status = z.enum(['NEW', 'IN_REVIEW', 'RESOLVED', 'REJECTED']);
@@ -55,17 +55,17 @@ export function feedbackRoutes(app: Api, db: Client, cfg: Config) {
     }), 201);
   });
   app.get('/api/v1/admin/feedback', async c => c.json(await transaction(db, async tx => {
-    requireActor(c, true); const q = paging.parse(c.req.query()), state = status.optional().parse(c.req.query('status')), kind = category.optional().parse(c.req.query('category')), release = z.string().uuid().optional().parse(c.req.query('releaseId'));
+    const actor = requireActor(c, true); await authorizePermission(tx, actor, 'feedback:read'); const q = paging.parse(c.req.query()), state = status.optional().parse(c.req.query('status')), kind = category.optional().parse(c.req.query('category')), release = z.string().uuid().optional().parse(c.req.query('releaseId'));
     let where = ' WHERE 1=1'; const args: InValue[] = [];
     for (const [column, value] of [['status', state], ['category', kind], ['release_id', release]]) if (value) { where += ` AND ${column}=?`; args.push(value); }
     const count = await scalar(tx, 'SELECT COUNT(*) FROM player_feedback' + where, args);
     return page((await all(tx, 'SELECT id,release_id,card_id,page_id,category,status,version,created_at,updated_at FROM player_feedback' + where + ' ORDER BY created_at DESC,id LIMIT ? OFFSET ?', [...args, q.size, q.page * q.size])).map(camel), q.page, q.size, count);
   }, 'read')));
-  app.get('/api/v1/admin/feedback/:id', async c => { requireActor(c, true); return c.json(camel(await one(db, 'SELECT * FROM player_feedback WHERE id=?', [z.string().uuid().parse(c.req.param('id'))]))); });
+  app.get('/api/v1/admin/feedback/:id', async c => { await authorizePermission(db, requireActor(c, true), 'feedback:read'); return c.json(camel(await one(db, 'SELECT * FROM player_feedback WHERE id=?', [z.string().uuid().parse(c.req.param('id'))]))); });
   app.put('/api/v1/admin/feedback/:id', async c => {
     const actor = requireActor(c, true), id = z.string().uuid().parse(c.req.param('id')); const b = z.object({ expectedVersion: z.number().int().nonnegative(), status, moderationNote: z.string().trim().min(1).max(2000) }).parse(await c.req.json());
     return c.json(await transaction(db, async tx => {
-      await authorize(tx, actor, true); const current = await one(tx, 'SELECT * FROM player_feedback WHERE id=?', [id]);
+      await authorizePermission(tx, actor, 'feedback:moderate'); const current = await one(tx, 'SELECT * FROM player_feedback WHERE id=?', [id]);
       if (current.version !== b.expectedVersion) return fail(409, 'VERSION_CONFLICT');
       const previous = current.status, next = b.status;
       if (!(previous === next || (next !== 'NEW' && (['NEW', 'IN_REVIEW'].includes(previous) || next === 'IN_REVIEW')))) return fail(409, 'INVALID_TRANSITION');

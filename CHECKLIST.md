@@ -1,6 +1,26 @@
 # EXE_WebApplication — Checklist triển khai
 
-Cập nhật: 2026-10-25 (Asia/Saigon).
+Cập nhật: 2026-10-28 (Asia/Saigon).
+
+## RBAC chi tiết: phân quyền từng thao tác cho đồng quản trị (2026-10-28, local)
+
+- [x] RBAC-FG-01 — Nghiệp vụ và danh mục 32 quyền `module:action` được chốt trước khi code: [docs/RBAC_PERMISSIONS.md](docs/RBAC_PERMISSIONS.md); `docs/RBAC.md` dẫn chiếu sang tài liệu này.
+- [x] RBAC-FG-02 — Backend `GRANTABLE_PERMISSIONS` + `DEFAULT_DELEGATED_PERMISSIONS` (mọi quyền trừ `assistant:keys:manage`) + `normalizePermissions()` tự thêm quyền phụ thuộc (`content:read`, `assistant:read`, `assistant:keys:read`, `keys:manage` → reveal/test/revoke), khử trùng, tối đa 64 khóa, sắp theo thứ tự danh mục.
+- [x] RBAC-FG-03 — Bảng `admin_permission_sets` trong `schema.sql` và tạo idempotent lúc khởi động; không có dòng = bộ mặc định; không đổi `runtime_schema`/enum role/dữ liệu nội dung.
+- [x] RBAC-FG-04 — `accessView()` đọc role + bộ quyền từ DB mỗi request; JWT chỉ còn `ver`. Không tin `permissions` từ token, body hoặc localStorage.
+- [x] RBAC-FG-05 — `PUT /api/v1/admin/users/:id/permissions` chỉ owner (`permissions:manage`), CSRF/origin, `expectedVersion`, `changed=false` khi không đổi, audit `USER_PERMISSIONS_CHANGED` cùng transaction (audit lỗi rollback), **không** tăng `auth_version`. Mã lỗi: `OWNER_REQUIRED`, `OWNER_PROTECTED`, `PERMISSION_NOT_GRANTABLE`, `INVALID_REQUEST`, `TARGET_NOT_ADMIN`, `ACCOUNT_DISABLED`, `VERSION_CONFLICT`.
+- [x] RBAC-FG-06 — Đổi role (nâng/hạ) xóa bộ quyền tùy chỉnh; `GET /admin/users` chỉ lộ `permissions/permissionsVersion/customPermissions` và `canManagePermissions` cho owner.
+- [x] RBAC-FG-07 — Mọi route admin gắn quyền tương ứng (dashboard chỉ cần ADMIN; đọc nội dung `content:read`; ghi theo `<kind>:create/update/delete`; tải ảnh `media:upload`; feedback read/moderate; trợ lý theo từng quyền; `users:read`). PUT cấu hình trợ lý chỉ kiểm tra quyền của trường thực sự thay đổi.
+- [x] RBAC-FG-08 — Cờ khả năng trả về giao diện: `settingsView` (`canReorder/canEditModels/canManageSlots/canEditBudgets/canReadUsage/canManage`), `keyView` (`canReveal/canTest/canRevoke/canManageStatus`), `GET keys` (`canCreate/canManage/storageAvailable/limits`).
+- [x] RBAC-FG-09 — Frontend: `permission-catalog.ts` mirror danh mục backend, `permission.guard.ts` + nav theo quyền, `AuthService.hasPermission/hasAnyPermission`, 403 → thông báo thiếu quyền.
+- [x] RBAC-FG-10 — Trình "Phân quyền chi tiết" trên `/admin/users` chỉ owner thấy; đồng quản trị chỉ đọc và thấy "Chỉ admin chính"; có conflict/refresh giữ dữ liệu, không tự retry mutation.
+- [x] RBAC-FG-11 — Trang trợ lý AI gate từng control theo từng cờ; form thêm key ẩn khi thiếu `assistant:keys:create`; nút dòng key theo `canManageStatus`/`canRevoke` của chính key.
+- [x] RBAC-FG-12 — Trang thẻ/bộ thẻ gate form tạo release, nhân bản, tạo thẻ, tạo bộ thẻ, import Excel (cần `card-sets:create` + `cards:create`) và ô tải ảnh (`media:upload`); method ghi tự chặn trước khi gọi API.
+- [x] RBAC-FG-13 — Sửa lỗi dữ liệu: save không có `assistant:models:reorder` gửi `order` nguyên văn; payload hạn mức giữ map đầy đủ để không xóa hạn mức key của admin khác.
+- [x] RBAC-FG-14 — Test local: backend typecheck + **106 pass / 1 skip (Turso remote) / 0 fail**, `rbac-permissions.test.ts` 8 ca; frontend hai typecheck + **57 file / 424 pass** (catalog 7, guard 6, users page 26, assistant page 37, section page +5 gate); `ng build` exit 0 chỉ còn cảnh báo CSS/CommonJS cũ. Cặp test dương–thể hiện cho mỗi gate để chống test rỗng.
+- [ ] RBAC-FG-15 — Chromium với backend Hono + SQLite thật: owner cấp/bộ quyền nhỏ, đồng quản trị đăng nhập thử thao tác bị chặn (nav ẩn, form ẩn, gọi thẳng API trả 403), 1440px/390px không tràn ngang.
+- [ ] RBAC-FG-16 — Commit/PR/merge/deploy và nghiệm thu production: `admin_permission_sets` được tạo trên Turso, tài khoản đồng quản trị hiện tại vẫn dùng bộ mặc định (hành vi không đổi), audit `USER_PERMISSIONS_CHANGED` đúng 1 dòng mỗi lần phân quyền.
+- [ ] RBAC-FG-17 — Chủ dự án quyết định bộ quyền thực tế cho từng đồng quản trị đang có; chưa cấp quyền nào trên production trong đợt này.
 
 ## Lối vào đăng ký & chuyển động trang xác thực (2026-10-25)
 
