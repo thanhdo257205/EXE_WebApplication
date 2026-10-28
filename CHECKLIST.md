@@ -2,7 +2,7 @@
 
 Cập nhật: 2026-10-28 (Asia/Saigon).
 
-## Trợ lý AI: độ trễ trung bình nhất quán giữa các bảng số liệu (2026-10-28, đã push GLM-5.3, chưa deploy)
+## Trợ lý AI: độ trễ trung bình nhất quán giữa các bảng số liệu (2026-10-28, đã deploy production `64dd71d`)
 
 - [x] AI-LAT-01 — `usageSummary().slots[].avgLatencyMs` chia cho `answered = requests − cache_hits` như `providers`/`keys`/`totals`, vẫn trả 0 khi provider `cache` hoặc không có câu trả lời (`backend/server/src/assistant-usage.ts`).
 - [x] AI-LAT-02 — Test hồi quy `assistant-migrations.test.ts`: 2 request 300/100 ms + 1 cache hit trên cùng `(provider, slot, model)` → 200 ms cho cả `totals`, `providers`, `slots`, `keys`. Bằng chứng đỏ khi revert bộ chia về `requests`: `actual: [3, 133]` / `expected: [3, 200]`.

@@ -4,7 +4,7 @@
 
 ## Cập nhật gần nhất
 
-### Trợ lý AI: độ trễ trung bình trên bảng số liệu dùng chung bộ chia với thẻ key — 2026-10-28 (local, chưa deploy)
+### Trợ lý AI: độ trễ trung bình trên bảng số liệu dùng chung bộ chia với thẻ key — 2026-10-28 (đã deploy production `64dd71d`)
 
 - Yêu cầu chủ dự án: sửa hai lỗi còn lại của trang trợ lý AI sau đợt redesign thẻ theo từng key.
 - Lỗi 1 (đã sửa): `usageSummary()` tính `avgLatencyMs` cho `slots` bằng `latency / requests`, trong khi `providers`, `keys` và `totals` dùng `answered = requests − cache_hits`. Cùng một key nên bảng "slot theo model" trong tab số liệu hiện số thấp hơn thẻ key/dòng provider (trên DB tạm: 1120 ms vs 1600 ms; ca test tối thiểu: 133 ms vs 200 ms). Cache hit không mất thời gian provider nên không được tính trung bình.
@@ -12,7 +12,7 @@
 - Test hồi quy: `assistant-migrations.test.ts` thêm ca "every usage grouping divides latency by answered requests…" — 2 request có latency (300/100 ms) + 1 cache hit trên cùng `(provider, slot, model)` buộc cả 4 grouping (`totals`, `providers`, `slots`, `keys`) ra 200 ms. Đã revert bộ chia về `requests` để chứng minh đỏ: `actual: [3, 133]`, `expected: [3, 200]`, rồi khôi phục.
 - Lỗi 2 (không còn việc): gate UI theo từng cờ quyền đã hoàn thành trong commit `8b6381d` — `canReorder/canEditModels/canManageSlots/canEditBudgets/canReadUsage` từ `settingsView` được dùng ở method lẫn template, `save()` gửi `order` nguyên văn khi thiếu quyền sắp xếp.
 - Kiểm thử local: `npm run check` (tsc --noEmit) qua; `node --test test/*.test.ts` **107 pass / 1 skip (Turso remote) / 0 fail**. Frontend không đổi source trong đợt này.
-- Trạng thái: hai commit (code+test, docs) đã push lên `origin/GLM-5.3`; **chưa merge PR, chưa deploy, chưa đụng DB production**.
+- Trạng thái: PR #33 (head `9549b69`) merge vào `main` tại `64dd71d`; CI main `40710255325` xanh 4/4, CD `40710458197` xanh 2/2; `/api/v1/info` production trả `64dd71d3c18a87e20bda29152eb5ada9f660b808`, health 200, `/admin/assistant` 200. Chưa kiểm tra con số độ trễ bằng mắt trên production (AI-LAT-05).
 
 ### RBAC chi tiết: admin chính phân quyền từng thao tác cho đồng quản trị — 2026-10-28 (local, chưa deploy)
 
