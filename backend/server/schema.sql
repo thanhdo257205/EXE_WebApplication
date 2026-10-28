@@ -628,3 +628,11 @@ CREATE TABLE assistant_credentials (
 CREATE UNIQUE INDEX ux_assistant_credentials_fingerprint ON assistant_credentials(provider,fingerprint) WHERE status <> 'REVOKED';
 CREATE INDEX ix_assistant_credentials_owner ON assistant_credentials(owner_id,created_at);
 CREATE INDEX ix_assistant_credentials_active ON assistant_credentials(status,created_at);
+
+-- V14__content_authorship.sql
+-- Author of each revision row: a delegated admin may edit/delete rows it created
+-- without the module write right, as long as content:read is still granted.
+ALTER TABLE character_revisions ADD COLUMN created_by TEXT REFERENCES app_users(id) ON DELETE SET NULL;
+ALTER TABLE card_set_revisions ADD COLUMN created_by TEXT REFERENCES app_users(id) ON DELETE SET NULL;
+ALTER TABLE card_revisions ADD COLUMN created_by TEXT REFERENCES app_users(id) ON DELETE SET NULL;
+ALTER TABLE wiki_page_revisions ADD COLUMN created_by TEXT REFERENCES app_users(id) ON DELETE SET NULL;

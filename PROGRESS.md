@@ -4,7 +4,17 @@
 
 ## Cập nhật gần nhất
 
-### Trợ lý AI: độ trễ trung bình trên bảng số liệu dùng chung bộ chia với thẻ key — 2026-10-28 (local, chưa deploy)
+### Quyền tác giả nội dung: đồng quản trị sửa/xóa được phần mình tạo — 2026-10-28 (local, chưa deploy)
+
+- Yêu cầu chủ dự án: đồng quản trị mặc định chỉ được xem; chỉ admin chính phân quyền; nhưng phần **họ tự tạo** (API key, bộ thẻ, thẻ, …) thì họ được sửa/xóa. Chốt qua AskUserQuestion: áp cho **toàn bộ nội dung + bản phát hành** (API key đã có sẵn cơ chế) và điều kiện là **phải còn `content:read`** — thu hồi hết quyền nội dung thì phần của họ bị đóng băng.
+- Backend: thêm cột `created_by` cho 4 bảng revision (`character_revisions`, `card_set_revisions`, `card_revisions`, `wiki_page_revisions`) trong `schema.sql` (section `V14__content_authorship.sql`) + initializer idempotent `initializeContentAuthorship()` chạy lúc khởi động cho DB cũ (`ALTER TABLE … ADD COLUMN`, bỏ qua lỗi vì SQLite không có `IF NOT EXISTS`). `content_releases.created_by` đã có từ trước.
+- Backend: `auth.ts` tách `permissionView()` (kiểm tra phiên + đọc quyền, **không** ném 403) để route tự quyết định; `authorizePermission()` dùng lại hàm này nên hành vi cũ không đổi.
+- Backend: `content.ts` ghi `created_by` khi tạo thẻ/bộ thẻ/cư dân/wiki và khi nhân bản (bản sao thuộc người bấm nhân bản, bản gốc giữ tác giả cũ). Sửa/xóa bản ghi và sửa release nháp: cho phép khi có quyền module **hoặc** (`created_by` = mình **và** còn `content:read`); tạo mới vẫn luôn cần quyền tạo. Không ghi đè tác giả khi sửa. Chốt an toàn giữ nguyên: `RELEASE_IMMUTABLE`, `VERSION_CONFLICT`, `CONTENT_IN_USE`.
+- Backend test: `rbac-permissions.test.ts` thêm 3 ca — (1) chỉ có quyền tạo vẫn sửa/xóa được release/bộ thẻ/thẻ của mình, `403` với đồ án của owner, bị khóa khi còn `feedback:read` (mất `content:read`), nhưng vẫn sửa được khi chỉ còn `content:read`; (2) nhân bản gán tác giả mới cho bản sao, bản gốc không đổi, người nhân bản sửa được bản sao nhưng không sửa được bản gốc; (3) initializer thêm cột cho DB cũ và chạy lần hai không lỗi. Đã chứng minh test không rỗng: tạm vô hiệu `ownsRow()` → 2 ca hành vi đỏ (`expected 200, got 403`), khôi phục → xanh.
+- Kiểm thử local: backend `tsc --noEmit` qua; `npm test` **110 pass / 1 skip (Turso remote) / 0 fail** (tổng 111). Frontend không đổi source trong đợt này.
+- Trạng thái: **đã commit ở local, chưa push/deploy**, chưa đụng DB production; migration sẽ tự thêm cột khi backend khởi động lại trên Render.
+
+### Trợ lý AI: độ trễ trung bình trên bảng số liệu dùng chung bộ chia với thẻ key — 2026-10-28 (đã deploy production `64dd71d`)
 
 - Yêu cầu chủ dự án: sửa hai lỗi còn lại của trang trợ lý AI sau đợt redesign thẻ theo từng key.
 - Lỗi 1 (đã sửa): `usageSummary()` tính `avgLatencyMs` cho `slots` bằng `latency / requests`, trong khi `providers`, `keys` và `totals` dùng `answered = requests − cache_hits`. Cùng một key nên bảng "slot theo model" trong tab số liệu hiện số thấp hơn thẻ key/dòng provider (trên DB tạm: 1120 ms vs 1600 ms; ca test tối thiểu: 133 ms vs 200 ms). Cache hit không mất thời gian provider nên không được tính trung bình.
@@ -12,7 +22,7 @@
 - Test hồi quy: `assistant-migrations.test.ts` thêm ca "every usage grouping divides latency by answered requests…" — 2 request có latency (300/100 ms) + 1 cache hit trên cùng `(provider, slot, model)` buộc cả 4 grouping (`totals`, `providers`, `slots`, `keys`) ra 200 ms. Đã revert bộ chia về `requests` để chứng minh đỏ: `actual: [3, 133]`, `expected: [3, 200]`, rồi khôi phục.
 - Lỗi 2 (không còn việc): gate UI theo từng cờ quyền đã hoàn thành trong commit `8b6381d` — `canReorder/canEditModels/canManageSlots/canEditBudgets/canReadUsage` từ `settingsView` được dùng ở method lẫn template, `save()` gửi `order` nguyên văn khi thiếu quyền sắp xếp.
 - Kiểm thử local: `npm run check` (tsc --noEmit) qua; `node --test test/*.test.ts` **107 pass / 1 skip (Turso remote) / 0 fail**. Frontend không đổi source trong đợt này.
-- Trạng thái: hai commit (code+test, docs) đã push lên `origin/GLM-5.3`; **chưa merge PR, chưa deploy, chưa đụng DB production**.
+- Trạng thái: PR #33 (head `9549b69`) merge vào `main` tại `64dd71d`; CI main `40710255325` xanh 4/4, CD `40710458197` xanh 2/2; `/api/v1/info` production trả `64dd71d3c18a87e20bda29152eb5ada9f660b808`, health 200, `/admin/assistant` 200. Chủ dự án chốt đóng AI-LAT-05 (2026-10-28): không chạy live browser check trên production, nghiệm thu dừng ở test hồi quy + bằng chứng deploy.
 
 ### RBAC chi tiết: admin chính phân quyền từng thao tác cho đồng quản trị — 2026-10-28 (local, chưa deploy)
 

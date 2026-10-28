@@ -32,10 +32,14 @@ export async function authorize(db: Executor, actor: Actor, admin = false): Prom
   if (!user || !user.enabled || user.auth_version !== actor.version || (admin && user.role !== 'ADMIN')) return fail(403, 'AUTH_REQUIRED');
   return user;
 }
+/** Live session/role plus effective permissions, without throwing when a right is missing. */
+export async function permissionView(db: Executor, actor: Actor) {
+  const user = await authorize(db, actor, true);
+  return { user, access: await accessView(db, user) };
+}
 /** Re-checks the live session/role and then the fine-grained permission under the same executor. */
 export async function authorizePermission(db: Executor, actor: Actor, permission: string) {
-  const user = await authorize(db, actor, true);
-  const access = await accessView(db, user);
+  const { user, access } = await permissionView(db, actor);
   if (!access.permissions.includes(permission)) return fail(403, 'PERMISSION_REQUIRED');
   return { user, access };
 }

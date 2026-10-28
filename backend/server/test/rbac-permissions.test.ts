@@ -8,6 +8,7 @@ import { initializeRbac } from '../src/rbac.ts';
 import { initializeAssistantSettings } from '../src/assistant-settings.ts';
 import { initializeAssistantCredentials } from '../src/assistant-credentials.ts';
 import { initializeAssistantUsage } from '../src/assistant-usage.ts';
+import { initializeContentAuthorship } from '../src/content.ts';
 import { assistantFromEnv, type FetchLike } from '../src/assistant-providers.ts';
 import { DEFAULT_DELEGATED_PERMISSIONS, GRANTABLE_PERMISSIONS, OWNER_ONLY_PERMISSIONS, decodePermissions, effectivePermissions, normalizePermissions } from '../src/rbac-policy.ts';
 import type { Config } from '../src/auth.ts';
@@ -285,4 +286,71 @@ test('key permissions scope each action to the creator unless keys:manage is gra
   assert.equal((await f.request('PATCH', `/api/v1/admin/assistant/keys/${created.item.id}`, f.co, { status: 'ACTIVE' })).status, 200);
   assert.equal((await f.request('POST', `/api/v1/admin/assistant/keys/${ownerKey.id}/reveal`, f.co)).status, 200);
   assert.match((await one(f.db, "SELECT details_redacted FROM audit_events WHERE action='ASSISTANT_KEY_REVEALED' AND entity_id=?", [ownerKey.id])).details_redacted, /scope=managed/);
+});
+
+test('a delegated admin edits and deletes only the rows it authored while content:read remains', async t => {
+  const f = await fixture(); t.after(() => f.db.close());
+  await f.assign(f.owner, f.co, ['cards:create', 'card-sets:create', 'releases:create'], 0);
+  const denied = async (method: string, path: string, body?: unknown) => {
+    const response = await f.request(method, path, f.co, body);
+    assert.equal(response.status, 403, `${method} ${path}`);
+    assert.equal((await response.json()).code, 'PERMISSION_REQUIRED');
+  };
+
+  // A release authored by the co-admin is editable without releases:update, the owner's is not.
+  const ownRelease = await (await f.request('POST', '/api/v1/admin/content/releases', f.co, { title: 'Bản nháp phụ', versionLabel: 'co-v1' })).json();
+  assert.equal(ownRelease.createdBy, f.co);
+  assert.equal((await f.request('PUT', `/api/v1/admin/content/releases/${ownRelease.id}`, f.co, { expectedVersion: 0, title: 'Bản nháp phụ đổi' })).status, 200);
+  await denied('PUT', `/api/v1/admin/content/releases/${f.release.id}`, { expectedVersion: 2, title: 'Đổi trộm' });
+
+  // Same for a card set and a card created inside the owner's draft release.
+  const ownSet = await (await f.request('POST', `/api/v1/admin/content/releases/${f.release.id}/card-sets`, f.co, { expectedVersion: 2, code: 'CO-SET', slug: 'bo-co', name: 'Bộ phụ' })).json();
+  assert.equal((await f.request('PUT', `/api/v1/admin/content/releases/${f.release.id}/card-sets/${ownSet.entityId}`, f.co, { expectedVersion: 3, code: 'CO-SET', slug: 'bo-co', name: 'Bộ phụ đổi' })).status, 200);
+  const ownCard = await (await f.request('POST', `/api/v1/admin/content/releases/${f.release.id}/cards`, f.co, { ...f.card, expectedVersion: 4, code: 'CO-CARD', slug: 'the-co', name: 'Thẻ phụ', cardSetId: ownSet.entityId })).json();
+  assert.equal((await f.request('PUT', `/api/v1/admin/content/releases/${f.release.id}/cards/${ownCard.entityId}`, f.co, { ...f.card, expectedVersion: 5, code: 'CO-CARD', slug: 'the-co', name: 'Thẻ phụ đổi', cardSetId: ownSet.entityId })).status, 200);
+  assert.equal((await one(f.db, 'SELECT created_by FROM card_revisions WHERE release_id=? AND card_id=?', [f.release.id, ownCard.entityId])).created_by, f.co);
+
+  // The owner's card stays out of reach for both update and delete.
+  await denied('PUT', `/api/v1/admin/content/releases/${f.release.id}/cards/${f.cardId}`, { ...f.card, expectedVersion: 6, name: 'Đổi trộm' });
+  await denied('DELETE', `/api/v1/admin/content/releases/${f.release.id}/cards/${f.cardId}?expectedVersion=6`);
+  assert.equal((await f.request('DELETE', `/api/v1/admin/content/releases/${f.release.id}/cards/${ownCard.entityId}?expectedVersion=6`, f.co)).status, 200);
+  assert.equal((await f.request('DELETE', `/api/v1/admin/content/releases/${f.release.id}/card-sets/${ownSet.entityId}?expectedVersion=7`, f.co)).status, 200);
+
+  // content:read is the floor: without it even the author is frozen out of the rows it created.
+  await f.assign(f.owner, f.co, ['content:read'], 1);
+  assert.equal((await f.request('PUT', `/api/v1/admin/content/releases/${ownRelease.id}`, f.co, { expectedVersion: 1, title: 'Đổi lần nữa' })).status, 200);
+  await f.assign(f.owner, f.co, ['feedback:read'], 2);
+  await denied('PUT', `/api/v1/admin/content/releases/${ownRelease.id}`, { expectedVersion: 2, title: 'Sau khi khóa' });
+});
+
+test('a clone attributes the copied rows to the cloning account and leaves the source authors alone', async t => {
+  const f = await fixture(); t.after(() => f.db.close());
+  await f.assign(f.owner, f.co, ['releases:clone'], 0);
+  const clone = await (await f.request('POST', `/api/v1/admin/content/releases/${f.release.id}/clone`, f.co, { versionLabel: 'co-clone', title: 'Bản sao', sourceVersion: 2 })).json();
+  assert.equal(clone.createdBy, f.co);
+  assert.equal((await one(f.db, 'SELECT created_by FROM card_revisions WHERE release_id=? AND card_id=?', [clone.id, f.cardId])).created_by, f.co);
+  assert.equal((await one(f.db, 'SELECT created_by FROM card_revisions WHERE release_id=? AND card_id=?', [f.release.id, f.cardId])).created_by, f.owner);
+
+  // releases:clone brings content:read, so the co-admin may edit the copy but not the source.
+  assert.equal((await f.request('PUT', `/api/v1/admin/content/releases/${clone.id}/cards/${f.cardId}`, f.co, { ...f.card, expectedVersion: 0, name: 'Thẻ sao đổi' })).status, 200);
+  const denied = async (method: string, path: string, body?: unknown) => {
+    const response = await f.request(method, path, f.co, body);
+    assert.equal(response.status, 403, `${method} ${path}`);
+    assert.equal((await response.json()).code, 'PERMISSION_REQUIRED');
+  };
+  await denied('PUT', `/api/v1/admin/content/releases/${f.release.id}/cards/${f.cardId}`, { ...f.card, expectedVersion: 2, name: 'Đổi trộm' });
+  await denied('PUT', `/api/v1/admin/content/releases/${f.release.id}`, { expectedVersion: 2, title: 'Đổi trộm' });
+});
+
+test('the authorship initializer adds the author column to databases created before it', async t => {
+  const db = database('file::memory:'); t.after(() => db.close());
+  await execute(db, 'PRAGMA foreign_keys=ON');
+  await execute(db, 'CREATE TABLE app_users (id TEXT PRIMARY KEY)');
+  const tables = ['character_revisions', 'card_set_revisions', 'card_revisions', 'wiki_page_revisions'];
+  // Populated tables with foreign keys on are the production shape: the ALTER must still be accepted.
+  for (const table of tables) { await execute(db, `CREATE TABLE ${table} (id TEXT PRIMARY KEY)`); await execute(db, `INSERT INTO ${table}(id) VALUES ('x')`); }
+  await initializeContentAuthorship(db);
+  for (const table of tables) assert.equal(await scalar(db, `SELECT COUNT(*) FROM pragma_table_info('${table}') WHERE name='created_by'`), 1, table);
+  assert.equal((await one(db, 'SELECT created_by FROM card_revisions WHERE id=?', ['x'])).created_by, null);
+  await initializeContentAuthorship(db);
 });

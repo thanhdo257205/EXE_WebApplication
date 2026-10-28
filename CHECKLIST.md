@@ -2,13 +2,13 @@
 
 Cập nhật: 2026-10-28 (Asia/Saigon).
 
-## Trợ lý AI: độ trễ trung bình nhất quán giữa các bảng số liệu (2026-10-28, đã push GLM-5.3, chưa deploy)
+## Trợ lý AI: độ trễ trung bình nhất quán giữa các bảng số liệu (2026-10-28, đã deploy production `64dd71d`)
 
 - [x] AI-LAT-01 — `usageSummary().slots[].avgLatencyMs` chia cho `answered = requests − cache_hits` như `providers`/`keys`/`totals`, vẫn trả 0 khi provider `cache` hoặc không có câu trả lời (`backend/server/src/assistant-usage.ts`).
 - [x] AI-LAT-02 — Test hồi quy `assistant-migrations.test.ts`: 2 request 300/100 ms + 1 cache hit trên cùng `(provider, slot, model)` → 200 ms cho cả `totals`, `providers`, `slots`, `keys`. Bằng chứng đỏ khi revert bộ chia về `requests`: `actual: [3, 133]` / `expected: [3, 200]`.
 - [x] AI-LAT-03 — Backend typecheck (`npm run check`) qua; `node --test test/*.test.ts` **107 pass / 1 skip (Turso remote) / 0 fail**.
 - [x] AI-LAT-04 — Lỗi gate UI theo từng cờ quyền đã được xử lý trong `8b6381d` (`canReorder/canEditModels/canManageSlots/canEditBudgets/canReadUsage` dùng ở method + template); không còn việc còn lại của đợt "sửa hai lỗi kia".
-- [ ] AI-LAT-05 — Chạy live browser check tab số liệu với DB tạm có cache hit để đối chiếu con số hiển thị giữa bảng slot và thẻ key sau khi deploy.
+- [x] AI-LAT-05 — Đóng theo quyết định chủ dự án (2026-10-28): không chạy live browser check trên production. Cơ sở chấp nhận: bảng chi tiết slot và thẻ key cùng bind một trường `avgLatencyMs` do server trả (đã thấy rõ trong live check DB tạm trước khi sửa, khi đó hai bên hiện 1120 ms và 1600 ms từ cùng một nguồn); test hồi quy `assistant-migrations.test.ts` chốt đúng một giá trị cho cả bốn grouping; production `/api/v1/info` đang chạy `64dd71d`. Không còn hành động nào chờ.
 
 ## RBAC chi tiết: phân quyền từng thao tác cho đồng quản trị (2026-10-28, local)
 
@@ -29,6 +29,9 @@ Cập nhật: 2026-10-28 (Asia/Saigon).
 - [ ] RBAC-FG-15 — Chromium với backend Hono + SQLite thật: owner cấp/bộ quyền nhỏ, đồng quản trị đăng nhập thử thao tác bị chặn (nav ẩn, form ẩn, gọi thẳng API trả 403), 1440px/390px không tràn ngang.
 - [ ] RBAC-FG-16 — Commit/PR/merge/deploy và nghiệm thu production: `admin_permission_sets` được tạo trên Turso, tài khoản đồng quản trị hiện tại vẫn dùng bộ mặc định (hành vi không đổi), audit `USER_PERMISSIONS_CHANGED` đúng 1 dòng mỗi lần phân quyền.
 - [ ] RBAC-FG-17 — Chủ dự án quyết định bộ quyền thực tế cho từng đồng quản trị đang có; chưa cấp quyền nào trên production trong đợt này.
+- [x] RBAC-FG-18 — Cột `created_by` cho `character_revisions`/`card_set_revisions`/`card_revisions`/`wiki_page_revisions` (`V14__content_authorship.sql` + `initializeContentAuthorship()` idempotent lúc boot, không backfill); ghi tác giả khi tạo và khi nhân bản (bản sao thuộc người nhân bản), không ghi đè khi sửa.
+- [x] RBAC-FG-19 — Quyền tác giả: sửa/xóa thẻ/bộ thẻ/cư dân/wiki và sửa release nháp khi có quyền module **hoặc** (`created_by` = mình **và** còn `content:read`); tạo mới vẫn cần quyền tạo; mất `content:read` thì phần của mình bị khóa; không đụng bản ghi người khác. Test backend +3 ca (110 pass/1 skip), đã chứng minh đỏ khi vô hiệu quy tắc.
+- [ ] RBAC-FG-20 — Xác minh trên Chromium/production sau khi deploy: đồng quản trị tạo rồi sửa/xóa được bản ghi của mình, bị `403` với bản ghi của người khác, và bị khóa sau khi owner thu hồi `content:read`.
 
 ## Lối vào đăng ký & chuyển động trang xác thực (2026-10-25)
 
