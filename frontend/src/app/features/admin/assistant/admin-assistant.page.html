@@ -18,7 +18,7 @@
     <div class="panel-head">
       <div>
         <h2 id="usage-title">Số liệu sử dụng</h2>
-        <p class="muted">Chỉ đếm theo nhà cung cấp, key và model. Không lưu câu hỏi hay nội dung trả lời.</p>
+        <p class="muted">Chỉ đếm theo nhà cung cấp, key và model. Không lưu câu hỏi hay nội dung trả lời. Token lấy từ phản hồi của nhà cung cấp; thanh ngân sách là mức bạn tự đặt, không phải quota còn lại thật của dịch vụ.</p>
       </div>
       <div class="day-filter" role="group" aria-label="Khoảng thời gian">
         @for (option of dayOptions; track option) {
@@ -27,6 +27,40 @@
       </div>
     </div>
 
+    <section class="budgets" aria-labelledby="budgets-title" [attr.aria-busy]="usageLoading()">
+      <div class="budgets-head">
+        <h3 id="budgets-title">Hạn mức token hôm nay</h3>
+        <span class="muted">Tính theo ngày UTC, làm mới lúc 07:00 giờ Việt Nam</span>
+      </div>
+      @if (budgetBars().length) {
+        <ul class="budget-list">
+          @for (bar of budgetBars(); track bar.id) {
+            <li class="budget" [class.warn]="bar.warn" [class.over]="bar.over">
+              <div class="budget-line">
+                <strong>{{ bar.label }}</strong>
+                @if (bar.hasBudget) {
+                  <span>{{ formatTokens(bar.used) }} / {{ formatTokens(bar.budget) }} token · {{ bar.percent }}%</span>
+                } @else {
+                  <span>{{ formatTokens(bar.used) }} token hôm nay · chưa đặt ngân sách</span>
+                }
+              </div>
+              @if (bar.hasBudget) {
+                <div class="bar" role="progressbar" [attr.aria-valuenow]="bar.percent" aria-valuemin="0" aria-valuemax="100" [attr.aria-label]="'Ngân sách token ' + bar.label">
+                  <span [style.width.%]="bar.percent"></span>
+                </div>
+                <small>{{ bar.over ? 'Đã vượt ' + formatTokens(bar.used - bar.budget) + ' token' : 'Còn ' + formatTokens(bar.remaining) + ' token' }}</small>
+              }
+            </li>
+          }
+        </ul>
+      } @else {
+        <p class="muted">Chưa có nhà cung cấp nào để hiển thị hạn mức.</p>
+      }
+      @if (!hasBudgets() && budgetBars().length) {
+        <p class="muted">Đặt ngân sách token mỗi ngày ở mục “Thứ tự &amp; model” bên dưới để thanh theo dõi hiển thị.</p>
+      }
+    </section>
+
     @if (usage(); as data) {
       <dl class="totals" [attr.aria-busy]="usageLoading()">
         <div><dt>Câu hỏi</dt><dd>{{ data.totals.requests }}</dd></div>
@@ -34,13 +68,15 @@
         <div><dt>Cache</dt><dd>{{ data.totals.cacheHits }} <small>({{ cacheRate() }}%)</small></dd></div>
         <div><dt>Lỗi</dt><dd>{{ data.totals.failures }}</dd></div>
         <div><dt>Độ trễ TB</dt><dd>{{ data.totals.avgLatencyMs }} <small>ms</small></dd></div>
+        <div><dt>Token vào</dt><dd>{{ formatTokens(data.totals.tokensIn) }}</dd></div>
+        <div><dt>Token ra</dt><dd>{{ formatTokens(data.totals.tokensOut) }}</dd></div>
       </dl>
 
       @if (data.providers.length) {
         <div class="table-wrap">
           <table>
             <caption>Hiệu suất theo nhà cung cấp</caption>
-            <thead><tr><th scope="col">Nhà cung cấp</th><th scope="col">Câu hỏi</th><th scope="col">Lỗi</th><th scope="col">Độ trễ TB</th></tr></thead>
+            <thead><tr><th scope="col">Nhà cung cấp</th><th scope="col">Câu hỏi</th><th scope="col">Lỗi</th><th scope="col">Độ trễ TB</th><th scope="col">Token vào/ra</th></tr></thead>
             <tbody>
               @for (row of data.providers; track row.provider) {
                 <tr>
@@ -48,6 +84,7 @@
                   <td>{{ row.requests }}</td>
                   <td>{{ row.failures }}</td>
                   <td>{{ row.avgLatencyMs }} ms</td>
+                  <td>{{ formatTokens(row.tokensIn) }} / {{ formatTokens(row.tokensOut) }}</td>
                 </tr>
               }
             </tbody>
@@ -61,7 +98,7 @@
         <div class="table-wrap">
           <table>
             <caption>Chi tiết từng key</caption>
-            <thead><tr><th scope="col">Key</th><th scope="col">Model</th><th scope="col">Câu hỏi</th><th scope="col">Lỗi</th><th scope="col">Độ trễ TB</th></tr></thead>
+            <thead><tr><th scope="col">Key</th><th scope="col">Model</th><th scope="col">Câu hỏi</th><th scope="col">Lỗi</th><th scope="col">Độ trễ TB</th><th scope="col">Token vào/ra</th></tr></thead>
             <tbody>
               @for (row of data.slots; track row.slot) {
                 <tr>
@@ -70,6 +107,7 @@
                   <td>{{ row.requests }}</td>
                   <td>{{ row.failures }}</td>
                   <td>{{ row.avgLatencyMs }} ms</td>
+                  <td>{{ formatTokens(row.tokensIn) }} / {{ formatTokens(row.tokensOut) }}</td>
                 </tr>
               }
             </tbody>
@@ -81,10 +119,10 @@
         <div class="table-wrap">
           <table>
             <caption>Theo ngày (UTC)</caption>
-            <thead><tr><th scope="col">Ngày</th><th scope="col">Câu hỏi</th><th scope="col">Cache</th><th scope="col">Lỗi</th></tr></thead>
+            <thead><tr><th scope="col">Ngày</th><th scope="col">Câu hỏi</th><th scope="col">Cache</th><th scope="col">Lỗi</th><th scope="col">Token vào/ra</th></tr></thead>
             <tbody>
               @for (row of data.daily; track row.day) {
-                <tr><td>{{ row.day }}</td><td>{{ row.requests }}</td><td>{{ row.cacheHits }}</td><td>{{ row.failures }}</td></tr>
+                <tr><td>{{ row.day }}</td><td>{{ row.requests }}</td><td>{{ row.cacheHits }}</td><td>{{ row.failures }}</td><td>{{ formatTokens(row.tokensIn) }} / {{ formatTokens(row.tokensOut) }}</td></tr>
               }
             </tbody>
           </table>
@@ -248,18 +286,36 @@
               }
             </div>
 
-            <label class="model-field">
-              <span>Model</span>
-              <input
-                type="text"
-                [value]="slotModel(provider)"
-                (input)="setModel(provider.id, $event)"
-                [disabled]="!canManage() || saving()"
-                maxlength="120"
-                [attr.aria-label]="'Model cho ' + provider.label"
-                spellcheck="false"
-              />
-            </label>
+            <div class="provider-fields">
+              <label class="model-field">
+                <span>Model</span>
+                <input
+                  type="text"
+                  [value]="slotModel(provider)"
+                  (input)="setModel(provider.id, $event)"
+                  [disabled]="!canManage() || saving()"
+                  maxlength="120"
+                  [attr.aria-label]="'Model cho ' + provider.label"
+                  spellcheck="false"
+                />
+              </label>
+              <label class="budget-field">
+                <span>Ngân sách token/ngày</span>
+                <input
+                  type="number"
+                  min="1"
+                  max="2000000000"
+                  step="1000"
+                  inputmode="numeric"
+                  [value]="budgets()[provider.id] ?? ''"
+                  (input)="setBudget(provider.id, $event)"
+                  [disabled]="!canManage() || saving()"
+                  placeholder="Không đặt"
+                  [attr.aria-label]="'Ngân sách token mỗi ngày cho ' + provider.label"
+                />
+                <small class="field-note">Để trống nếu không theo dõi. Số liệu làm mới 07:00 giờ Việt Nam.</small>
+              </label>
+            </div>
 
             <fieldset class="slots">
               <legend>Key đang dùng</legend>

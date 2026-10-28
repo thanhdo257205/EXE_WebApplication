@@ -2,7 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   assistantFromEnv, geminiProvider, groqProvider, NoProviderAvailable, openRouterProvider,
-  ProviderError, ProviderRouter, workersAiProvider, type ChatProvider, type CompletionRequest, type FetchLike,
+  ProviderError, ProviderRouter, workersAiProvider,
+  type ChatProvider, type CompletionRequest, type CompletionResult, type FetchLike,
 } from '../src/assistant-providers.ts';
 import {
   chunkMarkdown, retrieve, tokenize, type KnowledgeDocument, type PublishedKnowledge,
@@ -17,8 +18,13 @@ const request = (overrides: Partial<CompletionRequest> = {}): CompletionRequest 
   signal: new AbortController().signal,
   ...overrides,
 });
-const chatProvider = (id: ChatProvider['id'], complete: ChatProvider['complete'], model = 'test-model', slot = `${id}#1`): ChatProvider => ({
-  id, model, slot, complete, withModel: next => chatProvider(id, complete, next, slot),
+const asResult = (value: CompletionResult | string): CompletionResult =>
+  typeof value === 'string' ? { text: value, tokensIn: 0, tokensOut: 0 } : value;
+type ChatReply = (request: CompletionRequest) => Promise<CompletionResult | string>;
+const chatProvider = (id: ChatProvider['id'], complete: ChatReply, model = 'test-model', slot = `${id}#1`): ChatProvider => ({
+  id, model, slot,
+  complete: async request => asResult(await complete(request)),
+  withModel: next => chatProvider(id, complete, next, slot),
 });
 const jsonBody = (init?: RequestInit): any => JSON.parse(String(init?.body));
 const header = (init: RequestInit | undefined, name: string): string | null => (init?.headers as Record<string, string>)[name] ?? null;
@@ -28,9 +34,9 @@ test('Workers AI adapter maps the REST contract and extracts result.response', a
   let seen: { url: string; init: RequestInit } | undefined;
   const adapter = workersAiProvider({
     accountId: 'acc/1', token: 'cf-token', model: '@cf/meta/test',
-    fetch: async (url, init) => { seen = { url, init }; return Response.json({ success: true, result: { response: 'Xin chào từ Workers AI' } }); },
+    fetch: async (url, init) => { seen = { url, init }; return Response.json({ success: true, result: { response: 'Xin chào từ Workers AI' }, usage: { prompt_tokens: 12, completion_tokens: 5 } }); },
   });
-  assert.equal(await adapter.complete(request()), 'Xin chào từ Workers AI');
+  assert.deepEqual(await adapter.complete(request()), { text: 'Xin chào từ Workers AI', tokensIn: 12, tokensOut: 5 });
   assert.equal(seen!.url, 'https://api.cloudflare.com/client/v4/accounts/acc%2F1/ai/run/@cf/meta/test');
   assert.equal(header(seen!.init, 'Authorization'), 'Bearer cf-token');
   const body = jsonBody(seen!.init);
@@ -44,10 +50,10 @@ test('Gemini adapter sends systemInstruction, maps assistant to model and joins 
   let seen: { url: string; init: RequestInit } | undefined;
   const adapter = geminiProvider({
     apiKey: 'gemini-key', model: 'gemini-test',
-    fetch: async (url, init) => { seen = { url, init }; return Response.json({ candidates: [{ content: { parts: [{ text: 'Dòng 1' }, { text: 'Dòng 2' }] } }] }); },
+    fetch: async (url, init) => { seen = { url, init }; return Response.json({ candidates: [{ content: { parts: [{ text: 'Dòng 1' }, { text: 'Dòng 2' }] } }], usageMetadata: { promptTokenCount: 40, candidatesTokenCount: 9 } }); },
   });
-  const text = await adapter.complete(request({ messages: [{ role: 'user', content: 'A' }, { role: 'assistant', content: 'B' }, { role: 'user', content: 'C' }] }));
-  assert.equal(text, 'Dòng 1\nDòng 2');
+  const gemini = await adapter.complete(request({ messages: [{ role: 'user', content: 'A' }, { role: 'assistant', content: 'B' }, { role: 'user', content: 'C' }] }));
+  assert.deepEqual(gemini, { text: 'Dòng 1\nDòng 2', tokensIn: 40, tokensOut: 9 });
   assert.equal(seen!.url, 'https://generativelanguage.googleapis.com/v1beta/models/gemini-test:generateContent');
   assert.equal(header(seen!.init, 'x-goog-api-key'), 'gemini-key');
   const body = jsonBody(seen!.init);
@@ -60,8 +66,8 @@ test('Gemini adapter sends systemInstruction, maps assistant to model and joins 
 
 test('Groq and OpenRouter adapters use OpenAI-compatible bodies and normalize failures', async () => {
   let seen: { url: string; init: RequestInit } | undefined;
-  const groq = groqProvider({ apiKey: 'groq-key', model: 'groq-test', fetch: async (url, init) => { seen = { url, init }; return Response.json({ choices: [{ message: { content: 'Groq trả lời' } }] }); } });
-  assert.equal(await groq.complete(request()), 'Groq trả lời');
+  const groq = groqProvider({ apiKey: 'groq-key', model: 'groq-test', fetch: async (url, init) => { seen = { url, init }; return Response.json({ choices: [{ message: { content: 'Groq trả lời' } }], usage: { prompt_tokens: 7, completion_tokens: 3 } }); } });
+  assert.deepEqual(await groq.complete(request()), { text: 'Groq trả lời', tokensIn: 7, tokensOut: 3 });
   assert.equal(seen!.url, 'https://api.groq.com/openai/v1/chat/completions');
   assert.equal(header(seen!.init, 'Authorization'), 'Bearer groq-key');
   assert.deepEqual(jsonBody(seen!.init).messages[0], { role: 'system', content: 'SYSTEM' });
@@ -74,7 +80,8 @@ test('Groq and OpenRouter adapters use OpenAI-compatible bodies and normalize fa
     apiKey: 'or-key', model: 'or-test', siteUrl: 'https://game.example.test',
     fetch: async (url, init) => { seen = { url, init }; return Response.json({ choices: [{ message: { content: 'OpenRouter trả lời' } }] }); },
   });
-  assert.equal(await openrouter.complete(request()), 'OpenRouter trả lời');
+  // Providers that omit usage report zero tokens instead of a guess.
+  assert.deepEqual(await openrouter.complete(request()), { text: 'OpenRouter trả lời', tokensIn: 0, tokensOut: 0 });
   assert.equal(seen!.url, 'https://openrouter.ai/api/v1/chat/completions');
   assert.equal(header(seen!.init, 'HTTP-Referer'), 'https://game.example.test');
   assert.match(header(seen!.init, 'X-Title') ?? '', /Nha Nay Hoi Bao/);
@@ -87,12 +94,12 @@ test('router fails over and skips a cooling provider until its cooldown expires'
   const router = new ProviderRouter({
     providers: [
       chatProvider('workers-ai', async () => { primary++; throw new ProviderError('workers-ai', 'QUOTA'); }),
-      chatProvider('groq', async () => { backup++; return 'backup'; }),
+      chatProvider('groq', async () => { backup++; return { text: 'backup', tokensIn: 21, tokensOut: 8 }; }),
     ],
     timeoutMs: 1_000, attemptTimeoutMs: 100, cooldownMs: { QUOTA: 500 }, now: () => clock,
   });
   const input = { system: 's', messages: [], maxTokens: 10, temperature: 0 };
-  assert.deepEqual(await router.complete(input), { text: 'backup', provider: 'groq', slot: 'groq#1', model: 'test-model', attempts: 2 });
+  assert.deepEqual(await router.complete(input), { text: 'backup', provider: 'groq', slot: 'groq#1', model: 'test-model', attempts: 2, tokensIn: 21, tokensOut: 8 });
   assert.equal(primary, 1); assert.equal(backup, 1);
   clock += 100;
   assert.equal((await router.complete(input)).provider, 'groq');
@@ -146,7 +153,7 @@ test('admin plan applies provider order, model override and disabled slots', () 
     chatProvider('groq', async () => 'q', 'groq-test', 'groq#1'),
   ];
   const active = activeProviders(providers, {
-    order: ['groq', 'gemini'], models: { gemini: 'gemini-custom' }, disabledSlots: ['gemini#2'], version: 1, updatedAt: null,
+    order: ['groq', 'gemini'], models: { gemini: 'gemini-custom' }, disabledSlots: ['gemini#2'], tokenBudgets: {}, version: 1, updatedAt: null,
   });
   assert.deepEqual(active.map(provider => provider.slot), ['groq#1', 'gemini#1']);
   assert.equal(active[1].model, 'gemini-custom');
