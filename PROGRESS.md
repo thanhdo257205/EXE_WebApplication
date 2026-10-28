@@ -4,14 +4,16 @@
 
 ## Cập nhật gần nhất
 
-### Tách stylesheet trang trợ lý AI để thoát ngưỡng error 10 kB — 2026-10-28 (local, chưa deploy)
+### Tách stylesheet trang trợ lý AI để thoát ngưỡng error 10 kB — 2026-10-28 (đã deploy production `2bb745e`)
 
 - Vấn đề: `admin-assistant.page.css` nặng **9,87 kB** trong khi `angular.json` đặt budget `anyComponentStyle` là warning 6 kB / **error 10 kB** — chỉ còn ~132 byte nên thêm một rule là `ng build` fail và CI đỏ.
 - Khảo sát trước khi sửa: script đối chiếu 142 selector với `admin-assistant.page.html` cho thấy **không có selector chết** (mọi class đều được dùng, không có `[class]`, không có nội suy class trong `class="…"`, không có `classList`/`renderer.addClass` trong TS) → không có đường giảm size bằng cách xóa CSS thừa.
 - Cách xử lý: tách stylesheet theo đúng ranh giới tab của trang, giữ nguyên thứ tự cascade. `admin-assistant.page.css` = shell + header + tabs + panel/thông báo + hàng nhà cung cấp + thanh quota + ô model/ngân sách + công tắc slot (**4,67 kB**); file mới `admin-assistant.keys.css` = thẻ API key, danh sách/form key, reveal secret, panel kiểm tra hàng loạt, bảng số liệu usage + media query (**5,23 kB**). Component dùng `styleUrls: [page, keys]` vì budget đo **theo từng file** (mỗi file in một dòng warning riêng trong output build).
 - Bằng chứng không đổi giao diện: (1) A + B ghép lại khớp bản gốc **từng byte**; (2) parse CSS đã biên dịch trong chunk → **132/132 rule, cùng thứ tự, không mất rule**; (3) hai khác biệt duy nhất là artifact có sẵn của minifier và nằm trọn trong một nửa file: autoprefix `-webkit-user-select:all` cho `.secret`, và gộp `.panel-head button.primary` + `.tabs` vì hai block giống hệt nhau.
 - Kết quả verify: `ng build` **không còn warning nào cho trang trợ lý** (7 warning của các file CSS khác giữ nguyên, không đụng tới); `ng test` **57 file / 424 pass**, riêng `admin-assistant.page.spec.ts` 37/37. Headroom mới: ~1,3 kB và ~0,8 kB dưới ngưỡng warning, ngưỡng error thì rất xa.
-- Trạng thái: **chưa commit/push/deploy, chưa đụng DB production.**
+- Trạng thái: **đã deploy production**. `5316828` (code) + `72d51bc` (docs) trên `GLM-5.3` → PR **#35** merge vào `main` tại **`2bb745e`**. CI push `40714447888` và CI PR `40714500182` xanh 4/4; CI main `40714882195` xanh 4/4; CD `40715193088` xanh 2/2 (`Select successful main CI`, `Deploy tested commit` với `RELEASE_SHA: 2bb745e…`).
+- Xác minh production (không dùng phiên admin): `/api/v1/info` trả `commit: 2bb745e393fe3bd74bf4275d3c0fc7895eb03d01`, `storage: turso`; `/admin/assistant` 200; Pages production deployment `https://2c11e5dd.exe-webapp.pages.dev`. Request tới gateway phải kèm `Origin: https://exe-webapp.pages.dev` hoặc cặp `Sec-Fetch-Site: same-origin` + `Sec-Fetch-Mode: cors`, thiếu thì `cloudflare-proxy/src/index.ts:177-179` chặn 403 "Browser request required" (UA/Accept thôi không đủ).
+- Kiểm CSS thật trên bundle production: đi theo đồ thị lazy chunk từ `main-ZRGLTLMI.js` tới `chunk-C-rH3TaQ.js` (64.412 byte), array `styles:[…]` phát ra **2 stylesheet** — sheet 1 kết bằng `.slot small.off{color:#fca5a5}`, sheet 2 mở đầu bằng `.key-cards{…}` (đúng ranh giới tách, đúng thứ tự). Đối chiếu từng rule (selector + declarations + media context) giữa `git show 2bb745e:` của hai file với chunk: **179/179, 0 thiếu, 0 thừa** sau khi chuẩn hoá scoping `[_ngcontent-%COMP%]`/`[_nghost-%COMP%]` và hai transform sẵn có của minifier (autoprefix `-webkit-user-select`, bỏ dấu `'` trong `font-family:'Anton'`). Không đo UI thật trên browser production trong đợt này.
 
 ### Quyền tác giả nội dung: đồng quản trị sửa/xóa được phần mình tạo — 2026-10-28 (local, chưa deploy)
 

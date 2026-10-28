@@ -2,13 +2,13 @@
 
 Cập nhật: 2026-10-28 (Asia/Saigon).
 
-## Stylesheet trang trợ lý AI trong ngưỡng budget `anyComponentStyle` (2026-10-28, local)
+## Stylesheet trang trợ lý AI trong ngưỡng budget `anyComponentStyle` (2026-10-28, đã deploy production `2bb745e`)
 
 - [x] AI-CSS-01 — Rà soát size thật: 142 selector, **không có CSS chết** (mọi class đều có trong template; không có `[class]`, không có nội suy class, không có `classList`/`renderer.addClass`), nên không thể giảm bằng cách xóa rule. File gốc 9,87 kB chỉ còn ~132 byte dưới ngưỡng **error 10 kB** của `angular.json`.
 - [x] AI-CSS-02 — Tách theo ranh giới tab, giữ nguyên thứ tự cascade: `admin-assistant.page.css` 4,67 kB (shell + tabs + nhà cung cấp + quota + model/budget + slot) và `admin-assistant.keys.css` 5,23 kB (thẻ key + danh sách/form key + reveal + kiểm tra hàng loạt + bảng số liệu + media query); component chuyển sang `styleUrls: [page, keys]`.
 - [x] AI-CSS-03 — Bằng chứng tương đương: A+B khớp bản gốc **từng byte**; CSS đã biên dịch trong chunk có **132/132 rule đúng thứ tự, không mất rule**; 2 khác biệt còn lại là artifact sẵn có của minifier nằm trong một nửa file (autoprefix `-webkit-user-select`, gộp `.panel-head button.primary` với `.tabs` vì block giống hệt).
 - [x] AI-CSS-04 — `ng build` hết warning cho trang trợ lý (7 warning file khác không đổi); `ng test` **57 file / 424 pass**, `admin-assistant.page.spec.ts` 37/37.
-- [ ] AI-CSS-05 — Commit/push/PR/deploy bản tách file (chưa thực hiện trong đợt này).
+- [x] AI-CSS-05 — Đã push `GLM-5.3` (`cf39304..72d51bc`), PR **#35** merge vào `main` tại **`2bb745e`**: CI push `40714447888` + CI PR `40714500182` xanh 4/4, CI main `40714882195` xanh 4/4, CD `40715193088` xanh 2/2 (`RELEASE_SHA: 2bb745e…`). Production `/api/v1/info` trả đúng `2bb745e…` (`storage: turso`), `/admin/assistant` 200, Pages `https://2c11e5dd.exe-webapp.pages.dev`. Bundle production `chunk-C-rH3TaQ.js` phát ra **2 stylesheet** đúng ranh giới tách và **179/179 rule tương đương** với source đã merge (0 thiếu, 0 thừa) sau khi chuẩn hoá scoping + 2 transform sẵn có của minifier.
 - [ ] AI-CSS-06 — 7 stylesheet khác vẫn vượt warning 6 kB (`global-bar` 8,88 kB, `login` 7,06, `register` 7,12, `home` 6,22, `public-content` 6,55, `admin-dashboard` 6,26, `fund-dashboard` 6,85) — chưa ai chốt có siết về warning hay chỉ chống error.
 
 ## Trợ lý AI: độ trễ trung bình nhất quán giữa các bảng số liệu (2026-10-28, đã deploy production `64dd71d`)
