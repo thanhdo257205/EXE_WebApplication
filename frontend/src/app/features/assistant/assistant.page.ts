@@ -1,4 +1,4 @@
-import { Component, computed, DestroyRef, ElementRef, inject, signal, viewChild } from '@angular/core';
+import { Component, computed, DestroyRef, ElementRef, inject, OnInit, signal, viewChild } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 import {
@@ -10,6 +10,7 @@ import {
   AssistantSource,
   assistantFailureMessage,
 } from '../../core/assistant/assistant.service';
+import { AuthService } from '../../core/auth/auth.service';
 import { renderPublicMarkdown } from '../../core/content/public-content.service';
 import { GAME } from '../../shared/game-facts';
 import { MorphIconComponent } from '../../shared/components/morph-icon/morph-icon.component';
@@ -37,9 +38,10 @@ const MAX_QUESTION = 1_000;
   templateUrl: './assistant.page.html',
   styleUrls: ['./assistant.page.css', './assistant.console.css', './assistant.chat.css', './assistant.sections.css'],
 })
-export class AssistantPage {
+export class AssistantPage implements OnInit {
   private readonly service = inject(AssistantService);
   private readonly destroyRef = inject(DestroyRef);
+  readonly auth = inject(AuthService);
   private readonly transcript = viewChild<ElementRef<HTMLElement>>('transcript');
   private readonly input = viewChild<ElementRef<HTMLTextAreaElement>>('input');
   private request?: Subscription;
@@ -48,6 +50,7 @@ export class AssistantPage {
 
   readonly game = GAME;
   readonly maxQuestion = MAX_QUESTION;
+  readonly signedIn = computed(() => this.auth.currentUser() !== null);
   readonly messages = signal<readonly ChatMessage[]>([]);
   readonly draft = signal('');
   readonly pending = signal(false);
@@ -87,6 +90,12 @@ export class AssistantPage {
     this.destroyRef.onDestroy(() => this.request?.unsubscribe());
   }
 
+  ngOnInit(): void {
+    if (!this.auth.currentUser() && !this.auth.checkingSession()) {
+      this.auth.loadCurrentUser().subscribe({ error: () => undefined });
+    }
+  }
+
   onInput(event: Event): void {
     this.draft.set((event.target as HTMLTextAreaElement).value.slice(0, MAX_QUESTION));
   }
@@ -104,7 +113,7 @@ export class AssistantPage {
 
   ask(question: string): void {
     const text = question.trim();
-    if (!text || this.pending()) return;
+    if (!text || this.pending() || !this.signedIn()) return;
     if (text.length > MAX_QUESTION) {
       this.error.set(assistantFailureMessage('invalid'));
       return;
@@ -118,7 +127,7 @@ export class AssistantPage {
   }
 
   retry(): void {
-    if (!this.lastRequest || this.pending()) return;
+    if (!this.lastRequest || this.pending() || !this.signedIn()) return;
     this.error.set(null);
     this.run(this.lastRequest.question, this.lastRequest.history);
   }
@@ -166,6 +175,8 @@ export class AssistantPage {
         this.pending.set(false);
         this.request = undefined;
         const failure: AssistantFailure = error instanceof AssistantError ? error.failure : 'network';
+        // A stale session becomes the signed-out state so the composer is replaced by the login gate.
+        if (failure === 'auth') this.auth.currentUser.set(null);
         this.error.set(assistantFailureMessage(failure));
         this.scrollToEnd();
       },

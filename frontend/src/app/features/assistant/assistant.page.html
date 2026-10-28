@@ -4,7 +4,7 @@
   <div class="hero-copy">
     <p class="badge" appReveal><span class="dot"></span>Trợ lý AI · {{ game.name }}</p>
     <h1 [appReveal]="60">Hỏi nhà,<br><em>đáp ngay</em>.</h1>
-    <p class="sub" [appReveal]="140">Mình đọc wiki, thẻ bài và hướng dẫn đã phát hành để trả lời câu hỏi về dự án và cách chơi. Hỏi tự nhiên, không cần đăng nhập.</p>
+    <p class="sub" [appReveal]="140">Mình đọc wiki, thẻ bài và hướng dẫn đã phát hành để trả lời câu hỏi về dự án và cách chơi. Đăng nhập để hỏi trợ lý.</p>
     <dl class="stats" [appReveal]="220">
       @for (stat of stats; track stat.label) {
         <div><dt>{{ stat.label }}</dt><dd>{{ stat.value }}</dd></div>
@@ -70,7 +70,11 @@
           <div class="bubble failure" role="alert">
             <p>{{ errorMessage }}</p>
             <div class="failure-actions">
-              <button type="button" (click)="retry()" [disabled]="pending() || !lastQuestion()">Thử lại</button>
+              @if (signedIn()) {
+                <button type="button" (click)="retry()" [disabled]="pending() || !lastQuestion()">Thử lại</button>
+              } @else {
+                <a routerLink="/dang-nhap" [queryParams]="{ returnUrl: '/tro-ly' }">Đăng nhập lại</a>
+              }
               <a routerLink="/wiki">Mở Wiki luật</a>
               <a routerLink="/cach-choi">Hướng dẫn cách chơi</a>
             </div>
@@ -79,7 +83,7 @@
       }
     </div>
 
-    @if (!messages().length && !pending() && !error()) {
+    @if (signedIn() && !messages().length && !pending() && !error()) {
       <div class="suggestions">
         <p>Gợi ý để bắt đầu</p>
         <div class="chips">
@@ -90,17 +94,26 @@
       </div>
     }
 
-    <form class="composer" (submit)="submit($event)">
-      <label class="sr" for="assistant-question">Câu hỏi của bạn</label>
-      <textarea #input id="assistant-question" rows="2" [value]="draft()" (input)="onInput($event)" (keydown.enter)="onEnter($event)"
-        [attr.maxlength]="maxQuestion" placeholder="Ví dụ: Cuối tháng Quỹ Nhà Chung được trả thế nào?" autocomplete="off"></textarea>
-      <div class="composer-foot">
-        <span class="count">{{ draft().length }}/{{ maxQuestion }}</span>
-        <button type="submit" class="send" [disabled]="pending() || !draft().trim()">
-          @if (pending()) { Đang trả lời } @else { Gửi câu hỏi <span aria-hidden="true">→</span> }
-        </button>
+    @if (signedIn()) {
+      <form class="composer" (submit)="submit($event)">
+        <label class="sr" for="assistant-question">Câu hỏi của bạn</label>
+        <textarea #input id="assistant-question" rows="2" [value]="draft()" (input)="onInput($event)" (keydown.enter)="onEnter($event)"
+          [attr.maxlength]="maxQuestion" placeholder="Ví dụ: Cuối tháng Quỹ Nhà Chung được trả thế nào?" autocomplete="off"></textarea>
+        <div class="composer-foot">
+          <span class="count">{{ draft().length }}/{{ maxQuestion }}</span>
+          <button type="submit" class="send" [disabled]="pending() || !draft().trim()">
+            @if (pending()) { Đang trả lời } @else { Gửi câu hỏi <span aria-hidden="true">→</span> }
+          </button>
+        </div>
+      </form>
+    } @else if (auth.checkingSession()) {
+      <p class="login-note">Đang kiểm tra phiên đăng nhập…</p>
+    } @else {
+      <div class="login-gate">
+        <p>Trợ lý dùng chung hạn mức AI miễn phí nên chỉ dành cho tài khoản đã đăng nhập.</p>
+        <a routerLink="/dang-nhap" [queryParams]="{ returnUrl: '/tro-ly' }" class="login-cta">Đăng nhập để hỏi trợ lý</a>
       </div>
-    </form>
+    }
     <p class="disclaimer">Trợ lý có thể sai. Đối chiếu Wiki luật cho các quyết định quan trọng.</p>
   </section>
 </header>

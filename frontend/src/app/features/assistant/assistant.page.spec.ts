@@ -2,7 +2,10 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { signal } from '@angular/core';
+import { of } from 'rxjs';
 import { describe, expect, it } from 'vitest';
+import { AuthService, CurrentUser } from '../../core/auth/auth.service';
 import { AssistantPage } from './assistant.page';
 
 const reply = {
@@ -11,14 +14,25 @@ const reply = {
   release: { versionLabel: 'test-v1', title: 'Bản thử' },
 };
 
-function setup() {
+const member: CurrentUser = { id: 'u1', email: 'player@example.test', displayName: 'Người chơi', role: 'CUSTOMER' };
+
+function setup(user: CurrentUser | null = member) {
+  const auth = {
+    currentUser: signal<CurrentUser | null>(user),
+    checkingSession: signal(false),
+    loadCurrentUser: () => of(user),
+    getCsrf: () => of({ headerName: 'X-XSRF-TOKEN', token: 'test-csrf' }),
+  };
   TestBed.configureTestingModule({
     imports: [AssistantPage],
-    providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+    providers: [
+      provideRouter([]), provideHttpClient(), provideHttpClientTesting(),
+      { provide: AuthService, useValue: auth },
+    ],
   });
   const fixture = TestBed.createComponent(AssistantPage);
   fixture.detectChanges();
-  return { fixture, http: TestBed.inject(HttpTestingController), root: fixture.nativeElement as HTMLElement };
+  return { fixture, http: TestBed.inject(HttpTestingController), root: fixture.nativeElement as HTMLElement, auth };
 }
 
 function type(root: HTMLElement, value: string): void {
@@ -32,6 +46,14 @@ function submit(root: HTMLElement): void {
 }
 
 describe('AssistantPage', () => {
+  it('hides the composer and suggestions behind a login gate for visitors without a session', () => {
+    const { root, http } = setup(null);
+    expect(root.querySelector('.login-gate')?.textContent).toContain('chỉ dành cho tài khoản đã đăng nhập');
+    expect(root.querySelector('#assistant-question')).toBeNull();
+    expect(root.querySelectorAll('.chip')).toHaveLength(0);
+    http.verify();
+  });
+
   it('starts with a welcome, suggested questions and a labelled composer', () => {
     const { root, http } = setup();
     expect(root.textContent).toContain('Chào bạn');
@@ -49,6 +71,7 @@ describe('AssistantPage', () => {
     const request = http.expectOne('/api/v1/assistant/chat');
     expect(request.request.body.message).toBe('Quỹ Nhà Chung hoạt động thế nào?');
     expect(request.request.body.history).toEqual([]);
+    expect(request.request.headers.get('X-XSRF-TOKEN')).toBe('test-csrf');
     expect(root.textContent).toContain('Quỹ Nhà Chung hoạt động thế nào?');
     expect(root.querySelector('.typing')).toBeTruthy();
 
@@ -142,5 +165,21 @@ describe('AssistantPage', () => {
     expect(root.querySelectorAll('.turn')).toHaveLength(1);
     expect(root.querySelectorAll('.chip')).toHaveLength(4);
     expect(root.querySelector<HTMLTextAreaElement>('#assistant-question')!.value).toBe('');
+  });
+
+  it('replaces the composer with the login gate when the session expires mid-question', () => {
+    const { fixture, http, root, auth } = setup();
+    type(root, 'Câu hỏi');
+    fixture.detectChanges();
+    submit(root);
+    fixture.detectChanges();
+    http.expectOne('/api/v1/assistant/chat').flush({}, { status: 401, statusText: 'Unauthorized' });
+    fixture.detectChanges();
+
+    expect(auth.currentUser()).toBeNull();
+    expect(root.querySelector('[role="alert"]')?.textContent).toContain('Phiên đăng nhập đã hết hạn');
+    expect(root.querySelector('.failure-actions a')?.textContent).toContain('Đăng nhập lại');
+    expect(root.querySelector('#assistant-question')).toBeNull();
+    expect(root.querySelector('.login-gate')).toBeTruthy();
   });
 });

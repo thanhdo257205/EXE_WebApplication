@@ -60,6 +60,11 @@ export const ADMIN_ROUTES: Routes = [
         loadComponent: () => import('./users/admin-users.page').then(m => m.AdminUsersPage),
       },
       {
+        path: 'assistant',
+        title: 'Trợ lý AI & hạn mức — Quản trị viên NNHB',
+        loadComponent: () => import('./assistant/admin-assistant.page').then(m => m.AdminAssistantPage),
+      },
+      {
         path: 'system',
         title: 'Hệ thống & Audit Log — Quản trị viên NNHB',
         data: { section: 'system' },
