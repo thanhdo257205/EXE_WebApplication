@@ -1,5 +1,7 @@
 # API nội dung công khai
 
+> Cập nhật 2026-10-28: backend chạy Hono/libSQL và API public đã deploy cùng web; các đoạn Spring Boot/Pages bên dưới chỉ còn giá trị lịch sử. Admin đã có `POST /api/v1/admin/content/releases/{release}/publish` (quyền `releases:publish`) để đưa một bản nháp lên kênh công khai; quy tắc đọc bên dưới không đổi. Xem [ADMIN_BACKEND.md](ADMIN_BACKEND.md).
+
 Đã triển khai source và kiểm tra local ngày 2026-10-20. Frontend local hiện nối thư viện thẻ, cư dân và wiki; source/backend vẫn chưa push/deploy hoặc được nghiệm thu với release public thật. [OpenAPI](api/public-content.openapi.json) là hợp đồng riêng, không thay OpenAPI admin content. API chỉ đọc; không yêu cầu đăng nhập nhưng production vẫn đi qua gateway cùng origin, origin proxy guard và rate limit hiện có.
 
 ## Release được phép đọc
@@ -9,7 +11,7 @@
 - Metadata chỉ có `id`, `versionLabel`, `title`, `publishedAt`, `version`. Không có releaseNotes, người tạo, audit, thông tin đăng nhập hoặc revisionId nội bộ. `version` là version nội dung trong release, không phải schemaVersion hay trạng thái deploy.
 - Mỗi response được đọc trong transaction REPEATABLE_READ để release và nội dung cùng snapshot. Frontend lấy release.id của response đầu tiên và truyền lại qua `releaseId` khi đổi trang/xem chi tiết để tránh trộn dữ liệu nếu bản công khai thay đổi giữa các request.
 
-Chưa có quy trình xuất bản/build/deploy/rollback trong đợt này. Vì vậy database chỉ có draft sẽ trả 404 đúng thiết kế. Không đổi draft thành PUBLISHED hoặc seed dữ liệu minh họa để làm API có dữ liệu. Release đã xuất bản không sửa được qua admin API; cần clone sang draft mới.
+Từ 2026-10-28, quy trình xuất bản nội dung là `POST /api/v1/admin/content/releases/{release}/publish` (quyền `releases:publish`, cần `expectedVersion`): server lưu trữ bản đang công khai rồi đặt bản nháp làm `current_slot=1` với `published_at` mới, cả hai tăng version và ghi audit. Cache public trong tiến trình được xóa ngay sau thao tác admin ghi, nên response public đổi mà không cần deploy. Không có rollback tự động: muốn quay lại nội dung cũ, clone bản ARCHIVED sang draft mới rồi publish. Database chỉ có draft sẽ trả 404 đúng thiết kế; publish bản rỗng bị từ chối `409 RELEASE_EMPTY`. Release đã xuất bản không sửa được qua admin API; cần clone sang draft mới.
 
 ## Endpoint
 

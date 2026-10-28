@@ -10,6 +10,7 @@ import {
   groqProvider,
   isCatalogModel,
   isProviderId,
+  isSafeModelPath,
   openRouterProvider,
   workersAiProvider,
   ProviderError,
@@ -195,7 +196,6 @@ const KEY_TEST_COOLDOWN_MS = 30_000;
 const KEY_TEST_TIMEOUT_MS = 10_000;
 /** Reasoning models spend this budget before any visible text, so a 16-token probe reads as EMPTY. */
 const KEY_TEST_MAX_TOKENS = 1_024;
-const MODEL_PATTERN = /^[A-Za-z0-9@._:/+-]{1,120}$/;
 
 /** The test must call the same model the live router would use, including the admin override. */
 function testModelFor(provider: ProviderId, modelOverrides: string | undefined, options: AssistantOptions | null): string {
@@ -205,7 +205,7 @@ function testModelFor(provider: ProviderId, modelOverrides: string | undefined, 
     const parsed: unknown = JSON.parse(modelOverrides);
     if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) return fallback;
     const value = (parsed as Record<string, unknown>)[provider];
-    return typeof value === 'string' && MODEL_PATTERN.test(value) ? value : fallback;
+    return typeof value === 'string' && isSafeModelPath(value) ? value : fallback;
   } catch { return fallback; }
 }
 
@@ -217,7 +217,7 @@ const createSchema = z.object({
 }).strict();
 
 const patchSchema = z.object({ status: z.enum(['ACTIVE', 'DISABLED']) }).strict();
-const testSchema = z.object({ model: z.string().trim().max(120).regex(MODEL_PATTERN).optional() }).strict();
+const testSchema = z.object({ model: z.string().trim().refine(isSafeModelPath).optional() }).strict();
 
 export function assistantCredentialRoutes(app: Api, db: Client, options: AssistantOptions | null) {
   // In-memory cooldown per key: admins can re-test after 30s, but a stuck key cannot burn quota in a loop.

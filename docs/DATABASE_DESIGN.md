@@ -84,7 +84,7 @@ erDiagram
 | `wiki_page_revisions` | Tiêu đề, tóm tắt, Markdown, trạng thái luật và thứ tự theo release. |
 | `player_feedback` | Góp ý/playtest/câu hỏi luật; user/contact email tùy chọn, tham chiếu version/card/wiki, hàng đợi duyệt và moderator. |
 
-Unique(entity_id, release_id) cho mỗi revision. Service không cho sửa release đã xuất bản: clone nội dung sang DRAFT mới, kiểm tra đầy đủ rồi chuyển `current_slot` trong một transaction. Xác nhận một release có đủ 8 nhân vật/11 bộ/số thẻ đã chốt là validation khi xuất bản, không phải CHECK số hàng cố định trong DB.
+Unique(entity_id, release_id) cho mỗi revision. Service không cho sửa release đã xuất bản: clone nội dung sang DRAFT mới, kiểm tra đầy đủ rồi chuyển `current_slot` trong một transaction. Từ 2026-10-28, endpoint `POST /content/releases/{release}/publish` thực hiện đúng giao dịch đó: kiểm tra DRAFT + expectedVersion + có ít nhất một revision, lưu trữ bản đang giữ `current_slot=1` (ARCHIVED, slot NULL, version+1), rồi đặt bản nháp thành PUBLISHED với `published_at` mới và version+1. Validation "đủ 8 nhân vật/11 bộ/số thẻ đã chốt" **chưa** được áp dụng — đây là quyết định sản phẩm còn mở, không phải CHECK số hàng cố định trong DB.
 
 Query version V2 phải lọc release V2 xuyên suốt; không ghép mỗi bảng bằng "revision mới nhất" riêng. QR `/the/{slug}` ổn định, có thể thêm `?version=V2`. Với vài trăm thẻ có thể xuất JSON tĩnh và lọc không dấu bằng Angular; chưa cần Elasticsearch/extension PostgreSQL hay Redis.
 
@@ -249,4 +249,4 @@ Migration nằm trong backend nên sẽ được Flyway tự áp dụng khi bả
 
 V8 thêm content_releases.version BIGINT NOT NULL DEFAULT 0 CHECK version >= 0 và index status/created_at. Không đổi checksum V1–V7, không tạo bảng mới hoặc seed dữ liệu. Mỗi mutation revision/metadata tăng version của toàn draft; expectedVersion bắt buộc để phát hiện xung đột. Khóa app_users của actor trước release, kiểm tra ADMIN/enabled/auth_version ngay trong transaction; dữ liệu và audit cùng commit/rollback. Các read bundle dùng REPEATABLE_READ.
 
-Identity/code/slug/pageType không đổi; bản đã PUBLISHED/ARCHIVED không sửa. Clone tạo release DRAFT version 0 và revision IDs mới, giữ identity IDs, copy characters/sets trước cards để giữ FK cùng release. DELETE chỉ bỏ draft revision; không xóa identity hoặc revision release khác. Chưa có thay đổi current_slot hoặc publish pipeline. Chi tiết [ADMIN_BACKEND.md](ADMIN_BACKEND.md).
+Identity/code/slug/pageType không đổi; bản đã PUBLISHED/ARCHIVED không sửa. Clone tạo release DRAFT version 0 và revision IDs mới, giữ identity IDs, copy characters/sets trước cards để giữ FK cùng release. DELETE chỉ bỏ draft revision; không xóa identity hoặc revision release khác. Xuất bản (2026-10-28) là transaction duy nhất đổi `current_slot`: lưu trữ bản cũ trước, rồi promote bản nháp; bản rỗng bị từ chối `409 RELEASE_EMPTY`. Chưa có rollback tự động — quay lại bản cũ bằng clone + publish. Chi tiết [ADMIN_BACKEND.md](ADMIN_BACKEND.md).

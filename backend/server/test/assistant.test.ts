@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  assistantFromEnv, DEFAULT_MODELS, DEFAULT_ORDER, MODEL_CATALOG, geminiProvider, groqProvider, NoProviderAvailable, openRouterProvider,
+  assistantFromEnv, DEFAULT_MODELS, DEFAULT_ORDER, MODEL_CATALOG, geminiProvider, groqProvider, isSafeModelPath, NoProviderAvailable, openRouterProvider,
   ProviderError, ProviderRouter, workersAiProvider,
   type ChatProvider, type CompletionRequest, type CompletionResult, type FetchLike,
 } from '../src/assistant-providers.ts';
@@ -44,6 +44,25 @@ test('Workers AI adapter maps the REST contract and extracts result.response', a
   assert.equal(body.messages[1].content, 'Xin chào');
   assert.equal(body.max_tokens, 123);
   assert.equal(body.temperature, 0.4);
+});
+
+/**
+ * The model id is interpolated into the Workers AI path, so a dot segment would walk out of
+ * /ai/run/ and carry the bearer token to another endpoint of the same account.
+ */
+test('Workers AI refuses a model override that could escape the REST path', async () => {
+  const urls: string[] = [];
+  const fetchImpl: FetchLike = async url => { urls.push(String(url)); return Response.json({ success: true, result: { response: 'ok' } }); };
+  const base = workersAiProvider({ accountId: 'acc', token: 'cf-token', fetch: fetchImpl });
+  for (const model of ['..', '../admin', '@cf/meta/../../secrets', 'a/./b', '@cf//meta', '', ' ', '@cf/meta/llama 3.1', '@cf/meta/' + 'x'.repeat(120), 'a?b', 'a#b', '@cf/meta/làma']) {
+    await assert.rejects(base.withModel(model).complete(request()), isFailure('INVALID'), JSON.stringify(model));
+  }
+  assert.deepEqual(urls, [], 'an unsafe model id must never reach the network');
+  for (const model of ['@cf/meta/test', ...MODEL_CATALOG['workers-ai'].map(choice => choice.id)]) {
+    assert.equal(isSafeModelPath(model), true, model);
+    await base.withModel(model).complete(request());
+    assert.equal(urls.at(-1), `https://api.cloudflare.com/client/v4/accounts/acc/ai/run/${model}`, 'catalog ids stay byte-identical in the URL');
+  }
 });
 
 test('Gemini adapter sends systemInstruction, maps assistant to model and joins parts', async () => {

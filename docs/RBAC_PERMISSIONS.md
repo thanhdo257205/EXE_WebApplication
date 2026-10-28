@@ -40,6 +40,7 @@ Mã quyền dùng dạng `module:action`, ổn định trong API và audit. Cộ
 | `releases:create` | Tạo bản phát hành nháp mới | `POST /api/v1/admin/content/releases` | Có |
 | `releases:update` | Sửa tiêu đề/ghi chú bản phát hành nháp | `PUT /api/v1/admin/content/releases/:release` | Có |
 | `releases:clone` | Nhân bản bản phát hành | `POST /api/v1/admin/content/releases/:release/clone` | Có |
+| `releases:publish` | Xuất bản bản nháp: lưu trữ bản đang công khai rồi đưa bản nháp lên trang công khai | `POST /api/v1/admin/content/releases/:release/publish` | Có |
 | `cards:create` | Thêm thẻ vào bản nháp | `POST /api/v1/admin/content/releases/:release/cards` | Có |
 | `cards:update` | Sửa thẻ trong bản nháp | `PUT /api/v1/admin/content/releases/:release/cards/:id` | Có |
 | `cards:delete` | Xóa thẻ khỏi bản nháp | `DELETE /api/v1/admin/content/releases/:release/cards/:id` | Có |
@@ -55,6 +56,8 @@ Mã quyền dùng dạng `module:action`, ổn định trong API và audit. Cộ
 | `media:upload` | Tải ảnh thẻ lên kho đám mây | `POST /api/v1/admin/media/card-image` | Có |
 
 Ghi chú: `content:read` là quyền đọc chung của module; mọi quyền ghi nội dung (`releases:*`, `cards:*`, `card-sets:*`, `characters:*`, `wiki:*`, `media:upload`) tự kèm `content:read` khi lưu. Quyền xem không cho phép ghi và ngược lại — trừ **quyền tác giả** ở mục 6.4: người tạo bản ghi được sửa/xóa chính bản ghi đó khi còn `content:read`. Dashboard tổng quan (số đếm) vẫn mở cho mọi tài khoản ADMIN để không tạo trang mặc định bị khóa; các API chi tiết vẫn theo quyền.
+
+`releases:publish` là quyền duy nhất thay đổi nội dung **công khai** (và câu trả lời của trợ lý AI): server lưu trữ bản đang ở `current_slot=1`, đặt `published_at` cho bản nháp, tăng version cả hai bản và ghi audit `CONTENT_RELEASE_PUBLISHED`/`CONTENT_RELEASE_ARCHIVED`. Quyền này **không** có fallback theo tác giả: ai có quyền đều xuất bản được bản nháp của người khác, vì đây là thao tác phát hành chứ không phải sửa nội dung.
 
 ### 3.2. Phản hồi người chơi
 
@@ -148,6 +151,7 @@ Khi lưu, máy chủ thực hiện trong một transaction:
 Đồng quản trị chỉ được xem nội dung, không được sửa — **trừ phần do chính họ tạo ra**. Quy tắc áp cho cả bốn loại nội dung (thẻ, bộ thẻ, cư dân, bài wiki) và bản phát hành:
 
 - **Tạo mới** luôn cần quyền module: `releases:create`, `cards:create`, `card-sets:create`, `characters:create`, `wiki:create`. Nhân bản cần `releases:clone`. Quyền tác giả không thay thế quyền tạo.
+- **Xuất bản** cần đúng `releases:publish`, không có fallback theo tác giả kể cả khi tài khoản tạo bản nháp và còn `content:read`; thiếu quyền trả `403 PERMISSION_REQUIRED`.
 - **Sửa/xóa** được phép khi có quyền module (`<kind>:update`/`<kind>:delete`, `releases:update`) **hoặc** khi bản ghi do chính tài khoản đó tạo (`created_by` = mình) **và** tài khoản còn `content:read`.
 - **`content:read` là điều kiện sống còn**: owner thu hồi hết quyền nội dung thì bản ghi của người đó bị đóng băng (vẫn nằm trong release, owner vẫn sửa/xóa được). Chỉ cần giữ `content:read`, tác giả tiếp tục sửa/xóa được phần của mình dù không có quyền sửa/xóa của module.
 - **Tác giả ghi một lần lúc tạo**, không đổi khi sửa. Bản ghi nhân bản thuộc về người bấm nhân bản (bản gốc giữ nguyên tác giả cũ); bản phát hành nhân bản cũng do người nhân bản làm tác giả.
@@ -186,7 +190,7 @@ Quyền gọi: owner (`permissions:manage`). Yêu cầu phiên hợp lệ, CSRF 
 | --- | --- |
 | Dashboard | Chỉ cần ADMIN |
 | Đọc nội dung admin | `content:read` |
-| Ghi bản phát hành | `releases:create/update/clone`; sửa bản nháp của mình khi thiếu `releases:update` thì cần `content:read` |
+| Ghi bản phát hành | `releases:create/update/clone`; sửa bản nháp của mình khi thiếu `releases:update` thì cần `content:read`; xuất bản cần `releases:publish` (không fallback tác giả) |
 | Ghi thẻ/bộ thẻ/cư dân/wiki | `<kind>:create/update/delete`; sửa/xóa bản ghi của mình khi thiếu quyền module thì cần `content:read` |
 | Tải ảnh | `media:upload` |
 | Đọc/xử lý phản hồi | `feedback:read` / `feedback:moderate` |
@@ -219,7 +223,7 @@ Quy tắc nối tiếp ở trang trợ lý: khi không có `assistant:models:reo
 - **Nav quản trị** chỉ hiện mục người dùng có quyền: Thẻ/Cư dân/Wiki/Hệ thống cần `content:read`; Tài khoản cư dân cần `users:read`; Trợ lý AI cần `assistant:read`. Tổng quan luôn hiện. Các mục chưa có API quản trị thật (kho, đơn hàng, thanh toán) giữ nguyên cho mọi ADMIN.
 - **Route guard** kiểm tra quyền tương ứng; vào thẳng URL không đủ quyền bị chuyển về `/admin` kèm thông báo, hoặc về đăng nhập nếu chưa có phiên.
 - **Trang người dùng**: owner có trình phân quyền; đồng quản trị chỉ đọc và thấy "Chỉ admin chính".
-- **Trang thẻ/cư dân/wiki**: form tạo bản phát hành, nhân bản, tạo thẻ, tạo bộ thẻ và panel import Excel bị ẩn theo `releases:create`, `releases:clone`, `cards:create`, `card-sets:create`; import chỉ mở khi có cả `card-sets:create` và `cards:create`. Ô tải ảnh (`app-card-image-upload`) thay bằng ghi chú khi thiếu `media:upload`, và import có ảnh nhúng bị chặn ngay ở bước kiểm tra với thông báo nêu tên quyền thiếu. Method ghi (`createRelease`, `createCardSet`, `saveCard`, `submitCloneToDraft`, `submitCardImport`, các toggle) đều kiểm tra lại quyền trước khi gọi API.
+- **Trang thẻ/cư dân/wiki**: form tạo bản phát hành, nhân bản, tạo thẻ, tạo bộ thẻ và panel import Excel bị ẩn theo `releases:create`, `releases:clone`, `cards:create`, `card-sets:create`; import chỉ mở khi có cả `card-sets:create` và `cards:create`. Nút **Xuất bản** chỉ hiện trên bản nháp khi có `releases:publish`, kèm hộp xác nhận nêu rõ bản đang công khai sẽ bị lưu trữ; import có ảnh nhúng bị chặn ngay ở bước kiểm tra với thông báo nêu tên quyền thiếu. Ô tải ảnh (`app-card-image-upload`) thay bằng ghi chú khi thiếu `media:upload`. Method ghi (`createRelease`, `createCardSet`, `saveCard`, `submitCloneToDraft`, `submitPublish`, `submitCardImport`, các toggle) đều kiểm tra lại quyền trước khi gọi API.
 - **Trang trợ lý AI**: nút sắp xếp, ô model, ô hạn mức, công tắc slot và tab số liệu bật/tắt theo từng cờ ở mục 7.4; form thêm key ẩn khi thiếu `assistant:keys:create`; mỗi dòng key chỉ hiện nút đổi trạng thái/thu hồi theo `canManageStatus` và `canRevoke` của chính key đó.
 - Sau khi lưu quyền, giao diện của người bị ảnh hưởng có thể còn hiển thị nút cũ tới khi tải lại; API vẫn trả `403 PERMISSION_REQUIRED`. Khi gặp lỗi này, tải lại trang để đồng bộ.
 - Lỗi mạng/409 giữ nguyên dữ liệu đã biết, hiện nút tải lại; không tự retry mutation.
@@ -271,6 +275,7 @@ ALTER TABLE wiki_page_revisions  ADD COLUMN created_by TEXT REFERENCES app_users
 - Quyền phụ thuộc (`content:read`, `assistant:read`) được tự thêm và hiển thị đúng.
 - Đồng quản trị thiếu quyền sửa/xóa vẫn sửa/xóa được bản ghi do chính mình tạo khi còn `content:read`; không sửa/xóa được của người khác; mất `content:read` thì phần của mình cũng bị khóa.
 - Thay đổi quyền có audit, chịu kiểm soát version, rollback khi audit lỗi; không làm mất phiên người dùng.
+- Xuất bản chỉ thành công khi có `releases:publish`; bản nháp rỗng bị từ chối, version lệch trả `409`, bản đang công khai được lưu trữ và vẫn đọc được theo mã.
 - Giao diện ẩn/khóa thao tác thiếu quyền, nav và route guard nhất quán; mobile không tràn ngang.
 - Test backend/frontend liên quan qua; typecheck và build production qua.
 
@@ -289,3 +294,12 @@ Code đã hoàn tất ở local, **chưa commit/push/deploy** và **chưa kiểm
 - Backend: `tsc --noEmit` qua; `npm test` **110 pass / 1 skip (Turso remote) / 0 fail** (tổng 111, thêm 3 ca). Test mới: (1) đồng quản trị chỉ có quyền tạo vẫn sửa/xóa được release/bộ thẻ/thẻ của mình, bị `403` với bản ghi của owner, và bị khóa lại khi bị thu hồi về `feedback:read`; (2) nhân bản gán tác giả mới cho bản sao, bản gốc giữ tác giả cũ, người nhân bản sửa được bản sao nhưng không sửa được bản gốc; (3) initializer thêm cột cho DB cũ và chạy lại lần hai không lỗi.
 - Chứng cứ test không rỗng: tạm đổi `ownsRow()` thành luôn `false` thì 2 ca hành vi đỏ đúng chỗ (`expected 200, got 403`), khôi phục thì xanh lại.
 - Chưa chạy lại frontend vì đợt này không đổi source giao diện. Commit local, chưa push/deploy.
+
+## 13. Kiểm chứng đợt bổ sung xuất bản bản phát hành (2026-10-28)
+
+Code ở local, **chưa commit/push/deploy** tại thời điểm ghi.
+
+- Danh mục tăng lên **33 quyền**; `releases:publish` nằm trong bộ mặc định của đồng quản trị và tự kèm `content:read` khi lưu.
+- Backend: `npm test` **113 pass / 1 skip (Turso remote) / 0 fail** (tổng 114). File mới `backend/server/test/content-publish.test.ts` có 3 ca: (1) xuất bản đưa bản nháp lên `current_slot=1`, API công khai và snapshot đọc được ngay (cache admin bị xóa), bản đã xuất bản bất biến (`409 RELEASE_IMMUTABLE`), audit có actor + version; (2) xuất bản bản mới lưu trữ bản đang công khai (giữ `published_at`, version tăng), bản cũ vẫn đọc được bằng `releaseId`; (3) thiếu `releases:publish` trả `403`, khách chưa đăng nhập bị chặn CSRF, version lệch trả `409 VERSION_CONFLICT`, bản nháp rỗng trả `409 RELEASE_EMPTY` và không đổi trạng thái.
+- Frontend: `ng test --watch=false` **57 file / 432 test pass**. Thêm 2 ca service (gửi đúng `expectedVersion` + header CSRF; ánh xạ `RELEASE_EMPTY`) và 6 ca trang (xuất bản thành công đổi trạng thái + tải lại danh sách; nút chỉ hiện với DRAFT + quyền; mở/hủy hộp xác nhận; chặn ở mức method khi thiếu quyền; thông báo rỗng/xung đột; đổi bản phát hành thì đóng hộp xác nhận).
+- Build: `ng build` exit 0, không thêm cảnh báo ngân sách cho `admin-section.page.css`.

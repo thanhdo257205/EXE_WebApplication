@@ -44,8 +44,8 @@ async function budget(db: Executor, id: string, selected = Object.keys(kinds) as
 /** Public path: all kinds counted in one Turso round trip. */
 const publicBudget = async (db: Client, id: string, selected = Object.keys(kinds) as Kind[]) =>
   checkBudget((await batchRead(db, selected.map(kind => budgetStatement(id, kind)))).map(rows => rows[0]));
-async function audit(db: Executor, actor: Actor, action: string, kind: string, entity: string, id: string, version: number) {
-  await execute(db, "INSERT INTO audit_events(id,actor_id,action,entity_type,entity_id,outcome,details_redacted) VALUES (?,?,?,?,?,'SUCCESS',?)", [uuid(), actor.id, action, kind, entity, `releaseId=${id};version=${version}`]);
+async function audit(db: Executor, actor: Actor, action: string, kind: string, entity: string, id: string, version: number, extra = '') {
+  await execute(db, "INSERT INTO audit_events(id,actor_id,action,entity_type,entity_id,outcome,details_redacted) VALUES (?,?,?,?,?,'SUCCESS',?)", [uuid(), actor.id, action, kind, entity, `releaseId=${id};version=${version}${extra}`]);
 }
 const editable = (row: Row, expected: number) => { if (row.status !== 'DRAFT') return fail(409, 'RELEASE_IMMUTABLE'); if (row.version !== expected) return fail(409, 'VERSION_CONFLICT'); };
 const rule = z.enum(['CONFIRMED', 'NEEDS_REVIEW']);
@@ -66,6 +66,7 @@ const writes = {
 };
 const releaseWrite = z.object({ title: z.string().trim().min(1).max(200), releaseNotes: optionalText(10000) });
 const createRelease = releaseWrite.extend({ versionLabel: z.string().max(40).regex(/^[A-Za-z0-9][A-Za-z0-9._-]*$/) });
+const publishRelease = z.object({ expectedVersion: z.number().int().nonnegative() });
 const authorColumn = 'created_by TEXT REFERENCES app_users(id) ON DELETE SET NULL';
 
 /** Existing databases get the author column lazily: SQLite has no ADD COLUMN IF NOT EXISTS. */
@@ -171,6 +172,25 @@ export function contentRoutes(app: Api, db: Client, cache: Cache) {
       for (const k of Object.values(kinds)) await execute(tx, `INSERT INTO ${k.revision}(id,${k.fk},release_id,${k.columns},created_by) SELECT lower(hex(randomblob(4)))||'-'||lower(hex(randomblob(2)))||'-4'||substr(lower(hex(randomblob(2))),2)||'-a'||substr(lower(hex(randomblob(2))),2)||'-'||lower(hex(randomblob(6))),${k.fk},?,${k.columns},? FROM ${k.revision} WHERE release_id=?`, [id, actor.id, source]);
       await audit(tx, actor, 'CONTENT_RELEASE_CLONED', 'CONTENT_RELEASE', id, id, 0); return camel(await release(tx, id));
     }), 201);
+  });
+  app.post('/api/v1/admin/content/releases/:release/publish', async c => {
+    const id = z.string().uuid().parse(c.req.param('release')), actor = requireActor(c, true);
+    const b = publishRelease.parse(await c.req.json());
+    return c.json(await transaction(db, async tx => {
+      await authorizePermission(tx, actor, 'releases:publish');
+      editable(await release(tx, id), b.expectedVersion);
+      // Publishing nothing would replace a readable public release with blank pages.
+      const revisions = await scalar(tx, `SELECT (SELECT COUNT(*) FROM character_revisions WHERE release_id=?) + (SELECT COUNT(*) FROM card_set_revisions WHERE release_id=?) + (SELECT COUNT(*) FROM card_revisions WHERE release_id=?) + (SELECT COUNT(*) FROM wiki_page_revisions WHERE release_id=?)`, [id, id, id, id]);
+      if (revisions === 0) return fail(409, 'RELEASE_EMPTY');
+      const previous = (await all(tx, "SELECT id,version FROM content_releases WHERE current_slot=1 AND status='PUBLISHED'"))[0];
+      if (previous) {
+        await execute(tx, "UPDATE content_releases SET status='ARCHIVED',current_slot=NULL,version=version+1 WHERE id=?", [previous.id]);
+        await audit(tx, actor, 'CONTENT_RELEASE_ARCHIVED', 'CONTENT_RELEASE', previous.id, previous.id, Number(previous.version) + 1, `;replacedBy=${id}`);
+      }
+      await execute(tx, "UPDATE content_releases SET status='PUBLISHED',current_slot=1,published_at=?,version=version+1 WHERE id=?", [now(), id]);
+      await audit(tx, actor, 'CONTENT_RELEASE_PUBLISHED', 'CONTENT_RELEASE', id, id, b.expectedVersion + 1, previous ? `;archived=${previous.id}` : '');
+      return camel(await release(tx, id));
+    }));
   });
   app.get('/api/v1/admin/content/releases/:release/preview', async c => c.json(await transaction(db, async tx => {
     await authorizePermission(tx, requireActor(c, true), 'content:read');

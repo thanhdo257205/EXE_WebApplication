@@ -2,8 +2,10 @@ import { z } from 'zod';
 import type { Client, Transaction, InStatement } from '@libsql/client';
 import { PayOS } from '@payos/node';
 import { readFileSync } from 'node:fs';
+import { createHmac } from 'node:crypto';
 import { all, one, scalar, execute, transaction, batchRead, uuid, now, at, fail, type Executor, type Row } from './db.ts';
-import { authorize, requireActor, digest, type Api, type Actor } from './auth.ts';
+import { authorize, requireActor, digest, same, type Api, type Actor } from './auth.ts';
+import { PUBLIC_TTL_MS, type Cache } from './cache.ts';
 
 export interface Provider {
   create(request: any): Promise<any>; get(code: number): Promise<any>; cancel(code: number): Promise<any>; verify(body: any): Promise<any>;
@@ -11,8 +13,39 @@ export interface Provider {
 export function payosProvider(env: NodeJS.ProcessEnv): Provider | null {
   if (!env.PAYOS_CLIENT_ID || !env.PAYOS_API_KEY || !env.PAYOS_CHECKSUM_KEY) return null;
   const client = new PayOS({ clientId: env.PAYOS_CLIENT_ID, apiKey: env.PAYOS_API_KEY, checksumKey: env.PAYOS_CHECKSUM_KEY, timeout: 8000, maxRetries: 0 });
-  return { create: body => client.paymentRequests.create(body), get: code => client.paymentRequests.get(code), cancel: code => client.paymentRequests.cancel(code, 'Order expired'), verify: body => client.webhooks.verify(body) };
+  return { create: body => client.paymentRequests.create(body), get: code => client.paymentRequests.get(code), cancel: code => client.paymentRequests.cancel(code, 'Order expired'), verify: async body => verifyWebhookSignature(body, env.PAYOS_CHECKSUM_KEY as string) };
 }
+/**
+ * The canonical string PayOS signs, transcribed from @payos/node 2.0.5
+ * (`sortObjDataByKey` + `convertObjToQueryStr`): top-level keys sorted ascending, keys whose value
+ * is `undefined` dropped, arrays serialized as JSON with every member's own keys sorted, and
+ * null / the literal strings 'null' / 'undefined' rendered as empty. Kept character-for-character
+ * compatible with the SDK so switching the comparison cannot invalidate a correctly signed webhook.
+ */
+const sortedMembers = (value: unknown): Record<string, unknown> => Object.keys(value as object)
+  .sort().reduce((sorted: Record<string, unknown>, key) => { sorted[key] = (value as Record<string, unknown>)[key]; return sorted; }, {});
+
+export function webhookSignedString(data: Record<string, unknown>): string {
+  const ordered = sortedMembers(data);
+  return Object.keys(ordered).filter(key => ordered[key] !== undefined).map(key => {
+    let value: unknown = ordered[key];
+    if (value && Array.isArray(value)) value = JSON.stringify(value.map(sortedMembers));
+    if ([null, undefined, 'undefined', 'null'].includes(value as never)) value = '';
+    return `${key}=${value}`;
+  }).join('&');
+}
+/** Verified locally so the comparison uses the same timing-safe helper as sessions and CSRF. */
+export function verifyWebhookSignature(body: unknown, checksumKey: string): Record<string, unknown> {
+  const envelope = body as Record<string, unknown> | null;
+  const data = envelope?.data;
+  if (typeof data !== 'object' || data === null || Array.isArray(data)) throw new Error('Invalid webhook data');
+  const signature = envelope?.signature;
+  if (typeof signature !== 'string' || !signature || !checksumKey) throw new Error('Invalid signature');
+  const expected = createHmac('sha256', checksumKey).update(webhookSignedString(data as Record<string, unknown>)).digest('hex');
+  if (!same(expected, signature)) throw new Error('Webhook signature mismatch');
+  return data as Record<string, unknown>;
+}
+
 const nonblank = (max: number) => z.string().max(max).refine(v => v.trim().length > 0);
 export const checkoutSchema = z.object({
   idempotencyKey: z.string().regex(/^[A-Za-z0-9_-]{16,100}$/), items: z.array(z.object({ variantId: z.string().uuid(), quantity: z.number().int().min(1).max(100) })).min(1).max(20),
@@ -39,6 +72,11 @@ const MAX_HELD_UNITS_PER_ACCOUNT = 20;
 const MAX_HELD_UNITS_PER_VARIANT = 5;
 const SWEEP_BATCH = 25;
 const SWEEP_BUDGET_MS = 20_000;
+// Generous against the shipped catalog; hitting one means the anonymous read must be
+// paginated rather than allowed to grow into an unbounded per-request scan.
+export const MAX_CATALOG_PRODUCTS = 500;
+const MAX_CATALOG_VARIANTS = 5_000;
+const MAX_CATALOG_IMAGES = 5_000;
 
 export class Payments {
   db: Client; provider: Provider | null; origin: string;
@@ -263,15 +301,34 @@ export class Payments {
   }
 }
 
-export function paymentRoutes(app: Api, db: Client, payments: Payments) {
-  // Price/availability change with orders: no cache, but both reads share one Turso round trip.
-  app.get('/api/v1/shop/products', async c => {
-    const [rows, variants] = await batchRead(db, [
-      { sql: "SELECT p.id,p.slug,p.name,p.description_markdown,(SELECT image_url FROM product_images WHERE product_id=p.id ORDER BY sort_order LIMIT 1) AS image_url FROM products p WHERE p.status='ACTIVE' ORDER BY p.created_at,p.slug" },
-      { sql: 'SELECT v.*,COALESCE(b.on_hand-b.reserved,0)>0 AS available FROM product_variants v LEFT JOIN inventory_balances b ON b.variant_id=v.id WHERE v.enabled=1 ORDER BY v.price_amount,v.sku' },
+export function paymentRoutes(app: Api, db: Client, payments: Payments, cache: Cache) {
+  // Prices and availability move with orders, so the catalog is cached for one short TTL and
+  // dropped by any admin write. Images are read as one flat row set instead of a correlated
+  // subquery per product, and every read is row-capped so a growing catalog costs round trips,
+  // not unbounded work per anonymous request.
+  app.get('/api/v1/shop/products', async c => c.json(await cache.cached('shop:products', PUBLIC_TTL_MS, async () => {
+    const [rows, variants, images] = await batchRead(db, [
+      { sql: `SELECT id,slug,name,description_markdown FROM products WHERE status='ACTIVE' ORDER BY created_at,slug LIMIT ${MAX_CATALOG_PRODUCTS + 1}` },
+      { sql: `SELECT v.id,v.product_id,v.sku,v.name,v.price_amount,COALESCE(b.on_hand-b.reserved,0)>0 AS available
+        FROM product_variants v LEFT JOIN inventory_balances b ON b.variant_id=v.id
+        WHERE v.enabled=1 AND v.product_id IN (SELECT id FROM products WHERE status='ACTIVE')
+        ORDER BY v.price_amount,v.sku LIMIT ${MAX_CATALOG_VARIANTS + 1}` },
+      { sql: `SELECT product_id,image_url FROM product_images ORDER BY product_id,sort_order,id LIMIT ${MAX_CATALOG_IMAGES + 1}` },
     ]);
-    return c.json(rows.map(p => ({ id: p.id, slug: p.slug, name: p.name, description: p.description_markdown, imageUrl: p.image_url, variants: variants.filter(v => v.product_id === p.id).map(v => ({ id: v.id, sku: v.sku, name: v.name, priceAmount: v.price_amount, available: Boolean(v.available) })) })).filter(p => p.variants.length));
-  });
+    if (rows.length > MAX_CATALOG_PRODUCTS || variants.length > MAX_CATALOG_VARIANTS || images.length > MAX_CATALOG_IMAGES) return fail(503, 'CATALOG_TOO_LARGE');
+    const firstImage = new Map<string, string>();
+    for (const image of images) if (!firstImage.has(image.product_id as string)) firstImage.set(image.product_id as string, image.image_url as string);
+    const byProduct = new Map<string, Row[]>();
+    for (const variant of variants) {
+      const list = byProduct.get(variant.product_id as string);
+      if (list) list.push(variant); else byProduct.set(variant.product_id as string, [variant]);
+    }
+    return rows.map(p => ({
+      id: p.id, slug: p.slug, name: p.name, description: p.description_markdown, imageUrl: firstImage.get(p.id as string) ?? null,
+      variants: (byProduct.get(p.id as string) ?? []).map(v => ({ id: v.id, sku: v.sku, name: v.name, priceAmount: v.price_amount, available: Boolean(v.available) })),
+    })).filter(p => p.variants.length);
+  })));
+
   app.get('/api/v1/payments/config', c => c.json({ provider: 'PAYOS', enabled: Boolean(payments.provider) }));
   app.post('/api/v1/checkout', async c => c.json(await payments.checkout(requireActor(c), checkoutSchema.parse(await c.req.json()))));
   app.get('/api/v1/orders', async c => {

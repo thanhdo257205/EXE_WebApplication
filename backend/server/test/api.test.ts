@@ -3,11 +3,12 @@ import assert from 'node:assert/strict';
 import { randomBytes, createHmac } from 'node:crypto';
 import { SignJWT } from 'jose';
 import bcrypt from 'bcryptjs';
+import { PayOS } from '@payos/node';
 import type { Client } from '@libsql/client';
 import { database, initializeLocal, execute, one, all, scalar, now, at, uuid } from '../src/db.ts';
 import { createApp } from '../src/app.ts';
 import { type Config, type Actor } from '../src/auth.ts';
-import { type Provider, checkoutSchema, payosProvider } from '../src/payments.ts';
+import { type Provider, checkoutSchema, payosProvider, webhookSignedString, verifyWebhookSignature, MAX_CATALOG_PRODUCTS } from '../src/payments.ts';
 import { type AssistantOptions, type ChatProvider, type CompletionRequest, type CompletionResult, ProviderError } from '../src/assistant-providers.ts';
 
 const asResult = (value: CompletionResult | string): CompletionResult =>
@@ -249,12 +250,62 @@ test('reconciliation and webhook sharing a reference credit the ledger only once
   assert.equal(await scalar(f.db, 'SELECT COUNT(*) FROM payment_transactions'), 1); assert.equal((await one(f.db, 'SELECT * FROM inventory_balances')).on_hand, 1);
 });
 
-test('PayOS SDK validates actual HMAC and rejects altered or unsigned payloads', async () => {
-  const provider = payosProvider({ PAYOS_CLIENT_ID: 'test-id', PAYOS_API_KEY: 'test-key', PAYOS_CHECKSUM_KEY: 'test-checksum' })!;
+test('PayOS webhook is verified by a local timing-safe HMAC compare', async () => {
+  const checksumKey = 'test-checksum';
+  const provider = payosProvider({ PAYOS_CLIENT_ID: 'test-id', PAYOS_API_KEY: 'test-key', PAYOS_CHECKSUM_KEY: checksumKey })!;
   const data = { amount: 2000, code: '00', currency: 'VND', orderCode: 100000001, paymentLinkId: 'link', reference: 'ref' };
-  const signature = createHmac('sha256', 'test-checksum').update(Object.entries(data).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => `${k}=${v}`).join('&')).digest('hex');
+  const signature = createHmac('sha256', checksumKey).update(Object.entries(data).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => `${k}=${v}`).join('&')).digest('hex');
   assert.deepEqual(await provider.verify({ data, signature }), data);
-  await assert.rejects(provider.verify({ data: { ...data, amount: 1 }, signature })); await assert.rejects(provider.verify({}));
+  // Every rejection names the local verifier: the SDK's own message ('Data not integrity') would
+  // surface if the provider delegated back to client.webhooks.verify.
+  await assert.rejects(provider.verify({ data: { ...data, amount: 1 }, signature }), { message: 'Webhook signature mismatch' });
+  await assert.rejects(provider.verify({ data, signature: '0'.repeat(signature.length) }), { message: 'Webhook signature mismatch' });
+  await assert.rejects(provider.verify({ data, signature: signature.slice(0, -2) + 'ff' }), { message: 'Webhook signature mismatch' });
+  await assert.rejects(provider.verify({}), { message: 'Invalid webhook data' });
+  await assert.rejects(provider.verify({ data: 'not-an-object', signature }), { message: 'Invalid webhook data' });
+  await assert.rejects(provider.verify({ data }), { message: 'Invalid signature' });
+});
+
+/** Differential against the pinned SDK: a divergent canonical string would reject every real webhook. */
+test('the local PayOS canonical string matches the SDK on adversarial payloads', async () => {
+  const checksumKey = 'test-checksum';
+  const sdk = new PayOS({ clientId: 'test-id', apiKey: 'test-key', checksumKey });
+  const payloads: Record<string, unknown>[] = [
+    { amount: 2000, code: '00', currency: 'VND', orderCode: 100000001, paymentLinkId: 'link', reference: 'ref' },
+    { zeta: 1, alpha: 2, Middle: 3, amount: 4 },
+    { amount: 2000, note: null, bankId: 'undefined', bankName: 'null', code: '00' },
+    { amount: 2000, omitted: undefined, transactions: [{ b: 1, a: 2 }, { z: 9, y: 8 }] },
+    { amount: 0, description: '', currency: 'VND' },
+    { only: undefined },
+    {},
+    { code: '00', data: { nested: { b: 1, a: [2, 1] } }, items: ['plain', 'two'] },
+    { counterAccountBankId: null, counterAccountName: 'Nguyen Van A', orderCode: 1234567890123 },
+  ];
+  for (const data of payloads) {
+    const expected = await sdk.crypto.createSignatureFromObj(data, checksumKey);
+    const local = createHmac('sha256', checksumKey).update(webhookSignedString(data)).digest('hex');
+    assert.equal(local, expected, `canonical string diverged for ${JSON.stringify(data)}`);
+  }
+});
+
+test('the edge gate arms on the public origin, not on NODE_ENV', async t => {
+  const f = await fixture(); t.after(() => f.db.close());
+  const secret = { 'X-Origin-Verify': f.config.proxySecret };
+  // A deployed app that forgot NODE_ENV=production but kept the secret must still refuse direct origin hits.
+  const deployed = createApp(f.db, { ...f.config, production: false, publicOrigin: 'https://exe.example' });
+  assert.equal((await deployed.app.request('/api/v1/info')).status, 403);
+  assert.equal((await deployed.app.request('/api/v1/info', { headers: secret })).status, 200);
+  assert.equal((await deployed.app.request('/api/v1/payments/payos/webhook', { method: 'POST', body: '{}' })).status, 403);
+  assert.equal((await deployed.app.request('/actuator/health')).status, 200);
+  // Local development keeps the secret but is not behind the edge: http://localhost stays reachable.
+  const local = createApp(f.db, { ...f.config, production: false });
+  assert.equal((await local.app.request('/api/v1/info')).status, 200);
+  // Loopback in production stays gated, so a tunnel cannot bypass the edge by binding to 127.0.0.1.
+  const loopbackProduction = createApp(f.db, { ...f.config, production: true });
+  assert.equal((await loopbackProduction.app.request('/api/v1/info')).status, 403);
+  // Without a secret there is nothing to verify against, so the gate fails closed instead of open.
+  const secretless = createApp(f.db, { ...f.config, production: false, publicOrigin: 'https://exe.example', proxySecret: '' });
+  assert.equal((await secretless.app.request('/api/v1/info')).status, 403);
 });
 
 test('JWT signature, disabled account, role change and version revocation take effect immediately', async t => {
@@ -310,6 +361,13 @@ test('feedback limits, moderation transitions and notification read isolation', 
   assert.equal((await (await f.request('GET', '/api/v1/admin/notifications', undefined, f.admin)).json()).unreadCount, 0);
   assert.equal((await f.request('PUT', `/api/v1/admin/feedback/${feedback.id}`, { expectedVersion: 0, status: 'RESOLVED', moderationNote: 'Xong' }, f.admin)).status, 200);
   assert.equal((await f.request('PUT', `/api/v1/admin/feedback/${feedback.id}`, { expectedVersion: 1, status: 'REJECTED', moderationNote: 'Sai bước' }, f.admin)).status, 409);
+  // Moderation is a feedback:moderate capability: the write response carries queue state and the lock
+  // version only, so a moderate-only grant never receives the customer's text or address.
+  const second = (await (await f.request('POST', '/api/v1/feedback', { category: 'OTHER', message: 'Phản hồi thứ hai', contactEmail: 'khach@example.test' }, f.other)).json()).id;
+  const moderated = await (await f.request('PUT', `/api/v1/admin/feedback/${second}`, { expectedVersion: 0, status: 'IN_REVIEW', moderationNote: 'Đang xem' }, f.admin)).json();
+  assert.deepEqual(Object.keys(moderated).sort(), ['cardId', 'category', 'createdAt', 'id', 'moderationNote', 'pageId', 'releaseId', 'status', 'updatedAt', 'version']);
+  assert.equal(JSON.stringify(moderated).includes('Phản hồi thứ hai'), false);
+  assert.equal(JSON.stringify(moderated).includes('khach@example.test'), false);
   for (let i = 0; i < 4; i++) assert.equal((await f.request('POST', '/api/v1/feedback', { category: 'OTHER', message: 'Thử' })).status, 201);
   assert.equal((await f.request('POST', '/api/v1/feedback', { category: 'OTHER', message: 'Vượt' })).status, 429);
 });
@@ -382,6 +440,47 @@ test('public reads skip the per-request user lookup but protected routes still v
   await execute(f.db, 'UPDATE app_users SET enabled=0 WHERE id=?', [f.user]);
   assert.equal((await f.request('GET', '/api/v1/shop/products', undefined, f.user)).status, 200);
   assert.equal((await f.request('GET', '/api/v1/orders', undefined, f.user)).status, 401);
+});
+
+test('the anonymous catalog costs one round trip, survives until an admin write and is row-capped', async t => {
+  const f = await fixture(); t.after(() => f.db.close());
+  let roundTrips = 0;
+  const counting = new Proxy(f.db, {
+    get(target, property, receiver) {
+      if (property === 'batch') return (...statements: any[]) => { roundTrips++; return (target as any).batch(...statements); };
+      const value = Reflect.get(target, property, receiver);
+      return typeof value === 'function' ? value.bind(target) : value;
+    },
+  }) as typeof f.db;
+  const edge = createApp(counting, f.config, null);
+  const call = (method: string, path: string, id: string | null = null, data?: unknown) => edge.app.request(path, {
+    method,
+    headers: { ...(data !== undefined ? { 'Content-Type': 'application/json' } : {}), ...(id ? { Cookie: `AUTH_TOKEN=${f.tokens.get(id)}; XSRF-TOKEN=test-csrf`, 'X-XSRF-TOKEN': 'test-csrf' } : {}) },
+    ...(data !== undefined ? { body: JSON.stringify(data) } : {}),
+  });
+  const price = async () => (await (await call('GET', '/api/v1/shop/products')).json())[0].variants[0].priceAmount;
+  assert.equal(await price(), 2000); assert.equal(roundTrips, 1);
+  await execute(f.db, 'UPDATE product_variants SET price_amount=2500');
+  assert.equal(await price(), 2000); assert.equal(roundTrips, 1, 'the cached catalog read must not reach the database');
+  assert.equal((await call('POST', '/api/v1/admin/content/releases', f.admin, { title: 'Rebuild', versionLabel: 'catalog-v1' })).status, 201);
+  assert.equal(await price(), 2500); assert.equal(roundTrips, 2);
+});
+
+test('a catalog past the row cap fails closed instead of scanning unbounded rows', async t => {
+  const f = await fixture(); t.after(() => f.db.close());
+  const [{ id: category }] = await all(f.db, 'SELECT id FROM product_categories');
+  const extra = MAX_CATALOG_PRODUCTS; // the fixture already ships one ACTIVE product
+  const productArgs: (string | number)[] = [], variantArgs: (string | number)[] = [];
+  for (let i = 0; i < extra; i++) {
+    const id = uuid();
+    productArgs.push(id, category, `cap-${i}`, 'Cap', 'ACTIVE');
+    variantArgs.push(uuid(), id, `CAP-${i}`, 'Cap', 1000);
+  }
+  await execute(f.db, `INSERT INTO products(id,category_id,slug,name,status) VALUES ${Array(extra).fill('(?,?,?,?,?)').join(',')}`, productArgs);
+  await execute(f.db, `INSERT INTO product_variants(id,product_id,sku,name,price_amount) VALUES ${Array(extra).fill('(?,?,?,?,?)').join(',')}`, variantArgs);
+  const response = await f.request('GET', '/api/v1/shop/products', undefined, null);
+  assert.equal(response.status, 503);
+  assert.equal((await response.json()).title, 'CATALOG_TOO_LARGE');
 });
 
 test('address book: CRUD is owner-only, first address is default, one default at a time, limit enforced', async t => {

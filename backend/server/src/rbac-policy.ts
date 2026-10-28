@@ -10,6 +10,7 @@ export const GRANTABLE_PERMISSIONS = [
   'releases:create',
   'releases:update',
   'releases:clone',
+  'releases:publish',
   'cards:create',
   'cards:update',
   'cards:delete',
@@ -54,7 +55,7 @@ const grantable = new Set<string>(GRANTABLE_PERMISSIONS);
 export const isGrantablePermission = (value: string): value is Permission => grantable.has(value);
 
 const CONTENT_WRITE_PERMISSIONS = new Set<string>([
-  'releases:create', 'releases:update', 'releases:clone',
+  'releases:create', 'releases:update', 'releases:clone', 'releases:publish',
   'cards:create', 'cards:update', 'cards:delete',
   'card-sets:create', 'card-sets:update', 'card-sets:delete',
   'characters:create', 'characters:update', 'characters:delete',

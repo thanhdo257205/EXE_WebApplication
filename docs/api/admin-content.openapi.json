@@ -3,7 +3,7 @@
   "info": {
     "title": "Nhà Này Hơi Báo — Admin Content API",
     "version": "0.1.0",
-    "description": "Phase A implemented source contract, not proof of production deployment. JWT is carried in HttpOnly AUTH_TOKEN cookie; browser cannot read it. Fetch a CSRF token with credentials from /api/v1/auth/csrf and send its header on POST/PUT/DELETE. All APIs require ADMIN and no-store responses. Public preview/import/publish/commerce/user administration are outside this version."
+    "description": "Phase A implemented source contract, not proof of production deployment. JWT is carried in HttpOnly AUTH_TOKEN cookie; browser cannot read it. Fetch a CSRF token with credentials from /api/v1/auth/csrf and send its header on POST/PUT/DELETE. All APIs require ADMIN and no-store responses. Publishing a content release to the public slot is included since 2026-10-28 (POST /content/releases/{release}/publish, permission releases:publish); Pages deployment, import, commerce and user administration remain outside this version."
   },
   "servers": [
     {
@@ -806,6 +806,133 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CloneRelease"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/content/releases/{release}/publish": {
+      "post": {
+        "operationId": "publishContentRelease",
+        "summary": "Promote a draft to the public content slot",
+        "description": "Requires releases:publish (no author fallback). The draft must be DRAFT, match expectedVersion and contain at least one revision. The release currently holding current_slot=1 is archived first (it stays readable by id); the target then becomes PUBLISHED with a new publishedAt. Both releases increase version and both transitions are audited. Publishing empty content returns 409 RELEASE_EMPTY. This publishes content in the database, not a Pages deployment.",
+        "tags": [
+          "Admin content"
+        ],
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfHeader": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Published",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Release"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Login required or JWT expired",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing releases:publish, CSRF or proxy signature",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Release not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "VERSION_CONFLICT, RELEASE_IMMUTABLE or RELEASE_EMPTY",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway rate limit",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Backend or gateway unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "release",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishRelease"
               }
             }
           }
@@ -4324,6 +4451,18 @@
           "sourceVersion",
           "versionLabel",
           "title"
+        ]
+      },
+      "PublishRelease": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "expectedVersion"
         ]
       },
       "ReleasePage": {

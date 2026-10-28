@@ -9,6 +9,12 @@ const category = z.enum(['RULE_QUESTION', 'CARD_ISSUE', 'PLAYTEST', 'OTHER']);
 const status = z.enum(['NEW', 'IN_REVIEW', 'RESOLVED', 'REJECTED']);
 const optionalId = z.string().uuid().nullable().optional().default(null);
 const paging = z.object({ page: z.coerce.number().int().min(0).max(10000).default(0), size: z.coerce.number().int().min(1).max(100).default(20) });
+/**
+ * Moderation needs the queue state and the optimistic-lock version, not the customer's text.
+ * `message`, `contact_email` and `user_id` belong to the detail projection behind feedback:read
+ * (docs/RBAC_PERMISSIONS.md), so the write response must not carry them to a moderate-only grant.
+ */
+const MODERATION_COLUMNS = 'id,release_id,card_id,page_id,category,status,moderation_note,version,created_at,updated_at';
 
 async function summary(db: Executor, user: string) {
   const row = await one(db, `SELECT fb.latest AS feedback_latest,reg.latest AS registration_latest,
@@ -65,13 +71,13 @@ export function feedbackRoutes(app: Api, db: Client, cfg: Config) {
   app.put('/api/v1/admin/feedback/:id', async c => {
     const actor = requireActor(c, true), id = z.string().uuid().parse(c.req.param('id')); const b = z.object({ expectedVersion: z.number().int().nonnegative(), status, moderationNote: z.string().trim().min(1).max(2000) }).parse(await c.req.json());
     return c.json(await transaction(db, async tx => {
-      await authorizePermission(tx, actor, 'feedback:moderate'); const current = await one(tx, 'SELECT * FROM player_feedback WHERE id=?', [id]);
+      await authorizePermission(tx, actor, 'feedback:moderate'); const current = await one(tx, `SELECT ${MODERATION_COLUMNS} FROM player_feedback WHERE id=?`, [id]);
       if (current.version !== b.expectedVersion) return fail(409, 'VERSION_CONFLICT');
       const previous = current.status, next = b.status;
       if (!(previous === next || (next !== 'NEW' && (['NEW', 'IN_REVIEW'].includes(previous) || next === 'IN_REVIEW')))) return fail(409, 'INVALID_TRANSITION');
       await execute(tx, 'UPDATE player_feedback SET status=?,moderation_note=?,moderated_by=?,version=version+1,updated_at=? WHERE id=?', [next, b.moderationNote, actor.id, now(), id]);
       await execute(tx, "INSERT INTO audit_events(id,actor_id,action,entity_type,entity_id,outcome,details_redacted) VALUES (?,?,'FEEDBACK_MODERATED','PLAYER_FEEDBACK',?,'SUCCESS',?)", [uuid(), actor.id, id, `from=${previous};to=${next};version=${b.expectedVersion + 1}`]);
-      return camel(await one(tx, 'SELECT * FROM player_feedback WHERE id=?', [id]));
+      return camel(await one(tx, `SELECT ${MODERATION_COLUMNS} FROM player_feedback WHERE id=?`, [id]));
     }));
   });
   app.get('/api/v1/admin/notifications', async c => c.json(await transaction(db, async tx => {

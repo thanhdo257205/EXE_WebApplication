@@ -88,7 +88,7 @@ Trình tự mật khẩu:
 - BCrypt cost 12; backend không trả password hash.
 - Google chỉ chấp nhận email đã xác minh; xác định tài khoản bằng Google `sub` ổn định. Tài khoản mới được quyền CUSTOMER.
 - Trùng email với tài khoản mật khẩu sẽ bị từ chối liên kết tự động, không tự nâng quyền. Chưa có luồng liên kết tài khoản.
-- `/api/v1/admin/**` yêu cầu ADMIN; `/me` yêu cầu đăng nhập; endpoint chưa được khai báo bị từ chối. Đã có API admin nội dung trong source theo [ADMIN_BACKEND.md](ADMIN_BACKEND.md); các phân hệ commerce/user/publish còn thiếu, CD mới đã thành công; chưa nghiệm thu admin production bằng browser.
+- `/api/v1/admin/**` yêu cầu ADMIN; `/me` yêu cầu đăng nhập; endpoint chưa được khai báo bị từ chối. Đã có API admin nội dung trong source theo [ADMIN_BACKEND.md](ADMIN_BACKEND.md), gồm cả `POST /content/releases/{release}/publish` (quyền `releases:publish`); phân hệ commerce/user và pipeline deploy/rollback còn thiếu, CD mới đã thành công; chưa nghiệm thu admin production bằng browser.
 - Tài khoản mật khẩu ban đầu tạo bằng `BOOTSTRAP_ADMIN_EMAIL` và `BOOTSTRAP_ADMIN_PASSWORD` (ít nhất 12 ký tự, tối đa 72 byte UTF-8). Chỉ tạo nếu chưa có email; không cập nhật mật khẩu/quyền tài khoản đã tồn tại. Xóa hai biến bootstrap sau lần khởi tạo production đầu tiên.
 - Chưa bật giới hạn đăng nhập ở local Spring chạy độc lập. Production phải bật proxy guard; rate limit nằm ở Worker.
 

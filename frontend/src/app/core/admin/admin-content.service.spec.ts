@@ -318,4 +318,41 @@ describe('AdminContentService', () => {
     expect(req.request.body).toEqual(payload);
     req.flush(mockClonedRelease);
   });
+
+  it('publishes a release POSTing expectedVersion to /publish with CSRF and credentials', () => {
+    const published = {
+      id: 'rel-1', versionLabel: 'v2.0-draft', title: 'Bản thảo V2', releaseNotes: null,
+      status: 'PUBLISHED' as const, currentSlot: 'PROD', createdBy: 'admin-1',
+      createdAt: '2026-10-20T10:00:00Z', publishedAt: '2026-10-28T09:00:00Z', version: 3,
+    };
+
+    service.publishRelease('rel-1', 2).subscribe(res => {
+      expect(res.status).toBe('PUBLISHED');
+      expect(res.currentSlot).toBe('PROD');
+      expect(res.version).toBe(3);
+    });
+
+    const req = httpMock.expectOne('/api/v1/admin/content/releases/rel-1/publish');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.withCredentials).toBe(true);
+    expect(req.request.headers.get('X-XSRF-TOKEN')).toBe('mock-csrf-token');
+    expect(req.request.body).toEqual({ expectedVersion: 2 });
+    req.flush(published);
+  });
+
+  it('surfaces RELEASE_EMPTY as a 409 problem the page can explain', () => {
+    service.publishRelease('rel-empty', 0).subscribe({
+      next: () => { throw new Error('should not succeed'); },
+      error: problem => {
+        expect(problem.status).toBe(409);
+        expect(problem.code).toBe('RELEASE_EMPTY');
+      },
+    });
+
+    const req = httpMock.expectOne('/api/v1/admin/content/releases/rel-empty/publish');
+    req.flush(
+      { type: 'about:blank', title: 'RELEASE_EMPTY', status: 409, code: 'RELEASE_EMPTY' },
+      { status: 409, statusText: 'Conflict' }
+    );
+  });
 });

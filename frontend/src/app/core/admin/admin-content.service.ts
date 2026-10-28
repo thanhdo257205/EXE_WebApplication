@@ -293,6 +293,25 @@ export class AdminContentService {
     );
   }
 
+  /**
+   * POST /api/v1/admin/content/releases/{release}/publish
+   * Archives the release currently on the public slot and promotes this draft.
+   */
+  publishRelease(releaseId: string, expectedVersion: number): Observable<AdminRelease> {
+    return this.auth.getCsrf().pipe(
+      switchMap(csrf =>
+        this.http.post<AdminRelease>(`${this.base}/content/releases/${releaseId}/publish`, { expectedVersion }, {
+          withCredentials: true,
+          headers: new HttpHeaders({
+            'Content-Type': 'application/json',
+            [csrf.headerName]: csrf.token,
+          }),
+        })
+      ),
+      catchError(err => this.handleError(err))
+    );
+  }
+
   /** Upload raw image bytes and return the public artwork URL. */
   uploadCardImage(image: Blob): Observable<{ url: string; bytes: number; contentType: string }> {
     return this.auth.getCsrf().pipe(

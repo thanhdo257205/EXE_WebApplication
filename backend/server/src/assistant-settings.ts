@@ -10,6 +10,7 @@ import {
   MODEL_CATALOG,
   PROVIDER_LABELS,
   isProviderId,
+  isSafeModelPath,
   type AssistantOptions,
   type ChatProvider,
   type ProviderId,
@@ -31,7 +32,6 @@ export interface AssistantSettings {
 
 export const SETTINGS_KEY = 'assistant:settings:v1';
 export const SETTINGS_TTL_MS = 30_000;
-const MODEL_PATTERN = /^[A-Za-z0-9@._:/+-]+$/;
 const SLOT_PATTERN = /^(?:[a-z0-9-]+#\d{1,3}|db:[0-9a-f-]{36})$/;
 const KEY_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_TOKEN_BUDGET = 2_000_000_000;
@@ -129,7 +129,7 @@ function normalizeSettings(row: Record<string, unknown>, base: AssistantSettings
   for (const value of requested) if (isProviderId(value) && !order.includes(value)) order.push(value);
   const models = { ...base.models };
   for (const [id, value] of Object.entries(jsonObject(row.model_overrides))) {
-    if (isProviderId(id) && typeof value === 'string' && value.length <= 120 && MODEL_PATTERN.test(value)) models[id] = value;
+    if (isProviderId(id) && typeof value === 'string' && isSafeModelPath(value)) models[id] = value;
   }
   const slots = new Set(availableSlotIds(options));
   const disabledSlots = [...new Set(jsonArray(row.disabled_slots))]
@@ -177,7 +177,7 @@ export function activeProviders(providers: readonly ChatProvider[], settings: As
 
 const settingsSchema = z.object({
   order: z.array(z.string()).min(1).max(DEFAULT_ORDER.length),
-  models: z.record(z.string(), z.string().trim().min(1).max(120).regex(MODEL_PATTERN)),
+  models: z.record(z.string(), z.string().trim().refine(isSafeModelPath)),
   disabledSlots: z.array(z.string()).max(64).default([]),
   tokenBudgets: z.record(z.string(), z.number().int().positive().max(MAX_TOKEN_BUDGET)),
   // Optional so a cached admin bundle can still save without silently wiping per-key budgets.
@@ -212,6 +212,28 @@ function changedPermissions(current: AssistantSettings, body: SettingsBody): str
 }
 
 type SettingsBody = z.infer<typeof settingsSchema>;
+
+const DB_SLOT_PREFIX = 'db:';
+
+/**
+ * A `db:<id>` slot is a credential stored by one specific admin. Flipping it in the settings
+ * form reroutes live assistant traffic off (or back onto) that key, so an editor who only holds
+ * `assistant:slots:update` must not be able to change the set of slots owned by someone else.
+ * `assistant:keys:manage` is the right that reaches every key; without it the foreign set has to
+ * be preserved exactly, which still allows free editing of order, models, budgets and own keys.
+ */
+async function foreignDisabledSlots(tx: Executor, actorId: string, stored: readonly string[], incoming: readonly string[]): Promise<boolean> {
+  const ids = [...new Set([...stored, ...incoming]
+    .filter(slot => slot.startsWith(DB_SLOT_PREFIX))
+    .map(slot => slot.slice(DB_SLOT_PREFIX.length))
+    .filter(id => KEY_ID_PATTERN.test(id)))];
+  if (!ids.length) return false;
+  const owners = new Map<string, string>(
+    (await all(tx, `SELECT id,owner_id FROM assistant_credentials WHERE id IN (${ids.map(() => '?').join(',')})`, ids))
+      .map(row => [String(row.id), String(row.owner_id)]));
+  const foreign = (slot: string) => slot.startsWith(DB_SLOT_PREFIX) && owners.get(slot.slice(DB_SLOT_PREFIX.length)) !== actorId;
+  return sortedKey(stored.filter(foreign)) !== sortedKey(incoming.filter(foreign));
+}
 
 const settingsView = (settings: AssistantSettings, options: AssistantOptions | null, permissions: readonly string[] = []) => {
   const holds = (permission: string) => permissions.includes(permission);
@@ -271,6 +293,8 @@ export function assistantAdminRoutes(app: Api, db: Client, cache: Cache, options
       const changed = changedPermissions(stored, { ...body, order, disabledSlots });
       const missing = changed.filter(permission => !access.permissions.includes(permission));
       if (missing.length) return fail(403, 'PERMISSION_REQUIRED');
+      if (changed.includes(SETTINGS_PERMISSIONS.slots) && !access.permissions.includes('assistant:keys:manage')
+        && await foreignDisabledSlots(tx, actor.id, stored.disabledSlots, disabledSlots)) return fail(403, 'PERMISSION_REQUIRED');
       if (!changed.length) return { ...settingsView(stored, runtime, access.permissions), changed: false };
       const timestamp = now();
       const providerOrder = JSON.stringify(order);

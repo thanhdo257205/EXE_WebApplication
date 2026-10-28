@@ -242,7 +242,62 @@ describe('readXlsxSheet', () => {
   it('rejects a file that is not a ZIP archive', async () => {
     await expect(readXlsxSheet(new TextEncoder().encode('not a zip'))).rejects.toThrow('ZIP');
   });
+
+  it('stops an entry whose expansion blows past the per-entry budget', async () => {
+    // Raw deflate reaches roughly 1000:1 on zeros, so a sub-30 KB container buys a 26 MB buffer.
+    const bytes = await zipDeflated([
+      { name: 'xl/workbook.xml', xml: '<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Thẻ bài" sheetId="1" r:id="rId1"/></sheets></workbook>' },
+      { name: 'xl/_rels/workbook.xml.rels', xml: '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>' },
+      { name: 'xl/worksheets/sheet1.xml', data: new Uint8Array(26 * 1024 * 1024) },
+    ]);
+    await expect(readXlsxSheet(bytes)).rejects.toThrow(/giải nén vượt 25 MB/);
+  });
+
+  it('refuses an archive declaring more entries than the cap', async () => {
+    const bytes = await zipDeflated(Array.from({ length: 2001 }, (_unused, index) => ({
+      name: `xl/entry-${index}.bin`, data: new Uint8Array(0), stored: true,
+    })));
+    await expect(readXlsxSheet(bytes)).rejects.toThrow(/quá nhiều mục nén/);
+  });
+
+  it('rejects a row index far above the rows the sheet actually holds', async () => {
+    const bytes = await workbookWithSheet(
+      '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>'
+      + '<row r="1"><c r="A1" t="inlineStr"><is><t>Mã thẻ</t></is></c></row>'
+      + '<row r="4294967294"><c r="A4294967294" t="inlineStr"><is><t>bomb</t></is></c></row>'
+      + '</sheetData></worksheet>');
+    await expect(readXlsxSheet(bytes)).rejects.toThrow(/chỉ số dòng không hợp lệ/);
+  });
+
+  it('rejects a column reference that overflows the OOXML grid', async () => {
+    const bytes = await workbookWithSheet(
+      '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>'
+      + '<row r="1"><c r="ZZZ1" t="inlineStr"><is><t>bomb</t></is></c></row>'
+      + '</sheetData></worksheet>');
+    await expect(readXlsxSheet(bytes)).rejects.toThrow(/chỉ số cột không hợp lệ/);
+  });
+
+  it('still reads a workbook that uses the last legal row and column indexes', async () => {
+    const bytes = await workbookWithSheet(
+      '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>'
+      + '<row r="1"><c r="A1" t="inlineStr"><is><t>Mã thẻ</t></is></c></row>'
+      + '<row r="50000"><c r="A50000" t="inlineStr"><is><t>CARD-050</t></is></c><c r="XFD50000" t="inlineStr"><is><t>cuối</t></is></c></row>'
+      + '</sheetData></worksheet>');
+    const matrix = await readXlsxSheet(bytes);
+    expect(matrix[0]).toEqual(['Mã thẻ']);
+    expect(matrix[49999][0]).toBe('CARD-050');
+    expect(matrix[49999][16383]).toBe('cuối');
+  });
 });
+
+/** Minimal one-sheet workbook carrying the given worksheet XML. */
+async function workbookWithSheet(sheet: string): Promise<Uint8Array> {
+  return zipDeflated([
+    { name: 'xl/workbook.xml', xml: '<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Thẻ bài" sheetId="1" r:id="rId1"/></sheets></workbook>' },
+    { name: 'xl/_rels/workbook.xml.rels', xml: '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>' },
+    { name: 'xl/worksheets/sheet1.xml', xml: sheet },
+  ]);
+}
 
 describe('slugify', () => {
   it('removes Vietnamese diacritics', () => {
@@ -250,7 +305,7 @@ describe('slugify', () => {
   });
 });
 
-async function zipDeflated(entries: Array<{ name: string; xml?: string; data?: Uint8Array }>): Promise<Uint8Array> {
+async function zipDeflated(entries: Array<{ name: string; xml?: string; data?: Uint8Array; stored?: boolean }>): Promise<Uint8Array> {
   const encoder = new TextEncoder();
   const localParts: Uint8Array[] = [];
   const centralParts: Uint8Array[] = [];
@@ -259,14 +314,15 @@ async function zipDeflated(entries: Array<{ name: string; xml?: string; data?: U
   for (const entry of entries) {
     const name = encoder.encode(entry.name);
     const raw = entry.data ?? encoder.encode(entry.xml ?? '');
-    const compressed = await deflateRaw(raw);
+    const method = entry.stored ? 0 : 8;
+    const compressed = entry.stored ? raw : await deflateRaw(raw);
 
     const local = new Uint8Array(30 + name.length);
     const localView = new DataView(local.buffer);
     localView.setUint32(0, 0x04034b50, true);
     localView.setUint16(4, 20, true);
     localView.setUint16(6, 0x0800, true);
-    localView.setUint16(8, 8, true);
+    localView.setUint16(8, method, true);
     localView.setUint32(18, compressed.length, true);
     localView.setUint32(22, raw.length, true);
     localView.setUint16(26, name.length, true);
@@ -279,7 +335,7 @@ async function zipDeflated(entries: Array<{ name: string; xml?: string; data?: U
     centralView.setUint16(4, 20, true);
     centralView.setUint16(6, 20, true);
     centralView.setUint16(8, 0x0800, true);
-    centralView.setUint16(10, 8, true);
+    centralView.setUint16(10, method, true);
     centralView.setUint32(20, compressed.length, true);
     centralView.setUint32(24, raw.length, true);
     centralView.setUint16(28, name.length, true);
