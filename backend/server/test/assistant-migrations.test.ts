@@ -112,3 +112,22 @@ test('stored key telemetry and per-key budgets are added to databases that preda
     ['FAILED', 'QUOTA', 'm', 120, '2026-10-28T10:00:00.000Z'],
   );
 });
+
+test('every usage grouping divides latency by answered requests, not by cache-hit-inflated requests', async t => {
+  const db = database('file::memory:');
+  t.after(() => db.close());
+  await initializeAssistantUsage(db);
+
+  const recorder = createUsageRecorder(db, { flushSize: 1 });
+  recorder.record({ provider: 'groq', slot: 'groq#1', model: 'm', latencyMs: 300 });
+  recorder.record({ provider: 'groq', slot: 'groq#1', model: 'm', latencyMs: 100 });
+  recorder.record({ provider: 'groq', slot: 'groq#1', model: 'm', cacheHit: true });
+  await recorder.flush();
+
+  const summary = await usageSummary(db, 7);
+  // 400 ms spread over the 2 requests that reached a provider: 200 ms everywhere, not 133 ms on one card.
+  assert.deepEqual([summary.slots[0].requests, summary.slots[0].avgLatencyMs], [3, 200]);
+  assert.equal(summary.totals.avgLatencyMs, 200);
+  assert.equal(summary.providers[0].avgLatencyMs, 200);
+  assert.equal(summary.keys[0].avgLatencyMs, 200);
+});

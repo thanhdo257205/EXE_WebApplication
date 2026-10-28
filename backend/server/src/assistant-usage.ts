@@ -128,12 +128,16 @@ export async function usageSummary(db: Executor, days: number) {
   const totals = { requests: 0, cacheHits: 0, failures: 0, answered: 0, avgLatencyMs: 0, tokensIn: 0, tokensOut: 0 };
   let latency = 0;
   const byProvider = new Map<string, { provider: string; requests: number; failures: number; latency: number; answered: number; tokensIn: number; tokensOut: number }>();
-  const slots = rows.map(row => ({
-    slot: String(row.slot), provider: String(row.provider), model: String(row.model),
-    requests: number(row.requests), failures: number(row.failures),
-    tokensIn: number(row.tokens_in), tokensOut: number(row.tokens_out),
-    avgLatencyMs: row.provider === 'cache' || !number(row.requests) ? 0 : Math.round(number(row.latency) / number(row.requests)),
-  }));
+  // Same divisor as providers and keys: a cache hit spent no provider time, so it is not an answer.
+  const slots = rows.map(row => {
+    const answered = Math.max(0, number(row.requests) - number(row.cache_hits));
+    return {
+      slot: String(row.slot), provider: String(row.provider), model: String(row.model),
+      requests: number(row.requests), failures: number(row.failures),
+      tokensIn: number(row.tokens_in), tokensOut: number(row.tokens_out),
+      avgLatencyMs: row.provider === 'cache' || !answered ? 0 : Math.round(number(row.latency) / answered),
+    };
+  });
   for (const row of rows) {
     const requests = number(row.requests);
     totals.requests += requests;
