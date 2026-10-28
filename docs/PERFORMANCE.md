@@ -1,4 +1,25 @@
-# Hiệu năng frontend — cập nhật 2026-10-22
+# Hiệu năng frontend — cập nhật 2026-10-28
+
+## Ngân sách `anyComponentStyle`: mọi stylesheet component dưới warning 6 kB — 2026-10-28 (local, chưa deploy)
+
+`angular.json` đặt `anyComponentStyle` warning 6 kB / error 10 kB và **đo theo từng file CSS**, không theo component. Toàn app hiện không còn file nào vượt warning; `ng build --configuration production` in ra **0 cảnh báo budget** (chỉ còn 2 cảnh báo ESM của `qrcode`/`dijkstrajs`).
+
+Cách giữ size là tách file, không phải thu nhỏ CSS: không nâng ngưỡng, không xóa rule, không đổi selector. Mỗi file cắt tại một ranh giới section thật rồi thêm file mới vào `styleUrls` **ngay sau** file gốc — Angular nối stylesheet theo thứ tự mảng nên cascade giữ nguyên. Số kB đã minify:
+
+| component | trước | sau | ranh giới cắt |
+| --- | --- | --- | --- |
+| `global-bar` | 8,88 | 4,37 + 4,66 (`global-bar.menu.css`) | `.nav-cluster` |
+| `login` | 7,06 | 2,06 + 5,20 (`login.form.css`) | `.auth-form-panel` |
+| `register` | 7,12 | 2,06 + 5,26 (`register.form.css`) | `.auth-form-panel` |
+| `fund-dashboard` | 6,85 | 4,41 + 2,78 (`fund-dashboard.summary.css`) | `.total` |
+| `public-content` | 6,55 | 4,39 + 1,63 (`…lists.css`) + 0,61 (`…headings.css`) | `.wiki-list`, `.reader-heading h1` |
+| `admin-dashboard` | 6,26 | 3,40 + 2,86 (`admin-dashboard.table.css`) | `.table-container` |
+| `home` | 6,22 | 5,41 + 1,00 (`home.responsive.css`) | `@media (max-width: 1000px)` |
+| `admin-assistant` (đợt trước, đã deploy `2bb745e`) | 9,87 | 4,72 + 5,29 (`admin-assistant.keys.css`) | ranh giới tab |
+
+Chi phí thật của cách làm này là **số file**, không phải dung lượng: trình duyệt tải cùng một lượng CSS, chỉ khác ở chỗ nó nằm trong nhiều mục `styles:[…]`; đổi lại là thêm một rule vào trang nào thì phải chọn đúng file, và file vượt 10 kB sẽ làm `ng build` fail chứ không chỉ cảnh báo.
+
+Kiểm chứng tương đương (không đo lại bố cục trên browser): ghép các phần khớp file cũ **từng dòng**; script đối chiếu mọi mảng `styles:[…]` trong `dist/exe-web/browser/*.js` xác nhận **8/8 component** phát ra đúng số stylesheet, đúng thứ tự source và chuỗi selector giống hệt. Điểm hay gặp khi tự viết script như vậy: compiler thêm token scoping `[_ngcontent-%COMP%]`/`[_nghost-%COMP%]`, scope tên `@keyframes`, và **nở một rule `:host-context([x]) .y` thành group hai selector tương đương** — ba biến đổi này là artifact có sẵn, không phải mất rule.
 
 ## Sân đấu WebGPU `/san-dau` — local, mới nhất
 
