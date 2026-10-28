@@ -44,6 +44,23 @@ interface BudgetBar {
   hasBudget: boolean;
 }
 
+interface ProviderCard {
+  provider: AssistantProviderConfig;
+  quota: BudgetBar;
+  requests: number;
+  failures: number;
+  avgLatencyMs: number;
+  keys: number;
+  activeKeys: number;
+}
+
+interface KeyGroup {
+  id: string;
+  label: string;
+  keys: AssistantKey[];
+  active: number;
+}
+
 interface BulkGroup {
   provider: AssistantProviderConfig;
   keys: AssistantKey[];
@@ -90,6 +107,7 @@ export class AdminAssistantPage implements OnInit {
   readonly usageLoading = signal(false);
   readonly error = signal('');
   readonly notice = signal('');
+  readonly view = signal<'providers' | 'keys' | 'usage'>('providers');
 
   readonly keys = signal<AssistantKey[]>([]);
   readonly keyStorage = signal(true);
@@ -169,6 +187,46 @@ export class AdminAssistantPage implements OnInit {
     });
   });
   readonly hasBudgets = computed(() => this.budgetBars().some(bar => bar.hasBudget));
+  readonly providerCards = computed<ProviderCard[]>(() => {
+    const quotas = new Map(this.budgetBars().map(bar => [bar.id, bar]));
+    const stats = new Map((this.usage()?.providers ?? []).map(row => [row.provider, row]));
+    const keys = this.keys();
+    return this.orderedProviders().map(provider => {
+      const own = keys.filter(key => key.provider === provider.id);
+      const row = stats.get(provider.id);
+      return {
+        provider,
+        quota: quotas.get(provider.id) ?? {
+          id: provider.id, label: provider.label, used: 0, budget: 0, remaining: 0,
+          percent: 0, over: false, warn: false, hasBudget: false,
+        },
+        requests: row?.requests ?? 0,
+        failures: row?.failures ?? 0,
+        avgLatencyMs: row?.avgLatencyMs ?? 0,
+        keys: own.length,
+        activeKeys: own.filter(key => key.status === 'ACTIVE').length,
+      };
+    });
+  });
+  readonly keyGroups = computed<KeyGroup[]>(() => {
+    const byProvider = new Map<string, AssistantKey[]>();
+    for (const key of this.keys()) {
+      const list = byProvider.get(key.provider);
+      if (list) list.push(key);
+      else byProvider.set(key.provider, [key]);
+    }
+    const groups: KeyGroup[] = [];
+    for (const provider of this.orderedProviders()) {
+      const keys = byProvider.get(provider.id);
+      if (!keys?.length) continue;
+      groups.push({ id: provider.id, label: provider.label, keys, active: keys.filter(key => key.status === 'ACTIVE').length });
+      byProvider.delete(provider.id);
+    }
+    for (const [id, keys] of byProvider) {
+      groups.push({ id, label: keys[0].providerLabel, keys, active: keys.filter(key => key.status === 'ACTIVE').length });
+    }
+    return groups;
+  });
   readonly updatedLabel = computed(() => {
     const settings = this.settings()?.settings;
     if (!settings?.updatedAt) return 'Đang dùng mặc định từ biến môi trường';
@@ -208,6 +266,10 @@ export class AdminAssistantPage implements OnInit {
     if (this.days() === days) return;
     this.days.set(days);
     this.loadUsage();
+  }
+
+  setView(view: 'providers' | 'keys' | 'usage'): void {
+    this.view.set(view);
   }
 
   loadKeys(): void {
