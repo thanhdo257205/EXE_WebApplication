@@ -97,11 +97,16 @@ test('Gemini adapter treats a 400 API_KEY_INVALID as an auth failure', async () 
 
 test('Groq and OpenRouter adapters use OpenAI-compatible bodies and normalize failures', async () => {
   let seen: { url: string; init: RequestInit } | undefined;
-  const groq = groqProvider({ apiKey: 'groq-key', model: 'groq-test', fetch: async (url, init) => { seen = { url, init }; return Response.json({ choices: [{ message: { content: 'Groq trả lời' } }], usage: { prompt_tokens: 7, completion_tokens: 3 } }); } });
+  const groq = groqProvider({ apiKey: 'groq-key', model: 'openai/gpt-oss-120b', fetch: async (url, init) => { seen = { url, init }; return Response.json({ choices: [{ message: { content: 'Groq trả lời' } }], usage: { prompt_tokens: 7, completion_tokens: 3 } }); } });
   assert.deepEqual(await groq.complete(request()), { text: 'Groq trả lời', tokensIn: 7, tokensOut: 3 });
   assert.equal(seen!.url, 'https://api.groq.com/openai/v1/chat/completions');
   assert.equal(header(seen!.init, 'Authorization'), 'Bearer groq-key');
   assert.deepEqual(jsonBody(seen!.init).messages[0], { role: 'system', content: 'SYSTEM' });
+  // GPT-OSS counts hidden reasoning against max_tokens, so low effort keeps short answers non-empty.
+  assert.equal(jsonBody(seen!.init).reasoning_effort, 'low');
+  const plain = groqProvider({ apiKey: 'k', model: 'groq-test', fetch: async (url, init) => { seen = { url, init }; return Response.json({ choices: [{ message: { content: 'ok' } }] }); } });
+  await plain.complete(request());
+  assert.equal('reasoning_effort' in jsonBody(seen!.init), false);
   const limited = groqProvider({ apiKey: 'k', fetch: async () => new Response(null, { status: 429 }) });
   await assert.rejects(limited.complete(request()), isFailure('QUOTA'));
   const unauthorized = groqProvider({ apiKey: 'k', fetch: async () => new Response(null, { status: 401 }) });
@@ -116,6 +121,8 @@ test('Groq and OpenRouter adapters use OpenAI-compatible bodies and normalize fa
   assert.equal(seen!.url, 'https://openrouter.ai/api/v1/chat/completions');
   assert.equal(header(seen!.init, 'HTTP-Referer'), 'https://game.example.test');
   assert.match(header(seen!.init, 'X-Title') ?? '', /Nha Nay Hoi Bao/);
+  // reasoning_effort is Groq-specific; OpenRouter uses its own reasoning field.
+  assert.equal('reasoning_effort' in jsonBody(seen!.init), false);
   const quota = openRouterProvider({ apiKey: 'k', fetch: async () => Response.json({ error: { code: 402 } }) });
   await assert.rejects(quota.complete(request()), isFailure('QUOTA'));
 });
