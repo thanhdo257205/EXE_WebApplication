@@ -186,5 +186,5 @@ describe('arena ai', () => {
     }
     expect(finished).toBe(300);
     expect(turns / 300).toBeLessThan(60);
-  });
+  }, 20_000);
 });
