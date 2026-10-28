@@ -2,7 +2,7 @@
 
 Cập nhật: 2026-10-28 (Asia/Saigon).
 
-## Xuất bản bản phát hành (publish) — 2026-10-28 (local, chưa deploy)
+## Xuất bản bản phát hành (publish) — 2026-10-28 (đã deploy production `a674b4e`)
 
 - [x] ADMIN-PUBLISH-01 — Quyền thứ 33 `releases:publish` trong `GRANTABLE_PERMISSIONS`, thuộc bộ mặc định đồng quản trị, tự kèm `content:read`; không có fallback theo tác giả. Đồng bộ catalog frontend + 2 spec đếm quyền (32 → 33).
 - [x] ADMIN-PUBLISH-02 — `POST /api/v1/admin/content/releases/:release/publish` nhận `expectedVersion`; kiểm tra DRAFT + version; `409 RELEASE_EMPTY` khi chưa có revision; lưu trữ bản `current_slot=1` trước (ARCHIVED, slot NULL, version+1, audit `CONTENT_RELEASE_ARCHIVED` + `replacedBy`) rồi promote bản nháp (PUBLISHED, slot 1, `published_at`, version+1, audit `CONTENT_RELEASE_PUBLISHED`). Cache public + knowledge trợ lý AI được middleware admin-write xóa ngay.
@@ -10,7 +10,7 @@ Cập nhật: 2026-10-28 (Asia/Saigon).
 - [x] ADMIN-PUBLISH-04 — Frontend `publishRelease()` + nút Xuất bản chỉ hiện với DRAFT và `releases:publish`, hộp xác nhận có cảnh báo lưu trữ, lỗi riêng cho `RELEASE_EMPTY`/`VERSION_CONFLICT`/403, method kiểm tra lại quyền, publish xong tải lại danh sách release từ server. `ng test` **57 file / 432 pass**; `ng build` exit 0, không thêm warning budget.
 - [x] ADMIN-PUBLISH-05 — Cập nhật RBAC_PERMISSIONS, RBAC, ADMIN_BACKEND, PUBLIC_CONTENT_API, DATABASE_DESIGN, OpenAPI admin-content và PROGRESS trong cùng đợt.
 - [ ] ADMIN-PUBLISH-06 — Quyết định sản phẩm còn mở: chưa chặn publish khi thiếu 8 cư dân/11 bộ thẻ/148 thẻ; hiện chỉ yêu cầu ≥1 revision.
-- [ ] ADMIN-PUBLISH-07 — Chưa commit/push/deploy. Sau deploy cần phiên ADMIN tạo nội dung → publish → xác nhận API công khai và trợ lý AI trả lời theo release mới; kiểm tra thêm hai admin publish đồng thời (một người phải nhận `409`).
+- [ ] ADMIN-PUBLISH-07 — Đã commit/push/deploy: `3af2474` + `e35cb53` (+ merge `7f9b63a`) → PR **#37** merge `main` tại **`a674b4e`**; CI PR `40731528333` và CI main `40732547216` xanh 4/4, CD `40732736930` xanh 2/2 (`RELEASE_SHA` và `/api/v1/info` = `a674b4e`, route publish trả `403 CSRF_REQUIRED` khi thiếu phiên). Còn mở: cần phiên ADMIN tạo nội dung → publish → xác nhận API công khai và trợ lý AI trả lời theo release mới; kiểm tra hai admin publish đồng thời (một người phải nhận `409`).
 
 ## Stylesheet trang trợ lý AI trong ngưỡng budget `anyComponentStyle` (2026-10-28, đã deploy production `2bb745e`)
 
