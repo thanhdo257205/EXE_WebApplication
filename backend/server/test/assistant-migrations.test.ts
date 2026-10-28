@@ -58,4 +58,7 @@ test('assistant tables created before token accounting are upgraded in place', a
   assert.equal(settings.models.openrouter, 'vendor/custom-model');
   assert.equal(settings.version, 2);
   assert.deepEqual(settings.tokenBudgets, {});
+  // Repeat startup must be a no-op: the rewritten ids no longer match, so the version stays put.
+  await initializeAssistantSettings(db);
+  assert.equal((await loadAssistantSettings(db, null)).version, 2);
 });
