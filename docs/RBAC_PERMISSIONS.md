@@ -8,7 +8,7 @@ Tài liệu này mô tả nghiệp vụ phân quyền chi tiết (fine-grained R
 - Đồng quản trị (`DELEGATED`, vẫn giữ `app_users.role=ADMIN`) có thể bị giới hạn còn đúng một phần thao tác: thêm thẻ, sửa thẻ, thêm API key, sửa model, sắp xếp model, thu hồi API key, v.v.
 - Quyền được kiểm tra ở **máy chủ** trên mọi request; giao diện chỉ phản ánh quyền đã được cấp, không phải nguồn quyết định.
 - Không thay đổi luồng đăng ký/đăng nhập, không cấp quyền quản trị cho vai trò `CUSTOMER`, không thay đổi thanh toán hay dữ liệu nội dung hiện có.
-- Không thuộc phạm vi: quyền cho các module chưa có API quản trị thật (`inventory`, `orders`, `payments`), quyền theo từng bản ghi (row-level), chuyển quyền sở hữu admin chính.
+- Không thuộc phạm vi: quyền cho các module chưa có API quản trị thật (`inventory`, `orders`, `payments`), phân quyền theo từng bản ghi ngoài quy tắc tác giả ở mục 6.4, chuyển quyền sở hữu admin chính.
 
 ## 2. Vai trò và nguyên tắc
 
@@ -26,6 +26,7 @@ Nguyên tắc bắt buộc:
 4. **Hai quyền chỉ owner**: `users:manage-roles`, `permissions:manage`. Hai khóa này không thể gán cho đồng quản trị; payload chứa chúng bị từ chối.
 5. **Thay đổi quyền không thu hồi phiên**: quyền có hiệu lực từ request kế tiếp. Giao diện của người bị đổi quyền cần tải lại để cập nhật nav/nút; máy chủ vẫn chặn ngay.
 6. **Đổi vai trò thì xóa bộ tùy chỉnh**: nâng lên đồng quản trị hoặc hạ về thành viên đều xóa `admin_permission_sets` của tài khoản để tránh quyền cũ tồn đọng.
+7. **Tác giả được tự sửa/xóa phần mình tạo**: thiếu quyền sửa/xóa của module, tài khoản vẫn sửa/xóa được bản ghi do chính mình tạo, miễn còn `content:read`. Chi tiết ở mục 6.4; API key đã áp quy tắc tương tự từ trước.
 
 ## 3. Danh mục quyền
 
@@ -53,7 +54,7 @@ Mã quyền dùng dạng `module:action`, ổn định trong API và audit. Cộ
 | `wiki:delete` | Xóa bài wiki | `DELETE .../wiki-pages/:id` | Có |
 | `media:upload` | Tải ảnh thẻ lên kho đám mây | `POST /api/v1/admin/media/card-image` | Có |
 
-Ghi chú: `content:read` là quyền đọc chung của module; mọi quyền ghi nội dung (`releases:*`, `cards:*`, `card-sets:*`, `characters:*`, `wiki:*`, `media:upload`) tự kèm `content:read` khi lưu. Quyền xem không cho phép ghi và ngược lại. Dashboard tổng quan (số đếm) vẫn mở cho mọi tài khoản ADMIN để không tạo trang mặc định bị khóa; các API chi tiết vẫn theo quyền.
+Ghi chú: `content:read` là quyền đọc chung của module; mọi quyền ghi nội dung (`releases:*`, `cards:*`, `card-sets:*`, `characters:*`, `wiki:*`, `media:upload`) tự kèm `content:read` khi lưu. Quyền xem không cho phép ghi và ngược lại — trừ **quyền tác giả** ở mục 6.4: người tạo bản ghi được sửa/xóa chính bản ghi đó khi còn `content:read`. Dashboard tổng quan (số đếm) vẫn mở cho mọi tài khoản ADMIN để không tạo trang mặc định bị khóa; các API chi tiết vẫn theo quyền.
 
 ### 3.2. Phản hồi người chơi
 
@@ -142,6 +143,18 @@ Khi lưu, máy chủ thực hiện trong một transaction:
 - Chấp nhận lời mời qua Google: tài khoản mới nhận bộ mặc định.
 - Owner không có bản ghi quyền; mọi nỗ lực sửa bị chặn.
 
+### 6.4. Quyền của tác giả nội dung
+
+Đồng quản trị chỉ được xem nội dung, không được sửa — **trừ phần do chính họ tạo ra**. Quy tắc áp cho cả bốn loại nội dung (thẻ, bộ thẻ, cư dân, bài wiki) và bản phát hành:
+
+- **Tạo mới** luôn cần quyền module: `releases:create`, `cards:create`, `card-sets:create`, `characters:create`, `wiki:create`. Nhân bản cần `releases:clone`. Quyền tác giả không thay thế quyền tạo.
+- **Sửa/xóa** được phép khi có quyền module (`<kind>:update`/`<kind>:delete`, `releases:update`) **hoặc** khi bản ghi do chính tài khoản đó tạo (`created_by` = mình) **và** tài khoản còn `content:read`.
+- **`content:read` là điều kiện sống còn**: owner thu hồi hết quyền nội dung thì bản ghi của người đó bị đóng băng (vẫn nằm trong release, owner vẫn sửa/xóa được). Chỉ cần giữ `content:read`, tác giả tiếp tục sửa/xóa được phần của mình dù không có quyền sửa/xóa của module.
+- **Tác giả ghi một lần lúc tạo**, không đổi khi sửa. Bản ghi nhân bản thuộc về người bấm nhân bản (bản gốc giữ nguyên tác giả cũ); bản phát hành nhân bản cũng do người nhân bản làm tác giả.
+- **Dữ liệu cũ** tạo trước khi có cột `created_by` mang giá trị `NULL` — chỉ tài khoản có quyền module mới sửa/xóa được.
+- **Chốt an toàn không đổi**: xóa bộ thẻ/cư dân còn thẻ tham chiếu trả `409 CONTENT_IN_USE` dù là tác giả; bản phát hành đã publish là bất biến (`409 RELEASE_IMMUTABLE`); lệch version là `409 VERSION_CONFLICT`.
+- **API key** đã theo quy tắc tác giả từ trước: `assistant:keys:reveal/test/revoke` chỉ áp cho key do chính mình thêm, trừ khi có `assistant:keys:manage`.
+
 ## 7. API
 
 ### 7.1. Lưu bộ quyền
@@ -173,8 +186,8 @@ Quyền gọi: owner (`permissions:manage`). Yêu cầu phiên hợp lệ, CSRF 
 | --- | --- |
 | Dashboard | Chỉ cần ADMIN |
 | Đọc nội dung admin | `content:read` |
-| Ghi bản phát hành | `releases:create/update/clone` |
-| Ghi thẻ/bộ thẻ/cư dân/wiki | `<kind>:create/update/delete` |
+| Ghi bản phát hành | `releases:create/update/clone`; sửa bản nháp của mình khi thiếu `releases:update` thì cần `content:read` |
+| Ghi thẻ/bộ thẻ/cư dân/wiki | `<kind>:create/update/delete`; sửa/xóa bản ghi của mình khi thiếu quyền module thì cần `content:read` |
 | Tải ảnh | `media:upload` |
 | Đọc/xử lý phản hồi | `feedback:read` / `feedback:moderate` |
 | Đọc cấu hình/số liệu trợ lý | `assistant:read` / `assistant:usage:read` |
@@ -237,12 +250,26 @@ CREATE TABLE admin_permission_sets (
 - Không có dòng = dùng bộ mặc định của đồng quản trị.
 - Không sửa `runtime_schema`, không đổi enum role, không đụng dữ liệu nội dung/thanh toán.
 
+Cột bổ sung cho quyền tác giả (migration `V14__content_authorship.sql` + khởi tạo idempotent lúc boot, vì SQLite không có `ADD COLUMN IF NOT EXISTS`):
+
+```sql
+ALTER TABLE character_revisions  ADD COLUMN created_by TEXT REFERENCES app_users(id) ON DELETE SET NULL;
+ALTER TABLE card_set_revisions   ADD COLUMN created_by TEXT REFERENCES app_users(id) ON DELETE SET NULL;
+ALTER TABLE card_revisions       ADD COLUMN created_by TEXT REFERENCES app_users(id) ON DELETE SET NULL;
+ALTER TABLE wiki_page_revisions  ADD COLUMN created_by TEXT REFERENCES app_users(id) ON DELETE SET NULL;
+```
+
+- `content_releases.created_by` đã có từ trước; bốn bảng revision nay có cùng cột.
+- Không backfill: bản ghi cũ giữ `NULL` (không suy đoán tác giả từ audit).
+- `ON DELETE SET NULL`: xóa tài khoản không kéo theo nội dung.
+
 ## 11. Tiêu chí nghiệm thu
 
 - Owner phân quyền cho đồng quản trị; đồng quản trị chỉ gọi được đúng API được cấp, API khác trả `403 PERMISSION_REQUIRED` (kể cả gọi trực tiếp, bỏ qua giao diện).
 - Đồng quản trị không thể tự nâng quyền, không sửa owner, không gán quyền cho người khác.
 - Bộ mặc định giữ nguyên hành vi cũ; dữ liệu production không đổi ngoài bảng mới.
 - Quyền phụ thuộc (`content:read`, `assistant:read`) được tự thêm và hiển thị đúng.
+- Đồng quản trị thiếu quyền sửa/xóa vẫn sửa/xóa được bản ghi do chính mình tạo khi còn `content:read`; không sửa/xóa được của người khác; mất `content:read` thì phần của mình cũng bị khóa.
 - Thay đổi quyền có audit, chịu kiểm soát version, rollback khi audit lỗi; không làm mất phiên người dùng.
 - Giao diện ẩn/khóa thao tác thiếu quyền, nav và route guard nhất quán; mobile không tràn ngang.
 - Test backend/frontend liên quan qua; typecheck và build production qua.
@@ -256,3 +283,9 @@ Code đã hoàn tất ở local, **chưa commit/push/deploy** và **chưa kiểm
 - Cặp test dương–tình được dùng làm chứng cứ gate không phải test rỗng: cùng `#save-card-button`, `#submit-card-import`, `#submit-clone-btn`, `app-card-image-upload` chỉ null khi thiếu quyền và hiện lại khi cấp đủ quyền, ở cùng trạng thái fixture.
 - Build: `ng build` exit 0, prerender bình thường; chỉ còn các cảnh báo ngân sách CSS/CommonJS cũ (`login.page.css`, `admin-dashboard.page.css`, `global-bar.component.css`, `qrcode`) — những file này không nằm trong đợt sửa RBAC.
 - Fixture test phía frontend đổi email admin thật sang `admin@example.test` để không đưa tài khoản production vào source.
+
+Đợt bổ sung **quyền tác giả nội dung** (cùng ngày, local):
+
+- Backend: `tsc --noEmit` qua; `npm test` **110 pass / 1 skip (Turso remote) / 0 fail** (tổng 111, thêm 3 ca). Test mới: (1) đồng quản trị chỉ có quyền tạo vẫn sửa/xóa được release/bộ thẻ/thẻ của mình, bị `403` với bản ghi của owner, và bị khóa lại khi bị thu hồi về `feedback:read`; (2) nhân bản gán tác giả mới cho bản sao, bản gốc giữ tác giả cũ, người nhân bản sửa được bản sao nhưng không sửa được bản gốc; (3) initializer thêm cột cho DB cũ và chạy lại lần hai không lỗi.
+- Chứng cứ test không rỗng: tạm đổi `ownsRow()` thành luôn `false` thì 2 ca hành vi đỏ đúng chỗ (`expected 200, got 403`), khôi phục thì xanh lại.
+- Chưa chạy lại frontend vì đợt này không đổi source giao diện. Commit local, chưa push/deploy.

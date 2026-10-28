@@ -29,6 +29,9 @@ Cập nhật: 2026-10-28 (Asia/Saigon).
 - [ ] RBAC-FG-15 — Chromium với backend Hono + SQLite thật: owner cấp/bộ quyền nhỏ, đồng quản trị đăng nhập thử thao tác bị chặn (nav ẩn, form ẩn, gọi thẳng API trả 403), 1440px/390px không tràn ngang.
 - [ ] RBAC-FG-16 — Commit/PR/merge/deploy và nghiệm thu production: `admin_permission_sets` được tạo trên Turso, tài khoản đồng quản trị hiện tại vẫn dùng bộ mặc định (hành vi không đổi), audit `USER_PERMISSIONS_CHANGED` đúng 1 dòng mỗi lần phân quyền.
 - [ ] RBAC-FG-17 — Chủ dự án quyết định bộ quyền thực tế cho từng đồng quản trị đang có; chưa cấp quyền nào trên production trong đợt này.
+- [x] RBAC-FG-18 — Cột `created_by` cho `character_revisions`/`card_set_revisions`/`card_revisions`/`wiki_page_revisions` (`V14__content_authorship.sql` + `initializeContentAuthorship()` idempotent lúc boot, không backfill); ghi tác giả khi tạo và khi nhân bản (bản sao thuộc người nhân bản), không ghi đè khi sửa.
+- [x] RBAC-FG-19 — Quyền tác giả: sửa/xóa thẻ/bộ thẻ/cư dân/wiki và sửa release nháp khi có quyền module **hoặc** (`created_by` = mình **và** còn `content:read`); tạo mới vẫn cần quyền tạo; mất `content:read` thì phần của mình bị khóa; không đụng bản ghi người khác. Test backend +3 ca (110 pass/1 skip), đã chứng minh đỏ khi vô hiệu quy tắc.
+- [ ] RBAC-FG-20 — Xác minh trên Chromium/production sau khi deploy: đồng quản trị tạo rồi sửa/xóa được bản ghi của mình, bị `403` với bản ghi của người khác, và bị khóa sau khi owner thu hồi `content:read`.
 
 ## Lối vào đăng ký & chuyển động trang xác thực (2026-10-25)
 
