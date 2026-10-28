@@ -12,9 +12,11 @@ import {
   isProviderId,
   openRouterProvider,
   workersAiProvider,
+  ProviderError,
   type AssistantOptions,
   type ChatProvider,
   type FetchLike,
+  type ProviderFailure,
   type ProviderId,
 } from './assistant-providers.ts';
 import { decryptSecret, encryptSecret, fingerprintSecret, maskAccount, maskSecret } from './assistant-crypto.ts';
@@ -128,6 +130,7 @@ const keyView = (row: Row, viewerIsOwner: boolean, viewerId: string) => {
     ownerDisplayName: row.owner_display_name,
     isMine,
     canReveal: isMine || viewerIsOwner,
+    canTest: isMine || viewerIsOwner,
     canManageStatus: viewerIsOwner,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -138,9 +141,25 @@ const keyView = (row: Row, viewerIsOwner: boolean, viewerId: string) => {
 const isOwner = async (db: Executor, user: Row): Promise<boolean> =>
   (await accessView(db, user)).permissions.includes('users:manage-roles');
 
-const audit = (db: Executor, actorId: string, action: string, id: string, details: string) =>
-  execute(db, "INSERT INTO audit_events(id,actor_id,action,entity_type,entity_id,outcome,details_redacted) VALUES (?,?,?,'ASSISTANT_KEY',?,'SUCCESS',?)",
-    [uuid(), actorId, action, id, details]);
+const audit = (db: Executor, actorId: string, action: string, id: string, details: string, outcome: 'SUCCESS' | 'FAILURE' = 'SUCCESS') =>
+  execute(db, "INSERT INTO audit_events(id,actor_id,action,entity_type,entity_id,outcome,details_redacted) VALUES (?,?,?,'ASSISTANT_KEY',?,?,?)",
+    [uuid(), actorId, action, id, outcome, details]);
+
+const KEY_TEST_COOLDOWN_MS = 30_000;
+const KEY_TEST_TIMEOUT_MS = 10_000;
+const MODEL_PATTERN = /^[A-Za-z0-9@._:/+-]{1,120}$/;
+
+/** The test must call the same model the live router would use, including the admin override. */
+function testModelFor(provider: ProviderId, modelOverrides: string | undefined, options: AssistantOptions | null): string {
+  const fallback = options?.models?.[provider] ?? DEFAULT_MODELS[provider];
+  if (!modelOverrides) return fallback;
+  try {
+    const parsed: unknown = JSON.parse(modelOverrides);
+    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) return fallback;
+    const value = (parsed as Record<string, unknown>)[provider];
+    return typeof value === 'string' && MODEL_PATTERN.test(value) ? value : fallback;
+  } catch { return fallback; }
+}
 
 const createSchema = z.object({
   provider: providerSchema,
@@ -152,6 +171,9 @@ const createSchema = z.object({
 const patchSchema = z.object({ status: z.enum(['ACTIVE', 'DISABLED']) }).strict();
 
 export function assistantCredentialRoutes(app: Api, db: Client, options: AssistantOptions | null) {
+  // In-memory cooldown per key: admins can re-test after 30s, but a stuck key cannot burn quota in a loop.
+  const testCooldown = new Map<string, number>();
+
   app.get('/api/v1/admin/assistant/keys', async c => {
     const actor = requireActor(c, true);
     return c.json(await transaction(db, async tx => {
@@ -271,5 +293,69 @@ export function assistantCredentialRoutes(app: Api, db: Client, options: Assista
       await audit(tx, current.id, 'ASSISTANT_KEY_REVOKED', id, `provider=${row.provider};owner=${row.owner_id};status=${row.status}`);
       return { removed: true };
     }));
+  });
+
+  app.post('/api/v1/admin/assistant/keys/:id/test', async c => {
+    const actor = requireActor(c, true);
+    const id = z.string().uuid().parse(c.req.param('id'));
+    const master = options?.credentialKey;
+    if (!master) return fail(503, 'KEY_STORAGE_UNAVAILABLE');
+    // Reading and decrypting happen in one short transaction; the provider call must not hold a DB lock.
+    const target = await transaction(db, async tx => {
+      const current = await authorize(tx, actor, true);
+      const owner = await isOwner(tx, current);
+      const row = await one(tx, keySelect + ' WHERE c.id=?', [id]);
+      if (!owner && row.owner_id !== current.id) return fail(404, 'KEY_NOT_FOUND');
+      if (row.status === 'REVOKED' || !row.secret_enc) return fail(409, 'KEY_REVOKED');
+      if (!isProviderId(row.provider)) return fail(409, 'KEY_UNREADABLE');
+      const waitMs = (testCooldown.get(id) ?? 0) - Date.now();
+      if (waitMs > 0) {
+        c.header('Retry-After', String(Math.ceil(waitMs / 1000)));
+        return fail(429, 'KEY_TEST_COOLDOWN');
+      }
+      let payload: SecretPayload;
+      try { payload = decodeSecret(decryptSecret(master, row.secret_enc, aadFor(row.provider, row.owner_id))); }
+      catch { return fail(409, 'KEY_UNREADABLE'); }
+      const settingsRow = (await all(tx, 'SELECT model_overrides FROM assistant_settings WHERE slot=1'))[0];
+      const modelOverrides = typeof settingsRow?.model_overrides === 'string' ? settingsRow.model_overrides : undefined;
+      return {
+        actorId: current.id,
+        ownerId: row.owner_id,
+        provider: row.provider,
+        payload,
+        model: testModelFor(row.provider, modelOverrides, options),
+      };
+    }, 'read');
+
+    testCooldown.set(id, Date.now() + KEY_TEST_COOLDOWN_MS);
+    if (testCooldown.size > 500) {
+      const cutoff = Date.now();
+      for (const [key, until] of testCooldown) if (until <= cutoff) testCooldown.delete(key);
+    }
+
+    const started = Date.now();
+    let status: 'OK' | 'FAILED' = 'OK';
+    let code: ProviderFailure | null = null;
+    try {
+      const provider = factoryFor(target.provider, target.payload.key, target.payload.accountId, target.model, `db:${id}`, options, options.fetch ?? fetch);
+      await provider.complete({
+        system: 'You are a connectivity probe. Reply with the single word OK.',
+        messages: [{ role: 'user', content: 'ping' }],
+        maxTokens: 16,
+        temperature: 0,
+        signal: AbortSignal.timeout(KEY_TEST_TIMEOUT_MS),
+      });
+    } catch (error) {
+      status = 'FAILED';
+      // Only the normalized failure leaves this process: raw provider errors may echo the credential.
+      code = error instanceof ProviderError ? error.failure : 'INVALID';
+    }
+    const latencyMs = Date.now() - started;
+    const testedAt = now();
+    await audit(db, target.actorId, 'ASSISTANT_KEY_TESTED', id,
+      `provider=${target.provider};owner=${target.ownerId};result=${status}${code ? `;code=${code}` : ''};latency=${latencyMs}`,
+      status === 'OK' ? 'SUCCESS' : 'FAILURE');
+    // A failed test never changes the key state: the admin decides whether to disable or revoke it.
+    return c.json({ status, code, provider: target.provider, model: target.model, latencyMs, testedAt });
   });
 }
