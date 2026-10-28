@@ -1,142 +1,168 @@
 <section class="assistant-page">
   <a routerLink="/admin" class="back-link">← Tổng quan quản trị</a>
+
   <header>
     <p class="eyebrow">Trợ lý AI &amp; hạn mức</p>
     <h1>Bộ định tuyến AI</h1>
-    <p>Sắp thứ tự nhà cung cấp, đổi model và tạm khóa từng API key. Khi một key hết hạn mức, hệ thống tự chuyển sang key kế tiếp.</p>
+    <p>Bảng điều khiển nhà cung cấp, API key và hạn mức token. Khi một key hết hạn mức, hệ thống tự chuyển sang key kế tiếp.</p>
   </header>
 
   <div class="access-note" role="note">
     {{ canManage() ? 'Bạn có quyền thay đổi cấu hình. Mọi thay đổi được ghi vào audit log.' : 'Bạn chỉ xem được cấu hình và số liệu. Chỉ admin chính được thay đổi.' }}
-    Key hệ thống trong biến môi trường chỉ hiển thị vị trí, không thể xem nội dung. Key do quản trị viên thêm được quản lý ở mục “API key trong trang quản trị” bên dưới.
+    Key hệ thống trong biến môi trường chỉ hiển thị vị trí, không thể xem nội dung. Key do quản trị viên thêm được quản lý ở tab “API key”.
   </div>
 
   @if (error()) { <div class="error" role="alert">{{ error() }} <button type="button" (click)="load()" [disabled]="loading()">Tải lại</button></div> }
   @if (notice()) { <p class="notice" role="status">{{ notice() }}</p> }
 
-  <section class="panel" aria-labelledby="usage-title">
+  <nav class="tabs" role="tablist" aria-label="Khu vực quản trị trợ lý">
+    <button
+      type="button"
+      role="tab"
+      id="tab-providers"
+      aria-controls="panel-providers"
+      [attr.aria-selected]="view() === 'providers'"
+      [class.active]="view() === 'providers'"
+      (click)="setView('providers')"
+    >Nhà cung cấp</button>
+    <button
+      type="button"
+      role="tab"
+      id="tab-keys"
+      aria-controls="panel-keys"
+      [attr.aria-selected]="view() === 'keys'"
+      [class.active]="view() === 'keys'"
+      (click)="setView('keys')"
+    >API key <span class="tab-count">{{ keys().length }}</span></button>
+    <button
+      type="button"
+      role="tab"
+      id="tab-usage"
+      aria-controls="panel-usage"
+      [attr.aria-selected]="view() === 'usage'"
+      [class.active]="view() === 'usage'"
+      (click)="setView('usage')"
+    >Số liệu</button>
+  </nav>
+
+  <section class="panel tab-panel" id="panel-providers" role="tabpanel" aria-labelledby="tab-providers" [hidden]="view() !== 'providers'">
     <div class="panel-head">
       <div>
-        <h2 id="usage-title">Số liệu sử dụng</h2>
-        <p class="muted">Chỉ đếm theo nhà cung cấp, key và model. Không lưu câu hỏi hay nội dung trả lời. Token lấy từ phản hồi của nhà cung cấp; thanh ngân sách là mức bạn tự đặt, không phải quota còn lại thật của dịch vụ.</p>
+        <h2>Thứ tự ưu tiên &amp; hạn mức</h2>
+        <p class="muted">{{ updatedLabel() }} · Hệ thống thử nhà cung cấp từ trên xuống; dùng nút mũi tên để đổi thứ tự.</p>
       </div>
-      <div class="day-filter" role="group" aria-label="Khoảng thời gian">
-        @for (option of dayOptions; track option) {
-          <button type="button" [class.active]="days() === option" (click)="setDays(option)" [disabled]="usageLoading()">{{ option }} ngày</button>
-        }
-      </div>
+      @if (canManage()) {
+        <button type="button" class="primary" (click)="save()" [disabled]="saving() || loading()">
+          {{ saving() ? 'Đang lưu…' : 'Lưu cấu hình' }}
+        </button>
+      }
     </div>
 
-    <section class="budgets" aria-labelledby="budgets-title" [attr.aria-busy]="usageLoading()">
-      <div class="budgets-head">
-        <h3 id="budgets-title">Hạn mức token hôm nay</h3>
-        <span class="muted">Tính theo ngày UTC, làm mới lúc 07:00 giờ Việt Nam</span>
-      </div>
-      @if (budgetBars().length) {
-        <ul class="budget-list">
-          @for (bar of budgetBars(); track bar.id) {
-            <li class="budget" [class.warn]="bar.warn" [class.over]="bar.over">
-              <div class="budget-line">
-                <strong>{{ bar.label }}</strong>
-                @if (bar.hasBudget) {
-                  <span>{{ formatTokens(bar.used) }} / {{ formatTokens(bar.budget) }} token · {{ bar.percent }}%</span>
+    @if (loading()) {
+      <p class="muted" role="status">Đang tải cấu hình…</p>
+    } @else if (!orderedProviders().length) {
+      <p class="muted">Chưa có nhà cung cấp nào hoạt động. Thêm key ở tab “API key” hoặc cấu hình biến môi trường; trợ lý sẽ trả lỗi AI_UNAVAILABLE cho tới khi có key.</p>
+    } @else {
+      <ol class="providers">
+        @for (card of providerCards(); track card.provider.id; let index = $index) {
+          <li class="provider">
+            <div class="provider-head">
+              <span class="rank" aria-hidden="true">{{ index + 1 }}</span>
+              <div class="provider-title">
+                <h3>{{ card.provider.label }}</h3>
+                <small class="muted">{{ card.activeKeys }}/{{ card.keys }} key hoạt động · {{ card.provider.slots.length }} slot</small>
+              </div>
+              @if (canManage()) {
+                <div class="order-actions">
+                  <button type="button" (click)="move(index, -1)" [disabled]="index === 0" [attr.aria-label]="'Đưa ' + card.provider.label + ' lên trước'">↑</button>
+                  <button type="button" (click)="move(index, 1)" [disabled]="index === orderedProviders().length - 1" [attr.aria-label]="'Đưa ' + card.provider.label + ' xuống sau'">↓</button>
+                </div>
+              }
+            </div>
+
+            <div class="quota budget" [class.warn]="card.quota.warn" [class.over]="card.quota.over">
+              <div class="quota-line">
+                <small>Hạn mức hôm nay</small>
+                @if (card.quota.hasBudget) {
+                  <span class="quota-value">{{ formatTokens(card.quota.used) }} / {{ formatTokens(card.quota.budget) }} token · {{ card.quota.percent }}%</span>
                 } @else {
-                  <span>{{ formatTokens(bar.used) }} token hôm nay · chưa đặt ngân sách</span>
+                  <span class="quota-value">{{ formatTokens(card.quota.used) }} token</span>
                 }
               </div>
-              @if (bar.hasBudget) {
-                <div class="bar" role="progressbar" [attr.aria-valuenow]="bar.percent" aria-valuemin="0" aria-valuemax="100" [attr.aria-label]="'Ngân sách token ' + bar.label">
-                  <span [style.width.%]="bar.percent"></span>
+              @if (card.quota.hasBudget) {
+                <div class="bar" role="progressbar" [attr.aria-valuenow]="card.quota.percent" aria-valuemin="0" aria-valuemax="100" [attr.aria-label]="'Ngân sách token ' + card.provider.label">
+                  <span [style.width.%]="card.quota.percent"></span>
                 </div>
-                <small>{{ bar.over ? 'Đã vượt ' + formatTokens(bar.used - bar.budget) + ' token' : 'Còn ' + formatTokens(bar.remaining) + ' token' }}</small>
+                <small>{{ card.quota.over ? 'Đã vượt ' + formatTokens(card.quota.used - card.quota.budget) + ' token' : 'Còn ' + formatTokens(card.quota.remaining) + ' token' }} · mốc ngày UTC, làm mới 07:00 giờ Việt Nam</small>
+              } @else {
+                <div class="bar empty" aria-hidden="true"><span></span></div>
+                <small>Chưa đặt ngân sách · nhập “Ngân sách token/ngày” bên dưới để theo dõi tiến trình.</small>
               }
-            </li>
-          }
-        </ul>
-      } @else {
-        <p class="muted">Chưa có nhà cung cấp nào để hiển thị hạn mức.</p>
-      }
-      @if (!hasBudgets() && budgetBars().length) {
-        <p class="muted">Đặt ngân sách token mỗi ngày ở mục “Thứ tự &amp; model” bên dưới để thanh theo dõi hiển thị.</p>
-      }
-    </section>
+            </div>
 
-    @if (usage(); as data) {
-      <dl class="totals" [attr.aria-busy]="usageLoading()">
-        <div><dt>Câu hỏi</dt><dd>{{ data.totals.requests }}</dd></div>
-        <div><dt>Đã trả lời</dt><dd>{{ data.totals.answered }}</dd></div>
-        <div><dt>Cache</dt><dd>{{ data.totals.cacheHits }} <small>({{ cacheRate() }}%)</small></dd></div>
-        <div><dt>Lỗi</dt><dd>{{ data.totals.failures }}</dd></div>
-        <div><dt>Độ trễ TB</dt><dd>{{ data.totals.avgLatencyMs }} <small>ms</small></dd></div>
-        <div><dt>Token vào</dt><dd>{{ formatTokens(data.totals.tokensIn) }}</dd></div>
-        <div><dt>Token ra</dt><dd>{{ formatTokens(data.totals.tokensOut) }}</dd></div>
-      </dl>
+            <p class="provider-stats">{{ days() }} ngày · {{ card.requests }} câu hỏi · {{ card.failures }} lỗi · {{ card.avgLatencyMs }} ms</p>
 
-      @if (data.providers.length) {
-        <div class="table-wrap">
-          <table>
-            <caption>Hiệu suất theo nhà cung cấp</caption>
-            <thead><tr><th scope="col">Nhà cung cấp</th><th scope="col">Câu hỏi</th><th scope="col">Lỗi</th><th scope="col">Độ trễ TB</th><th scope="col">Token vào/ra</th></tr></thead>
-            <tbody>
-              @for (row of data.providers; track row.provider) {
-                <tr>
-                  <td>{{ providerLabel(row.provider) }}</td>
-                  <td>{{ row.requests }}</td>
-                  <td>{{ row.failures }}</td>
-                  <td>{{ row.avgLatencyMs }} ms</td>
-                  <td>{{ formatTokens(row.tokensIn) }} / {{ formatTokens(row.tokensOut) }}</td>
-                </tr>
+            <div class="provider-fields">
+              <label class="model-field">
+                <span>Model</span>
+                <select
+                  [value]="slotModel(card.provider)"
+                  (change)="setModel(card.provider.id, $event)"
+                  [disabled]="!canManage() || saving()"
+                  [attr.aria-label]="'Model cho ' + card.provider.label"
+                >
+                  @for (option of modelOptions(card.provider); track option.id) {
+                    <option [value]="option.id">{{ option.label }}{{ option.recommended ? ' · Khuyến nghị' : '' }}</option>
+                  }
+                </select>
+                <small class="field-note">ID: <code>{{ slotModel(card.provider) }}</code>@if (selectedModel(card.provider); as choice) {<span> · {{ choice.note }}</span>}</small>
+              </label>
+              <label class="budget-field">
+                <span>Ngân sách token/ngày</span>
+                <input
+                  type="number"
+                  min="1"
+                  max="2000000000"
+                  step="1"
+                  inputmode="numeric"
+                  [value]="budgets()[card.provider.id] ?? ''"
+                  (input)="setBudget(card.provider.id, $event)"
+                  [disabled]="!canManage() || saving()"
+                  placeholder="Không đặt"
+                  [attr.aria-label]="'Ngân sách token mỗi ngày cho ' + card.provider.label"
+                />
+                <small class="field-note">Để trống nếu không theo dõi.</small>
+              </label>
+            </div>
+
+            <fieldset class="slots">
+              <legend>Key đang dùng</legend>
+              @for (slot of card.provider.slots; track slot.slot) {
+                <label class="slot">
+                  <input
+                    type="checkbox"
+                    [checked]="isSlotEnabled(slot.slot)"
+                    (change)="toggleSlot(slot.slot)"
+                    [disabled]="!canManage() || saving()"
+                  />
+                  <span [title]="slot.slot">{{ slotLabel(slot.slot) }}</span>
+                  <small [class.off]="!isSlotEnabled(slot.slot)">{{ isSlotEnabled(slot.slot) ? 'Bật' : 'Tạm khóa' }}</small>
+                </label>
               }
-            </tbody>
-          </table>
-        </div>
-      } @else {
-        <p class="muted">Chưa có câu hỏi nào trong khoảng thời gian này.</p>
+            </fieldset>
+          </li>
+        }
+      </ol>
+      @if (!hasBudgets()) {
+        <p class="muted form-note">Đặt ngân sách token mỗi ngày để thanh tiến trình hiển thị đầy đủ.</p>
       }
-
-      @if (data.slots.length) {
-        <div class="table-wrap">
-          <table>
-            <caption>Chi tiết từng key</caption>
-            <thead><tr><th scope="col">Key</th><th scope="col">Model</th><th scope="col">Câu hỏi</th><th scope="col">Lỗi</th><th scope="col">Độ trễ TB</th><th scope="col">Token vào/ra</th></tr></thead>
-            <tbody>
-              @for (row of data.slots; track row.slot) {
-                <tr>
-                  <td>{{ row.slot }}</td>
-                  <td class="model">{{ row.model }}</td>
-                  <td>{{ row.requests }}</td>
-                  <td>{{ row.failures }}</td>
-                  <td>{{ row.avgLatencyMs }} ms</td>
-                  <td>{{ formatTokens(row.tokensIn) }} / {{ formatTokens(row.tokensOut) }}</td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
-      }
-
-      @if (data.daily.length) {
-        <div class="table-wrap">
-          <table>
-            <caption>Theo ngày (UTC)</caption>
-            <thead><tr><th scope="col">Ngày</th><th scope="col">Câu hỏi</th><th scope="col">Cache</th><th scope="col">Lỗi</th><th scope="col">Token vào/ra</th></tr></thead>
-            <tbody>
-              @for (row of data.daily; track row.day) {
-                <tr><td>{{ row.day }}</td><td>{{ row.requests }}</td><td>{{ row.cacheHits }}</td><td>{{ row.failures }}</td><td>{{ formatTokens(row.tokensIn) }} / {{ formatTokens(row.tokensOut) }}</td></tr>
-              }
-            </tbody>
-          </table>
-        </div>
-      }
-    } @else if (usageLoading()) {
-      <p class="muted" role="status">Đang tải số liệu…</p>
     }
   </section>
 
-  <section class="panel" aria-labelledby="keys-title">
+  <section class="panel tab-panel" id="panel-keys" role="tabpanel" aria-labelledby="tab-keys" [hidden]="view() !== 'keys'">
     <div class="panel-head">
       <div>
-        <h2 id="keys-title">API key trong trang quản trị</h2>
+        <h2>API key trong trang quản trị</h2>
         <p class="muted">Key được mã hoá AES-256-GCM và chỉ hiển thị 4 ký tự cuối. Admin chính thấy mọi key; admin phụ chỉ thấy key của mình. Key do admin phụ thêm phải được admin chính duyệt.</p>
       </div>
       <div class="keys-head-actions">
@@ -282,157 +308,158 @@
     } @else if (!keys().length) {
       <p class="muted">Chưa có key nào do quản trị viên thêm. Key trong biến môi trường (nếu có) vẫn được dùng và không hiển thị nội dung ở đây.</p>
     } @else {
-      <div class="table-wrap">
-        <table>
-          <caption>Key do quản trị viên thêm</caption>
-          <thead><tr><th scope="col">Nhà cung cấp</th><th scope="col">Nhãn</th><th scope="col">Key</th><th scope="col">Người thêm</th><th scope="col">Trạng thái</th><th scope="col">Thao tác</th></tr></thead>
-          <tbody>
-            @for (key of keys(); track key.id) {
-              <tr>
-                <td>{{ key.providerLabel }}</td>
-                <td>{{ key.label }}<small class="cell-note">{{ formatKeyDate(key.createdAt) }}</small></td>
-                <td class="key-cell">
-                  @if (revealed()[key.id]; as secret) {
-                    <code class="secret">{{ secret.apiKey }}</code>
-                    @if (secret.accountId) { <small class="cell-note">Account: {{ secret.accountId }}</small> }
-                    <button type="button" class="link-button" (click)="hideKey(key.id)">Ẩn</button>
-                  } @else {
-                    <span class="hint">{{ key.hint }}</span>
-                    @if (key.accountHint) { <small class="cell-note">Account: {{ key.accountHint }}</small> }
-                    @if (testResult(key.id); as result) {
-                      <small class="cell-note test-result" [class.ok]="result.status === 'OK'" [class.failed]="result.status === 'FAILED'">{{ keyTestLabel(result) }}</small>
+      <div class="key-groups">
+        @for (group of keyGroups(); track group.id) {
+          <section class="key-group" [attr.aria-label]="'Key ' + group.label">
+            <header class="key-group-head">
+              <h3>{{ group.label }}</h3>
+              <small class="muted">{{ group.keys.length }} key · {{ group.active }} đang dùng</small>
+            </header>
+            <div class="key-list">
+              @for (key of group.keys; track key.id) {
+                <article class="key-row">
+                  <div class="key-main">
+                    <div class="key-title">
+                      <strong>{{ key.label }}</strong>
+                      <span class="status" [class.pending]="key.status === 'PENDING'" [class.active]="key.status === 'ACTIVE'" [class.temporarily-off]="key.status === 'DISABLED'">
+                        {{ keyStatusLabel(key.status) }}
+                      </span>
+                    </div>
+                    <small class="cell-note">{{ keyOwnerLabel(key) }} · thêm {{ formatKeyDate(key.createdAt) }}</small>
+                  </div>
+                  <div class="key-cell">
+                    @if (revealed()[key.id]; as secret) {
+                      <code class="secret">{{ secret.apiKey }}</code>
+                      @if (secret.accountId) { <small class="cell-note">Account: {{ secret.accountId }}</small> }
+                      <button type="button" class="link-button" (click)="hideKey(key.id)">Ẩn</button>
+                    } @else {
+                      <span class="hint">{{ key.hint }}</span>
+                      @if (key.accountHint) { <small class="cell-note">Account: {{ key.accountHint }}</small> }
+                      @if (testResult(key.id); as result) {
+                        <small class="cell-note test-result" [class.ok]="result.status === 'OK'" [class.failed]="result.status === 'FAILED'">{{ keyTestLabel(result) }}</small>
+                      }
+                      @if (key.canReveal) {
+                        <button type="button" class="link-button" (click)="revealKey(key)" [disabled]="keyBusy() === key.id || bulkRunning()">
+                          {{ keyBusy() === key.id && keyTesting() !== key.id ? 'Đang mở…' : 'Xem' }}
+                        </button>
+                      }
                     }
-                    @if (key.canReveal) {
-                      <button type="button" class="link-button" (click)="revealKey(key)" [disabled]="keyBusy() === key.id || bulkRunning()">
-                        {{ keyBusy() === key.id && keyTesting() !== key.id ? 'Đang mở…' : 'Xem' }}
+                  </div>
+                  <div class="actions">
+                    @if (key.canTest) {
+                      <button type="button" (click)="testKey(key)" [disabled]="keyBusy() === key.id || bulkRunning()">
+                        {{ keyTesting() === key.id ? 'Đang kiểm tra…' : 'Kiểm tra' }}
                       </button>
                     }
-                  }
-                </td>
-                <td>{{ keyOwnerLabel(key) }}</td>
-                <td>
-                  <span class="status" [class.pending]="key.status === 'PENDING'" [class.active]="key.status === 'ACTIVE'" [class.temporarily-off]="key.status === 'DISABLED'">
-                    {{ keyStatusLabel(key.status) }}
-                  </span>
-                </td>
-                <td class="actions">
-                  @if (key.canTest) {
-                    <button type="button" (click)="testKey(key)" [disabled]="keyBusy() === key.id || bulkRunning()">
-                      {{ keyTesting() === key.id ? 'Đang kiểm tra…' : 'Kiểm tra' }}
-                    </button>
-                  }
-                  @if (canManageKeys() && key.status === 'PENDING') {
-                    <button type="button" (click)="setKeyStatus(key, 'ACTIVE')" [disabled]="keyBusy() === key.id || bulkRunning()">Duyệt</button>
-                  }
-                  @if (canManageKeys() && key.status === 'ACTIVE') {
-                    <button type="button" (click)="setKeyStatus(key, 'DISABLED')" [disabled]="keyBusy() === key.id || bulkRunning()">Tạm tắt</button>
-                  }
-                  @if (canManageKeys() && key.status === 'DISABLED') {
-                    <button type="button" (click)="setKeyStatus(key, 'ACTIVE')" [disabled]="keyBusy() === key.id || bulkRunning()">Bật lại</button>
-                  }
-                  @if (canManageKeys() || key.isMine) {
-                    @if (revokeConfirm() === key.id) {
-                      <button type="button" class="danger" (click)="revokeKey(key)" [disabled]="keyBusy() === key.id || bulkRunning()">Xác nhận thu hồi</button>
-                      <button type="button" (click)="cancelRevoke()" [disabled]="keyBusy() === key.id || bulkRunning()">Hủy</button>
-                    } @else {
-                      <button type="button" (click)="askRevoke(key)" [disabled]="keyBusy() === key.id || bulkRunning()">Thu hồi</button>
+                    @if (canManageKeys() && key.status === 'PENDING') {
+                      <button type="button" (click)="setKeyStatus(key, 'ACTIVE')" [disabled]="keyBusy() === key.id || bulkRunning()">Duyệt</button>
                     }
-                  }
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
+                    @if (canManageKeys() && key.status === 'ACTIVE') {
+                      <button type="button" (click)="setKeyStatus(key, 'DISABLED')" [disabled]="keyBusy() === key.id || bulkRunning()">Tạm tắt</button>
+                    }
+                    @if (canManageKeys() && key.status === 'DISABLED') {
+                      <button type="button" (click)="setKeyStatus(key, 'ACTIVE')" [disabled]="keyBusy() === key.id || bulkRunning()">Bật lại</button>
+                    }
+                    @if (canManageKeys() || key.isMine) {
+                      @if (revokeConfirm() === key.id) {
+                        <button type="button" class="danger" (click)="revokeKey(key)" [disabled]="keyBusy() === key.id || bulkRunning()">Xác nhận thu hồi</button>
+                        <button type="button" (click)="cancelRevoke()" [disabled]="keyBusy() === key.id || bulkRunning()">Hủy</button>
+                      } @else {
+                        <button type="button" (click)="askRevoke(key)" [disabled]="keyBusy() === key.id || bulkRunning()">Thu hồi</button>
+                      }
+                    }
+                  </div>
+                </article>
+              }
+            </div>
+          </section>
+        }
       </div>
     }
   </section>
 
-  <section class="panel" aria-labelledby="config-title">
+  <section class="panel tab-panel" id="panel-usage" role="tabpanel" aria-labelledby="tab-usage" [hidden]="view() !== 'usage'">
     <div class="panel-head">
       <div>
-        <h2 id="config-title">Thứ tự &amp; model</h2>
-        <p class="muted">{{ updatedLabel() }}</p>
+        <h2>Số liệu sử dụng</h2>
+        <p class="muted">Chỉ đếm theo nhà cung cấp, key và model. Không lưu câu hỏi hay nội dung trả lời. Token lấy từ phản hồi của nhà cung cấp; ngân sách là mức bạn tự đặt, không phải quota còn lại thật của dịch vụ.</p>
       </div>
-      @if (canManage()) {
-        <button type="button" class="primary" (click)="save()" [disabled]="saving() || loading()">
-          {{ saving() ? 'Đang lưu…' : 'Lưu cấu hình' }}
-        </button>
-      }
+      <div class="day-filter" role="group" aria-label="Khoảng thời gian">
+        @for (option of dayOptions; track option) {
+          <button type="button" [class.active]="days() === option" (click)="setDays(option)" [disabled]="usageLoading()">{{ option }} ngày</button>
+        }
+      </div>
     </div>
 
-    @if (loading()) {
-      <p class="muted" role="status">Đang tải cấu hình…</p>
-    } @else if (!orderedProviders().length) {
-      <p class="muted">Chưa có nhà cung cấp nào hoạt động. Thêm key ở mục API key phía trên hoặc cấu hình biến môi trường; trợ lý sẽ trả lỗi AI_UNAVAILABLE cho tới khi có key.</p>
-    } @else {
-      <ol class="providers">
-        @for (provider of orderedProviders(); track provider.id; let index = $index) {
-          <li class="provider">
-            <div class="provider-head">
-              <span class="rank" aria-hidden="true">{{ index + 1 }}</span>
-              <div class="provider-title">
-                <h3>{{ provider.label }}</h3>
-                <span class="muted">{{ provider.id === 'workers-ai' ? 'Key Cloudflare' : 'API key' }}: {{ provider.slots.length }}</span>
-              </div>
-              @if (canManage()) {
-                <div class="order-actions">
-                  <button type="button" (click)="move(index, -1)" [disabled]="index === 0" [attr.aria-label]="'Đưa ' + provider.label + ' lên trước'">↑</button>
-                  <button type="button" (click)="move(index, 1)" [disabled]="index === orderedProviders().length - 1" [attr.aria-label]="'Đưa ' + provider.label + ' xuống sau'">↓</button>
-                </div>
-              }
-            </div>
+    @if (usage(); as data) {
+      <dl class="totals" [attr.aria-busy]="usageLoading()">
+        <div><dt>Câu hỏi</dt><dd>{{ data.totals.requests }}</dd></div>
+        <div><dt>Đã trả lời</dt><dd>{{ data.totals.answered }}</dd></div>
+        <div><dt>Cache</dt><dd>{{ data.totals.cacheHits }} <small>({{ cacheRate() }}%)</small></dd></div>
+        <div><dt>Lỗi</dt><dd>{{ data.totals.failures }}</dd></div>
+        <div><dt>Độ trễ TB</dt><dd>{{ data.totals.avgLatencyMs }} <small>ms</small></dd></div>
+        <div><dt>Token vào</dt><dd>{{ formatTokens(data.totals.tokensIn) }}</dd></div>
+        <div><dt>Token ra</dt><dd>{{ formatTokens(data.totals.tokensOut) }}</dd></div>
+      </dl>
 
-            <div class="provider-fields">
-              <label class="model-field">
-                <span>Model</span>
-                <select
-                  [value]="slotModel(provider)"
-                  (change)="setModel(provider.id, $event)"
-                  [disabled]="!canManage() || saving()"
-                  [attr.aria-label]="'Model cho ' + provider.label"
-                >
-                  @for (option of modelOptions(provider); track option.id) {
-                    <option [value]="option.id">{{ option.label }}{{ option.recommended ? ' · Khuyến nghị' : '' }}</option>
-                  }
-                </select>
-                <small class="field-note">ID: <code>{{ slotModel(provider) }}</code>@if (selectedModel(provider); as choice) {<span> · {{ choice.note }}</span>}</small>
-              </label>
-              <label class="budget-field">
-                <span>Ngân sách token/ngày</span>
-                <input
-                  type="number"
-                  min="1"
-                  max="2000000000"
-                  step="1000"
-                  inputmode="numeric"
-                  [value]="budgets()[provider.id] ?? ''"
-                  (input)="setBudget(provider.id, $event)"
-                  [disabled]="!canManage() || saving()"
-                  placeholder="Không đặt"
-                  [attr.aria-label]="'Ngân sách token mỗi ngày cho ' + provider.label"
-                />
-                <small class="field-note">Để trống nếu không theo dõi. Số liệu làm mới 07:00 giờ Việt Nam.</small>
-              </label>
-            </div>
-
-            <fieldset class="slots">
-              <legend>Key đang dùng</legend>
-              @for (slot of provider.slots; track slot.slot) {
-                <label class="slot">
-                  <input
-                    type="checkbox"
-                    [checked]="isSlotEnabled(slot.slot)"
-                    (change)="toggleSlot(slot.slot)"
-                    [disabled]="!canManage() || saving()"
-                  />
-                  <span [title]="slot.slot">{{ slotLabel(slot.slot) }}</span>
-                  <small [class.off]="!isSlotEnabled(slot.slot)">{{ isSlotEnabled(slot.slot) ? 'Bật' : 'Tạm khóa' }}</small>
-                </label>
+      @if (data.providers.length) {
+        <div class="table-wrap">
+          <table>
+            <caption>Hiệu suất theo nhà cung cấp</caption>
+            <thead><tr><th scope="col">Nhà cung cấp</th><th scope="col">Câu hỏi</th><th scope="col">Lỗi</th><th scope="col">Độ trễ TB</th><th scope="col">Token vào/ra</th></tr></thead>
+            <tbody>
+              @for (row of data.providers; track row.provider) {
+                <tr>
+                  <td>{{ providerLabel(row.provider) }}</td>
+                  <td>{{ row.requests }}</td>
+                  <td>{{ row.failures }}</td>
+                  <td>{{ row.avgLatencyMs }} ms</td>
+                  <td>{{ formatTokens(row.tokensIn) }} / {{ formatTokens(row.tokensOut) }}</td>
+                </tr>
               }
-            </fieldset>
-          </li>
-        }
-      </ol>
+            </tbody>
+          </table>
+        </div>
+      } @else {
+        <p class="muted">Chưa có câu hỏi nào trong khoảng thời gian này.</p>
+      }
+
+      @if (data.slots.length) {
+        <div class="table-wrap">
+          <table>
+            <caption>Chi tiết từng key</caption>
+            <thead><tr><th scope="col">Key</th><th scope="col">Model</th><th scope="col">Câu hỏi</th><th scope="col">Lỗi</th><th scope="col">Độ trễ TB</th><th scope="col">Token vào/ra</th></tr></thead>
+            <tbody>
+              @for (row of data.slots; track row.slot) {
+                <tr>
+                  <td>{{ row.slot }}</td>
+                  <td class="model">{{ row.model }}</td>
+                  <td>{{ row.requests }}</td>
+                  <td>{{ row.failures }}</td>
+                  <td>{{ row.avgLatencyMs }} ms</td>
+                  <td>{{ formatTokens(row.tokensIn) }} / {{ formatTokens(row.tokensOut) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+
+      @if (data.daily.length) {
+        <div class="table-wrap">
+          <table>
+            <caption>Theo ngày (UTC)</caption>
+            <thead><tr><th scope="col">Ngày</th><th scope="col">Câu hỏi</th><th scope="col">Cache</th><th scope="col">Lỗi</th><th scope="col">Token vào/ra</th></tr></thead>
+            <tbody>
+              @for (row of data.daily; track row.day) {
+                <tr><td>{{ row.day }}</td><td>{{ row.requests }}</td><td>{{ row.cacheHits }}</td><td>{{ row.failures }}</td><td>{{ formatTokens(row.tokensIn) }} / {{ formatTokens(row.tokensOut) }}</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    } @else if (usageLoading()) {
+      <p class="muted" role="status">Đang tải số liệu…</p>
     }
   </section>
 </section>

@@ -183,6 +183,24 @@ describe('AdminAssistantPage', () => {
       .toContain('ngoài danh mục');
   });
 
+  it('switches between the provider, key and usage tabs', () => {
+    const { fixture, page, el } = setup();
+    const hidden = () => [...el.querySelectorAll<HTMLElement>('.tab-panel')].map(panel => panel.hidden);
+    expect(page.view()).toBe('providers');
+    expect(hidden()).toEqual([false, true, true]);
+    expect(el.querySelector('#tab-providers')?.getAttribute('aria-selected')).toBe('true');
+
+    page.setView('keys');
+    fixture.detectChanges();
+    expect(hidden()).toEqual([true, false, true]);
+    expect(el.querySelector('#tab-keys')?.getAttribute('aria-selected')).toBe('true');
+    expect(el.querySelector('#tab-providers')?.getAttribute('aria-selected')).toBe('false');
+
+    page.setView('usage');
+    fixture.detectChanges();
+    expect(hidden()).toEqual([true, true, false]);
+  });
+
   it('lists masked admin keys and never renders plaintext before reveal', () => {
     const { el } = setup();
     expect(el.textContent).toContain('Groq chính');
@@ -253,7 +271,7 @@ describe('AdminAssistantPage', () => {
     api.getKeys.mockReturnValue(of(keysResponse(false)));
     const { page, el } = setup();
     expect(el.querySelectorAll('.order-actions button')).toHaveLength(0);
-    expect(el.querySelector('.panel[aria-labelledby="config-title"] button.primary')).toBeNull();
+    expect(el.querySelector('#panel-providers button.primary')).toBeNull();
     expect([...el.querySelectorAll('.actions button')].map(button => button.textContent?.trim()))
       .toEqual(['Kiểm tra', 'Thu hồi']);
     expect([...el.querySelectorAll<HTMLInputElement>('.slot input')].every(input => input.disabled)).toBe(true);
