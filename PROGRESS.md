@@ -4,7 +4,7 @@
 
 ## Cập nhật gần nhất
 
-### `Link: modulepreload` thành href tuyệt đối + đo `/admin/dashboard` trên browser — 2026-10-28 (local, **chưa deploy**)
+### `Link: modulepreload` thành href tuyệt đối + đo `/admin/dashboard` trên browser — 2026-10-28 (đã deploy production `611cd62`)
 
 - Hai mục còn mở sau đợt nghiệm thu CSS (`CSS-BUDGET-08`, `CSS-BUDGET-09`) đã xử lý xong ở local. Không đổi rule CSS nào, không đụng backend, không đụng dữ liệu production.
 - **CSS-BUDGET-09** — `frontend/angular.json`: thêm `"deployUrl": "/"` vào `configurations.production`. Lý do: Cloudflare Pages sinh header `Link: <chunk-XXX.js>; rel="modulepreload"` bằng cách **copy href từ HTML**, mà trình duyệt resolve header theo **URL của response** chứ không theo `<base href="/">`; vào `/wiki` bị 308 → `/wiki/` nên href tương đối thành `/wiki/chunk-*.js` → SPA fallback trả lại HTML → 9 request vô ích + 9 lỗi *"Failed to load module script … MIME type of text/html"*.
@@ -12,7 +12,9 @@
 - Bằng chứng đỏ/đèn với mock tái hiện hành vi Pages (308 + copy modulepreload thành header `Link`): build tương đối = 9 request `/wiki/chunk-*` trả `text/html` + 9 lỗi console; build có `deployUrl: "/"` = 12 request script đều ở gốc, **0 request lỗi, 0 message console**, app boot `/wiki` (`hasReader: true`, 18 sheet).
 - Sửa kèm: `<title>` sai ở `/` và `/quy-nha` **không** phải artifact SPA fallback như ghi ban đầu — route `path: ''` ở `frontend/src/app/app.routes.ts:53` tự đặt title của Wiki; đã đổi thành `Nhà Này Hơi Báo! — Board Game Wiki` khớp `src/index.html:5`. Không test nào khẳng định chuỗi cũ.
 - **CSS-BUDGET-08** — đo `/admin/dashboard` mà không leo thang quyền trên production: backend Node + sqlite throwaway (`css-check.sqlite`, **không** phải `local.sqlite`) với `BOOTSTRAP_ADMIN_*`, `ng serve --port 4312 --proxy-config proxy.conf.json`, đăng nhập ADMIN tạm qua CSRF. Ở 1322px và 420px: sheet 1 kết thúc `.filter-btn.active-filter` (`color #183c2b` / `background #dafa76`), sheet 2 bắt đầu `.table-container` (`overflow-x: auto`), **chung scope `ng-c3928412833`**; bảng giữ `min-width: 620px` trong container 330px và trang không tràn ngang → đúng ranh giới tách mà bundle đã báo.
-- Verify: `npx ng test --watch=false` trên cây hiện tại **57 file / 437 pass**, exit 0. **Chưa push, chưa deploy** — quyền quyết định merge thuộc owner, và chỉ deploy mới xác nhận được header `Link` thật của Pages.
+- Verify local: `npx ng test --watch=false` **57 file / 437 pass**, exit 0; `ng build --configuration production` exit 0, 0 cảnh báo budget.
+- Nghiệm thu production (PR **#39** merge `main` tại **`611cd6252ab294beb15931338c2f97c27f1e794a`**; CI main `40736039053` xanh 4/4; CD `40736215286` xanh 2/2 với `RELEASE_SHA: 611cd62…`). Baseline ghi **trước** deploy: `/wiki/` có `Link: <chunk-USgBHqPl.js>; rel="modulepreload", …` — 9 mục **tương đối**. Sau deploy: cùng header là `</chunk-USgBHqPl.js>` (**tuyệt đối cả 9 mục**, `/` và `/san-dau/` cũng vậy); Chrome mở `https://exe-webapp.pages.dev/wiki` = **12 request script đều ở gốc, 0 request `/wiki/chunk-*`**, console **hết hẳn 9 lỗi** *"Failed to load module script … MIME type of text/html"*, chỉ còn `401 /api/v1/auth/me` (chưa đăng nhập) và `404` content (0 bản PUBLISHED). `/` và `/quy-nha` đã đúng title `Nhà Này Hơi Báo! — Board Game Wiki`, `/` có 19 stylesheet và không tràn ngang (`scrollWidth` 1528 ≤ `innerWidth` 1536).
+- Cú khi tự đo: header `Link` **chỉ xuất hiện với User-Agent Chrome đầy đủ**; `curl -A "Mozilla/5.0 Chrome/130.0"` (UA ngắn) không nhận header nào nên rất dễ kết luận sai là "Pages không gửi".
 - Dọn dẹp sau khi đo: tắt tiến trình backend/ng serve/mock, xóa `frontend/dist/{budget-check,du-check,rel-check}`, `backend/server/css-check.sqlite` và script mock ở `Temp/`.
 
 ### 8 lead audit sửa được chỉ từ source — 2026-10-28 (đã deploy production `a674b4e`)

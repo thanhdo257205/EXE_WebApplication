@@ -46,7 +46,7 @@ Tạo tài khoản ADMIN trên production là leo thang quyền trên hệ thố
 
 Ở 420px bảng vẫn giữ `min-width: 620px` trong container 330px — tức phần tử cuộn ngang hoạt động đúng — và thân trang không tràn ngang. Đây chính là ranh giới tách (`.table-container`) mà bằng chứng bundle `chunk-CjFXZLRH.js` đã báo trước, giờ có số đo thật trên DOM.
 
-## Link header modulepreload trên route con — 2026-10-28 (đã sửa `"deployUrl": "/"`, chưa deploy)
+## Link header modulepreload trên route con — 2026-10-28 (đã sửa `"deployUrl": "/"`, đã deploy production `611cd62`)
 
 Vào `https://exe-webapp.pages.dev/wiki` nhận **308 → `/wiki/`** (route này có HTML prerender trong thư mục `wiki/`), và mọi HTML response của Pages kèm `Link: <chunk-XXX.js>; rel="modulepreload"` với **href tương đối**. Browser resolve header này theo **URL của response** chứ không theo `<base href="/">` của tài liệu, nên nó gọi `/wiki/chunk-XXX.js`; đường dẫn không tồn tại nên SPA fallback trả lại đúng index.html với `content-type: text/html` → 9 request vô ích và 9 lỗi console *"Failed to load module script: Expected a JavaScript-or-Wasm module script but the server responded with a MIME type of text/html"*. App vẫn chạy đủ vì `<link rel="modulepreload">` **trong HTML** (có `<base href="/">` che) đã tải cùng 9 chunk từ gốc — bằng chứng: mỗi chunk xuất hiện hai lần trong network log, `/wiki/chunk-*` (text/html) rồi `/chunk-*` (200 JS).
 
@@ -61,7 +61,16 @@ Bằng chứng đỏ/đèn (muốn thấy lỗi tái hiện thì phải dựng l
 
 Điểm phụ sửa kèm: `<title>` sai ở `/` và `/quy-nha` **không phải** artifact của SPA fallback như ghi ban đầu, mà là route `path: ''` trong `frontend/src/app/app.routes.ts:53` tự đặt `title: 'Nhà Này Hơi Báo! — Wiki'` — prerender `/wiki/` vẫn đúng, chỉ trang chủ là lệch với `src/index.html:5`. Đã đổi lại thành `Nhà Này Hơi Báo! — Board Game Wiki`; không test nào khẳng định chuỗi cũ.
 
-**Còn chờ**: production phải deploy lại mới kết luận được header `Link` của Pages có thành tuyệt đối không — mock chỉ chứng minh cơ chế "href trong HTML quyết định header".
+Xác nhận trên production sau khi PR #39 merge `main` tại **`611cd62`** (CD `40736215286` xanh 2/2, `RELEASE_SHA: 611cd62…`), với baseline ghi **trước** deploy:
+
+| điểm đo | trước deploy (`968ee43`…) | sau deploy (`611cd62`) |
+| --- | --- | --- |
+| header `Link` của `/wiki/` | `<chunk-USgBHqPl.js>; rel="modulepreload", …` (9 mục **tương đối**) | `</chunk-USgBHqPl.js>; rel="modulepreload", …` (9 mục **tuyệt đối**; `/` và `/san-dau/` cũng absolute) |
+| network khi mở `/wiki` bằng Chrome | mỗi chunk hai lần: 9 request `/wiki/chunk-*` (200 nhưng `text/html`) + 9 request gốc | **12 request script, tất cả ở gốc**, 0 request `/wiki/chunk-*` |
+| console `/wiki` | 9 lỗi *"Failed to load module script … MIME type of text/html"* | **0 lỗi MIME**, chỉ còn `401 /api/v1/auth/me` (chưa đăng nhập) và `404` content (0 bản PUBLISHED) |
+| `<title>` của `/` và `/quy-nha` | `Nhà Này Hơi Báo! — Wiki` (sai) | `Nhà Này Hơi Báo! — Board Game Wiki`, `document.styleSheets` = 19, `scrollWidth` 1528 ≤ `innerWidth` 1536 |
+
+Lưu ý khi tự đo bằng curl: header `Link` **không** xuất hiện với UA ngắn kiểu `Mozilla/5.0 Chrome/130.0`, chỉ ra đủ với UA Chrome đầy đủ — đừng kết luận "Pages không gửi" chỉ vì `curl -A` ngắn in ra `Link` = rỗng.
 
 ## Sân đấu WebGPU `/san-dau` — local, mới nhất
 
