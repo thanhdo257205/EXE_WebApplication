@@ -17,7 +17,7 @@ import { bcryptPasswordValidator } from '../../../core/auth/auth-form.validators
   standalone: true,
   imports: [RiseHeadingDirective, RouterLink, FormsModule, ReactiveFormsModule, MorphIconComponent, WikiCanvasComponent, TurnstileComponent],
   templateUrl: './login.page.html',
-  styleUrl: './login.page.css',
+  styleUrls: ['./login.page.css', './login.form.css'],
 })
 export class LoginPage implements OnInit {
   private readonly fb = inject(FormBuilder);

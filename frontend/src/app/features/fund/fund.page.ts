@@ -21,7 +21,7 @@ const EVEN = Array.from({ length: RESIDENTS }, () => GAME.bill / RESIDENTS);
   selector: 'app-fund-page',
   imports: [RouterLink, RevealDirective],
   templateUrl: './fund.page.html',
-  styleUrls: ['./fund.page.css', './fund-sections.css', './fund-dashboard.css'],
+  styleUrls: ['./fund.page.css', './fund-sections.css', './fund-dashboard.css', './fund-dashboard.summary.css'],
 })
 export class FundPage {
   readonly game = GAME;
