@@ -33,13 +33,35 @@ Nghiệm thu bố cục trên browser production (`968ee43`, Chrome DevTools MCP
 | `fund-dashboard.summary.css` | `.total` `margin-top 24px` `padding-top 22px` `border-top 0.8px` (rule ranh giới) + `.dashboard` `18px`, `.total dd` `34px`, `.rows li` `74px 1fr auto`, `.bars` `gap 10px` (nhánh ≤560px) |
 | `public-content.lists.css` + `…headings.css` | `.wiki-list[…] { border-top … }` và group `.reader-heading[…] h1[…], .detail-sheet[…] h1[…]` có trong `document.styleSheets` (scope `ng-c1869048754`) |
 
-Hai điểm trắng của đợt nghiệm thu này, đều **không phải** do tách CSS: `/admin/dashboard` bị guard ADMIN đá về `/dang-nhap` nên chưa đo được bố cục bảng (mới có bằng chứng bundle `chunk-CjFXZLRH.js` = 2 sheet, sheet 2 mở đầu bằng `.table-container`); và `.wiki-list` / `.reader-heading` không có node DOM để đo vì production còn 0 bản phát hành PUBLISHED (`404 /api/v1/content/wiki-pages`). Không trang nào đo được tràn ngang (`scrollWidth` = `innerWidth` ở cả 420 và 1282).
+Hai điểm trắng của đợt nghiệm thu browser trên production: `/admin/dashboard` bị guard ADMIN đá về `/dang-nhap` (chưa đo ở production), và `.wiki-list` / `.reader-heading` không có node DOM để đo vì production còn 0 bản phát hành PUBLISHED (`404 /api/v1/content/wiki-pages`). Điểm thứ nhất đã bổ sung bằng một phiên local (mục dưới); điểm thứ hai vẫn mở và thuộc khoảng trống nội dung, không thuộc đợt tách CSS. Không trang nào đo được tràn ngang (`scrollWidth` = `innerWidth` ở cả 420 và 1282).
 
-## Link header modulepreload trên route con — 2026-10-28 (phát hiện khi nghiệm thu CSS, chưa sửa)
+### `/admin/dashboard` — đo trên browser với tài khoản ADMIN tạm ở local
+
+Tạo tài khoản ADMIN trên production là leo thang quyền trên hệ thống chung nên không tự làm; thay vào đó dựng stack tạm rồi đo bằng đúng Chrome DevTools MCP: backend Node trỏ sqlite throwaway (không phải `local.sqlite`) với `BOOTSTRAP_ADMIN_*` để có role ADMIN, `ng serve --port 4312 --proxy-config proxy.conf.json`, đăng nhập qua dòng CSRF `GET /api/v1/auth/csrf` → `POST /api/v1/auth/login`, và emulate viewport 420px như các trang khác.
+
+| stylesheet | bằng chứng browser |
+| --- | --- |
+| `admin-dashboard.css` (sheet 1) | rule cuối file `.filter-btn.active-filter` = `color #183c2b` / `background #dafa76` |
+| `admin-dashboard.table.css` (sheet 2) | rule đầu file `.table-container` = `overflow-x: auto`; hai sheet **chung một scope** `ng-c3928412833`, nên tách file không đổi scoping |
+
+Ở 420px bảng vẫn giữ `min-width: 620px` trong container 330px — tức phần tử cuộn ngang hoạt động đúng — và thân trang không tràn ngang. Đây chính là ranh giới tách (`.table-container`) mà bằng chứng bundle `chunk-CjFXZLRH.js` đã báo trước, giờ có số đo thật trên DOM.
+
+## Link header modulepreload trên route con — 2026-10-28 (đã sửa `"deployUrl": "/"`, chưa deploy)
 
 Vào `https://exe-webapp.pages.dev/wiki` nhận **308 → `/wiki/`** (route này có HTML prerender trong thư mục `wiki/`), và mọi HTML response của Pages kèm `Link: <chunk-XXX.js>; rel="modulepreload"` với **href tương đối**. Browser resolve header này theo **URL của response** chứ không theo `<base href="/">` của tài liệu, nên nó gọi `/wiki/chunk-XXX.js`; đường dẫn không tồn tại nên SPA fallback trả lại đúng index.html với `content-type: text/html` → 9 request vô ích và 9 lỗi console *"Failed to load module script: Expected a JavaScript-or-Wasm module script but the server responded with a MIME type of text/html"*. App vẫn chạy đủ vì `<link rel="modulepreload">` **trong HTML** (có `<base href="/">` che) đã tải cùng 9 chunk từ gốc — bằng chứng: mỗi chunk xuất hiện hai lần trong network log, `/wiki/chunk-*` (text/html) rồi `/chunk-*` (200 JS).
 
-`frontend/public/_headers` đã kiểm và **không** đặt header `Link` (chỉ có CSP/frame-ancestors, Referrer-Policy và Cache-Control), nên header này do chính Cloudflare Pages sinh từ các tag modulepreload của HTML. Hướng sửa: để href tuyệt đối (`/chunk-…`) ở nơi sinh ra header, hoặc tắt prerender/redirect thư mục cho `/wiki`. Liên quan: `index.html` fallback ở gốc mang `<title>Nhà Này Hơi Báo! — Wiki</title>` nên `/` và `/quy-nha` hiển thị title sai, chỉ `/wiki/` prerender là đúng.
+`frontend/public/_headers` đã kiểm và **không** đặt header `Link` (chỉ có CSP/frame-ancestors, Referrer-Policy và Cache-Control), nên header này do chính Cloudflare Pages sinh từ các tag modulepreload của HTML. Vì Pages copy nguyên href từ HTML, cách sửa gọn nhất là bắt Angular **sinh href tuyệt đối ngay trong HTML**: `"deployUrl": "/"` trong `configurations.production` của `frontend/angular.json`. Một dòng này đủ, và phạm vi ảnh hưởng đã đo chứ không suy đoán: build ra **6 file HTML** (`index.html`, `index.csr.html` và các `*/index.html` prerender) với toàn bộ `modulepreload`/`stylesheet`/`script` thành `/chunk-*.js`, `/styles-*.css`; **0 file JS và 0 file CSS** chứa chuỗi deployUrl; và **39 specifier `import("./chunk-…")`** trong `main.js` + 4 chunk lazy vẫn tương đối nguyên vẹn — runtime lazy loading giải theo URL của **chính chunk cha**, không theo HTML, nên không có đường dẫn nào khác đổi hình dạng. Ba `href` còn tương đối trong HTML là `favicon.svg` / `favicon.ico` / `apple-touch-icon.png`, **có sẵn từ trước** và không liên quan cơ chế header `Link`.
+
+Bằng chứng đỏ/đèn (muốn thấy lỗi tái hiện thì phải dựng lại phía server, vì local `ng serve` không có 308 + header `Link`): một mock nhỏ tái hiện đúng hành vi Pages — 308 cho path không dấu gạch chéo khi có `wiki/index.html`, và mọi HTML response gắn `Link: <X>; rel="modulepreload"` copy verbatim từ tag modulepreload. Serve lần lượt build tương đối và build tuyệt đối của cùng source:
+
+| build | request script | console |
+| --- | --- | --- |
+| tương đối (hiện trạng production) | `/wiki/chunk-*` ×9 → 200 nhưng `content-type: text/html`, rồi `/chunk-*` ×9 thật | **9 lỗi** *"Failed to load module script … MIME type of text/html"* |
+| `"deployUrl": "/"` | 12 request script, **tất cả ở gốc**, 0 request thừa | **0 message**; app boot `/wiki` normal (`hasReader: true`, 18 stylesheet) |
+
+Điểm phụ sửa kèm: `<title>` sai ở `/` và `/quy-nha` **không phải** artifact của SPA fallback như ghi ban đầu, mà là route `path: ''` trong `frontend/src/app/app.routes.ts:53` tự đặt `title: 'Nhà Này Hơi Báo! — Wiki'` — prerender `/wiki/` vẫn đúng, chỉ trang chủ là lệch với `src/index.html:5`. Đã đổi lại thành `Nhà Này Hơi Báo! — Board Game Wiki`; không test nào khẳng định chuỗi cũ.
+
+**Còn chờ**: production phải deploy lại mới kết luận được header `Link` của Pages có thành tuyệt đối không — mock chỉ chứng minh cơ chế "href trong HTML quyết định header".
 
 ## Sân đấu WebGPU `/san-dau` — local, mới nhất
 
