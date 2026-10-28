@@ -1,0 +1,5 @@
+.reader-heading h1,.detail-sheet h1{font-family:var(--font-display,'Anton',Impact,sans-serif);font-weight:400;text-transform:uppercase;letter-spacing:-.01em;line-height:1;font-size:clamp(58px,9.5vw,160px)}
+.reader-shell h2{font-family:var(--font-display,'Anton',Impact,sans-serif);font-weight:400;text-transform:uppercase;letter-spacing:-.005em;line-height:1.05}
+.back-link{font-size:12px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:#8f9289;text-decoration:none}
+.back-link:hover{color:#f3f1ea}
+@media(max-width:680px){.reader-heading h1{font-size:clamp(52px,16vw,88px)}}

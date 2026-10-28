@@ -38,6 +38,8 @@ import { WikiHeroComponent } from './heroes/wiki-hero.component';
   templateUrl: './public-content.page.html',
   styleUrls: [
     './public-content.page.css',
+    './public-content.lists.css',
+    './public-content.headings.css',
     './public-content.detail.css',
     './public-content.cards.css',
     './public-content.heroes.css',

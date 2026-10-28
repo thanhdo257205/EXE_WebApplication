@@ -20,7 +20,7 @@ export interface ActionQueueItem {
   standalone: true,
   imports: [RiseHeadingDirective, RouterLink, MorphIconComponent],
   templateUrl: './admin-dashboard.page.html',
-  styleUrl: './admin-dashboard.page.css',
+  styleUrls: ['./admin-dashboard.page.css', './admin-dashboard.table.css'],
 })
 export class AdminDashboardPage implements OnInit {
   readonly auth = inject(AuthService);
