@@ -43,12 +43,18 @@ export interface CompletionRequest {
   temperature: number;
   signal: AbortSignal;
 }
+export interface CompletionResult {
+  text: string;
+  /** Provider-reported token usage; stays 0 when the provider omits it. */
+  tokensIn: number;
+  tokensOut: number;
+}
 export interface ChatProvider {
   readonly id: ProviderId;
   /** One credential slot of a provider (`gemini#1`, `gemini#2`). Cooldowns are tracked per slot. */
   readonly slot: string;
   readonly model: string;
-  complete(request: CompletionRequest): Promise<string>;
+  complete(request: CompletionRequest): Promise<CompletionResult>;
   withModel(model: string): ChatProvider;
 }
 export interface AssistantOptions {
@@ -64,7 +70,7 @@ export interface AssistantOptions {
   siteUrl?: string;
   fetch?: FetchLike;
 }
-export interface RoutedCompletion { text: string; provider: ProviderId; slot: string; model: string; attempts: number; }
+export interface RoutedCompletion { text: string; provider: ProviderId; slot: string; model: string; attempts: number; tokensIn: number; tokensOut: number; }
 
 const failureForStatus = (status: number): ProviderFailure =>
   status === 402 || status === 429 ? 'QUOTA' : status === 401 || status === 403 ? 'AUTH' : status >= 500 ? 'UNAVAILABLE' : 'INVALID';
@@ -74,6 +80,18 @@ const record = (value: unknown): Record<string, unknown> =>
 const list = (value: unknown): unknown[] => Array.isArray(value) ? value : [];
 const textOf = (value: unknown): string => typeof value === 'string' ? value.trim() : '';
 const joined = (values: unknown[]): string => values.map(textOf).filter(Boolean).join('\n').trim();
+const tokenCount = (value: unknown): number => {
+  const count = Number(value);
+  return Number.isFinite(count) && count > 0 ? Math.min(10_000_000, Math.round(count)) : 0;
+};
+/** OpenAI-compatible `usage`, Gemini `usageMetadata` and Workers AI usage all expose similar counters. */
+const tokensOf = (value: unknown): { tokensIn: number; tokensOut: number } => {
+  const usage = record(value);
+  return {
+    tokensIn: tokenCount(usage.prompt_tokens ?? usage.input_tokens ?? usage.promptTokenCount),
+    tokensOut: tokenCount(usage.completion_tokens ?? usage.output_tokens ?? usage.candidatesTokenCount),
+  };
+};
 
 async function postJson(provider: ProviderId, fetcher: FetchLike, url: string, headers: Record<string, string>, body: unknown, signal: AbortSignal): Promise<unknown> {
   let response: Response;
@@ -108,7 +126,7 @@ export function workersAiProvider(options: WorkersAiOptions): ChatProvider {
       const fromChoices = textOf(record(record(choices[0]).message).content);
       const text = direct || fromObject || fromChoices;
       if (!text) throw new ProviderError('workers-ai', 'EMPTY');
-      return text;
+      return { text, ...tokensOf(root.usage ?? record(result).usage) };
     },
   });
   return build(options.model || '@cf/meta/llama-3.1-8b-instruct', options.slot || 'workers-ai#1');
@@ -136,7 +154,7 @@ export function geminiProvider(options: GeminiOptions): ChatProvider {
       const parts = list(record(record(candidates[0]).content).parts);
       const text = joined(parts.map(part => record(part).text));
       if (!text) throw new ProviderError('gemini', 'EMPTY');
-      return text;
+      return { text, ...tokensOf(root.usageMetadata) };
     },
   });
   return build(options.model || 'gemini-2.5-flash', options.slot || 'gemini#1');
@@ -160,7 +178,7 @@ const openAiCompatible = (provider: 'groq' | 'openrouter', url: string, options:
       const content = record(record(choices[0]).message).content;
       const text = textOf(content) || joined(list(content).map(part => typeof part === 'string' ? part : record(part).text));
       if (!text) throw new ProviderError(provider, 'EMPTY');
-      return text;
+      return { text, ...tokensOf(root.usage) };
     },
   });
   return build(options.model, options.slot);
@@ -230,10 +248,13 @@ export class ProviderRouter {
       const timer = setTimeout(() => controller.abort(), Math.min(remaining, this.attemptTimeoutMs));
       attempts++;
       try {
-        const text = await provider.complete({ ...input, signal: controller.signal });
-        if (!text.trim()) throw new ProviderError(provider.id, 'EMPTY');
+        const result = await provider.complete({ ...input, signal: controller.signal });
+        if (!result.text.trim()) throw new ProviderError(provider.id, 'EMPTY');
         this.blockedUntil.delete(provider.slot);
-        return { text, provider: provider.id, slot: provider.slot, model: provider.model, attempts };
+        return {
+          text: result.text, provider: provider.id, slot: provider.slot, model: provider.model, attempts,
+          tokensIn: result.tokensIn ?? 0, tokensOut: result.tokensOut ?? 0,
+        };
       } catch (error) {
         const failure = error instanceof ProviderError ? error.failure : 'UNAVAILABLE';
         failures.push(failure);

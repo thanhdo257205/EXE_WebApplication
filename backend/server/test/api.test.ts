@@ -8,10 +8,15 @@ import { database, initializeLocal, execute, one, all, scalar, now, at, uuid } f
 import { createApp } from '../src/app.ts';
 import { type Config, type Actor } from '../src/auth.ts';
 import { type Provider, checkoutSchema, payosProvider } from '../src/payments.ts';
-import { type AssistantOptions, type ChatProvider, ProviderError } from '../src/assistant-providers.ts';
+import { type AssistantOptions, type ChatProvider, type CompletionRequest, type CompletionResult, ProviderError } from '../src/assistant-providers.ts';
 
-const chatProvider = (id: ChatProvider['id'], complete: ChatProvider['complete'], model = 'test-model', slot = `${id}#1`): ChatProvider => ({
-  id, model, slot, complete, withModel: next => chatProvider(id, complete, next, slot),
+const asResult = (value: CompletionResult | string): CompletionResult =>
+  typeof value === 'string' ? { text: value, tokensIn: 0, tokensOut: 0 } : value;
+type ChatReply = (request: CompletionRequest) => Promise<CompletionResult | string>;
+const chatProvider = (id: ChatProvider['id'], complete: ChatReply, model = 'test-model', slot = `${id}#1`): ChatProvider => ({
+  id, model, slot,
+  complete: async request => asResult(await complete(request)),
+  withModel: next => chatProvider(id, complete, next, slot),
 });
 
 async function publishKnowledge(db: Client) {
@@ -434,7 +439,7 @@ test('assistant requires login and CSRF, falls back on quota and grounds the pro
     timeoutMs: 2_000, attemptTimeoutMs: 1_000, maxOutputTokens: 300, temperature: 0.2,
     providers: [
       chatProvider('workers-ai', async () => { attempts.push('workers-ai'); throw new ProviderError('workers-ai', 'QUOTA'); }),
-      chatProvider('gemini', async request => { attempts.push('gemini'); prompt = request.system; messages = request.messages; return 'Mỗi người góp 0–4 Tiền [1].'; }),
+      chatProvider('gemini', async request => { attempts.push('gemini'); prompt = request.system; messages = request.messages; return { text: 'Mỗi người góp 0–4 Tiền [1].', tokensIn: 50, tokensOut: 12 }; }),
     ],
   };
   const f = await fixture({ assistant }); t.after(() => f.db.close());
@@ -522,7 +527,7 @@ test('admins configure provider order, models and slots while usage stays provid
     providers: [
       chatProvider('gemini', async () => { calls.push('gemini#1'); return 'gemini'; }, 'gemini-base', 'gemini#1'),
       chatProvider('gemini', async () => { calls.push('gemini#2'); return 'gemini2'; }, 'gemini-base', 'gemini#2'),
-      chatProvider('groq', async () => { calls.push('groq#1'); return 'groq'; }, 'groq-base', 'groq#1'),
+      chatProvider('groq', async () => { calls.push('groq#1'); return { text: 'groq', tokensIn: 30, tokensOut: 10 }; }, 'groq-base', 'groq#1'),
     ],
   };
   const f = await fixture({ assistant }); t.after(() => f.db.close());
@@ -533,12 +538,22 @@ test('admins configure provider order, models and slots while usage stays provid
   assert.deepEqual(settings.providers.find((provider: any) => provider.id === 'gemini').slots.map((slot: any) => slot.slot), ['gemini#1', 'gemini#2']);
   assert.equal((await f.request('GET', '/api/v1/admin/assistant/settings', undefined, f.user)).status, 403);
 
-  const plan = { order: ['groq', 'gemini'], models: { groq: 'groq-fast', gemini: 'gemini-base' }, disabledSlots: ['gemini#2'], expectedVersion: 0 };
+  const plan = {
+    order: ['groq', 'gemini'], models: { groq: 'groq-fast', gemini: 'gemini-base' },
+    disabledSlots: ['gemini#2'], tokenBudgets: { groq: 5_000, gemini: 12_000 }, expectedVersion: 0,
+  };
   assert.equal((await f.request('PUT', '/api/v1/admin/assistant/settings', plan, f.user)).status, 403);
+  assert.equal((await f.request('PUT', '/api/v1/admin/assistant/settings', { order: plan.order, models: plan.models, disabledSlots: plan.disabledSlots, expectedVersion: 0 }, f.admin)).status, 400);
   assert.equal((await f.request('PUT', '/api/v1/admin/assistant/settings', { ...plan, disabledSlots: ['gemini#9'] }, f.admin)).status, 400);
+  assert.equal((await f.request('PUT', '/api/v1/admin/assistant/settings', { ...plan, tokenBudgets: { unknown: 5 } }, f.admin)).status, 400);
+  assert.equal((await f.request('PUT', '/api/v1/admin/assistant/settings', { ...plan, tokenBudgets: { groq: 0 } }, f.admin)).status, 400);
+  assert.equal((await f.request('PUT', '/api/v1/admin/assistant/settings', { ...plan, tokenBudgets: { groq: 1.5 } }, f.admin)).status, 400);
   const saved = await f.request('PUT', '/api/v1/admin/assistant/settings', plan, f.admin);
   assert.equal(saved.status, 200);
-  assert.equal((await saved.json()).settings.version, 1);
+  const savedBody = await saved.json();
+  assert.equal(savedBody.settings.version, 1);
+  assert.deepEqual(savedBody.settings.tokenBudgets, { groq: 5_000, gemini: 12_000 });
+  assert.deepEqual((await (await f.request('GET', '/api/v1/admin/assistant/settings', undefined, f.admin)).json()).settings.tokenBudgets, { groq: 5_000, gemini: 12_000 });
   assert.equal((await f.request('PUT', '/api/v1/admin/assistant/settings', plan, f.admin)).status, 409);
 
   const ask = (message = 'Cách chơi?') => f.request('POST', '/api/v1/assistant/chat', { message }, f.user);
@@ -551,8 +566,14 @@ test('admins configure provider order, models and slots while usage stays provid
   assert.equal(usage.totals.requests, 2);
   assert.equal(usage.totals.cacheHits, 1);
   assert.equal(usage.totals.answered, 1);
+  assert.equal(usage.totals.tokensIn, 30);
+  assert.equal(usage.totals.tokensOut, 10);
   assert.equal(usage.providers[0].provider, 'groq');
+  assert.equal(usage.providers[0].tokensIn, 30);
+  assert.equal(usage.providers[0].tokensOut, 10);
   assert.equal(usage.slots.find((slot: any) => slot.slot === 'groq#1').model, 'groq-fast');
+  assert.equal(usage.today.day, new Date().toISOString().slice(0, 10));
+  assert.deepEqual(usage.today.providers, [{ provider: 'groq', tokensIn: 30, tokensOut: 10 }]);
   assert.equal((await f.request('GET', '/api/v1/admin/assistant/usage', undefined, f.user)).status, 403);
   const audit = await one(f.db, "SELECT * FROM audit_events WHERE action='ASSISTANT_SETTINGS_UPDATED'");
   assert.equal(audit.outcome, 'SUCCESS');

@@ -92,7 +92,10 @@ export function assistantRoutes(app: Api, db: Client, cache: Cache, options: Ass
           sources: retrieved.sources,
           release: { versionLabel: knowledge.versionLabel, title: knowledge.releaseTitle },
         },
-        meta: { provider: result.provider, slot: result.slot, model: result.model },
+        meta: {
+          provider: result.provider, slot: result.slot, model: result.model,
+          tokensIn: result.tokensIn, tokensOut: result.tokensOut,
+        },
       };
     };
     try {
@@ -101,6 +104,9 @@ export function assistantRoutes(app: Api, db: Client, cache: Cache, options: Ass
       const answer = await cache.cached(key, ANSWER_TTL_MS, compute);
       usage?.record({
         ...answer.meta,
+        // A cache hit spends no provider tokens, so it must not inflate the daily budget bars.
+        tokensIn: cacheHit ? 0 : answer.meta.tokensIn,
+        tokensOut: cacheHit ? 0 : answer.meta.tokensOut,
         cacheHit,
         latencyMs: cacheHit ? 0 : Date.now() - started,
       });

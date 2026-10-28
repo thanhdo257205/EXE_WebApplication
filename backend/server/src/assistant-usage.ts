@@ -10,6 +10,8 @@ export interface UsageRecord {
   cacheHit?: boolean;
   failure?: boolean;
   latencyMs?: number;
+  tokensIn?: number;
+  tokensOut?: number;
 }
 export interface UsageRecorder {
   record(event: UsageRecord): void;
@@ -19,6 +21,7 @@ export interface UsageRecorder {
 interface Pending {
   day: string; provider: string; slot: string; model: string;
   requests: number; cacheHits: number; failures: number; latency: number;
+  tokensIn: number; tokensOut: number;
 }
 
 export async function initializeAssistantUsage(db: Client): Promise<void> {
@@ -31,10 +34,21 @@ export async function initializeAssistantUsage(db: Client): Promise<void> {
     cache_hits INTEGER NOT NULL DEFAULT 0 CHECK (cache_hits >= 0),
     failures INTEGER NOT NULL DEFAULT 0 CHECK (failures >= 0),
     latency_ms_sum INTEGER NOT NULL DEFAULT 0 CHECK (latency_ms_sum >= 0),
+    tokens_in INTEGER NOT NULL DEFAULT 0 CHECK (tokens_in >= 0),
+    tokens_out INTEGER NOT NULL DEFAULT 0 CHECK (tokens_out >= 0),
     updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000Z','now')),
     PRIMARY KEY (day, provider, slot, model)
   )`);
+  // Tables created before token accounting keep their history; the new counters start at zero.
+  for (const column of ['tokens_in', 'tokens_out']) {
+    await execute(db, `ALTER TABLE assistant_usage_daily ADD COLUMN ${column} INTEGER NOT NULL DEFAULT 0 CHECK (${column} >= 0)`).catch(() => undefined);
+  }
 }
+
+const tokenCount = (value: unknown): number => {
+  const count = Number(value);
+  return Number.isFinite(count) && count > 0 ? Math.min(10_000_000, Math.round(count)) : 0;
+};
 
 export function createUsageRecorder(db: Client, options: { flushSize?: number; clock?: () => number } = {}): UsageRecorder {
   const flushSize = options.flushSize ?? 25;
@@ -50,13 +64,14 @@ export function createUsageRecorder(db: Client, options: { flushSize?: number; c
     events = 0;
     try {
       await db.batch(rows.map(row => ({
-        sql: `INSERT INTO assistant_usage_daily(day,provider,slot,model,requests,cache_hits,failures,latency_ms_sum,updated_at)
-          VALUES (?,?,?,?,?,?,?,?,strftime('%Y-%m-%dT%H:%M:%f000Z','now'))
+        sql: `INSERT INTO assistant_usage_daily(day,provider,slot,model,requests,cache_hits,failures,latency_ms_sum,tokens_in,tokens_out,updated_at)
+          VALUES (?,?,?,?,?,?,?,?,?,?,strftime('%Y-%m-%dT%H:%M:%f000Z','now'))
           ON CONFLICT(day,provider,slot,model) DO UPDATE SET
             requests=requests+excluded.requests,cache_hits=cache_hits+excluded.cache_hits,
             failures=failures+excluded.failures,latency_ms_sum=latency_ms_sum+excluded.latency_ms_sum,
+            tokens_in=tokens_in+excluded.tokens_in,tokens_out=tokens_out+excluded.tokens_out,
             updated_at=excluded.updated_at`,
-        args: [row.day, row.provider, row.slot, row.model, row.requests, row.cacheHits, row.failures, row.latency],
+        args: [row.day, row.provider, row.slot, row.model, row.requests, row.cacheHits, row.failures, row.latency, row.tokensIn, row.tokensOut],
       })), 'write');
     } catch {
       // Metrics are best-effort and must never fail a user request or retain unbounded data.
@@ -73,11 +88,13 @@ export function createUsageRecorder(db: Client, options: { flushSize?: number; c
     record(event) {
       const day = new Date(clock()).toISOString().slice(0, 10);
       const key = `${day}\n${event.provider}\n${event.slot}\n${event.model}`;
-      const row = pending.get(key) ?? { day, provider: event.provider, slot: event.slot, model: event.model, requests: 0, cacheHits: 0, failures: 0, latency: 0 };
+      const row = pending.get(key) ?? { day, provider: event.provider, slot: event.slot, model: event.model, requests: 0, cacheHits: 0, failures: 0, latency: 0, tokensIn: 0, tokensOut: 0 };
       row.requests += 1;
       if (event.cacheHit) row.cacheHits += 1;
       if (event.failure) row.failures += 1;
       row.latency += Math.max(0, Math.min(600_000, Math.round(event.latencyMs ?? 0)));
+      row.tokensIn += tokenCount(event.tokensIn);
+      row.tokensOut += tokenCount(event.tokensOut);
       pending.set(key, row);
       events += 1;
       if (events >= flushSize) void flush();
@@ -89,19 +106,25 @@ export function createUsageRecorder(db: Client, options: { flushSize?: number; c
 
 export async function usageSummary(db: Executor, days: number) {
   const since = new Date(Date.now() - (days - 1) * 86_400_000).toISOString().slice(0, 10);
+  const today = new Date().toISOString().slice(0, 10);
   const rows = await all(db, `SELECT provider,slot,model,SUM(requests) requests,SUM(cache_hits) cache_hits,
-    SUM(failures) failures,SUM(latency_ms_sum) latency
+    SUM(failures) failures,SUM(latency_ms_sum) latency,SUM(tokens_in) tokens_in,SUM(tokens_out) tokens_out
     FROM assistant_usage_daily WHERE day>=? GROUP BY provider,slot,model ORDER BY requests DESC`, [since]);
-  const daily = await all(db, `SELECT day,SUM(requests) requests,SUM(cache_hits) cache_hits,SUM(failures) failures
+  const daily = await all(db, `SELECT day,SUM(requests) requests,SUM(cache_hits) cache_hits,SUM(failures) failures,
+    SUM(tokens_in) tokens_in,SUM(tokens_out) tokens_out
     FROM assistant_usage_daily WHERE day>=? GROUP BY day ORDER BY day`, [since]);
+  // Budgets are daily, so the progress bars need today's provider totals regardless of the selected range.
+  const todayRows = await all(db, `SELECT provider,SUM(tokens_in) tokens_in,SUM(tokens_out) tokens_out
+    FROM assistant_usage_daily WHERE day=? AND provider NOT IN ('cache','none') GROUP BY provider`, [today]);
 
   const number = (value: unknown): number => Number(value) || 0;
-  const totals = { requests: 0, cacheHits: 0, failures: 0, answered: 0, avgLatencyMs: 0 };
+  const totals = { requests: 0, cacheHits: 0, failures: 0, answered: 0, avgLatencyMs: 0, tokensIn: 0, tokensOut: 0 };
   let latency = 0;
-  const byProvider = new Map<string, { provider: string; requests: number; failures: number; latency: number; answered: number }>();
+  const byProvider = new Map<string, { provider: string; requests: number; failures: number; latency: number; answered: number; tokensIn: number; tokensOut: number }>();
   const slots = rows.map(row => ({
     slot: String(row.slot), provider: String(row.provider), model: String(row.model),
     requests: number(row.requests), failures: number(row.failures),
+    tokensIn: number(row.tokens_in), tokensOut: number(row.tokens_out),
     avgLatencyMs: row.provider === 'cache' || !number(row.requests) ? 0 : Math.round(number(row.latency) / number(row.requests)),
   }));
   for (const row of rows) {
@@ -109,13 +132,16 @@ export async function usageSummary(db: Executor, days: number) {
     totals.requests += requests;
     totals.cacheHits += number(row.cache_hits);
     totals.failures += number(row.failures);
+    totals.tokensIn += number(row.tokens_in);
+    totals.tokensOut += number(row.tokens_out);
     if (row.provider !== 'cache' && row.provider !== 'none') {
       // Cache hits carry no latency, so they must not dilute the provider response average.
       const answered = Math.max(0, requests - number(row.cache_hits));
       totals.answered += answered;
       latency += number(row.latency);
-      const item = byProvider.get(String(row.provider)) ?? { provider: String(row.provider), requests: 0, failures: 0, latency: 0, answered: 0 };
+      const item = byProvider.get(String(row.provider)) ?? { provider: String(row.provider), requests: 0, failures: 0, latency: 0, answered: 0, tokensIn: 0, tokensOut: 0 };
       item.requests += requests; item.failures += number(row.failures); item.latency += number(row.latency); item.answered += answered;
+      item.tokensIn += number(row.tokens_in); item.tokensOut += number(row.tokens_out);
       byProvider.set(item.provider, item);
     }
   }
@@ -125,12 +151,24 @@ export async function usageSummary(db: Executor, days: number) {
     since,
     totals,
     providers: [...byProvider.values()]
-      .map(item => ({ provider: item.provider, requests: item.requests, failures: item.failures, avgLatencyMs: item.answered ? Math.round(item.latency / item.answered) : 0 }))
+      .map(item => ({
+        provider: item.provider, requests: item.requests, failures: item.failures,
+        tokensIn: item.tokensIn, tokensOut: item.tokensOut,
+        avgLatencyMs: item.answered ? Math.round(item.latency / item.answered) : 0,
+      }))
       .sort((a, b) => b.requests - a.requests),
     slots,
     daily: daily.map(row => ({
       day: String(row.day), requests: number(row.requests),
       cacheHits: number(row.cache_hits), failures: number(row.failures),
+      tokensIn: number(row.tokens_in), tokensOut: number(row.tokens_out),
     })),
+    today: {
+      day: today,
+      providers: todayRows.map(row => ({
+        provider: String(row.provider),
+        tokensIn: number(row.tokens_in), tokensOut: number(row.tokens_out),
+      })),
+    },
   };
 }

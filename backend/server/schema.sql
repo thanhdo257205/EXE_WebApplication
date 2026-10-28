@@ -566,6 +566,8 @@ CREATE TABLE assistant_settings (
     provider_order TEXT NOT NULL,
     model_overrides TEXT NOT NULL,
     disabled_slots TEXT NOT NULL,
+    -- JSON map provider -> daily token budget; NULL/absent disables the progress bar.
+    token_budgets TEXT NOT NULL DEFAULT '{}',
     version INTEGER NOT NULL DEFAULT 1 CHECK (version >= 1),
     updated_by TEXT REFERENCES app_users(id) ON DELETE SET NULL,
     updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000Z','now'))
@@ -581,6 +583,8 @@ CREATE TABLE assistant_usage_daily (
     cache_hits INTEGER NOT NULL DEFAULT 0 CHECK (cache_hits >= 0),
     failures INTEGER NOT NULL DEFAULT 0 CHECK (failures >= 0),
     latency_ms_sum INTEGER NOT NULL DEFAULT 0 CHECK (latency_ms_sum >= 0),
+    tokens_in INTEGER NOT NULL DEFAULT 0 CHECK (tokens_in >= 0),
+    tokens_out INTEGER NOT NULL DEFAULT 0 CHECK (tokens_out >= 0),
     updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000Z','now')),
     PRIMARY KEY (day, provider, slot, model)
 );
