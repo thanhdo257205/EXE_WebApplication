@@ -4,7 +4,7 @@
 
 ## Cập nhật gần nhất
 
-### Mọi stylesheet component xuống dưới ngưỡng warning 6 kB — 2026-10-28 (local, chưa deploy)
+### Mọi stylesheet component xuống dưới ngưỡng warning 6 kB — 2026-10-28 (đã deploy production `968ee43`)
 
 - Yêu cầu của chủ dự án sau đợt tách trang trợ lý AI (đã deploy `2bb745e`): **siết tất cả xuống dưới 6 kB**, tức tính theo ngưỡng `anyComponentStyle` **warning** chứ không chỉ ngưỡng error 10 kB. 7 stylesheet còn vượt: `global-bar` 8,88 · `login` 7,06 · `register` 7,12 · `fund-dashboard` 6,85 · `public-content` 6,55 · `admin-dashboard` 6,26 · `home` 6,22 kB (số kB đã minify, do chính `ng build` báo).
 - Nguyên tắc giữ nguyên như đợt trước: **không nâng ngưỡng trong `angular.json`, không xóa rule, không đổi selector**, không đổi thứ tự cascade. Budget đo **theo từng file** nên mỗi nửa phải tự dưới 6 kB; Angular nối CSS theo thứ tự mảng `styleUrls`, nên phần tách ra được đặt **ngay sau** file gốc.
@@ -13,8 +13,10 @@
 - Bằng chứng không đổi giao diện: (1) ghép các phần lại khớp file trong `HEAD` **từng dòng** — 0 dòng khác sau khi chuẩn hoá CRLF (repo lưu CRLF, `git show` xuất LF); (2) script đi qua mọi mảng `styles:[…]` trong `dist/exe-web/browser/*.js` và so chuỗi selector với source: **8/8 component** (kể cả `admin-assistant` của đợt trước) phát ra đúng số stylesheet, **đúng thứ tự source**, **chuỗi selector giống hệt**, không thiếu không thừa.
 - Artifact duy nhất phải chuẩn hoá nằm ở `fund-sections.css` — file đợt này **không** đụng tới: compiler biến một rule `:host-context([data-perf='low']) .glass` thành group **hai selector tương đương** (`[data-perf=low][_nghost-%COMP%] .glass` và `[data-perf=low] [_nghost-%COMP%] .glass`), nên bộ đếm selector chênh 1; bỏ qua bản sao trong cùng một rule thì khớp tuyệt đối.
 - Verify: `npx ng build --configuration production` exit 0, **0 cảnh báo budget** — chỉ còn 2 cảnh báo ESM có sẵn của `qrcode`/`dijkstrajs`; baseline hồi quy là chính build đó **trước khi tách** in ra đúng 7 dòng warning cho đúng 7 file này. `npx ng test --watch=false` **57 file / 432 pass**.
-- Hạn chế: mới chứng minh CSS **phát ra tương đương từng rule**, chưa so ảnh chụp bố cục trên browser thật cho 7 trang vừa tách.
-- Trạng thái: **chưa push/PR/deploy, chưa đụng DB production**; nền tảng là `e35cb53` (luồng publish của đợt khác đã commit trước đó).
+- Hạn chế: mới chứng minh CSS **phát ra tương đương từng rule** và **đúng số sheet trong bundle production**, chưa so ảnh chụp bố cục trên browser thật cho 7 trang vừa tách (420px lẫn desktop).
+- Chuỗi deploy: commit `491c118` (code) + `1957dfd` (docs) trên `GLM-5.3`; vì nhánh này còn mang theo luồng publish của đợt khác nên tách **branch riêng** `GLM-5.3-css-only` (tạo từ `origin/main` = `2bb745e`, cherry-pick `edd7e9b` + `491c118` + `1957dfd`, 22 file CSS/TS byte-identical với `GLM-5.3`, `git diff --name-only origin/main...HEAD` không có file backend) → head `64c0ab4` → **PR #36** merge vào `main` tại **`968ee439942b4a54f291cbde63e4488e0e12446f`**. CI pull_request `40724223808` và push `40724165050` xanh 4/4; CI main `40724751672` xanh 4/4; CD `40724957311` xanh 2/2 (`RELEASE_SHA: 968ee43…`, Render chấp nhận đúng commit, Pages `https://e0af3150.exe-webapp.pages.dev`, smoke pass).
+- Nghiệm thu production: `/api/v1/info` trả đúng `commit: 968ee43…` (`storage: turso`, curl phải kèm `Origin` hoặc `Sec-Fetch-Site: same-origin` + `Sec-Fetch-Mode: cors`), `/actuator/health` 200, `/dang-nhap` 200. Tải `main-TJMIMUJH.js` + 24 chunk lazy từ Pages rồi đọc các mảng `styles:[…]`: **8/8 component** có mặt, đúng số stylesheet và **mọi sheet dưới 6 kB** — `main.js` 4.36/4.56/3.31 · login 2.06/5.19 (`chunk-BRGwvcmE.js`) · register 2.06/5.25 (`chunk-BBute0N6.js`) · home 5.36/0.99/1.65/4.80/2.21 (`chunk-CsJvyEVn.js`) · fund 4.21/3.69/4.37/2.74 (`chunk-B20GUBkN.js`) · admin-dashboard 3.40/2.86 (`chunk-CjFXZLRH.js`) · public-content 4.36/1.63/0.60/2.76/2.97/1.04 (`chunk-Co8WDXbp.js`) · admin-assistant 4.67/5.24 (`chunk-9jO42I-9.js`, nguyên như PR #35).
+- Trạng thái: **đã lên production `968ee43`**, không đụng DB, không đổi backend. `GLM-5.3` vẫn còn luồng publish chưa merge (do đợt khác quyết định thời điểm).
 
 ### Luồng xuất bản bản phát hành (publish) — 2026-10-28 (local, chưa deploy)
 

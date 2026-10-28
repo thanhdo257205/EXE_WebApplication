@@ -1,6 +1,6 @@
 # Hiệu năng frontend — cập nhật 2026-10-28
 
-## Ngân sách `anyComponentStyle`: mọi stylesheet component dưới warning 6 kB — 2026-10-28 (local, chưa deploy)
+## Ngân sách `anyComponentStyle`: mọi stylesheet component dưới warning 6 kB — 2026-10-28 (đã deploy production `968ee43`)
 
 `angular.json` đặt `anyComponentStyle` warning 6 kB / error 10 kB và **đo theo từng file CSS**, không theo component. Toàn app hiện không còn file nào vượt warning; `ng build --configuration production` in ra **0 cảnh báo budget** (chỉ còn 2 cảnh báo ESM của `qrcode`/`dijkstrajs`).
 
@@ -20,6 +20,8 @@ Cách giữ size là tách file, không phải thu nhỏ CSS: không nâng ngư�
 Chi phí thật của cách làm này là **số file**, không phải dung lượng: trình duyệt tải cùng một lượng CSS, chỉ khác ở chỗ nó nằm trong nhiều mục `styles:[…]`; đổi lại là thêm một rule vào trang nào thì phải chọn đúng file, và file vượt 10 kB sẽ làm `ng build` fail chứ không chỉ cảnh báo.
 
 Kiểm chứng tương đương (không đo lại bố cục trên browser): ghép các phần khớp file cũ **từng dòng**; script đối chiếu mọi mảng `styles:[…]` trong `dist/exe-web/browser/*.js` xác nhận **8/8 component** phát ra đúng số stylesheet, đúng thứ tự source và chuỗi selector giống hệt. Điểm hay gặp khi tự viết script như vậy: compiler thêm token scoping `[_ngcontent-%COMP%]`/`[_nghost-%COMP%]`, scope tên `@keyframes`, và **nở một rule `:host-context([x]) .y` thành group hai selector tương đương** — ba biến đổi này là artifact có sẵn, không phải mất rule.
+
+Trên production `968ee43` (PR #36): tải `main-TJMIMUJH.js` rồi lần theo 24 chunk lazy từ `https://exe-webapp.pages.dev` và đọc các mảng `styles:[…]` — `main.js` 4.36/4.56/3.31 (global-bar + menu + account-menu) · login 2.06/5.19 · register 2.06/5.25 · home 5.36/0.99/1.65/4.80/2.21 · fund 4.21/3.69/4.37/2.74 · admin-dashboard 3.40/2.86 · public-content 4.36/1.63/0.60/2.76/2.97/1.04 · admin-assistant 4.67/5.24. Không sheet nào chạm 6 kB. Cách xác minh này dùng được cho mọi thay đổi CSS: file CSS của component nằm trong chunk JS (`styles:[\`…\`]`), không có file `.css` riêng để đo.
 
 ## Sân đấu WebGPU `/san-dau` — local, mới nhất
 
