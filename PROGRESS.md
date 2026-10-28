@@ -22,7 +22,7 @@
 - Test hồi quy: `assistant-migrations.test.ts` thêm ca "every usage grouping divides latency by answered requests…" — 2 request có latency (300/100 ms) + 1 cache hit trên cùng `(provider, slot, model)` buộc cả 4 grouping (`totals`, `providers`, `slots`, `keys`) ra 200 ms. Đã revert bộ chia về `requests` để chứng minh đỏ: `actual: [3, 133]`, `expected: [3, 200]`, rồi khôi phục.
 - Lỗi 2 (không còn việc): gate UI theo từng cờ quyền đã hoàn thành trong commit `8b6381d` — `canReorder/canEditModels/canManageSlots/canEditBudgets/canReadUsage` từ `settingsView` được dùng ở method lẫn template, `save()` gửi `order` nguyên văn khi thiếu quyền sắp xếp.
 - Kiểm thử local: `npm run check` (tsc --noEmit) qua; `node --test test/*.test.ts` **107 pass / 1 skip (Turso remote) / 0 fail**. Frontend không đổi source trong đợt này.
-- Trạng thái: PR #33 (head `9549b69`) merge vào `main` tại `64dd71d`; CI main `40710255325` xanh 4/4, CD `40710458197` xanh 2/2; `/api/v1/info` production trả `64dd71d3c18a87e20bda29152eb5ada9f660b808`, health 200, `/admin/assistant` 200. Chưa kiểm tra con số độ trễ bằng mắt trên production (AI-LAT-05).
+- Trạng thái: PR #33 (head `9549b69`) merge vào `main` tại `64dd71d`; CI main `40710255325` xanh 4/4, CD `40710458197` xanh 2/2; `/api/v1/info` production trả `64dd71d3c18a87e20bda29152eb5ada9f660b808`, health 200, `/admin/assistant` 200. Chủ dự án chốt đóng AI-LAT-05 (2026-10-28): không chạy live browser check trên production, nghiệm thu dừng ở test hồi quy + bằng chứng deploy.
 
 ### RBAC chi tiết: admin chính phân quyền từng thao tác cho đồng quản trị — 2026-10-28 (local, chưa deploy)
 

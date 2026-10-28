@@ -8,7 +8,7 @@ Cập nhật: 2026-10-28 (Asia/Saigon).
 - [x] AI-LAT-02 — Test hồi quy `assistant-migrations.test.ts`: 2 request 300/100 ms + 1 cache hit trên cùng `(provider, slot, model)` → 200 ms cho cả `totals`, `providers`, `slots`, `keys`. Bằng chứng đỏ khi revert bộ chia về `requests`: `actual: [3, 133]` / `expected: [3, 200]`.
 - [x] AI-LAT-03 — Backend typecheck (`npm run check`) qua; `node --test test/*.test.ts` **107 pass / 1 skip (Turso remote) / 0 fail**.
 - [x] AI-LAT-04 — Lỗi gate UI theo từng cờ quyền đã được xử lý trong `8b6381d` (`canReorder/canEditModels/canManageSlots/canEditBudgets/canReadUsage` dùng ở method + template); không còn việc còn lại của đợt "sửa hai lỗi kia".
-- [ ] AI-LAT-05 — Chạy live browser check tab số liệu với DB tạm có cache hit để đối chiếu con số hiển thị giữa bảng slot và thẻ key sau khi deploy.
+- [x] AI-LAT-05 — Đóng theo quyết định chủ dự án (2026-10-28): không chạy live browser check trên production. Cơ sở chấp nhận: bảng chi tiết slot và thẻ key cùng bind một trường `avgLatencyMs` do server trả (đã thấy rõ trong live check DB tạm trước khi sửa, khi đó hai bên hiện 1120 ms và 1600 ms từ cùng một nguồn); test hồi quy `assistant-migrations.test.ts` chốt đúng một giá trị cho cả bốn grouping; production `/api/v1/info` đang chạy `64dd71d`. Không còn hành động nào chờ.
 
 ## RBAC chi tiết: phân quyền từng thao tác cho đồng quản trị (2026-10-28, local)
 
