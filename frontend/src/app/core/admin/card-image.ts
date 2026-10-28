@@ -18,6 +18,10 @@ export class CardImageError extends Error {}
 export async function prepareCardImage(file: File): Promise<Blob> {
   if (!(ACCEPTED_TYPES as readonly string[]).includes(file.type)) throw new CardImageError('Chỉ nhận ảnh PNG, JPEG hoặc WebP.');
   if (file.size > 25 * 1024 * 1024) throw new CardImageError('Ảnh gốc quá lớn (tối đa 25 MB).');
+  if (typeof createImageBitmap === 'undefined') {
+    if (file.size <= MAX_UPLOAD_BYTES) return file;
+    throw new CardImageError('Trình duyệt không hỗ trợ xử lý ảnh.');
+  }
   const bitmap = await createImageBitmap(file).catch(() => { throw new CardImageError('Không đọc được ảnh này.'); });
   try {
     const target = fitWithin(bitmap.width, bitmap.height);

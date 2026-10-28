@@ -574,6 +574,16 @@ describe('AdminSectionPage', () => {
     expect(component.importRows()).toEqual([]);
   });
 
+  it('rejects xlsx files exceeding 50 MB before parsing', async () => {
+    const hugeFile = new File([''], 'huge.xlsx');
+    Object.defineProperty(hugeFile, 'size', { value: 51 * 1024 * 1024 });
+    const event = { target: { files: [hugeFile], value: 'huge.xlsx' } } as unknown as Event;
+    await component.onImportFileSelected(event);
+
+    expect(component.importErrorMsg()).toContain('50 MB');
+    expect(component.importRows()).toEqual([]);
+  });
+
   it('imports a card set and its cards sequentially with the running release version', async () => {
     component.importForm = { code: 'set-02', name: 'Bộ nhập', slug: 'bo-nhap', description: 'Mô tả', sortOrder: 2 };
     component.importRows.set([
@@ -616,6 +626,48 @@ describe('AdminSectionPage', () => {
     expect(component.importSuccessMsg()).toContain('2 thẻ');
     expect(component.importRows()).toEqual([]);
     expect(component.importSaving()).toBe(false);
+  });
+
+  it('uploads embedded image to Azure before creating the card when row has an embedded image', async () => {
+    component.importForm = { code: 'SET-06', name: 'Bộ nhúng ảnh', slug: 'bo-nhung-anh', description: '', sortOrder: 0 };
+    const fakeImageBytes = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
+    component.importRows.set([
+      importRow({
+        line: 2,
+        code: 'CARD-301',
+        name: 'Thẻ có ảnh',
+        slug: 'the-co-anh',
+        embeddedImage: {
+          name: 'image1.png',
+          bytes: fakeImageBytes,
+          mimeType: 'image/png',
+          size: fakeImageBytes.byteLength,
+        },
+      }),
+    ]);
+    adminApiSpy.createCardSet.mockReturnValue(
+      of({ entityId: 'set-img', releaseVersion: 2, item: { id: 'set-img', code: 'SET-06', slug: 'bo-nhung-anh', name: 'Bộ nhúng ảnh' } })
+    );
+    adminApiSpy.uploadCardImage.mockReturnValue(
+      of({ url: '/media/cards/hash123.webp', bytes: 1024, contentType: 'image/webp' })
+    );
+    adminApiSpy.createCard.mockReturnValue(
+      of({ entityId: 'c-301', releaseVersion: 3, item: {} })
+    );
+
+    await component.submitCardImport();
+
+    expect(adminApiSpy.uploadCardImage).toHaveBeenCalledTimes(1);
+    expect(adminApiSpy.createCard).toHaveBeenCalledWith(
+      'rel-draft-1',
+      expect.objectContaining({
+        expectedVersion: 2,
+        cardSetId: 'set-img',
+        code: 'CARD-301',
+        artworkUrl: '/media/cards/hash123.webp',
+      })
+    );
+    expect(component.importCreated()).toBe(1);
   });
 
   it('stops an import at the failing row and keeps the created card set and cards', async () => {

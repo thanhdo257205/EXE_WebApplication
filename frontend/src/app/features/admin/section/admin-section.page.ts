@@ -12,15 +12,18 @@ import { MorphIconComponent } from '../../../shared/components/morph-icon/morph-
 import { MorphIconName } from '../../../shared/components/morph-icon/icons';
 import {
   CARD_IMPORT_TEMPLATE_FILENAME,
+  CardEmbeddedImage,
   CardImportRow,
   CardSetImportDraft,
   buildCardImportTemplate,
   isAllowedArtworkUrl,
   parseCardImport,
+  readCardImportWorkbook,
   readFirstSheet,
   slugify,
   validateCardSetImport,
 } from '../../../core/admin/card-import';
+import { prepareCardImage } from '../../../core/admin/card-image';
 import {
   AdminContentService,
   AdminRelease,
@@ -109,6 +112,7 @@ export class AdminSectionPage implements OnInit {
   readonly importOpen = signal(false);
   readonly importParsing = signal(false);
   readonly importSaving = signal(false);
+  readonly importStatusText = signal<string | null>(null);
   readonly importErrorMsg = signal<string | null>(null);
   readonly importSuccessMsg = signal<string | null>(null);
   readonly importRows = signal<CardImportRow[]>([]);
@@ -116,7 +120,11 @@ export class AdminSectionPage implements OnInit {
   readonly importProgress = signal({ done: 0, total: 0 });
   readonly importCreated = signal(0);
   readonly importErrorCount = computed(() => this.importRows().filter(row => row.errors.length > 0).length);
+  readonly importEmbeddedImageCount = computed(
+    () => this.importRows().filter(row => Boolean(row.embeddedImage)).length
+  );
   readonly importReady = computed(() => this.importRows().length > 0 && this.importErrorCount() === 0);
+  readonly Math = Math;
 
   // Card list pagination & search
   readonly cardsPage = signal(0);
@@ -473,22 +481,23 @@ export class AdminSectionPage implements OnInit {
     this.importFileName.set('');
     this.importErrorMsg.set(null);
     this.importSuccessMsg.set(null);
+    this.importStatusText.set(null);
     this.importProgress.set({ done: 0, total: 0 });
 
     if (!/\.xlsx$/i.test(file.name)) {
       this.importErrorMsg.set('Chỉ hỗ trợ file Excel .xlsx. Hãy tải file mẫu để bắt đầu.');
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      this.importErrorMsg.set('File Excel vượt quá 5 MB. Hãy tách bớt dữ liệu rồi thử lại.');
+    if (file.size > 50 * 1024 * 1024) {
+      this.importErrorMsg.set('File Excel vượt quá 50 MB. Hãy giảm kích thước ảnh hoặc tách bớt dữ liệu rồi thử lại.');
       return;
     }
 
     this.importParsing.set(true);
     try {
-      const matrix = await readFirstSheet(file);
+      const workbook = await readCardImportWorkbook(file);
       if (this.destroyRef.destroyed) return;
-      const preview = parseCardImport(matrix, this.characters());
+      const preview = parseCardImport(workbook.matrix, this.characters(), workbook.images);
       this.importRows.set(preview.rows);
       this.importFileName.set(file.name);
       if (preview.fileError) this.importErrorMsg.set(preview.fileError);
@@ -536,6 +545,7 @@ export class AdminSectionPage implements OnInit {
     this.importSaving.set(true);
     this.importErrorMsg.set(null);
     this.importSuccessMsg.set(null);
+    this.importStatusText.set('Đang tạo bộ thẻ…');
     this.importCreated.set(0);
     let version = rel.version;
     let setCreated = false;
@@ -560,6 +570,25 @@ export class AdminSectionPage implements OnInit {
       for (let index = 0; index < rows.length; index++) {
         if (this.destroyRef.destroyed || this.activeRelease()?.id !== rel.id) return;
         currentRow = rows[index];
+
+        let finalArtworkUrl = currentRow.artworkUrl;
+        if (currentRow.embeddedImage && (!finalArtworkUrl || !finalArtworkUrl.startsWith('/media/cards/'))) {
+          this.importStatusText.set(`Đang tải ảnh dòng ${currentRow.line} (${index + 1}/${rows.length}) lên Azure…`);
+          const imageBytes = currentRow.embeddedImage.bytes;
+          const imageBuffer = imageBytes.buffer.slice(
+            imageBytes.byteOffset,
+            imageBytes.byteOffset + imageBytes.byteLength
+          ) as ArrayBuffer;
+          const imageFile = new File([imageBuffer], currentRow.embeddedImage.name, {
+            type: currentRow.embeddedImage.mimeType,
+          });
+          const preparedBlob = await prepareCardImage(imageFile);
+          const uploadRes = await firstValueFrom(this.adminApi.uploadCardImage(preparedBlob));
+          finalArtworkUrl = uploadRes.url;
+          currentRow.artworkUrl = finalArtworkUrl;
+        }
+
+        this.importStatusText.set(`Đang tạo thẻ ${currentRow.code || index + 1} (${index + 1}/${rows.length})…`);
         const response = await firstValueFrom(
           this.adminApi.createCard(rel.id, {
             expectedVersion: version,
@@ -572,7 +601,7 @@ export class AdminSectionPage implements OnInit {
             rulingNotes: currentRow.rulingNotes,
             ruleStatus: currentRow.ruleStatus,
             copiesInDeck: currentRow.copiesInDeck,
-            artworkUrl: currentRow.artworkUrl,
+            artworkUrl: finalArtworkUrl,
             sortOrder: currentRow.sortOrder,
           })
         );
@@ -606,26 +635,31 @@ export class AdminSectionPage implements OnInit {
       }
     } finally {
       this.importSaving.set(false);
+      this.importStatusText.set(null);
       if (!this.destroyRef.destroyed && this.activeRelease()?.id === rel.id) {
         this.loadReleaseContent(rel.id, 'cards');
       }
     }
   }
 
-  private describeImportProblem(problem: AdminProblemDetail): string {
-    if (problem.status === 401 || problem.code === 'SESSION_EXPIRED') {
+  private describeImportProblem(problem: AdminProblemDetail | any): string {
+    if (problem?.status === 401 || problem?.code === 'SESSION_EXPIRED') {
       return 'Phiên quản trị đã hết hạn, hãy đăng nhập lại.';
     }
-    if (problem.status === 403) {
+    if (problem?.status === 403) {
       return 'Tài khoản không có quyền ADMIN hoặc thiếu chữ ký CSRF.';
     }
-    if (problem.code === 'CONSTRAINT_VIOLATION') {
+    if (problem?.code === 'CONSTRAINT_VIOLATION') {
       return 'Mã hoặc slug đã tồn tại trong hệ thống.';
     }
-    if (problem.code === 'VERSION_CONFLICT' || problem.status === 409) {
+    if (problem?.code === 'VERSION_CONFLICT' || problem?.status === 409) {
       return 'Xung đột phiên bản: bản thảo đã thay đổi, hãy tải lại dữ liệu rồi thử lại.';
     }
-    return problem.detail || problem.title || 'Lỗi không xác định.';
+    return problem?.detail || problem?.title || problem?.message || 'Lỗi không xác định.';
+  }
+
+  formatImageSize(bytes: number): string {
+    return `${Math.max(1, Math.round(bytes / 1024))} kB`;
   }
 
   private resetImportState(): void {
@@ -633,6 +667,7 @@ export class AdminSectionPage implements OnInit {
     this.importFileName.set('');
     this.importProgress.set({ done: 0, total: 0 });
     this.importCreated.set(0);
+    this.importStatusText.set(null);
     this.importErrorMsg.set(null);
     this.importSuccessMsg.set(null);
     this.importForm = { code: '', name: '', slug: '', description: '', sortOrder: 0 };
