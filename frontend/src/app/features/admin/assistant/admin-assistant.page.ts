@@ -106,7 +106,9 @@ interface BulkOutcomeRow {
   standalone: true,
   imports: [RouterLink],
   templateUrl: './admin-assistant.page.html',
-  styleUrl: './admin-assistant.page.css',
+  // Split along the tab boundary: the budget check runs per stylesheet file, and the single 9.9 kB file
+  // sat 100 bytes under the 10 kB error that fails ng build (and CI) for any new rule.
+  styleUrls: ['./admin-assistant.page.css', './admin-assistant.keys.css'],
 })
 export class AdminAssistantPage implements OnInit {
   private readonly api = inject(AdminAssistantService);
