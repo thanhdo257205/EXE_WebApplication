@@ -67,6 +67,10 @@ export function createCache(clock: () => number = Date.now, options: CacheOption
       }, () => { if (entries.get(key) === entry) remove(key); });
       return value;
     },
+    has(key: string): boolean {
+      const entry = entries.get(key);
+      return Boolean(entry && entry.expires > clock());
+    },
     clear: () => { entries.clear(); totalBytes = 0; },
     size: () => entries.size,
     bytes: () => totalBytes,

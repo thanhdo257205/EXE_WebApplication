@@ -1,6 +1,15 @@
 // Provider adapters and failover router for the public board-game assistant.
 // Native fetch only: the backend does not depend on any AI SDK.
 
+import { decodeMasterKey } from './assistant-crypto.ts';
+
+export const PROVIDER_LABELS: Readonly<Record<'workers-ai' | 'gemini' | 'groq' | 'openrouter', string>> = {
+  'workers-ai': 'Cloudflare Workers AI',
+  gemini: 'Google Gemini',
+  groq: 'Groq',
+  openrouter: 'OpenRouter',
+};
+
 export type ChatRole = 'user' | 'assistant';
 export interface ChatMessage { role: ChatRole; content: string; }
 export type ProviderId = 'workers-ai' | 'gemini' | 'groq' | 'openrouter';
@@ -36,8 +45,11 @@ export interface CompletionRequest {
 }
 export interface ChatProvider {
   readonly id: ProviderId;
+  /** One credential slot of a provider (`gemini#1`, `gemini#2`). Cooldowns are tracked per slot. */
+  readonly slot: string;
   readonly model: string;
   complete(request: CompletionRequest): Promise<string>;
+  withModel(model: string): ChatProvider;
 }
 export interface AssistantOptions {
   providers: ChatProvider[];
@@ -45,8 +57,14 @@ export interface AssistantOptions {
   attemptTimeoutMs: number;
   maxOutputTokens: number;
   temperature: number;
+  /** Master key for admin-managed credentials; null/absent disables key storage. */
+  credentialKey?: Buffer | null;
+  /** Env-selected default model per provider, used for credentials stored in the database. */
+  models?: Partial<Record<ProviderId, string>>;
+  siteUrl?: string;
+  fetch?: FetchLike;
 }
-export interface RoutedCompletion { text: string; provider: ProviderId; model: string; attempts: number; }
+export interface RoutedCompletion { text: string; provider: ProviderId; slot: string; model: string; attempts: number; }
 
 const failureForStatus = (status: number): ProviderFailure =>
   status === 402 || status === 429 ? 'QUOTA' : status === 401 || status === 403 ? 'AUTH' : status >= 500 ? 'UNAVAILABLE' : 'INVALID';
@@ -69,12 +87,12 @@ async function postJson(provider: ProviderId, fetcher: FetchLike, url: string, h
   catch { throw new ProviderError(provider, 'INVALID'); }
 }
 
-export interface WorkersAiOptions { accountId: string; token: string; model?: string; fetch?: FetchLike; }
+export interface WorkersAiOptions { accountId: string; token: string; model?: string; slot?: string; fetch?: FetchLike; }
 export function workersAiProvider(options: WorkersAiOptions): ChatProvider {
-  const model = options.model || '@cf/meta/llama-3.1-8b-instruct';
   const fetcher = options.fetch ?? fetch;
-  return {
-    id: 'workers-ai', model,
+  const build = (model: string, slot: string): ChatProvider => ({
+    id: 'workers-ai', slot, model,
+    withModel: next => build(next, slot),
     async complete(request) {
       const data = await postJson('workers-ai', fetcher,
         `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(options.accountId)}/ai/run/${model}`,
@@ -92,15 +110,16 @@ export function workersAiProvider(options: WorkersAiOptions): ChatProvider {
       if (!text) throw new ProviderError('workers-ai', 'EMPTY');
       return text;
     },
-  };
+  });
+  return build(options.model || '@cf/meta/llama-3.1-8b-instruct', options.slot || 'workers-ai#1');
 }
 
-export interface GeminiOptions { apiKey: string; model?: string; fetch?: FetchLike; }
+export interface GeminiOptions { apiKey: string; model?: string; slot?: string; fetch?: FetchLike; }
 export function geminiProvider(options: GeminiOptions): ChatProvider {
-  const model = options.model || 'gemini-2.5-flash';
   const fetcher = options.fetch ?? fetch;
-  return {
-    id: 'gemini', model,
+  const build = (model: string, slot: string): ChatProvider => ({
+    id: 'gemini', slot, model,
+    withModel: next => build(next, slot),
     async complete(request) {
       const data = await postJson('gemini', fetcher,
         `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
@@ -119,16 +138,18 @@ export function geminiProvider(options: GeminiOptions): ChatProvider {
       if (!text) throw new ProviderError('gemini', 'EMPTY');
       return text;
     },
-  };
+  });
+  return build(options.model || 'gemini-2.5-flash', options.slot || 'gemini#1');
 }
 
-const openAiCompatible = (provider: 'groq' | 'openrouter', url: string, options: { apiKey: string; model: string; headers?: Record<string, string>; fetch?: FetchLike }): ChatProvider => {
+const openAiCompatible = (provider: 'groq' | 'openrouter', url: string, options: { apiKey: string; model: string; slot: string; headers?: Record<string, string>; fetch?: FetchLike }): ChatProvider => {
   const fetcher = options.fetch ?? fetch;
-  return {
-    id: provider, model: options.model,
+  const build = (model: string, slot: string): ChatProvider => ({
+    id: provider, slot, model,
+    withModel: next => build(next, slot),
     async complete(request) {
       const data = await postJson(provider, fetcher, url, { Authorization: `Bearer ${options.apiKey}`, ...options.headers },
-        { model: options.model, messages: [{ role: 'system', content: request.system }, ...request.messages], max_tokens: request.maxTokens, temperature: request.temperature },
+        { model, messages: [{ role: 'system', content: request.system }, ...request.messages], max_tokens: request.maxTokens, temperature: request.temperature },
         request.signal);
       const root = record(data);
       if (root.error) {
@@ -141,22 +162,23 @@ const openAiCompatible = (provider: 'groq' | 'openrouter', url: string, options:
       if (!text) throw new ProviderError(provider, 'EMPTY');
       return text;
     },
-  };
+  });
+  return build(options.model, options.slot);
 };
 
-export interface GroqOptions { apiKey: string; model?: string; fetch?: FetchLike; }
+export interface GroqOptions { apiKey: string; model?: string; slot?: string; fetch?: FetchLike; }
 export function groqProvider(options: GroqOptions): ChatProvider {
   return openAiCompatible('groq', 'https://api.groq.com/openai/v1/chat/completions',
-    { apiKey: options.apiKey, model: options.model || 'llama-3.3-70b-versatile', fetch: options.fetch });
+    { apiKey: options.apiKey, model: options.model || 'llama-3.3-70b-versatile', slot: options.slot || 'groq#1', fetch: options.fetch });
 }
 
-export interface OpenRouterOptions { apiKey: string; model?: string; siteUrl?: string; fetch?: FetchLike; }
+export interface OpenRouterOptions { apiKey: string; model?: string; slot?: string; siteUrl?: string; fetch?: FetchLike; }
 export function openRouterProvider(options: OpenRouterOptions): ChatProvider {
   // Header values must be Latin-1, so the fixed title stays ASCII.
   const headers: Record<string, string> = { 'X-Title': 'Nha Nay Hoi Bao - Board game assistant' };
   if (options.siteUrl) headers['HTTP-Referer'] = options.siteUrl;
   return openAiCompatible('openrouter', 'https://openrouter.ai/api/v1/chat/completions',
-    { apiKey: options.apiKey, model: options.model || 'meta-llama/llama-3.3-70b-instruct:free', headers, fetch: options.fetch });
+    { apiKey: options.apiKey, model: options.model || 'meta-llama/llama-3.3-70b-instruct:free', slot: options.slot || 'openrouter#1', headers, fetch: options.fetch });
 }
 
 const DEFAULT_COOLDOWNS: Readonly<Record<ProviderFailure, number>> = {
@@ -185,7 +207,8 @@ export class ProviderRouter {
   private readonly attemptTimeoutMs: number;
   private readonly cooldownMs: Record<ProviderFailure, number>;
   private readonly now: () => number;
-  private readonly blockedUntil = new Map<ProviderId, number>();
+  // Keyed by slot, so one exhausted key skips only itself while sibling keys stay usable.
+  private readonly blockedUntil = new Map<string, number>();
 
   constructor(options: RouterOptions) {
     this.providers = options.providers;
@@ -195,12 +218,12 @@ export class ProviderRouter {
     this.now = options.now ?? Date.now;
   }
 
-  async complete(input: Omit<CompletionRequest, 'signal'>): Promise<RoutedCompletion> {
+  async complete(input: Omit<CompletionRequest, 'signal'>, providers: readonly ChatProvider[] = this.providers): Promise<RoutedCompletion> {
     const deadline = this.now() + this.timeoutMs;
     const failures: ProviderFailure[] = [];
     let attempts = 0;
-    for (const provider of this.providers) {
-      if ((this.blockedUntil.get(provider.id) ?? 0) > this.now()) continue;
+    for (const provider of providers) {
+      if ((this.blockedUntil.get(provider.slot) ?? 0) > this.now()) continue;
       const remaining = deadline - this.now();
       if (remaining < 500) break;
       const controller = new AbortController();
@@ -209,13 +232,13 @@ export class ProviderRouter {
       try {
         const text = await provider.complete({ ...input, signal: controller.signal });
         if (!text.trim()) throw new ProviderError(provider.id, 'EMPTY');
-        this.blockedUntil.delete(provider.id);
-        return { text, provider: provider.id, model: provider.model, attempts };
+        this.blockedUntil.delete(provider.slot);
+        return { text, provider: provider.id, slot: provider.slot, model: provider.model, attempts };
       } catch (error) {
         const failure = error instanceof ProviderError ? error.failure : 'UNAVAILABLE';
         failures.push(failure);
         const cooldown = this.cooldownMs[failure];
-        if (cooldown > 0) this.blockedUntil.set(provider.id, this.now() + cooldown);
+        if (cooldown > 0) this.blockedUntil.set(provider.slot, this.now() + cooldown);
       } finally {
         clearTimeout(timer);
       }
@@ -224,22 +247,31 @@ export class ProviderRouter {
   }
 }
 
-const DEFAULT_MODELS: Readonly<Record<ProviderId, string>> = {
+export const DEFAULT_MODELS: Readonly<Record<ProviderId, string>> = {
   'workers-ai': '@cf/meta/llama-3.1-8b-instruct',
   gemini: 'gemini-2.5-flash',
   groq: 'llama-3.3-70b-versatile',
   openrouter: 'meta-llama/llama-3.3-70b-instruct:free',
 };
-const DEFAULT_ORDER: readonly ProviderId[] = ['workers-ai', 'gemini', 'groq', 'openrouter'];
-const isProviderId = (value: string): value is ProviderId => (DEFAULT_ORDER as readonly string[]).includes(value);
+export const DEFAULT_ORDER: readonly ProviderId[] = ['workers-ai', 'gemini', 'groq', 'openrouter'];
+export const isProviderId = (value: string): value is ProviderId => (DEFAULT_ORDER as readonly string[]).includes(value);
 
 const bounded = (value: string | undefined, fallback: number, min: number, max: number): number => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? Math.min(max, Math.max(min, parsed)) : fallback;
 };
 const clean = (value: string | undefined): string => (value ?? '').trim();
+/** Comma/newline/semicolon separated credentials; order is preserved so slot numbers are stable. */
+const credentialList = (value: string | undefined): string[] => {
+  const seen = new Set<string>();
+  for (const entry of (value ?? '').split(/[\s,;]+/)) {
+    const item = entry.trim();
+    if (item) seen.add(item);
+  }
+  return [...seen];
+};
 
-/** Builds the provider order from env; missing credentials simply remove that provider. */
+/** Builds every credential slot from env; missing credentials simply remove that slot. */
 export function assistantFromEnv(env: Record<string, string | undefined>, fetchImpl: FetchLike = fetch): AssistantOptions {
   const requested = (clean(env.AI_PROVIDER_ORDER) || DEFAULT_ORDER.join(',')).split(',');
   const order: ProviderId[] = [];
@@ -248,36 +280,62 @@ export function assistantFromEnv(env: Record<string, string | undefined>, fetchI
     if (isProviderId(id) && !order.includes(id)) order.push(id);
   }
   const siteUrl = clean(env.OPENROUTER_SITE_URL) || clean(env.PUBLIC_ORIGIN) || 'https://exe-webapp.pages.dev';
-  const build: Record<ProviderId, () => ChatProvider | null> = {
+  const build: Record<ProviderId, () => ChatProvider[]> = {
     'workers-ai': () => {
-      const accountId = clean(env.CLOUDFLARE_AI_ACCOUNT_ID), token = clean(env.CLOUDFLARE_AI_API_TOKEN);
-      return accountId && token ? workersAiProvider({ accountId, token, model: clean(env.CLOUDFLARE_AI_MODEL) || DEFAULT_MODELS['workers-ai'], fetch: fetchImpl }) : null;
+      const accounts = credentialList(env.CLOUDFLARE_AI_ACCOUNTS)
+        .map(entry => {
+          const separator = entry.indexOf(':');
+          return separator > 0 ? { accountId: entry.slice(0, separator).trim(), token: entry.slice(separator + 1).trim() } : null;
+        })
+        .filter((pair): pair is { accountId: string; token: string } => Boolean(pair?.accountId && pair.token));
+      const singular = { accountId: clean(env.CLOUDFLARE_AI_ACCOUNT_ID), token: clean(env.CLOUDFLARE_AI_API_TOKEN) };
+      if (singular.accountId && singular.token) accounts.push(singular as { accountId: string; token: string });
+      const unique = [...new Map(accounts.map(account => [`${account.accountId}:${account.token}`, account])).values()];
+      return unique.map((account, index) => workersAiProvider({
+        ...account, model: clean(env.CLOUDFLARE_AI_MODEL) || DEFAULT_MODELS['workers-ai'], slot: `workers-ai#${index + 1}`, fetch: fetchImpl,
+      }));
     },
     gemini: () => {
-      const apiKey = clean(env.GEMINI_API_KEY);
-      return apiKey ? geminiProvider({ apiKey, model: clean(env.GEMINI_MODEL) || DEFAULT_MODELS.gemini, fetch: fetchImpl }) : null;
+      const keys = [...credentialList(env.GEMINI_API_KEYS), clean(env.GEMINI_API_KEY)].filter(Boolean);
+      return [...new Set(keys)].map((apiKey, index) => geminiProvider({
+        apiKey, model: clean(env.GEMINI_MODEL) || DEFAULT_MODELS.gemini, slot: `gemini#${index + 1}`, fetch: fetchImpl,
+      }));
     },
     groq: () => {
-      const apiKey = clean(env.GROQ_API_KEY);
-      return apiKey ? groqProvider({ apiKey, model: clean(env.GROQ_MODEL) || DEFAULT_MODELS.groq, fetch: fetchImpl }) : null;
+      const keys = [...credentialList(env.GROQ_API_KEYS), clean(env.GROQ_API_KEY)].filter(Boolean);
+      return [...new Set(keys)].map((apiKey, index) => groqProvider({
+        apiKey, model: clean(env.GROQ_MODEL) || DEFAULT_MODELS.groq, slot: `groq#${index + 1}`, fetch: fetchImpl,
+      }));
     },
     openrouter: () => {
-      const apiKey = clean(env.OPENROUTER_API_KEY);
-      return apiKey ? openRouterProvider({ apiKey, model: clean(env.OPENROUTER_MODEL) || DEFAULT_MODELS.openrouter, siteUrl, fetch: fetchImpl }) : null;
+      const keys = [...credentialList(env.OPENROUTER_API_KEYS), clean(env.OPENROUTER_API_KEY)].filter(Boolean);
+      return [...new Set(keys)].map((apiKey, index) => openRouterProvider({
+        apiKey, model: clean(env.OPENROUTER_MODEL) || DEFAULT_MODELS.openrouter, slot: `openrouter#${index + 1}`, siteUrl, fetch: fetchImpl,
+      }));
     },
   };
   const providers: ChatProvider[] = [];
-  for (const id of order) {
-    const provider = build[id]();
-    if (provider) providers.push(provider);
-  }
+  for (const id of order) providers.push(...build[id]());
   const timeoutMs = Math.round(bounded(env.AI_TIMEOUT_MS, 30_000, 5_000, 55_000));
   const attemptTimeoutMs = Math.round(bounded(env.AI_ATTEMPT_TIMEOUT_MS, 7_000, 2_000, timeoutMs));
+  const secret = clean(env.ASSISTANT_KEY_SECRET);
+  const credentialKey = decodeMasterKey(secret);
+  if (secret && !credentialKey) throw new Error('ASSISTANT_KEY_SECRET must be Base64 for exactly 32 bytes');
+  const models: Partial<Record<ProviderId, string>> = {
+    'workers-ai': clean(env.CLOUDFLARE_AI_MODEL) || DEFAULT_MODELS['workers-ai'],
+    gemini: clean(env.GEMINI_MODEL) || DEFAULT_MODELS.gemini,
+    groq: clean(env.GROQ_MODEL) || DEFAULT_MODELS.groq,
+    openrouter: clean(env.OPENROUTER_MODEL) || DEFAULT_MODELS.openrouter,
+  };
   return {
     providers,
     timeoutMs,
     attemptTimeoutMs,
     maxOutputTokens: Math.round(bounded(env.AI_MAX_OUTPUT_TOKENS, 700, 128, 2_048)),
     temperature: bounded(env.AI_TEMPERATURE, 0.3, 0, 1),
+    credentialKey,
+    models,
+    siteUrl,
+    fetch: fetchImpl,
   };
 }

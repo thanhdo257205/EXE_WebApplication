@@ -7,6 +7,7 @@ import {
 import {
   chunkMarkdown, retrieve, tokenize, type KnowledgeDocument, type PublishedKnowledge,
 } from '../src/assistant-knowledge.ts';
+import { activeProviders } from '../src/assistant-settings.ts';
 
 const request = (overrides: Partial<CompletionRequest> = {}): CompletionRequest => ({
   system: 'SYSTEM',
@@ -16,7 +17,9 @@ const request = (overrides: Partial<CompletionRequest> = {}): CompletionRequest 
   signal: new AbortController().signal,
   ...overrides,
 });
-const chatProvider = (id: ChatProvider['id'], complete: ChatProvider['complete']): ChatProvider => ({ id, model: 'test-model', complete });
+const chatProvider = (id: ChatProvider['id'], complete: ChatProvider['complete'], model = 'test-model', slot = `${id}#1`): ChatProvider => ({
+  id, model, slot, complete, withModel: next => chatProvider(id, complete, next, slot),
+});
 const jsonBody = (init?: RequestInit): any => JSON.parse(String(init?.body));
 const header = (init: RequestInit | undefined, name: string): string | null => (init?.headers as Record<string, string>)[name] ?? null;
 const isFailure = (failure: string) => (error: unknown) => error instanceof ProviderError && error.failure === failure;
@@ -89,7 +92,7 @@ test('router fails over and skips a cooling provider until its cooldown expires'
     timeoutMs: 1_000, attemptTimeoutMs: 100, cooldownMs: { QUOTA: 500 }, now: () => clock,
   });
   const input = { system: 's', messages: [], maxTokens: 10, temperature: 0 };
-  assert.deepEqual(await router.complete(input), { text: 'backup', provider: 'groq', model: 'test-model', attempts: 2 });
+  assert.deepEqual(await router.complete(input), { text: 'backup', provider: 'groq', slot: 'groq#1', model: 'test-model', attempts: 2 });
   assert.equal(primary, 1); assert.equal(backup, 1);
   clock += 100;
   assert.equal((await router.complete(input)).provider, 'groq');
@@ -116,6 +119,40 @@ test('router reports normalized failures and aborts a hanging provider', async (
   await assert.rejects(router.complete(input), (error: unknown) => error instanceof NoProviderAvailable && error.failures[0] === 'TIMEOUT');
 });
 
+test('router cools down only the failing key slot and keeps sibling keys usable', async () => {
+  let clock = 1_000;
+  const calls: string[] = [];
+  const primary = chatProvider('gemini', async () => { calls.push('gemini#1'); throw new ProviderError('gemini', 'QUOTA'); }, 'gemini-test', 'gemini#1');
+  const sibling = chatProvider('gemini', async () => { calls.push('gemini#2'); return 'sibling'; }, 'gemini-test', 'gemini#2');
+  const router = new ProviderRouter({ providers: [primary, sibling], timeoutMs: 1_000, attemptTimeoutMs: 100, cooldownMs: { QUOTA: 500 }, now: () => clock });
+  const input = { system: 's', messages: [], maxTokens: 10, temperature: 0 };
+  const first = await router.complete(input);
+  assert.equal(first.slot, 'gemini#2');
+  assert.equal(first.attempts, 2);
+  clock += 100;
+  const second = await router.complete(input);
+  assert.equal(second.slot, 'gemini#2');
+  assert.equal(second.attempts, 1);
+  assert.deepEqual(calls, ['gemini#1', 'gemini#2', 'gemini#2']);
+  clock += 500;
+  assert.equal((await router.complete(input)).attempts, 2);
+  assert.deepEqual(calls, ['gemini#1', 'gemini#2', 'gemini#2', 'gemini#1', 'gemini#2']);
+});
+
+test('admin plan applies provider order, model override and disabled slots', () => {
+  const providers = [
+    chatProvider('gemini', async () => 'g1', 'gemini-test', 'gemini#1'),
+    chatProvider('gemini', async () => 'g2', 'gemini-test', 'gemini#2'),
+    chatProvider('groq', async () => 'q', 'groq-test', 'groq#1'),
+  ];
+  const active = activeProviders(providers, {
+    order: ['groq', 'gemini'], models: { gemini: 'gemini-custom' }, disabledSlots: ['gemini#2'], version: 1, updatedAt: null,
+  });
+  assert.deepEqual(active.map(provider => provider.slot), ['groq#1', 'gemini#1']);
+  assert.equal(active[1].model, 'gemini-custom');
+  assert.equal(active[0].model, 'groq-test');
+});
+
 test('assistantFromEnv keeps configured order, skips missing credentials and clamps settings', () => {
   const fetchStub: FetchLike = async () => Response.json({});
   const options = assistantFromEnv({
@@ -123,11 +160,30 @@ test('assistantFromEnv keeps configured order, skips missing credentials and cla
     AI_TIMEOUT_MS: '1', AI_ATTEMPT_TIMEOUT_MS: '999999', AI_MAX_OUTPUT_TOKENS: '99999', AI_TEMPERATURE: '2',
   }, fetchStub);
   assert.deepEqual(options.providers.map(provider => provider.id), ['groq', 'gemini']);
+  assert.deepEqual(options.providers.map(provider => provider.slot), ['groq#1', 'gemini#1']);
   assert.equal(options.timeoutMs, 5_000);
   assert.equal(options.attemptTimeoutMs, 5_000);
   assert.equal(options.maxOutputTokens, 2_048);
   assert.equal(options.temperature, 1);
   assert.deepEqual(assistantFromEnv({}, fetchStub).providers, []);
+});
+
+test('assistantFromEnv numbers every credential slot without duplicating keys', () => {
+  const fetchStub: FetchLike = async () => Response.json({});
+  const options = assistantFromEnv({
+    AI_PROVIDER_ORDER: 'workers-ai,gemini,groq,openrouter',
+    CLOUDFLARE_AI_ACCOUNTS: 'acc1:token1\nacc2:token2',
+    CLOUDFLARE_AI_ACCOUNT_ID: 'acc1', CLOUDFLARE_AI_API_TOKEN: 'token1',
+    GEMINI_API_KEYS: 'g1, g1\n g2', GEMINI_API_KEY: 'g2',
+    GROQ_API_KEYS: 'q1;q2',
+    OPENROUTER_API_KEY: 'or1',
+  }, fetchStub);
+  assert.deepEqual(options.providers.map(provider => provider.slot), [
+    'workers-ai#1', 'workers-ai#2', 'gemini#1', 'gemini#2', 'groq#1', 'groq#2', 'openrouter#1',
+  ]);
+  assert.deepEqual(options.providers.map(provider => provider.id), [
+    'workers-ai', 'workers-ai', 'gemini', 'gemini', 'groq', 'groq', 'openrouter',
+  ]);
 });
 
 test('Vietnamese tokens keep card words while dropping filler, and long wiki pages chunk', () => {

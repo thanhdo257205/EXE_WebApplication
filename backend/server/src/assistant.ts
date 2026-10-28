@@ -3,9 +3,12 @@ import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { fail } from './db.ts';
 import type { Cache } from './cache.ts';
-import type { Api } from './auth.ts';
+import { requireActor, type Api } from './auth.ts';
 import { loadKnowledge, normalizeVietnamese, retrieve } from './assistant-knowledge.ts';
 import { NoProviderAvailable, ProviderRouter, type AssistantOptions, type ChatMessage } from './assistant-providers.ts';
+import { activeProviders, cachedAssistantSettings } from './assistant-settings.ts';
+import { assistantRuntimeOptions } from './assistant-credentials.ts';
+import type { UsageRecorder } from './assistant-usage.ts';
 
 export const ASSISTANT_PATH = '/api/v1/assistant/chat';
 const PROMPT_VERSION = 'v1';
@@ -45,42 +48,67 @@ QUY TẮC BẮT BUỘC:
 TÀI LIỆU (bản phát hành ${versionLabel}):
 ${context}`;
 
-export function assistantRoutes(app: Api, db: Client, cache: Cache, options: AssistantOptions | null) {
-  const router = options?.providers.length
+export function assistantRoutes(app: Api, db: Client, cache: Cache, options: AssistantOptions | null, usage: UsageRecorder | null) {
+  // The router keeps per-slot cooldowns across requests; database credentials join the slot list later.
+  const router = options
     ? new ProviderRouter({ providers: options.providers, timeoutMs: options.timeoutMs, attemptTimeoutMs: options.attemptTimeoutMs })
     : null;
   app.post(ASSISTANT_PATH, async c => {
+    // Login-only: the assistant spends a shared free quota, so anonymous callers are rejected before parsing.
+    requireActor(c);
     const body = chatSchema.parse(await c.req.json());
-    if (!router || !options) return fail(503, 'AI_UNAVAILABLE');
+    const runtime = await assistantRuntimeOptions(cache, db, options);
+    const settings = await cachedAssistantSettings(cache, db, runtime);
+    const active = runtime ? activeProviders(runtime.providers, settings) : [];
+    if (!router || !runtime || !active.length) {
+      usage?.record({ provider: 'none', slot: 'none', model: 'none', failure: true });
+      return fail(503, 'AI_UNAVAILABLE');
+    }
     const knowledge = await cache.cached('assistant:knowledge:v1', KNOWLEDGE_TTL_MS, () => loadKnowledge(db));
-    if (!knowledge) return c.json({
-      answer: NO_RELEASE_ANSWER,
-      sources: [{ title: 'Hướng dẫn cách chơi', url: '/cach-choi' }, { title: 'Wiki luật', url: '/wiki' }],
-      release: null,
-    });
+    if (!knowledge) {
+      usage?.record({ provider: 'none', slot: 'none', model: 'none' });
+      return c.json({
+        answer: NO_RELEASE_ANSWER,
+        sources: [{ title: 'Hướng dẫn cách chơi', url: '/cach-choi' }, { title: 'Wiki luật', url: '/wiki' }],
+        release: null,
+      });
+    }
     const history: ChatMessage[] = body.history.slice(-MAX_HISTORY_MESSAGES)
       .map(item => ({ role: item.role, content: item.content.slice(0, MAX_HISTORY_CHARS) }));
+    const key = answerKey(knowledge.releaseId, body.message, history);
+    const started = Date.now();
     const compute = async () => {
       // Retrieval runs only on a cache miss; a hit returns the sources stored with the answer.
       const retrieved = retrieve(knowledge, body.message);
       const result = await router.complete({
         system: systemPrompt(knowledge.versionLabel, retrieved.context),
         messages: [...history, { role: 'user', content: body.message }],
-        maxTokens: options.maxOutputTokens,
-        temperature: options.temperature,
-      });
+        maxTokens: runtime.maxOutputTokens,
+        temperature: runtime.temperature,
+      }, active);
       return {
-        answer: result.text,
-        sources: retrieved.sources,
-        release: { versionLabel: knowledge.versionLabel, title: knowledge.releaseTitle },
+        payload: {
+          answer: result.text,
+          sources: retrieved.sources,
+          release: { versionLabel: knowledge.versionLabel, title: knowledge.releaseTitle },
+        },
+        meta: { provider: result.provider, slot: result.slot, model: result.model },
       };
     };
     try {
-      const answer = await cache.cached(answerKey(knowledge.releaseId, body.message, history), ANSWER_TTL_MS, compute);
-      return c.json(answer);
+      // A fresh entry (or an in-flight identical request) is served without provider work.
+      const cacheHit = cache.has(key);
+      const answer = await cache.cached(key, ANSWER_TTL_MS, compute);
+      usage?.record({
+        ...answer.meta,
+        cacheHit,
+        latencyMs: cacheHit ? 0 : Date.now() - started,
+      });
+      return c.json(answer.payload);
     } catch (error) {
       if (error instanceof NoProviderAvailable) {
         console.warn('Assistant providers unavailable', { failures: error.failures });
+        usage?.record({ provider: 'none', slot: 'none', model: 'none', failure: true, latencyMs: Date.now() - started });
         return fail(503, 'AI_UNAVAILABLE');
       }
       throw error;
