@@ -48,6 +48,7 @@
                   "maximumError": "10kB"
                 }
               ],
+              "deployUrl": "/",
               "outputHashing": "all"
             },
             "development": {

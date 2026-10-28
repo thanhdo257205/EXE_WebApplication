@@ -50,7 +50,7 @@ export const routes: Routes = [
   },
   {
     path: '',
-    title: 'Nhà Này Hơi Báo! — Wiki',
+    title: 'Nhà Này Hơi Báo! — Board Game Wiki',
     loadComponent: () => import('./features/home/home.page').then(m => m.HomePage),
   },
   {
