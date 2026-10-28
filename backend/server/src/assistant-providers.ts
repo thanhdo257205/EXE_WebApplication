@@ -93,6 +93,15 @@ const tokensOf = (value: unknown): { tokensIn: number; tokensOut: number } => {
   };
 };
 
+/** Gemini reports a bad API key as HTTP 400, which status-only mapping would call INVALID. */
+async function geminiKeyRejected(response: Response): Promise<boolean> {
+  try {
+    const error = record(record(await response.clone().json()).error);
+    const reasons = list(error.details).map(entry => textOf(record(entry).reason));
+    return reasons.includes('API_KEY_INVALID') || /api key not valid/i.test(textOf(error.message));
+  } catch { return false; }
+}
+
 async function postJson(provider: ProviderId, fetcher: FetchLike, url: string, headers: Record<string, string>, body: unknown, signal: AbortSignal): Promise<unknown> {
   let response: Response;
   try {
@@ -100,7 +109,10 @@ async function postJson(provider: ProviderId, fetcher: FetchLike, url: string, h
   } catch {
     throw new ProviderError(provider, signal.aborted ? 'TIMEOUT' : 'UNAVAILABLE');
   }
-  if (!response.ok) throw new ProviderError(provider, failureForStatus(response.status));
+  if (!response.ok) {
+    const failure = provider === 'gemini' && response.status === 400 && await geminiKeyRejected(response) ? 'AUTH' : failureForStatus(response.status);
+    throw new ProviderError(provider, failure);
+  }
   try { return await response.json(); }
   catch { throw new ProviderError(provider, 'INVALID'); }
 }
@@ -157,7 +169,7 @@ export function geminiProvider(options: GeminiOptions): ChatProvider {
       return { text, ...tokensOf(root.usageMetadata) };
     },
   });
-  return build(options.model || 'gemini-2.5-flash', options.slot || 'gemini#1');
+  return build(options.model || DEFAULT_MODELS.gemini, options.slot || 'gemini#1');
 }
 
 const openAiCompatible = (provider: 'groq' | 'openrouter', url: string, options: { apiKey: string; model: string; slot: string; headers?: Record<string, string>; fetch?: FetchLike }): ChatProvider => {
@@ -187,7 +199,7 @@ const openAiCompatible = (provider: 'groq' | 'openrouter', url: string, options:
 export interface GroqOptions { apiKey: string; model?: string; slot?: string; fetch?: FetchLike; }
 export function groqProvider(options: GroqOptions): ChatProvider {
   return openAiCompatible('groq', 'https://api.groq.com/openai/v1/chat/completions',
-    { apiKey: options.apiKey, model: options.model || 'llama-3.3-70b-versatile', slot: options.slot || 'groq#1', fetch: options.fetch });
+    { apiKey: options.apiKey, model: options.model || DEFAULT_MODELS.groq, slot: options.slot || 'groq#1', fetch: options.fetch });
 }
 
 export interface OpenRouterOptions { apiKey: string; model?: string; slot?: string; siteUrl?: string; fetch?: FetchLike; }
@@ -196,7 +208,7 @@ export function openRouterProvider(options: OpenRouterOptions): ChatProvider {
   const headers: Record<string, string> = { 'X-Title': 'Nha Nay Hoi Bao - Board game assistant' };
   if (options.siteUrl) headers['HTTP-Referer'] = options.siteUrl;
   return openAiCompatible('openrouter', 'https://openrouter.ai/api/v1/chat/completions',
-    { apiKey: options.apiKey, model: options.model || 'meta-llama/llama-3.3-70b-instruct:free', slot: options.slot || 'openrouter#1', headers, fetch: options.fetch });
+    { apiKey: options.apiKey, model: options.model || DEFAULT_MODELS.openrouter, slot: options.slot || 'openrouter#1', headers, fetch: options.fetch });
 }
 
 const DEFAULT_COOLDOWNS: Readonly<Record<ProviderFailure, number>> = {
@@ -268,11 +280,13 @@ export class ProviderRouter {
   }
 }
 
+// Retired model ids are rejected by providers (Groq shut down Llama 3.3 70B on 2026-08-16 and Gemini
+// no longer serves 2.5 Flash to new keys), so the fallbacks must track the current free-tier lineup.
 export const DEFAULT_MODELS: Readonly<Record<ProviderId, string>> = {
   'workers-ai': '@cf/meta/llama-3.1-8b-instruct',
-  gemini: 'gemini-2.5-flash',
-  groq: 'llama-3.3-70b-versatile',
-  openrouter: 'meta-llama/llama-3.3-70b-instruct:free',
+  gemini: 'gemini-3.5-flash-lite',
+  groq: 'openai/gpt-oss-120b',
+  openrouter: 'google/gemma-4-26b-a4b-it:free',
 };
 export const DEFAULT_ORDER: readonly ProviderId[] = ['workers-ai', 'gemini', 'groq', 'openrouter'];
 export const isProviderId = (value: string): value is ProviderId => (DEFAULT_ORDER as readonly string[]).includes(value);

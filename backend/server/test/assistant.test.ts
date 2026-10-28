@@ -64,6 +64,26 @@ test('Gemini adapter sends systemInstruction, maps assistant to model and joins 
   await assert.rejects(blocked.complete(request()), isFailure('EMPTY'));
 });
 
+test('Gemini adapter treats a 400 API_KEY_INVALID as an auth failure', async () => {
+  const adapter = geminiProvider({
+    apiKey: 'bad-key', model: 'gemini-test',
+    fetch: async () => Response.json({
+      error: {
+        code: 400,
+        message: 'API key not valid. Please pass a valid API key.',
+        status: 'INVALID_ARGUMENT',
+        details: [{ reason: 'API_KEY_INVALID' }],
+      },
+    }, { status: 400 }),
+  });
+  await assert.rejects(adapter.complete(request()), isFailure('AUTH'));
+  const other = geminiProvider({
+    apiKey: 'k', model: 'gemini-test',
+    fetch: async () => Response.json({ error: { code: 400, message: 'Model not found', status: 'INVALID_ARGUMENT' } }, { status: 400 }),
+  });
+  await assert.rejects(other.complete(request()), isFailure('INVALID'));
+});
+
 test('Groq and OpenRouter adapters use OpenAI-compatible bodies and normalize failures', async () => {
   let seen: { url: string; init: RequestInit } | undefined;
   const groq = groqProvider({ apiKey: 'groq-key', model: 'groq-test', fetch: async (url, init) => { seen = { url, init }; return Response.json({ choices: [{ message: { content: 'Groq trả lời' } }], usage: { prompt_tokens: 7, completion_tokens: 3 } }); } });
