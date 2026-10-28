@@ -13,10 +13,11 @@
   - Tăng giới hạn dung lượng file Excel import từ 5 MB lên **50 MB** để chứa vừa file có hàng chục ảnh nhúng độ phân giải cao.
   - Tích hợp pipeline nén `prepareCardImage` (aspect-ratio chuẩn 750×1050, nén WebP lũy tiến dưới 1 MB) và tải lên Azure Blob Storage qua `POST /api/v1/admin/media/card-image` trong `submitCardImport`. URL trả về (`/media/cards/<hash>.webp`) được tự động gán vào trường `artworkUrl` của thẻ trước khi tạo thẻ (`createCard`).
   - Giao diện xem trước: hiển thị huy hiệu `📷 Nhúng (<size> kB)` tại cột Ảnh của các dòng có ảnh nhúng; cập nhật trạng thái tiến độ thời gian thực (đang tải ảnh dòng X lên Azure, đang tạo thẻ X).
+  - Tách riêng 2 khu vực / option trong giao diện thêm thẻ: **Cách 1: Nhập hàng loạt từ Excel** (chỉ hiển thị các trường của Excel, mở sẵn form) và **Cách 2: Nhập thủ công từng thẻ** (hiển thị quy trình 3 bước: uploader lẻ, tạo bộ thẻ mở rộng, tạo thẻ bài), loại bỏ tình trạng hiển thị dồn tất cả các form khiến người dùng tưởng phải điền hết.
   - Cập nhật file mẫu `mau-import-bo-the.xlsx` với hướng dẫn chèn ảnh trực tiếp vào ô Excel.
 - Kiểm thử local:
   - `card-import.spec.ts`: 14/14 tests pass (bổ sung test trích xuất drawings và ánh xạ ảnh nhúng vào dòng dữ liệu).
-  - `admin-section.page.spec.ts`: 24/24 tests pass (bổ sung test chặn file >50 MB và test luồng tải ảnh nhúng lên Azure trước khi tạo thẻ).
+  - `admin-section.page.spec.ts`: 25/25 tests pass (bổ sung test chuyển đổi option Excel / Manual, chặn file >50 MB và test luồng tải ảnh nhúng lên Azure trước khi tạo thẻ).
   - Toàn bộ frontend test suite: 53 files, **365/365 tests pass 100%**.
   - Production build & static prerender (`ng build`): hoàn tất thành công 0 lỗi.
 - Tài liệu chi tiết: cập nhật [ADMIN_CARD_IMPORT.md](docs/ADMIN_CARD_IMPORT.md).
