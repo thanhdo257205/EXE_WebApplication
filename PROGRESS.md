@@ -4,6 +4,18 @@
 
 ## Cập nhật gần nhất
 
+### RBAC chi tiết: admin chính phân quyền từng thao tác cho đồng quản trị — 2026-10-28 (local, chưa deploy)
+
+- Yêu cầu chủ dự án: chỉ **admin chính (OWNER)** phân quyền cho tài khoản quản trị khác; đồng quản trị bị giới hạn còn đúng từng thao tác (thêm thẻ, sửa thẻ, thêm API key, sửa model, sắp xếp model, thu hồi API key, …). Danh mục quyền nghiệp vụ được chốt trong [docs/RBAC_PERMISSIONS.md](docs/RBAC_PERMISSIONS.md) trước khi code.
+- Backend: `rbac-policy.ts` thêm danh mục 32 quyền `module:action` (`GRANTABLE_PERMISSIONS`), bộ mặc định của đồng quản trị (toàn bộ trừ `assistant:keys:manage`), `normalizePermissions()` tự bổ sung quyền phụ thuộc (`content:read`, `assistant:read`, `assistant:keys:read`, và `keys:manage` → reveal/test/revoke) và `accessView()` đọc quyền từ DB mỗi request — JWT không còn là nguồn quyền. Bảng mới `admin_permission_sets` trong `schema.sql` + tạo idempotent khi khởi động; không có dòng = dùng bộ mặc định.
+- Backend: `PUT /api/v1/admin/users/:id/permissions` (chỉ owner, `expectedVersion`, audit `USER_PERMISSIONS_CHANGED`, rollback khi audit lỗi, **không** tăng `auth_version` nên không đá phiên); `GET /admin/users` trả thêm `canManagePermissions` + `permissions/permissionsVersion/customPermissions` cho owner; đổi role xóa bộ quyền tùy chỉnh. Mọi route admin đã gắn quyền tương ứng; PUT cấu hình trợ lý chỉ kiểm tra quyền của **trường thực sự thay đổi**.
+- Backend: cờ khả năng cho giao diện — `settingsView` (`canReorder/canEditModels/canManageSlots/canEditBudgets/canReadUsage/canManage`), `keyView` (`canReveal/canTest/canRevoke/canManageStatus`), `GET keys` (`canCreate/canManage/storageAvailable/limits`).
+- Frontend: `permission-catalog.ts` (mirror danh mục backend + nhãn tiếng Việt), `permission.guard.ts` + nav theo quyền, `AuthService.hasPermission/hasAnyPermission`, trình **Phân quyền chi tiết** trên `/admin/users` (chỉ owner; đồng quản trị thấy "Chỉ admin chính"), 403 bản đồ hóa thành thông báo thiếu quyền.
+- Frontend gate theo quyền: trang trợ lý AI bật/tắt nút sắp xếp, ô model, ô hạn mức, công tắc slot, tab số liệu và form thêm key theo từng cờ; mỗi dòng key chỉ hiện nút đổi trạng thái/thu hồi theo quyền của chính key đó. Trang thẻ/bộ thẻ ẩn form tạo release, nhân bản, tạo thẻ, tạo bộ thẻ, panel import Excel và ô tải ảnh khi thiếu quyền tương ứng; import có ảnh nhúng bị chặn sớm nếu thiếu `media:upload`, method ghi tự kiểm tra lại trước khi gọi API.
+- Sửa hai lỗi dữ liệu tìm thấy khi nối cờ quyền: save cấu hình trợ lý của người không có `assistant:models:reorder` gửi lại `order` nguyên văn (tránh bị tính là đổi thứ tự → 403); payload hạn mức giữ toàn bộ map key đã tải, kể cả key của admin khác (tránh xóa hạn mức của người khác).
+- Kiểm thử local: backend typecheck qua, `npm test` **106 pass / 1 skip / 0 fail** (skip = ca cần Turso remote), file mới `rbac-permissions.test.ts` 8 ca. Frontend hai typecheck qua, `ng test` **57 file / 424 pass** (`permission-catalog.spec` 7, `permission.guard.spec` 6, `admin-users.page.spec` 26, `admin-assistant.page.spec` 37 với 7 test gate, `admin-section.page.spec` thêm 5 test gate). `ng build` exit 0, chỉ còn cảnh báo CSS/CommonJS cũ của file không liên quan.
+- Email admin thật trong fixture test đã thay bằng `admin@example.test`. **Chưa commit/push/deploy, chưa chạy Chromium với API thật, chưa đụng DB production.**
+
 ### Tự động trích xuất ảnh nhúng từ Excel và tải lên Azure Storage khi import bộ thẻ — 2026-10-28
 
 - Yêu cầu chủ dự án: cho phép người dùng đưa ảnh thẻ trực tiếp vào trong file Excel (.xlsx), sau đó hệ thống tự động bóc tách ảnh và đẩy lên Azure Blob Storage thay vì bắt buộc phải điền URL ảnh.

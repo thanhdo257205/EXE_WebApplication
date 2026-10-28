@@ -5,10 +5,12 @@
 | Vai trò hiệu lực | Vận hành các API quản trị hiện có | Xem/tìm tài khoản | Cấp/thu hồi đồng quản trị | Mời theo email trước khi đăng ký |
 | --- | --- | --- | --- | --- |
 | Admin chính (`OWNER`) | Có | Có | Có | Có |
-| Đồng quản trị (`DELEGATED`) | Có | Có | Không | Không |
+| Đồng quản trị (`DELEGATED`) | Theo bộ quyền chi tiết được cấp (mặc định = mọi quyền trừ `assistant:keys:manage`) | Có | Không | Không |
 | Thành viên (`CUSTOMER`) | Không | Không | Không | Không |
 
 Hai cấp quản trị giữ `app_users.role=ADMIN` để tương thích các guard và API hiện có. Cấp hiệu lực được máy chủ tính từ trạng thái DB, trả thêm `adminLevel` và `permissions` trong login/register/`GET /api/v1/auth/me`. `users:manage-roles` chỉ có ở admin chính; không tin role/permission do client hoặc JWT tự khai. `EDITOR` lịch sử không tự có quyền admin.
+
+Lớp quyền chi tiết theo từng thao tác (`module:action`) được mô tả đầy đủ trong `docs/RBAC_PERMISSIONS.md`; tài liệu này chỉ giữ phần registry owner, vai trò và lời mời.
 
 `rbac_owner` là registry có một slot, gắn ID tài khoản admin chính bằng FK `ON DELETE RESTRICT`. Không có API chuyển quyền sở hữu, tạo OWNER, sửa/xóa/khóa tài khoản admin chính hoặc tự phân quyền. Email tự nó không cấp quyền: lời mời đang chờ do admin chính tạo cho đúng email chỉ được tự áp dụng khi người đó đăng ký bằng Google với email đã được provider xác minh; đăng ký bằng mật khẩu không tiêu thụ lời mời và owner phải cấp quyền thủ công sau khi kiểm tra danh tính. Lời mời chỉ tạo được đồng quản trị. Email/mật khẩu mới đăng ký không thể trở thành owner.
 
@@ -16,6 +18,7 @@ Hai cấp quản trị giữ `app_users.role=ADMIN` để tương thích các gu
 
 - `schema.sql` có registry cho DB mới. Khi khởi động, `initializeRbac()` bổ sung bảng nếu DB cũ chưa có; chạy sau bootstrap admin và trước khi nhận request.
 - Bảng `admin_invites` (email duy nhất, người mời, ngày tạo) cũng được bổ sung idempotent khi khởi động (`initializeAdminInvites()`), không đổi `runtime_schema` hay dữ liệu hiện có. Lời mời không phải tài khoản: không tạo credential, không gửi email.
+- Bảng `admin_permission_sets` (PK `user_id` FK `ON DELETE CASCADE`, `permissions` JSON đã chuẩn hóa, `version`, `updated_by`, `updated_at`) do `initializeRbac()` tạo idempotent và có trong `schema.sql`. Không có dòng = dùng bộ mặc định; không sửa dữ liệu nội dung/thanh toán, không đổi enum role. Chi tiết ở `docs/RBAC_PERMISSIONS.md` mục 10.
 - Nếu registry chưa có owner, chỉ chọn khi toàn DB có đúng **một** tài khoản `ADMIN` và tài khoản này đang hoạt động. Không có admin thì không cấp quyền quản lý cho ai. Có nhiều admin (kể cả đã khóa) thì dừng khởi động với lỗi rõ ràng, yêu cầu migration được rà soát để chọn đúng owner; không chọn tài khoản đầu tiên.
 - Ghi registry và audit `RBAC_OWNER_INITIALIZED` trong cùng giao dịch. Registry đã có thì giữ nguyên qua restart, kể cả khi owner bị vô hiệu hóa ngoài hệ thống. Không tự chuyển owner cho một đồng quản trị khác.
 - Trước triển khai đã đọc DB production xác nhận có đúng một admin đang hoạt động theo chỉ định của chủ dự án. Không đưa email/ID tài khoản thật vào source hoặc tài liệu công khai.
@@ -55,7 +58,7 @@ Admin chính nhập email người muốn cấp đồng quản trị; người �
 
 ## Giao diện và sử dụng
 
-Vào **Quản trị → Tài khoản cư dân** (`/admin/users`), tìm tài khoản đã đăng ký → **Cấp đồng quản trị** / **Thu hồi quyền** → kiểm tra tên/email và xác nhận. Quyền vận hành là toàn bộ quyền admin đang có, không có lựa chọn phân quyền nhỏ lẻ từng module trong đợt này.
+Vào **Quản trị → Tài khoản cư dân** (`/admin/users`), tìm tài khoản đã đăng ký → **Cấp đồng quản trị** / **Thu hồi quyền** → kiểm tra tên/email và xác nhận. Sau khi cấp, chủ tài khoản hiện nút **Phân quyền chi tiết**: mở bảng quyền theo nhóm, chọn từng thao tác và **Lưu phân quyền**. Xem `docs/RBAC_PERMISSIONS.md` để biết danh mục quyền và quy tắc phụ thuộc.
 
 Ngay trên danh sách, admin chính có khối **"Mời đồng quản trị bằng email"**: nhập email và gửi; nếu email đã có tài khoản, người đó được cấp quyền ngay, nếu chưa thì lời mời nằm trong bảng **"Lời mời đang chờ đăng ký"** kèm người mời, ngày tạo và nút thu hồi (có bước xác nhận). Hệ thống không gửi email/lời mời ra ngoài và không tạo mật khẩu thay người dùng. Quyền chỉ tự áp dụng khi người được mời đăng ký bằng Google với email đã xác minh; nếu họ đăng ký bằng mật khẩu, owner kiểm tra danh tính rồi cấp quyền thủ công.
 
@@ -84,3 +87,10 @@ Email mời rỗng hoặc chỉ có khoảng trắng không gửi được (nút
 - Chromium với backend Hono + SQLite thật (dev server, Turnstile tắt): owner mời email chưa đăng ký → lời mời chờ hiện đúng; đăng ký đúng email → tự thành đồng quản trị, vào được khu quản trị, không thấy nút phân quyền; mời lại/owner/email trùng báo đúng lỗi; thu hồi lời mời qua xác nhận; nâng ngay một thành viên đã đăng ký; đọc DB xác nhận audit `ADMIN_INVITE_CREATED`/`ADMIN_INVITE_ACCEPTED`/`ADMIN_INVITE_REVOKED`/`USER_ROLE_CHANGED`. 1440px và 390px không tràn ngang toàn trang; bảng cuộn trong khung, form mời xếp dọc trên mobile.
 - Sửa nhầm lẫn trạng thái: email rỗng/khoảng trắng không gửi được; refresh lỗi giữ danh sách/quyền đã biết và xóa notice cũ. Admin specs **23/23**, build qua; Chromium với API thật local xác nhận submit rỗng không phát request và notice cũ biến mất khi refresh lỗi.
 - Đã deploy `be2214e2f4dd10fbf1bd320a0df16408360121aa`: [CI 40187808649](https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/40187808649) bốn job qua; [CD 40187871138](https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/40187871138) success gồm smoke. `/api/v1/info` trả đúng SHA, storage `turso`; `/admin/users` 200; API tài khoản/lời mời thiếu đăng nhập 401. Chunk `chunk-DjyQQtnn.js` trên Pages trùng sha256 với artifact CI và chứa giao diện mời. DB production (SELECT): bảng `admin_invites` đã tạo, 0 lời mời, owner registry 1 slot hợp lệ, 0 audit `ADMIN_INVITE_*`; dữ liệu cũ không đổi. Chưa đăng nhập tài khoản thật để mời trên production.
+
+## Xác minh đợt 2026-10-28 (phân quyền chi tiết theo module)
+
+- Lớp quyền `module:action` cho đồng quản trị đã triển khai xong ở local và được mô tả/nghiệm thu trong `docs/RBAC_PERMISSIONS.md` (danh mục 32 quyền, bộ mặc định, quyền phụ thuộc, API `PUT /admin/users/:id/permissions`, cờ khả năng cho giao diện).
+- Hai quyền `users:manage-roles` và `permissions:manage` vẫn chỉ owner và không nằm trong danh mục gán được; chủ tài khoản thấy ghi chú "Chỉ admin chính" thay vì nút phân quyền.
+- Backend 106 pass / 1 skip (Turso remote), frontend 57 file / 424 test, hai typecheck và `ng build` exit 0. Chi tiết từng nhóm test ở mục 12 của tài liệu trên.
+- Thay đổi **chưa commit/push/deploy**, chưa chạy Chromium với API thật và chưa đụng dữ liệu production.
