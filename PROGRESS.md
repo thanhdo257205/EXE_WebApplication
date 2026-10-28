@@ -14,6 +14,7 @@
 - Trợ lý AI: `POST /api/v1/assistant/chat` 200 với câu trả lời từ model (không còn `NO_RELEASE_ANSWER`), dẫn nguồn nội bộ [1]–[6] trỏ đúng wiki/thư viện/cư dân, payload `release` = 1.0. Telemetry ghi nhận model thật: `assistant_usage_daily` ngày 2026-10-28 có dòng `gemini` / `gemini-3.5-flash-lite` — 3 request, 1 cache hit, 0 lỗi, **2374 token vào / 274 token ra**.
 - UI production (trình duyệt tích hợp của Qoder — Chrome DevTools MCP bị treo phiên đó): `/wiki` hiện 1 mục, `/wiki/ban-phat-hanh-mau`, `/cu-dan` (Cư Dân Mẫu), `/thu-vien` (Bộ/Thẻ Mẫu) render đúng; `/tro-ly` với phiên ADMIN gửi câu hỏi qua form và nhận câu trả lời có nguồn, request `POST /api/v1/assistant/chat` 200.
 - Không đổi code, không deploy, không đụng bảng cấu hình trợ lý (provider gemini/groq/openrouter vẫn ACTIVE như trước). Việc còn lại thuộc chủ dự án: thay nội dung mẫu bằng nội dung thật và đổi mật khẩu ADMIN đã chia sẻ.
+- Bản ghi tài liệu này lên `main` qua PR **#40**: CI push `40754348798` và pull_request `40754366951` xanh 4/4, merge tại **`2498b8c`**; CI main `40754553639` xanh 4/4, CD `40754715747` xanh 2/2. Production sau deploy: `/api/v1/info` trả `commit: 2498b8c…` (`storage: turso`), `/actuator/health` 200, Pages deployment `aa2bd398` source `2498b8c`, và `/api/v1/content/release` vẫn trả `Bản phát hành mẫu` 1.0 — deploy không đụng dữ liệu.
 
 ### `Link: modulepreload` thành href tuyệt đối + đo `/admin/dashboard` trên browser — 2026-10-28 (đã deploy production `611cd62`)
 
