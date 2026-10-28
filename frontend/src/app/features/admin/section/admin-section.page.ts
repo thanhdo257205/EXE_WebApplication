@@ -19,7 +19,6 @@ import {
   isAllowedArtworkUrl,
   parseCardImport,
   readCardImportWorkbook,
-  readFirstSheet,
   slugify,
   validateCardSetImport,
 } from '../../../core/admin/card-import';
@@ -124,7 +123,6 @@ export class AdminSectionPage implements OnInit {
     () => this.importRows().filter(row => Boolean(row.embeddedImage)).length
   );
   readonly importReady = computed(() => this.importRows().length > 0 && this.importErrorCount() === 0);
-  readonly Math = Math;
 
   // Card list pagination & search
   readonly cardsPage = signal(0);

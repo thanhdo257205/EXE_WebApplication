@@ -17,7 +17,7 @@
 - Kiểm thử local:
   - `card-import.spec.ts`: 14/14 tests pass (bổ sung test trích xuất drawings và ánh xạ ảnh nhúng vào dòng dữ liệu).
   - `admin-section.page.spec.ts`: 24/24 tests pass (bổ sung test chặn file >50 MB và test luồng tải ảnh nhúng lên Azure trước khi tạo thẻ).
-  - Toàn bộ frontend test suite: 53 files, **359/359 tests pass 100%**.
+  - Toàn bộ frontend test suite: 53 files, **365/365 tests pass 100%**.
   - Production build & static prerender (`ng build`): hoàn tất thành công 0 lỗi.
 - Tài liệu chi tiết: cập nhật [ADMIN_CARD_IMPORT.md](docs/ADMIN_CARD_IMPORT.md).
 

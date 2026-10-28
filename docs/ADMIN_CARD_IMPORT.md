@@ -1,6 +1,6 @@
 # Nhập bộ thẻ từ Excel (admin)
 
-Cập nhật: 2026-10-28. Trạng thái: đã hoàn thiện hỗ trợ trích xuất ảnh nhúng trực tiếp trong file Excel và tự động đẩy lên Azure Blob Storage; đã vượt qua 100% test suites (359/359) và production build. Phạm vi là **frontend**; không thêm/sửa API, schema hay quyền backend.
+Cập nhật: 2026-10-28. Trạng thái: đã hoàn thiện hỗ trợ trích xuất ảnh nhúng trực tiếp trong file Excel và tự động đẩy lên Azure Blob Storage; đã vượt qua 100% test suites (365/365) và production build. Phạm vi là **frontend**; không thêm/sửa API, schema hay quyền backend.
 
 ## Mục tiêu
 
