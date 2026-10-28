@@ -10,7 +10,7 @@ import { ColumnSpreadComponent } from '../../shared/components/column-spread/col
 import { MarqueeComponent } from '../../shared/components/marquee/marquee.component';
 import { MorphIconComponent } from '../../shared/components/morph-icon/morph-icon.component';
 import { HeroBoxComponent } from './hero-box.component';
-@Component({ selector: 'app-home-page', imports: [HeroBoxComponent, CountUpDirective, LiquidGlassDirective, DotGridWarpDirective, RiseHeadingDirective, RevealDirective, RouterLink, ColumnSpreadComponent, MarqueeComponent, MorphIconComponent], templateUrl: './home.page.html', styleUrls: ['./home.page.css', './home-glass.css', './home-sections.css', './home-hero3d.css'] })
+@Component({ selector: 'app-home-page', imports: [HeroBoxComponent, CountUpDirective, LiquidGlassDirective, DotGridWarpDirective, RiseHeadingDirective, RevealDirective, RouterLink, ColumnSpreadComponent, MarqueeComponent, MorphIconComponent], templateUrl: './home.page.html', styleUrls: ['./home.page.css', './home.responsive.css', './home-glass.css', './home-sections.css', './home-hero3d.css'] })
 export class HomePage {
   readonly marqueeItems = [{ text: 'Chưa giàu đã lớn' }, { text: 'Chia tiền' }, { text: 'Chia việc' }, { text: 'Nhà này hơi báo!' }, { text: 'Chia cả niềm vui' }, { text: 'Rút một thẻ' }];
   readonly stats = [

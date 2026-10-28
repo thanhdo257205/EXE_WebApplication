@@ -67,21 +67,3 @@ h1 { position: absolute; z-index: 10; inset: auto 0 clamp(24px, 3.4vw, 56px); di
 /* Con số, phòng trong nhà và phần kết: xem home-sections.css */
 
 /* ===== Tablet / mobile ===== */
-@media (max-width: 1000px) {
-  .hero { min-height: 0; padding-bottom: 28px; }
-  .hero-top { flex-direction: column; gap: 22px; }
-  .hero-intro { max-width: none; text-align: left; }
-  h1 { position: relative; inset: auto; transform: none; margin: 12px 0 0; font-size: clamp(92px, 25vw, 220px); }
-  .product-scene { position: relative; left: 50%; bottom: auto; margin: 0 0 -106px -310px; transform: scale(.78); transform-origin: top center; }
-  .theme-picker { position: relative; z-index: 30; margin-top: 28px; }
-  .scroll-link { position: relative; left: auto; bottom: auto; margin-top: 28px; }
-  .story { display: block; }
-  .principles { margin-top: 48px; }
-  .section-head { flex-direction: column; align-items: flex-start; margin-bottom: 40px; }
-  .head-side { justify-items: start; text-align: left; }
-  .card-section app-column-spread { margin: 0 calc(var(--gutter) * -1); }
-}
-@media (max-width: 520px) {
-  .product-scene { transform: scale(.6); margin-bottom: -192px; }
-}
-@media (prefers-reduced-motion: reduce) { .principles a, .big-link, h1, .product-scene { transition: none; } .principles a:hover, .big-link:hover { padding-left: 0; transform: none; } }

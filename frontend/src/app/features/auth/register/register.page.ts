@@ -17,7 +17,7 @@ import { bcryptPasswordValidator, matchingPasswordsValidator } from '../../../co
   standalone: true,
   imports: [RiseHeadingDirective, RouterLink, FormsModule, ReactiveFormsModule, MorphIconComponent, WikiCanvasComponent],
   templateUrl: './register.page.html',
-  styleUrl: './register.page.css',
+  styleUrls: ['./register.page.css', './register.form.css'],
 })
 export class RegisterPage {
   private readonly fb = inject(FormBuilder);

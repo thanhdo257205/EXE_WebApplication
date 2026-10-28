@@ -10,7 +10,7 @@ import { LiquidGlassDirective } from '../../motion/liquid-glass.directive';
   standalone: true,
   imports: [LiquidGlassDirective, RouterLink, MorphIconComponent],
   templateUrl: './global-bar.component.html',
-  styleUrls: ['./global-bar.component.css', './account-menu.css'],
+  styleUrls: ['./global-bar.component.css', './global-bar.menu.css', './account-menu.css'],
   host: { '(document:keydown.escape)': 'dismissSubmenu($event)', '(document:pointerdown)': 'outsidePointer($event)', '(window:resize)': 'closeSubmenu()' },
 })
 export class GlobalBarComponent implements OnInit {
