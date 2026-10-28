@@ -1,6 +1,9 @@
 import { Routes } from '@angular/router';
 import { adminGuard } from './guards/admin.guard';
+import { permissionGuard } from './guards/permission.guard';
 import { AdminLayoutComponent } from './layout/admin-layout.component';
+
+const CONTENT_READ = ['content:read'];
 
 export const ADMIN_ROUTES: Routes = [
   {
@@ -21,19 +24,22 @@ export const ADMIN_ROUTES: Routes = [
       {
         path: 'cards',
         title: 'Quản trị 148 Thẻ bài — Quản trị viên NNHB',
-        data: { section: 'cards' },
+        data: { section: 'cards', permissions: CONTENT_READ },
+        canActivate: [permissionGuard],
         loadComponent: () => import('./section/admin-section.page').then(m => m.AdminSectionPage),
       },
       {
         path: 'characters',
         title: 'Quản trị 8 Cư dân — Quản trị viên NNHB',
-        data: { section: 'characters' },
+        data: { section: 'characters', permissions: CONTENT_READ },
+        canActivate: [permissionGuard],
         loadComponent: () => import('./section/admin-section.page').then(m => m.AdminSectionPage),
       },
       {
         path: 'articles',
         title: 'Quản lý Wiki & Bài viết — Quản trị viên NNHB',
-        data: { section: 'articles' },
+        data: { section: 'articles', permissions: CONTENT_READ },
+        canActivate: [permissionGuard],
         loadComponent: () => import('./section/admin-section.page').then(m => m.AdminSectionPage),
       },
       {
@@ -57,11 +63,15 @@ export const ADMIN_ROUTES: Routes = [
       {
         path: 'users',
         title: 'Quản lý Tài khoản Cư dân — Quản trị viên NNHB',
+        data: { permissions: ['users:read'] },
+        canActivate: [permissionGuard],
         loadComponent: () => import('./users/admin-users.page').then(m => m.AdminUsersPage),
       },
       {
         path: 'assistant',
         title: 'Trợ lý AI & hạn mức — Quản trị viên NNHB',
+        data: { permissions: ['assistant:read'] },
+        canActivate: [permissionGuard],
         loadComponent: () => import('./assistant/admin-assistant.page').then(m => m.AdminAssistantPage),
       },
       {

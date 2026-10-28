@@ -3,12 +3,13 @@
   <header>
     <p class="eyebrow">Tài khoản & quyền truy cập</p>
     <h1>Người cùng quản trị</h1>
-    <p>Admin chính cấp và thu hồi quyền. Đồng quản trị được vận hành hệ thống, không được phân quyền cho người khác.</p>
+    <p>Admin chính cấp và thu hồi quyền, đồng thời chọn từng quyền (nội dung, phản hồi, trợ lý AI, API key) cho mỗi đồng quản trị. Đồng quản trị được vận hành đúng phần đã được cấp, không được phân quyền lại cho người khác.</p>
   </header>
 
   <div class="access-note" role="note">
     {{ canManageRoles() ? 'Bạn có quyền quản lý đồng quản trị. Quyền admin chính luôn được bảo vệ.' : 'Bạn có thể xem tài khoản. Chỉ admin chính được thay đổi quyền.' }}
     Admin chính có thể thêm đồng quản trị bằng email trước khi người đó đăng ký; quyền chỉ tự áp dụng khi người đó đăng ký bằng Google với email đã xác minh.
+    @if (canManagePermissions()) { Phân quyền chi tiết theo từng module cũng chỉ mình bạn sửa được; đồng quản trị bị ảnh hưởng thấy ngay ở yêu cầu kế tiếp. }
   </div>
 
   @if (error()) {
@@ -91,7 +92,7 @@
   <div class="table-wrap" [attr.aria-busy]="loading()">
     <table>
       <caption>{{ loading() ? 'Đang tải tài khoản…' : total() + ' tài khoản trong hệ thống' }}</caption>
-      <thead><tr><th scope="col">Tài khoản</th><th scope="col">Vai trò</th><th scope="col">Trạng thái</th><th scope="col">Phân quyền</th></tr></thead>
+      <thead><tr><th scope="col">Tài khoản</th><th scope="col">Vai trò</th><th scope="col">Trạng thái</th><th scope="col">Đồng quản trị</th><th scope="col">Quyền chi tiết</th></tr></thead>
       <tbody>
         @for (account of accounts(); track account.id) {
           <tr>
@@ -107,13 +108,32 @@
                 <span class="muted">Chỉ admin chính</span>
               }
             </td>
+            <td>
+              <p class="summary">{{ permissionSummary(account) }}</p>
+              @if (canManagePermissions() && account.role === 'ADMIN' && account.adminLevel !== 'OWNER' && account.enabled) {
+                <button type="button" (click)="openPermissions(account)"
+                  [disabled]="loading() || saving() || inviteSaving() || needsReload() || editing()[0]?.id === account.id"
+                  [attr.aria-label]="'Phân quyền chi tiết cho ' + account.email">
+                  {{ editing()[0]?.id === account.id ? 'Đang phân quyền' : 'Phân quyền chi tiết' }}
+                </button>
+              }
+            </td>
           </tr>
         } @empty {
-          <tr><td colspan="4">{{ loading() ? 'Đang tải…' : 'Không có tài khoản phù hợp.' }}</td></tr>
+          <tr><td colspan="5">{{ loading() ? 'Đang tải…' : 'Không có tài khoản phù hợp.' }}</td></tr>
         }
       </tbody>
     </table>
   </div>
+
+  @for (account of editing(); track account.id + ':' + (account.permissionsVersion ?? 0)) {
+    <app-admin-permission-editor
+      [account]="account"
+      [saving]="saving()"
+      (saved)="savePermissions($event)"
+      (cancelled)="closePermissions()"
+    />
+  }
   <nav class="pagination" aria-label="Trang danh sách tài khoản">
     <button type="button" (click)="load(page() - 1)" [disabled]="page() === 0 || loading() || saving() || inviteSaving()">← Trước</button>
     <span>Trang {{ totalPages() ? page() + 1 : 0 }} / {{ totalPages() }}</span>

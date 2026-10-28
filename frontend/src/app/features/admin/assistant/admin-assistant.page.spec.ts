@@ -27,6 +27,7 @@ const settingsResponse = (canManage = true, version = 3): AssistantSettingsRespo
     models: { gemini: 'gemini-3.5-flash-lite', groq: 'openai/gpt-oss-120b' },
     disabledSlots: ['groq#2'],
     tokenBudgets: { gemini: 100_000, groq: 3_000 },
+    keyBudgets: {},
     version,
     updatedAt: '2026-10-28T10:00:00.000Z',
   },
@@ -35,7 +36,32 @@ const settingsResponse = (canManage = true, version = 3): AssistantSettingsRespo
     { id: 'groq', label: 'Groq', defaultModel: 'openai/gpt-oss-120b', models: groqModels, slots: [{ slot: 'groq#1', disabled: false }, { slot: 'groq#2', disabled: true }] },
   ],
   canManage,
+  canReorder: canManage,
+  canEditModels: canManage,
+  canManageSlots: canManage,
+  canEditBudgets: canManage,
+  canReadUsage: canManage,
 });
+
+/** One right at a time, so a test can prove the page gates each control on its own permission. */
+const settingsWithRights = (rights: Partial<Pick<AssistantSettingsResponse, 'canReorder' | 'canEditModels' | 'canManageSlots' | 'canEditBudgets' | 'canReadUsage'>>): AssistantSettingsResponse => {
+  const response = settingsResponse(false);
+  Object.assign(response, rights);
+  response.canManage = Object.values(rights).some(Boolean);
+  return response;
+};
+
+const dbSlot = 'db:11111111-1111-4111-8111-111111111111';
+
+// A stored admin key reaches the router as a db:<credential id> slot, which is what the per-key cards read.
+const settingsWithStoredKey = (canManage = true): AssistantSettingsResponse => {
+  const response = settingsResponse(canManage);
+  response.settings.disabledSlots = [];
+  response.settings.tokenBudgets = { gemini: 100_000, groq: 20_000 };
+  response.settings.keyBudgets = { [activeKey.id]: 1_000 };
+  response.providers[1].slots = [{ slot: 'groq#1', disabled: false }, { slot: dbSlot, disabled: false }];
+  return response;
+};
 
 const usage: AssistantUsage = {
   days: 7,
@@ -43,12 +69,29 @@ const usage: AssistantUsage = {
   totals: { requests: 10, cacheHits: 4, failures: 1, answered: 6, avgLatencyMs: 820, tokensIn: 8_000, tokensOut: 2_000 },
   providers: [{ provider: 'groq', requests: 6, failures: 1, avgLatencyMs: 900, tokensIn: 2_000, tokensOut: 500 }],
   slots: [{ slot: 'groq#1', provider: 'groq', model: 'openai/gpt-oss-120b', requests: 6, failures: 1, avgLatencyMs: 900, tokensIn: 2_000, tokensOut: 500 }],
+  keys: [{ slot: 'groq#1', provider: 'groq', requests: 6, failures: 1, avgLatencyMs: 900, tokensIn: 2_000, tokensOut: 500 }],
   daily: [{ day: '2026-10-28', requests: 10, cacheHits: 4, failures: 1, tokensIn: 8_000, tokensOut: 2_000 }],
   today: {
     day: '2026-10-28',
     providers: [
       { provider: 'gemini', tokensIn: 6_000, tokensOut: 1_500 },
       { provider: 'groq', tokensIn: 2_000, tokensOut: 500 },
+    ],
+    slots: [{ slot: 'groq#1', provider: 'groq', requests: 6, failures: 1, tokensIn: 2_000, tokensOut: 500 }],
+  },
+};
+
+const usageWithStoredKey: AssistantUsage = {
+  ...usage,
+  keys: [
+    ...usage.keys,
+    { slot: dbSlot, provider: 'groq', requests: 3, failures: 1, avgLatencyMs: 640, tokensIn: 700, tokensOut: 200 },
+  ],
+  today: {
+    ...usage.today,
+    slots: [
+      ...usage.today.slots,
+      { slot: dbSlot, provider: 'groq', requests: 3, failures: 1, tokensIn: 700, tokensOut: 200 },
     ],
   },
 };
@@ -67,10 +110,12 @@ const activeKey: AssistantKey = {
   isMine: true,
   canReveal: true,
   canTest: true,
+  canRevoke: true,
   canManageStatus: true,
   createdAt: '2026-10-28T09:00:00.000Z',
   updatedAt: '2026-10-28T09:00:00.000Z',
   approvedAt: '2026-10-28T09:00:00.000Z',
+  lastTest: null,
 };
 
 const geminiKey: AssistantKey = {
@@ -82,9 +127,15 @@ const geminiKey: AssistantKey = {
   hint: '••••5678',
 };
 
-const keysResponse = (canManage = true, storageAvailable = true, items: AssistantKey[] = [activeKey]): AssistantKeysResponse => ({
+const keysResponse = (
+  canManage = true,
+  storageAvailable = true,
+  items: AssistantKey[] = [activeKey],
+  canCreate = true,
+): AssistantKeysResponse => ({
   items,
   canManage,
+  canCreate,
   storageAvailable,
   limits: { perOwner: 10, active: 32 },
 });
@@ -226,6 +277,7 @@ describe('AdminAssistantPage', () => {
       models: { gemini: 'gemini-3.5-flash-lite', groq: 'openai/gpt-oss-20b' },
       disabledSlots: ['groq#2', 'gemini#1'],
       tokenBudgets: { groq: 2000 },
+      keyBudgets: {},
       expectedVersion: 3,
     });
     expect(page.notice()).toContain('Đã lưu cấu hình');
@@ -255,6 +307,130 @@ describe('AdminAssistantPage', () => {
     expect(page.error()).toContain('Ngân sách token của Groq');
   });
 
+  it('shows an empty track instead of a full bar when no budget is set', () => {
+    const { fixture, page, el } = setup();
+    page.setBudget('gemini', event(''));
+    fixture.detectChanges();
+    const gemini = el.querySelector<HTMLElement>('.provider .budget');
+    expect(gemini?.querySelector('.bar.unset')).not.toBeNull();
+    expect(gemini?.querySelector('.bar.unset span')).toBeNull();
+    expect(gemini?.querySelector('[role="progressbar"]')).toBeNull();
+    expect(gemini?.textContent).toContain('Chưa đặt ngân sách');
+    expect(el.querySelectorAll('.key-card .bar.unset')).toHaveLength(2);
+    expect(el.textContent).toContain('Chưa có ngân sách nhà cung cấp');
+  });
+
+  it('gives a stored key its own quota card instead of borrowing the provider pool', () => {
+    api.getSettings.mockReturnValue(of(settingsWithStoredKey()));
+    api.getUsage.mockReturnValue(of(usageWithStoredKey));
+    const { fixture, page, el } = setup();
+    const cards = [...el.querySelectorAll<HTMLElement>('.key-card')];
+    expect(cards).toHaveLength(4);
+    expect(el.querySelectorAll('.key-budget-field')).toHaveLength(1);
+    expect(el.querySelector<HTMLInputElement>('.key-budget-field input')?.value).toBe('1000');
+    expect([...el.querySelectorAll('.key-card .status.system')].map(badge => badge.textContent?.trim()))
+      .toEqual(['Key hệ thống', 'Key hệ thống', 'Key hệ thống']);
+
+    const keyCard = cards.find(card => card.querySelector('.key-card-title')?.textContent === 'Groq chính')!;
+    expect(keyCard.classList.contains('warn')).toBe(true);
+    // The warn flag has to reach the .quota wrapper, which is what colours the bar fill.
+    expect(keyCard.querySelector('.quota')?.classList.contains('warn')).toBe(true);
+    expect(keyCard.querySelector('[role="progressbar"]')?.getAttribute('aria-valuenow')).toBe('90');
+    expect(keyCard.textContent).toContain('900 / 1.000 token');
+    expect(keyCard.textContent).toContain('Còn 100 token');
+    expect(keyCard.textContent).toContain('3 câu hỏi');
+    expect(keyCard.querySelector('.key-card-title')?.getAttribute('title')).toBe(dbSlot);
+
+    // The provider row keeps its own, much larger budget, so a drained key cannot look like a drained provider.
+    const groqRow = [...el.querySelectorAll<HTMLElement>('.provider')][1];
+    expect(groqRow.classList.contains('warn')).toBe(false);
+    expect(groqRow.querySelector('.budget')?.textContent).toContain('2.500 / 20.000 token');
+    expect(page.keyBudgets()[activeKey.id]).toBe('1000');
+
+    // A turned-off key stops being tried, so the row must not claim it is still in the pool.
+    const label = () => groqRow.querySelector('.provider-title small')?.textContent?.replace(/\s+/g, ' ').trim();
+    expect(label()).toContain('2/2 key đang thử');
+    page.toggleSlot(dbSlot);
+    fixture.detectChanges();
+    expect(label()).toContain('1/2 key đang thử');
+  });
+
+  it('sends a per-key budget together with the provider budgets', () => {
+    api.getSettings.mockReturnValue(of(settingsWithStoredKey()));
+    api.getUsage.mockReturnValue(of(usageWithStoredKey));
+    const { page } = setup();
+    page.setKeyBudget(activeKey.id, event('2500'));
+    page.save();
+
+    expect(api.saveSettings).toHaveBeenCalledExactlyOnceWith({
+      order: ['gemini', 'groq'],
+      models: { gemini: 'gemini-3.5-flash-lite', groq: 'openai/gpt-oss-120b' },
+      disabledSlots: [],
+      tokenBudgets: { gemini: 100_000, groq: 20_000 },
+      keyBudgets: { [activeKey.id]: 2500 },
+      expectedVersion: 3,
+    });
+  });
+
+  it('refuses a fractional per-key budget before saving', () => {
+    api.getSettings.mockReturnValue(of(settingsWithStoredKey()));
+    api.getUsage.mockReturnValue(of(usageWithStoredKey));
+    const { page } = setup();
+    page.setKeyBudget(activeKey.id, event('1.5'));
+    page.save();
+    expect(api.saveSettings).not.toHaveBeenCalled();
+    expect(page.error()).toContain('key “Groq chính”');
+  });
+
+  it('hides the per-key budget field from delegated admins', () => {
+    api.getSettings.mockReturnValue(of(settingsWithStoredKey(false)));
+    api.getUsage.mockReturnValue(of(usageWithStoredKey));
+    const { el } = setup();
+    expect(el.querySelectorAll('.key-budget-field')).toHaveLength(0);
+    // Probing a key stays allowed because the server grants it per key, not through the settings editor.
+    expect([...el.querySelectorAll('.key-card .card-actions button')].map(button => button.textContent?.trim()))
+      .toEqual(['Kiểm tra']);
+    expect([...el.querySelectorAll<HTMLInputElement>('.key-card .slot input')].every(input => input.disabled)).toBe(true);
+  });
+
+  it('keeps an out-of-quota probe visible after the page reloads', () => {
+    const exhausted: AssistantKey = {
+      ...activeKey,
+      lastTest: { status: 'FAILED', code: 'QUOTA', model: 'openai/gpt-oss-120b', latencyMs: 310, testedAt: '2026-10-28T10:00:00.000Z' },
+    };
+    api.getSettings.mockReturnValue(of(settingsWithStoredKey()));
+    api.getUsage.mockReturnValue(of(usageWithStoredKey));
+    api.getKeys.mockReturnValue(of(keysResponse(true, true, [exhausted])));
+    const { page, el } = setup();
+    const card = [...el.querySelectorAll<HTMLElement>('.key-card')]
+      .find(node => node.querySelector('.key-card-title')?.textContent === 'Groq chính')!;
+    const chip = card.querySelector('.test-result.failed')?.textContent;
+    expect(chip).toContain('Lần kiểm tra trước');
+    expect(chip).toContain('hết hạn mức');
+    expect(chip).toContain('openai/gpt-oss-120b');
+    expect(card.querySelector('.status.active')?.textContent).toContain('Đang dùng');
+    expect(el.querySelector('.key-row .test-result.failed')?.textContent).toContain('hết hạn mức');
+    expect(page.testChip(exhausted)?.live).toBe(false);
+    expect(api.testKey).not.toHaveBeenCalled();
+  });
+
+  it('prefers a probe from this session over the stored outcome', () => {
+    api.getSettings.mockReturnValue(of(settingsWithStoredKey()));
+    api.getUsage.mockReturnValue(of(usageWithStoredKey));
+    api.getKeys.mockReturnValue(of(keysResponse(true, true, [{
+      ...activeKey,
+      lastTest: { status: 'FAILED', code: 'QUOTA', model: null, latencyMs: 310, testedAt: '2026-10-28T10:00:00.000Z' },
+    }])));
+    const { fixture, page, el } = setup();
+    page.testKey(page.keys()[0]);
+    fixture.detectChanges();
+    const chip = el.querySelector('.key-card .test-result')?.textContent;
+    expect(chip).toContain('Vừa kiểm tra');
+    expect(chip).toContain('OK');
+    expect(chip).not.toContain('hết hạn mức');
+    expect(el.querySelectorAll('.key-card .test-result')).toHaveLength(1);
+  });
+
   it('reloads the latest settings after a version conflict and keeps the edit unsaved', () => {
     api.saveSettings.mockReturnValue(throwError(() => ({ status: 409 })));
     const { page } = setup();
@@ -268,7 +444,8 @@ describe('AdminAssistantPage', () => {
 
   it('keeps delegated admins read-only even through page methods', () => {
     api.getSettings.mockReturnValue(of(settingsResponse(false)));
-    api.getKeys.mockReturnValue(of(keysResponse(false)));
+    // Status changes need assistant:keys:manage; revoking one's own key only needs the revoke right.
+    api.getKeys.mockReturnValue(of(keysResponse(false, true, [{ ...activeKey, canManageStatus: false }])));
     const { page, el } = setup();
     expect(el.querySelectorAll('.order-actions button')).toHaveLength(0);
     expect(el.querySelector('#panel-providers button.primary')).toBeNull();
@@ -283,6 +460,97 @@ describe('AdminAssistantPage', () => {
     expect(page.order()).toEqual(['gemini', 'groq']);
     expect(page.disabled()).toEqual(['groq#2']);
     expect(api.saveSettings).not.toHaveBeenCalled();
+  });
+
+  it('gates each provider control on its own right', () => {
+    api.getSettings.mockReturnValue(of(settingsWithRights({ canEditModels: true })));
+    const { page, el } = setup();
+    expect(el.querySelectorAll('.order-actions button')).toHaveLength(0);
+    expect(el.querySelector('#panel-providers button.primary')?.textContent).toContain('Lưu cấu hình');
+    expect([...el.querySelectorAll<HTMLSelectElement>('.model-field select')].every(select => !select.disabled)).toBe(true);
+    expect([...el.querySelectorAll<HTMLInputElement>('.budget-field input')].every(input => input.disabled)).toBe(true);
+    expect([...el.querySelectorAll<HTMLInputElement>('.slot input')].every(input => input.disabled)).toBe(true);
+    page.move(0, 1);
+    page.toggleSlot('gemini#1');
+    page.setBudget('gemini', event('9999'));
+    page.setModel('groq', event('openai/gpt-oss-20b'));
+    expect(page.order()).toEqual(['gemini', 'groq']);
+    expect(page.disabled()).toEqual(['groq#2']);
+    expect(page.budgets()['gemini']).toBe('100000');
+    expect(page.models()['groq']).toBe('openai/gpt-oss-20b');
+
+    page.save();
+    expect(api.saveSettings).toHaveBeenCalledExactlyOnceWith({
+      order: ['gemini', 'groq'],
+      models: { gemini: 'gemini-3.5-flash-lite', groq: 'openai/gpt-oss-20b' },
+      disabledSlots: ['groq#2'],
+      tokenBudgets: { gemini: 100_000, groq: 3_000 },
+      keyBudgets: {},
+      expectedVersion: 3,
+    });
+  });
+
+  it('sends the stored order untouched when the viewer cannot reorder', () => {
+    const response = settingsWithRights({ canEditModels: true, canReorder: false });
+    response.settings.order = ['groq'];
+    api.getSettings.mockReturnValue(of(response));
+    const { page, el } = setup();
+    // The page still lists every provider, so the extra one must not leak into the save payload.
+    expect(el.querySelectorAll('.provider')).toHaveLength(2);
+    page.setModel('groq', event('openai/gpt-oss-20b'));
+    page.save();
+    expect(api.saveSettings.mock.calls[0][0].order).toEqual(['groq']);
+  });
+
+  it('keeps budgets of keys the viewer cannot list in the save payload', () => {
+    const response = settingsWithStoredKey();
+    response.settings.keyBudgets = { [activeKey.id]: 1_000, '99999999-9999-4999-8999-999999999999': 500 };
+    api.getSettings.mockReturnValue(of(response));
+    api.getUsage.mockReturnValue(of(usageWithStoredKey));
+    const { page } = setup();
+    page.setKeyBudget(activeKey.id, event('2500'));
+    page.save();
+    expect(api.saveSettings.mock.calls[0][0].keyBudgets).toEqual({ [activeKey.id]: 2500, '99999999-9999-4999-8999-999999999999': 500 });
+  });
+
+  it('loads usage totals and keeps the usage tab with assistant:usage:read', () => {
+    api.getSettings.mockReturnValue(of(settingsWithRights({ canReadUsage: true, canEditBudgets: true })));
+    const { page, el } = setup();
+    expect(api.getUsage).toHaveBeenCalledTimes(1);
+    expect(el.querySelector('#tab-usage')).not.toBeNull();
+    expect(page.providerRows()[1].quota.used).toBe(2_500);
+  });
+
+  it('renders no usage tab and leaves the quota bars at zero without the usage right', () => {
+    api.getSettings.mockReturnValue(of(settingsWithRights({ canEditModels: true })));
+    const { page, el } = setup();
+    expect(api.getUsage).not.toHaveBeenCalled();
+    expect(el.querySelector('#tab-usage')).toBeNull();
+    expect(el.querySelector<HTMLElement>('#panel-usage')?.hidden).toBe(true);
+    expect(el.querySelector<HTMLElement>('.provider .budget')?.textContent).toContain('0 / 100.000 token');
+    expect(el.textContent).toContain('Không có quyền xem số liệu sử dụng');
+    page.setDays(30);
+    expect(api.getUsage).not.toHaveBeenCalled();
+  });
+
+  it('hides the key form and blocks create without assistant:keys:create', () => {
+    api.getKeys.mockReturnValue(of(keysResponse(false, true, [activeKey], false)));
+    const { page, el } = setup();
+    expect(el.querySelector('.key-form')).toBeNull();
+    expect(el.textContent).toContain('chưa được cấp quyền thêm API key');
+    page.setKeyLabel(event('Key lén'));
+    page.setKeyValue(event('secret-12345'));
+    expect(page.canAddKey()).toBe(false);
+    page.createKey();
+    expect(api.createKey).not.toHaveBeenCalled();
+  });
+
+  it('drops revoke and status actions per key when the server withholds them', () => {
+    api.getKeys.mockReturnValue(of(keysResponse(true, true, [{ ...activeKey, canRevoke: false, canManageStatus: false }])));
+    const { page, el } = setup();
+    expect([...el.querySelectorAll('.actions button')].map(button => button.textContent?.trim())).toEqual(['Kiểm tra']);
+    page.askRevoke(page.keys()[0]);
+    expect(page.revokeConfirm()).toBeNull();
   });
 
   it('creates a key with account id, clears the secret and reloads the panel', () => {

@@ -1,3 +1,4 @@
+import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter, ActivatedRoute } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
@@ -7,12 +8,15 @@ import { describe, expect, it, beforeEach, vi } from 'vitest';
 import { AdminSectionPage } from './admin-section.page';
 import { AdminContentService, AdminCard, AdminCardSet, AdminCharacter, AdminRelease } from '../../../core/admin/admin-content.service';
 import { CardImportRow } from '../../../core/admin/card-import';
+import { ALL_PERMISSION_KEYS } from '../../../core/admin/permission-catalog';
 import { AuthService } from '../../../core/auth/auth.service';
 
 describe('AdminSectionPage', () => {
   let component: AdminSectionPage;
   let fixture: ComponentFixture<AdminSectionPage>;
   let adminApiSpy: any;
+  // The page asks AuthService per module:action right inside computed signals, so the stub reads a signal too.
+  const granted = signal([...ALL_PERMISSION_KEYS]);
 
   const mockDraftRelease: AdminRelease = {
     id: 'rel-draft-1',
@@ -41,6 +45,7 @@ describe('AdminSectionPage', () => {
   };
 
   beforeEach(async () => {
+    granted.set([...ALL_PERMISSION_KEYS]);
     adminApiSpy = {
       getReleases: vi.fn(() =>
         of({
@@ -163,8 +168,10 @@ describe('AdminSectionPage', () => {
         {
           provide: AuthService,
           useValue: {
-            currentUser: () => ({ id: 'admin-1', email: 'admin@nhanayhoibao.vn', displayName: 'Admin Đô Thành', role: 'ADMIN' }),
+            currentUser: () => ({ id: 'admin-1', email: 'admin@example.test', displayName: 'Admin', role: 'ADMIN' }),
             getCsrf: () => of({ headerName: 'X-XSRF-TOKEN', token: 'test' }),
+            hasPermission: (permission: string) => granted().includes(permission),
+            hasAnyPermission: (permissions: readonly string[]) => permissions.some(p => granted().includes(p)),
           },
         },
       ],
@@ -713,6 +720,75 @@ describe('AdminSectionPage', () => {
     expect(component.importRows()).toEqual([]);
     expect(component.importForm.code).toBe('');
     expect(component.importFileName()).toBe('');
+  });
+
+  it('hides every write form when the account only holds content:read', () => {
+    granted.set(['content:read']);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('#save-card-button')).toBeNull();
+    expect(el.querySelector('#submit-card-import')).toBeNull();
+    expect(el.querySelector('app-card-image-upload')).toBeNull();
+    expect(component.showCardSetForm()).toBe(false);
+    expect(component.canImportCards()).toBe(false);
+    expect(component.cardUploader()).toBeUndefined();
+    expect(el.textContent).toContain('chưa được cấp quyền');
+  });
+
+  it('renders the clone form only for an account holding releases:clone', () => {
+    // The clone banner is the only place the button lives, and it needs a locked release selected.
+    granted.set(['content:read', 'cards:create', 'card-sets:create']);
+    component.activeRelease.set(mockPublishedRelease);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('#submit-clone-btn')).toBeNull();
+    expect(el.textContent).toContain('Nhân bản bản phát hành');
+
+    granted.set(['content:read', 'releases:clone']);
+    fixture.detectChanges();
+    expect(el.querySelector('#submit-clone-btn')).not.toBeNull();
+  });
+
+  it('refuses writes at the method level when the matching right is missing', async () => {
+    granted.set(['content:read', 'cards:create']);
+    fixture.detectChanges();
+
+    component.createRelease();
+    component.createCardSet();
+    component.submitCloneToDraft();
+    component.toggleCardSetForm();
+    component.toggleImportPanel();
+    await component.submitCardImport();
+
+    expect(adminApiSpy.createRelease).not.toHaveBeenCalled();
+    expect(adminApiSpy.createCardSet).not.toHaveBeenCalled();
+    expect(adminApiSpy.cloneRelease).not.toHaveBeenCalled();
+    expect(component.cardSetFormOpen()).toBe(false);
+    expect(component.importOpen()).toBe(true);
+    expect(component.importErrorMsg()).toContain('Thêm bộ thẻ');
+  });
+
+  it('keeps the card write path open for an account that can add cards and sets', () => {
+    granted.set(['content:read', 'cards:create', 'card-sets:create']);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('#save-card-button')).not.toBeNull();
+    expect(el.querySelector('#submit-card-import')).not.toBeNull();
+    expect(el.querySelector('app-card-image-upload')).toBeNull();
+    expect(component.canImportCards()).toBe(true);
+    expect(component.canUploadMedia()).toBe(false);
+  });
+
+  it('blocks an embedded-image import when media:upload is missing', async () => {
+    granted.set(['content:read', 'cards:create', 'card-sets:create']);
+    const bytes = new Uint8Array([137, 80, 78, 71]);
+    component.importForm = { code: 'SET-07', name: 'Bộ ảnh', slug: 'bo-anh', description: '', sortOrder: 0 };
+    component.importRows.set([importRow({ embeddedImage: { name: 'image1.png', bytes, mimeType: 'image/png', size: bytes.byteLength } })]);
+
+    await component.submitCardImport();
+
+    expect(adminApiSpy.createCardSet).not.toHaveBeenCalled();
+    expect(component.importErrorMsg()).toContain('Tải ảnh thẻ lên kho');
   });
 
   it('toggles cardCreationMode between EXCEL and MANUAL via option buttons', () => {

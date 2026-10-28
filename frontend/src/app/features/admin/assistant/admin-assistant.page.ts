@@ -31,6 +31,7 @@ const TEST_FAILURE_LABELS: Record<string, string> = {
 };
 
 const MAX_TOKEN_BUDGET = 2_000_000_000;
+const DB_SLOT_PREFIX = 'db:';
 
 interface BudgetBar {
   id: string;
@@ -42,16 +43,39 @@ interface BudgetBar {
   over: boolean;
   warn: boolean;
   hasBudget: boolean;
+  // Tells the card whose budget a bar represents: a stored key, or the provider shared pool.
+  source: 'key' | 'provider' | null;
 }
 
-interface ProviderCard {
-  provider: AssistantProviderConfig;
+interface KeyCard {
+  slot: string;
+  key: AssistantKey | null;
+  title: string;
+  enabled: boolean;
   quota: BudgetBar;
   requests: number;
   failures: number;
   avgLatencyMs: number;
-  keys: number;
-  activeKeys: number;
+  tokens: number;
+}
+
+interface ProviderRow {
+  provider: AssistantProviderConfig;
+  quota: BudgetBar;
+  cards: KeyCard[];
+  requests: number;
+  failures: number;
+  avgLatencyMs: number;
+  triedKeys: number;
+}
+
+interface KeyTestChip {
+  status: 'OK' | 'FAILED';
+  code: string | null;
+  model: string | null;
+  latencyMs: number;
+  testedAt: string;
+  live: boolean;
 }
 
 interface KeyGroup {
@@ -100,6 +124,7 @@ export class AdminAssistantPage implements OnInit {
   readonly models = signal<Record<string, string>>({});
   readonly disabled = signal<string[]>([]);
   readonly budgets = signal<Record<string, string>>({});
+  readonly keyBudgets = signal<Record<string, string>>({});
   readonly usage = signal<AssistantUsage | null>(null);
   readonly days = signal(7);
   readonly loading = signal(false);
@@ -113,6 +138,7 @@ export class AdminAssistantPage implements OnInit {
   readonly keyStorage = signal(true);
   readonly keyLimits = signal({ perOwner: 10, active: 32 });
   readonly canManageKeys = signal(false);
+  readonly canCreateKey = signal(false);
   readonly keysLoading = signal(false);
   readonly keySaving = signal(false);
   readonly keyBusy = signal('');
@@ -136,8 +162,13 @@ export class AdminAssistantPage implements OnInit {
   readonly bulkSummary = signal('');
 
   readonly canManage = computed(() => this.settings()?.canManage ?? false);
+  readonly canReorder = computed(() => this.settings()?.canReorder ?? false);
+  readonly canEditModels = computed(() => this.settings()?.canEditModels ?? false);
+  readonly canManageSlots = computed(() => this.settings()?.canManageSlots ?? false);
+  readonly canEditBudgets = computed(() => this.settings()?.canEditBudgets ?? false);
+  readonly canReadUsage = computed(() => this.settings()?.canReadUsage ?? false);
   readonly needsAccount = computed(() => this.keyProvider() === 'workers-ai');
-  readonly canAddKey = computed(() => this.keyStorage() && !this.keySaving()
+  readonly canAddKey = computed(() => this.canCreateKey() && this.keyStorage() && !this.keySaving()
     && this.keyLabel().trim().length > 0
     && this.keyValue().trim().length >= 8
     && (!this.needsAccount() || this.keyAccount().trim().length > 0));
@@ -170,44 +201,70 @@ export class AdminAssistantPage implements OnInit {
     return totals && totals.requests ? Math.round(totals.cacheHits / totals.requests * 100) : 0;
   });
   // Providers report token usage per request, so "used today" is a measured total, not a quota probe.
-  readonly budgetBars = computed<BudgetBar[]>(() => {
-    const today = new Map((this.usage()?.today.providers ?? []).map(row => [row.provider, row.tokensIn + row.tokensOut]));
+  private bar(id: string, label: string, used: number, budget: number, source: BudgetBar['source']): BudgetBar {
+    const hasBudget = budget > 0;
+    return {
+      id, label, used, budget, source, hasBudget,
+      remaining: Math.max(0, budget - used),
+      percent: hasBudget ? Math.min(100, Math.round(used / budget * 100)) : 0,
+      over: hasBudget && used > budget,
+      warn: hasBudget && used <= budget && used >= budget * 0.8,
+    };
+  }
+
+  private parseBudget(raw: string | undefined): number {
+    const amount = Number((raw ?? '').trim());
+    return Number.isSafeInteger(amount) && amount > 0 && amount <= MAX_TOKEN_BUDGET ? amount : 0;
+  }
+
+  readonly providerRows = computed<ProviderRow[]>(() => {
+    const usage = this.usage();
+    const todayProvider = new Map((usage?.today.providers ?? []).map(row => [row.provider, row.tokensIn + row.tokensOut]));
+    const todaySlot = new Map((usage?.today.slots ?? []).map(row => [row.slot, row.tokensIn + row.tokensOut]));
+    const slotStats = new Map((usage?.keys ?? []).map(row => [row.slot, row]));
+    const providerStats = new Map((usage?.providers ?? []).map(row => [row.provider, row]));
+    const visible = new Map(this.keys().map(key => [key.id, key]));
+    const keyBudgets = this.keyBudgets();
+    const disabled = this.disabled();
     return this.orderedProviders().map(provider => {
-      const used = today.get(provider.id) ?? 0;
-      const parsed = Number(this.budgets()[provider.id]);
-      const hasBudget = Number.isSafeInteger(parsed) && parsed > 0 && parsed <= MAX_TOKEN_BUDGET;
-      const budget = hasBudget ? parsed : 0;
-      return {
-        id: provider.id, label: provider.label, used, budget, hasBudget,
-        remaining: Math.max(0, budget - used),
-        percent: hasBudget ? Math.min(100, Math.round(used / budget * 100)) : 0,
-        over: hasBudget && used > budget,
-        warn: hasBudget && used <= budget && used >= budget * 0.8,
-      };
-    });
-  });
-  readonly hasBudgets = computed(() => this.budgetBars().some(bar => bar.hasBudget));
-  readonly providerCards = computed<ProviderCard[]>(() => {
-    const quotas = new Map(this.budgetBars().map(bar => [bar.id, bar]));
-    const stats = new Map((this.usage()?.providers ?? []).map(row => [row.provider, row]));
-    const keys = this.keys();
-    return this.orderedProviders().map(provider => {
-      const own = keys.filter(key => key.provider === provider.id);
-      const row = stats.get(provider.id);
+      const budget = this.parseBudget(this.budgets()[provider.id]);
+      const cards: KeyCard[] = provider.slots.map(slot => {
+        // A db: slot carries the credential id, which is what per-key budgets and usage rows are keyed by.
+        const isDatabaseSlot = slot.slot.startsWith(DB_SLOT_PREFIX);
+        const key = isDatabaseSlot ? visible.get(slot.slot.slice(DB_SLOT_PREFIX.length)) ?? null : null;
+        const title = key?.label ?? this.slotLabel(slot.slot);
+        const used = todaySlot.get(slot.slot) ?? 0;
+        const stats = slotStats.get(slot.slot);
+        // A stored key only compares against its own budget; env keys share the provider pool.
+        const quota = isDatabaseSlot
+          ? this.bar(slot.slot, title, used, this.parseBudget(key ? keyBudgets[key.id] : undefined), 'key')
+          : this.bar(slot.slot, title, used, budget, 'provider');
+        return {
+          slot: slot.slot,
+          key,
+          title,
+          enabled: !disabled.includes(slot.slot),
+          quota,
+          requests: stats?.requests ?? 0,
+          failures: stats?.failures ?? 0,
+          avgLatencyMs: stats?.avgLatencyMs ?? 0,
+          tokens: (stats?.tokensIn ?? 0) + (stats?.tokensOut ?? 0),
+        };
+      });
+      const row = providerStats.get(provider.id);
       return {
         provider,
-        quota: quotas.get(provider.id) ?? {
-          id: provider.id, label: provider.label, used: 0, budget: 0, remaining: 0,
-          percent: 0, over: false, warn: false, hasBudget: false,
-        },
+        quota: this.bar(provider.id, provider.label, todayProvider.get(provider.id) ?? 0, budget, 'provider'),
+        cards,
         requests: row?.requests ?? 0,
         failures: row?.failures ?? 0,
         avgLatencyMs: row?.avgLatencyMs ?? 0,
-        keys: own.length,
-        activeKeys: own.filter(key => key.status === 'ACTIVE').length,
+        triedKeys: cards.filter(card => card.enabled).length,
       };
     });
   });
+  readonly hasBudgets = computed(() => this.providerRows()
+    .some(row => row.quota.hasBudget || row.cards.some(card => card.quota.hasBudget)));
   readonly keyGroups = computed<KeyGroup[]>(() => {
     const byProvider = new Map<string, AssistantKey[]>();
     for (const key of this.keys()) {
@@ -255,6 +312,8 @@ export class AdminAssistantPage implements OnInit {
   }
 
   loadUsage(): void {
+    // The usage API answers 403 without assistant:usage:read; the quota bars simply stay at zero.
+    if (!this.canReadUsage()) return;
     this.usageLoading.set(true);
     this.api.getUsage(this.days()).subscribe({
       next: usage => { this.usage.set(usage); this.usageLoading.set(false); },
@@ -279,6 +338,7 @@ export class AdminAssistantPage implements OnInit {
       next: response => {
         this.keys.set(response.items);
         this.canManageKeys.set(response.canManage);
+        this.canCreateKey.set(response.canCreate);
         this.keyStorage.set(response.storageAvailable);
         this.keyLimits.set(response.limits);
         this.keysLoading.set(false);
@@ -369,6 +429,26 @@ export class AdminAssistantPage implements OnInit {
     });
   }
 
+  /** A probe from this session wins; otherwise the card falls back to the outcome stored on the key. */
+  testChip(key: AssistantKey): KeyTestChip | null {
+    const live = this.testResults()[key.id];
+    if (live) return { status: live.status, code: live.code, model: live.model, latencyMs: live.latencyMs, testedAt: live.testedAt, live: true };
+    const stored = key.lastTest;
+    return stored ? { ...stored, live: false } : null;
+  }
+
+  testFailureLabel(code: string | null): string {
+    return code ? TEST_FAILURE_LABELS[code] ?? 'lỗi không xác định' : 'lỗi không xác định';
+  }
+
+  keyTestLabel(chip: KeyTestChip): string {
+    const when = new Date(chip.testedAt).toLocaleTimeString('vi-VN');
+    const model = chip.model ? ` · ${chip.model}` : '';
+    return chip.status === 'OK'
+      ? `${chip.live ? 'Vừa kiểm tra' : 'Lần kiểm tra trước'} ${when}: OK${model} · ${chip.latencyMs} ms`
+      : `${chip.live ? 'Vừa kiểm tra' : 'Lần kiểm tra trước'} ${when}: ${this.testFailureLabel(chip.code)}${model}`;
+  }
+
   testKey(key: AssistantKey): void {
     if (!key.canTest || this.keyBusy() || this.bulkRunning()) return;
     this.keyBusy.set(key.id);
@@ -392,21 +472,6 @@ export class AdminAssistantPage implements OnInit {
         this.keyError.set(this.keyMessage(error, 'Không kiểm tra được key.'));
       },
     });
-  }
-
-  testResult(id: string): AssistantKeyTestResult | null {
-    return this.testResults()[id] ?? null;
-  }
-
-  testFailureLabel(code: string | null): string {
-    return code ? TEST_FAILURE_LABELS[code] ?? 'lỗi không xác định' : 'lỗi không xác định';
-  }
-
-  keyTestLabel(result: AssistantKeyTestResult): string {
-    const when = new Date(result.testedAt).toLocaleTimeString('vi-VN');
-    return result.status === 'OK'
-      ? `Kiểm tra ${when}: OK · ${result.model} · ${result.latencyMs} ms`
-      : `Kiểm tra ${when}: ${this.testFailureLabel(result.code)} · ${result.model}`;
   }
 
   toggleBulkPanel(): void {
@@ -511,7 +576,7 @@ export class AdminAssistantPage implements OnInit {
   }
 
   setKeyStatus(key: AssistantKey, status: 'ACTIVE' | 'DISABLED'): void {
-    if (!this.canManageKeys() || this.keyBusy() || this.bulkRunning()) return;
+    if (!key.canManageStatus || this.keyBusy() || this.bulkRunning()) return;
     this.keyBusy.set(key.id);
     this.keyError.set('');
     this.keyNotice.set('');
@@ -530,7 +595,7 @@ export class AdminAssistantPage implements OnInit {
   }
 
   askRevoke(key: AssistantKey): void {
-    if (this.keyBusy() || this.bulkRunning()) return;
+    if (!key.canRevoke || this.keyBusy() || this.bulkRunning()) return;
     this.revokeConfirm.set(key.id);
   }
 
@@ -539,7 +604,7 @@ export class AdminAssistantPage implements OnInit {
   }
 
   revokeKey(key: AssistantKey): void {
-    if (this.revokeConfirm() !== key.id || this.keyBusy() || this.bulkRunning()) return;
+    if (!key.canRevoke || this.revokeConfirm() !== key.id || this.keyBusy() || this.bulkRunning()) return;
     this.keyBusy.set(key.id);
     this.keyError.set('');
     this.keyNotice.set('');
@@ -607,14 +672,24 @@ export class AdminAssistantPage implements OnInit {
   }
 
   setModel(id: string, event: Event): void {
+    if (!this.canEditModels()) return;
     const value = (event.target as HTMLSelectElement).value;
     this.models.update(models => ({ ...models, [id]: value }));
     this.notice.set('');
   }
 
   setBudget(id: string, event: Event): void {
+    if (!this.canEditBudgets()) return;
     const value = (event.target as HTMLInputElement).value;
     this.budgets.update(budgets => ({ ...budgets, [id]: value }));
+    this.notice.set('');
+    this.error.set('');
+  }
+
+  setKeyBudget(id: string, event: Event): void {
+    if (!this.canEditBudgets()) return;
+    const value = (event.target as HTMLInputElement).value;
+    this.keyBudgets.update(budgets => ({ ...budgets, [id]: value }));
     this.notice.set('');
     this.error.set('');
   }
@@ -623,18 +698,14 @@ export class AdminAssistantPage implements OnInit {
     return Math.max(0, Math.round(value)).toLocaleString('vi-VN');
   }
 
-  isSlotEnabled(slot: string): boolean {
-    return !this.disabled().includes(slot);
-  }
-
   toggleSlot(slot: string): void {
-    if (!this.canManage()) return;
+    if (!this.canManageSlots()) return;
     this.disabled.update(list => list.includes(slot) ? list.filter(item => item !== slot) : [...list, slot]);
     this.notice.set('');
   }
 
   move(index: number, delta: number): void {
-    if (!this.canManage()) return;
+    if (!this.canReorder()) return;
     const target = index + delta;
     const list = [...this.order()];
     if (target < 0 || target >= list.length) return;
@@ -654,10 +725,13 @@ export class AdminAssistantPage implements OnInit {
     this.error.set('');
     this.notice.set('');
     this.api.saveSettings({
-      order: this.order(),
+      // A viewer without the reorder right must not send the row list, which also carries providers the
+      // stored order never listed: that would read as an order change and the server would reject the save.
+      order: this.canReorder() ? this.order() : (this.settings()?.settings.order ?? this.order()),
       models: this.models(),
       disabledSlots: this.disabled(),
       tokenBudgets: this.budgetPayload(),
+      keyBudgets: this.keyBudgetPayload(),
       expectedVersion: this.settings()?.settings.version ?? 0,
     }).subscribe({
       next: response => {
@@ -691,6 +765,9 @@ export class AdminAssistantPage implements OnInit {
       budgets[provider.id] = amount ? String(amount) : '';
     }
     this.budgets.set(budgets);
+    const keyBudgets: Record<string, string> = {};
+    for (const [id, amount] of Object.entries(response.settings.keyBudgets)) keyBudgets[id] = String(amount);
+    this.keyBudgets.set(keyBudgets);
   }
 
   private invalidBudget(): string | null {
@@ -700,14 +777,34 @@ export class AdminAssistantPage implements OnInit {
       const amount = Number(raw);
       if (!Number.isSafeInteger(amount) || amount <= 0 || amount > MAX_TOKEN_BUDGET) return provider.label;
     }
+    for (const [id, raw] of Object.entries(this.keyBudgets())) {
+      const value = (raw ?? '').trim();
+      if (!value) continue;
+      const amount = Number(value);
+      if (!Number.isSafeInteger(amount) || amount <= 0 || amount > MAX_TOKEN_BUDGET) {
+        const key = this.keys().find(item => item.id === id);
+        return key ? `key “${key.label}”` : 'một key quản trị';
+      }
+    }
     return null;
   }
 
   private budgetPayload(): Record<string, number> {
     const budgets: Record<string, number> = {};
     for (const provider of this.orderedProviders()) {
-      const amount = Number(this.budgets()[provider.id]);
-      if (Number.isSafeInteger(amount) && amount > 0) budgets[provider.id] = amount;
+      const amount = this.parseBudget(this.budgets()[provider.id]);
+      if (amount) budgets[provider.id] = amount;
+    }
+    return budgets;
+  }
+
+  private keyBudgetPayload(): Record<string, number> {
+    // Read the whole loaded map, not just the keys this viewer can list: a partial save must not wipe
+    // the budgets of keys owned by other admins.
+    const budgets: Record<string, number> = {};
+    for (const [id, raw] of Object.entries(this.keyBudgets())) {
+      const amount = this.parseBudget(raw);
+      if (amount) budgets[id] = amount;
     }
     return budgets;
   }

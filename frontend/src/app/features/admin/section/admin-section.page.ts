@@ -22,6 +22,7 @@ import {
   slugify,
   validateCardSetImport,
 } from '../../../core/admin/card-import';
+import { permissionLabel } from '../../../core/admin/permission-catalog';
 import { prepareCardImage } from '../../../core/admin/card-image';
 import {
   AdminContentService,
@@ -184,8 +185,23 @@ export class AdminSectionPage implements OnInit {
 
   readonly isDraftSelected = computed(() => this.activeRelease()?.status === 'DRAFT');
 
+  // Every write here is a separate module:action right, so a co-admin only sees the forms they can submit.
+  readonly canCreateRelease = computed(() => this.auth.hasPermission('releases:create'));
+  readonly canCloneRelease = computed(() => this.auth.hasPermission('releases:clone'));
+  readonly canCreateCardSet = computed(() => this.auth.hasPermission('card-sets:create'));
+  readonly canCreateCard = computed(() => this.auth.hasPermission('cards:create'));
+  readonly canUploadMedia = computed(() => this.auth.hasPermission('media:upload'));
+  /** An Excel import writes a card set, then cards, and uploads any embedded artwork. */
+  readonly canImportCards = computed(() => this.canCreateCardSet() && this.canCreateCard());
+
+  readonly clonePermissionLabel = permissionLabel('releases:clone');
+  readonly releasePermissionLabel = permissionLabel('releases:create');
+  readonly cardSetPermissionLabel = permissionLabel('card-sets:create');
+  readonly cardPermissionLabel = permissionLabel('cards:create');
+  readonly mediaPermissionLabel = permissionLabel('media:upload');
+
   readonly showCardSetForm = computed(
-    () => this.isDraftSelected() && (this.cardSets().length === 0 || this.cardSetFormOpen())
+    () => this.canCreateCardSet() && this.isDraftSelected() && (this.cardSets().length === 0 || this.cardSetFormOpen())
   );
 
   readonly sectionKey = computed(() => {
@@ -442,10 +458,12 @@ export class AdminSectionPage implements OnInit {
   }
 
   toggleCardSetForm(): void {
+    if (!this.canCreateCardSet()) return;
     this.cardSetFormOpen.update(value => !value);
   }
 
   toggleImportPanel(): void {
+    if (!this.canImportCards()) return;
     this.importOpen.update(value => !value);
   }
 
@@ -511,6 +529,14 @@ export class AdminSectionPage implements OnInit {
 
   async submitCardImport(): Promise<void> {
     if (this.importSaving() || this.importParsing()) return;
+    if (!this.canImportCards()) {
+      this.importErrorMsg.set(`Thiếu quyền ${permissionLabel('card-sets:create')} và ${permissionLabel('cards:create')}.`);
+      return;
+    }
+    if (!this.canUploadMedia() && this.importEmbeddedImageCount() > 0) {
+      this.importErrorMsg.set(`File có ảnh nhúng nên cần quyền ${permissionLabel('media:upload')}. Bỏ ảnh khỏi file hoặc nhờ admin chính cấp thêm quyền.`);
+      return;
+    }
     const rel = this.activeRelease();
     if (!rel) {
       this.importErrorMsg.set('Chưa chọn bản phát hành.');
@@ -676,7 +702,7 @@ export class AdminSectionPage implements OnInit {
   }
 
   createRelease(): void {
-    if (this.releaseSaving() || this.loading()) return;
+    if (!this.canCreateRelease() || this.releaseSaving() || this.loading()) return;
     const versionLabel = this.releaseForm.versionLabel.trim();
     if (!versionLabel || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(versionLabel) || versionLabel.length > 40) {
       this.releaseErrorMsg.set('Nhãn phiên bản (versionLabel) bắt buộc, tối đa 40 ký tự (VD: v2.0-draft).');
@@ -731,7 +757,7 @@ export class AdminSectionPage implements OnInit {
   }
 
   createCardSet(): void {
-    if (this.cardSetSaving() || this.loading()) return;
+    if (!this.canCreateCardSet() || this.cardSetSaving() || this.loading()) return;
     const rel = this.activeRelease();
     if (!rel) {
       this.cardSetErrorMsg.set('Chưa chọn bản phát hành.');
@@ -925,7 +951,7 @@ export class AdminSectionPage implements OnInit {
   }
 
   saveCard(): void {
-    if (this.cardSaving() || this.loading() || this.cardConflict()) return;
+    if (!this.canCreateCard() || this.cardSaving() || this.loading() || this.cardConflict()) return;
 
     const rel = this.activeRelease();
     if (!rel) {
@@ -1014,7 +1040,7 @@ export class AdminSectionPage implements OnInit {
   }
 
   submitCloneToDraft(): void {
-    if (this.cloneSaving()) return;
+    if (!this.canCloneRelease() || this.cloneSaving()) return;
 
     const source = this.activeRelease();
     if (!source) {
@@ -1078,7 +1104,7 @@ export class AdminSectionPage implements OnInit {
       this.isSessionExpired.set(true);
       this.errorMsg.set('Phiên làm việc quản trị viên của bạn đã hết hạn (30 phút). Vui lòng đăng nhập lại.');
     } else if (err?.status === 403) {
-      this.errorMsg.set('Từ chối quyền truy cập: Bạn không có quyền ADMIN hoặc thiếu chữ ký bảo mật CSRF.');
+      this.errorMsg.set('Từ chối truy cập: tài khoản của bạn chưa được cấp quyền cho thao tác này, hoặc thiếu chữ ký bảo mật CSRF. Nhờ admin chính cấp thêm quyền.');
     } else if (err?.code === 'VERSION_CONFLICT' || err?.status === 409) {
       this.errorMsg.set('Xung đột phiên bản: Bản phát hành đã được chỉnh sửa bởi quản trị viên khác. Vui lòng tải lại dữ liệu.');
     } else {
