@@ -2,6 +2,15 @@
 
 Cập nhật: 2026-10-28 (Asia/Saigon).
 
+## Stylesheet trang trợ lý AI trong ngưỡng budget `anyComponentStyle` (2026-10-28, local)
+
+- [x] AI-CSS-01 — Rà soát size thật: 142 selector, **không có CSS chết** (mọi class đều có trong template; không có `[class]`, không có nội suy class, không có `classList`/`renderer.addClass`), nên không thể giảm bằng cách xóa rule. File gốc 9,87 kB chỉ còn ~132 byte dưới ngưỡng **error 10 kB** của `angular.json`.
+- [x] AI-CSS-02 — Tách theo ranh giới tab, giữ nguyên thứ tự cascade: `admin-assistant.page.css` 4,67 kB (shell + tabs + nhà cung cấp + quota + model/budget + slot) và `admin-assistant.keys.css` 5,23 kB (thẻ key + danh sách/form key + reveal + kiểm tra hàng loạt + bảng số liệu + media query); component chuyển sang `styleUrls: [page, keys]`.
+- [x] AI-CSS-03 — Bằng chứng tương đương: A+B khớp bản gốc **từng byte**; CSS đã biên dịch trong chunk có **132/132 rule đúng thứ tự, không mất rule**; 2 khác biệt còn lại là artifact sẵn có của minifier nằm trong một nửa file (autoprefix `-webkit-user-select`, gộp `.panel-head button.primary` với `.tabs` vì block giống hệt).
+- [x] AI-CSS-04 — `ng build` hết warning cho trang trợ lý (7 warning file khác không đổi); `ng test` **57 file / 424 pass**, `admin-assistant.page.spec.ts` 37/37.
+- [ ] AI-CSS-05 — Commit/push/PR/deploy bản tách file (chưa thực hiện trong đợt này).
+- [ ] AI-CSS-06 — 7 stylesheet khác vẫn vượt warning 6 kB (`global-bar` 8,88 kB, `login` 7,06, `register` 7,12, `home` 6,22, `public-content` 6,55, `admin-dashboard` 6,26, `fund-dashboard` 6,85) — chưa ai chốt có siết về warning hay chỉ chống error.
+
 ## Trợ lý AI: độ trễ trung bình nhất quán giữa các bảng số liệu (2026-10-28, đã deploy production `64dd71d`)
 
 - [x] AI-LAT-01 — `usageSummary().slots[].avgLatencyMs` chia cho `answered = requests − cache_hits` như `providers`/`keys`/`totals`, vẫn trả 0 khi provider `cache` hoặc không có câu trả lời (`backend/server/src/assistant-usage.ts`).

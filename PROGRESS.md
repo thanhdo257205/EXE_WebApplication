@@ -4,6 +4,15 @@
 
 ## Cập nhật gần nhất
 
+### Tách stylesheet trang trợ lý AI để thoát ngưỡng error 10 kB — 2026-10-28 (local, chưa deploy)
+
+- Vấn đề: `admin-assistant.page.css` nặng **9,87 kB** trong khi `angular.json` đặt budget `anyComponentStyle` là warning 6 kB / **error 10 kB** — chỉ còn ~132 byte nên thêm một rule là `ng build` fail và CI đỏ.
+- Khảo sát trước khi sửa: script đối chiếu 142 selector với `admin-assistant.page.html` cho thấy **không có selector chết** (mọi class đều được dùng, không có `[class]`, không có nội suy class trong `class="…"`, không có `classList`/`renderer.addClass` trong TS) → không có đường giảm size bằng cách xóa CSS thừa.
+- Cách xử lý: tách stylesheet theo đúng ranh giới tab của trang, giữ nguyên thứ tự cascade. `admin-assistant.page.css` = shell + header + tabs + panel/thông báo + hàng nhà cung cấp + thanh quota + ô model/ngân sách + công tắc slot (**4,67 kB**); file mới `admin-assistant.keys.css` = thẻ API key, danh sách/form key, reveal secret, panel kiểm tra hàng loạt, bảng số liệu usage + media query (**5,23 kB**). Component dùng `styleUrls: [page, keys]` vì budget đo **theo từng file** (mỗi file in một dòng warning riêng trong output build).
+- Bằng chứng không đổi giao diện: (1) A + B ghép lại khớp bản gốc **từng byte**; (2) parse CSS đã biên dịch trong chunk → **132/132 rule, cùng thứ tự, không mất rule**; (3) hai khác biệt duy nhất là artifact có sẵn của minifier và nằm trọn trong một nửa file: autoprefix `-webkit-user-select:all` cho `.secret`, và gộp `.panel-head button.primary` + `.tabs` vì hai block giống hệt nhau.
+- Kết quả verify: `ng build` **không còn warning nào cho trang trợ lý** (7 warning của các file CSS khác giữ nguyên, không đụng tới); `ng test` **57 file / 424 pass**, riêng `admin-assistant.page.spec.ts` 37/37. Headroom mới: ~1,3 kB và ~0,8 kB dưới ngưỡng warning, ngưỡng error thì rất xa.
+- Trạng thái: **chưa commit/push/deploy, chưa đụng DB production.**
+
 ### Quyền tác giả nội dung: đồng quản trị sửa/xóa được phần mình tạo — 2026-10-28 (local, chưa deploy)
 
 - Yêu cầu chủ dự án: đồng quản trị mặc định chỉ được xem; chỉ admin chính phân quyền; nhưng phần **họ tự tạo** (API key, bộ thẻ, thẻ, …) thì họ được sửa/xóa. Chốt qua AskUserQuestion: áp cho **toàn bộ nội dung + bản phát hành** (API key đã có sẵn cơ chế) và điều kiện là **phải còn `content:read`** — thu hồi hết quyền nội dung thì phần của họ bị đóng băng.
