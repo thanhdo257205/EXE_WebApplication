@@ -297,8 +297,9 @@
             @if (importOpen()) {
               <div class="px-4 pb-4 border-t border-slate-800">
                 <p class="text-xs text-slate-300 my-3">
-                  Nhập thông tin bộ thẻ, chọn file Excel rồi kiểm tra bản xem trước. Mã thẻ trùng trong file, sai định dạng
-                  hoặc ảnh không phải URL HTTPS sẽ bị chặn trước khi ghi dữ liệu. Ảnh nhúng trong Excel không được đọc.
+                  Nhập thông tin bộ thẻ, chọn file Excel rồi kiểm tra bản xem trước. Bạn có thể chèn ảnh trực tiếp vào ô Excel
+                  (hệ thống sẽ tự động tối ưu WebP và tải lên Azure Storage) hoặc điền URL HTTPS ảnh thẻ. Mã thẻ trùng trong file, sai định dạng
+                  hoặc ảnh lỗi sẽ bị chặn trước khi ghi dữ liệu.
                 </p>
 
                 <form (ngSubmit)="submitCardImport()" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -375,13 +376,16 @@
                         (change)="onImportFileSelected($event)"
                       />
                       <span class="text-[10px] text-slate-400 mt-1 block">
-                        Tối đa 5 MB. Chỉ đọc sheet đầu tiên. Cột bắt buộc: Mã thẻ, Tên thẻ, Hiệu ứng / Mô tả.
+                        Tối đa 50 MB. Hỗ trợ ảnh nhúng trực tiếp trong file Excel hoặc URL ảnh thẻ. Chỉ đọc sheet đầu tiên. Cột bắt buộc: Mã thẻ, Tên thẻ, Hiệu ứng / Mô tả.
                       </span>
                       @if (importParsing()) {
-                        <span class="text-[11px] text-amber-300 mt-1 block" role="status">Đang đọc file Excel…</span>
+                        <span class="text-[11px] text-amber-300 mt-1 block" role="status">Đang đọc file Excel và trích xuất ảnh…</span>
                       } @else if (importFileName()) {
                         <span class="text-[11px] text-slate-300 mt-1 block">
                           Đã đọc {{ importFileName() }} · {{ importRows().length }} dòng dữ liệu
+                          @if (importEmbeddedImageCount() > 0) {
+                            · <span class="text-sky-300 font-semibold">{{ importEmbeddedImageCount() }} ảnh nhúng sẵn sàng tải lên</span>
+                          }
                         </span>
                       }
                     </div>
@@ -424,7 +428,15 @@
                                   <td class="text-xs text-slate-300">
                                     {{ row.ruleStatus === 'CONFIRMED' ? 'Xác nhận' : 'Cần duyệt' }}
                                   </td>
-                                  <td class="text-[11px] text-slate-400 max-w-[12rem] truncate">{{ row.artworkUrl || '—' }}</td>
+                                  <td class="text-[11px] text-slate-400 max-w-[12rem] truncate">
+                                    @if (row.embeddedImage) {
+                                      <span class="inline-flex items-center gap-1 rounded bg-sky-950/70 border border-sky-700/50 px-1.5 py-0.5 text-[10px] text-sky-300 font-medium">
+                                        📷 Nhúng ({{ formatImageSize(row.embeddedImage.size) }})
+                                      </span>
+                                    } @else {
+                                      {{ row.artworkUrl || '—' }}
+                                    }
+                                  </td>
                                   <td class="text-xs" [class.import-row-error]="row.errors.length > 0">
                                     {{ row.errors.length > 0 ? row.errors.join(' ') : 'Hợp lệ' }}
                                   </td>
@@ -439,9 +451,9 @@
                     <div class="sm:col-span-2 lg:col-span-4 flex flex-wrap items-center justify-between gap-3 pt-2">
                       @if (importSaving()) {
                         <span class="text-xs text-amber-300" role="status">
-                          {{ importProgress().total > 0
+                          {{ importStatusText() || (importProgress().total > 0
                             ? ('Đang nhập thẻ ' + importProgress().done + '/' + importProgress().total + '…')
-                            : 'Đang tạo bộ thẻ…' }}
+                            : 'Đang tạo bộ thẻ…') }}
                         </span>
                       } @else {
                         <span class="text-[11px] text-slate-400">

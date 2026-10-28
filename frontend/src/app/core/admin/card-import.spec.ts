@@ -5,6 +5,7 @@ import {
   parseCardImport,
   readFirstSheet,
   readXlsxSheet,
+  parseXlsxWorkbook,
   slugify,
   validateCardSetImport,
 } from './card-import';
@@ -181,6 +182,63 @@ describe('readXlsxSheet', () => {
     expect(matrix[2]).toEqual(['card-001', 'Thẻ mùa hè', 'Mô tả & ghi chú']);
   });
 
+  it('extracts embedded drawings and maps images to row lines', async () => {
+    const workbook = `<?xml version="1.0" encoding="UTF-8"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+<sheets><sheet name="Thẻ bài" sheetId="1" r:id="rId1"/></sheets></workbook>`;
+    const wbRels = `<?xml version="1.0" encoding="UTF-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+</Relationships>`;
+    const sheet = `<?xml version="1.0" encoding="UTF-8"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>
+<row r="1"><c r="A1" t="inlineStr"><is><t>Mã thẻ</t></is></c><c r="B1" t="inlineStr"><is><t>Tên thẻ</t></is></c><c r="C1" t="inlineStr"><is><t>Hiệu ứng / Mô tả</t></is></c></row>
+<row r="2"><c r="A2" t="inlineStr"><is><t>CARD-010</t></is></c><c r="B2" t="inlineStr"><is><t>Thẻ Cú Đêm</t></is></c><c r="C2" t="inlineStr"><is><t>Cộng 1 điểm</t></is></c></row>
+</sheetData></worksheet>`;
+    const sheetRels = `<?xml version="1.0" encoding="UTF-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rIdDraw" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing1.xml"/>
+</Relationships>`;
+    const drawing = `<?xml version="1.0" encoding="UTF-8"?>
+<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+<xdr:twoCellAnchor>
+  <xdr:from><xdr:col>8</xdr:col><xdr:row>1</xdr:row></xdr:from>
+  <xdr:to><xdr:col>9</xdr:col><xdr:row>2</xdr:row></xdr:to>
+  <xdr:pic><xdr:blipFill><a:blip r:embed="rIdImg1"/></xdr:blipFill></xdr:pic>
+</xdr:twoCellAnchor>
+</xdr:wsDr>`;
+    const drawingRels = `<?xml version="1.0" encoding="UTF-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rIdImg1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/image1.png"/>
+</Relationships>`;
+    const fakePng = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
+
+    const bytes = await zipDeflated([
+      { name: 'xl/workbook.xml', xml: workbook },
+      { name: 'xl/_rels/workbook.xml.rels', xml: wbRels },
+      { name: 'xl/worksheets/sheet1.xml', xml: sheet },
+      { name: 'xl/worksheets/_rels/sheet1.xml.rels', xml: sheetRels },
+      { name: 'xl/drawings/drawing1.xml', xml: drawing },
+      { name: 'xl/drawings/_rels/drawing1.xml.rels', xml: drawingRels },
+      { name: 'xl/media/image1.png', data: fakePng },
+    ]);
+
+    const result = await parseXlsxWorkbook(bytes);
+    expect(result.matrix).toHaveLength(2);
+    expect(result.images.has(2)).toBe(true);
+    const img = result.images.get(2)!;
+    expect(img.name).toBe('image1.png');
+    expect(img.mimeType).toBe('image/png');
+    expect(img.bytes).toEqual(fakePng);
+
+    const parsed = parseCardImport(result.matrix, characters, result.images);
+    expect(parsed.rows).toHaveLength(1);
+    expect(parsed.rows[0].code).toBe('CARD-010');
+    expect(parsed.rows[0].embeddedImage).toBeDefined();
+    expect(parsed.rows[0].embeddedImage?.name).toBe('image1.png');
+    expect(parsed.rows[0].errors).toEqual([]);
+  });
+
   it('rejects a file that is not a ZIP archive', async () => {
     await expect(readXlsxSheet(new TextEncoder().encode('not a zip'))).rejects.toThrow('ZIP');
   });
@@ -192,7 +250,7 @@ describe('slugify', () => {
   });
 });
 
-async function zipDeflated(entries: Array<{ name: string; xml: string }>): Promise<Uint8Array> {
+async function zipDeflated(entries: Array<{ name: string; xml?: string; data?: Uint8Array }>): Promise<Uint8Array> {
   const encoder = new TextEncoder();
   const localParts: Uint8Array[] = [];
   const centralParts: Uint8Array[] = [];
@@ -200,7 +258,7 @@ async function zipDeflated(entries: Array<{ name: string; xml: string }>): Promi
 
   for (const entry of entries) {
     const name = encoder.encode(entry.name);
-    const raw = encoder.encode(entry.xml);
+    const raw = entry.data ?? encoder.encode(entry.xml ?? '');
     const compressed = await deflateRaw(raw);
 
     const local = new Uint8Array(30 + name.length);

@@ -20,6 +20,14 @@ export interface CardImportCharacter {
   code: string;
 }
 
+export interface CardEmbeddedImage {
+  name: string;
+  bytes: Uint8Array;
+  mimeType: string;
+  size: number;
+  col?: number;
+}
+
 export interface CardImportRow {
   /** Số dòng thật trong file Excel (bắt đầu từ 1). */
   line: number;
@@ -35,11 +43,17 @@ export interface CardImportRow {
   characterId: string | null;
   characterCode: string | null;
   errors: string[];
+  embeddedImage?: CardEmbeddedImage | null;
 }
 
 export interface CardImportPreview {
   rows: CardImportRow[];
   fileError: string | null;
+}
+
+export interface XlsxSheetResult {
+  matrix: string[][];
+  images: Map<number, CardEmbeddedImage>;
 }
 
 export interface CardSetImportDraft {
@@ -132,12 +146,12 @@ export function validateCardSetImport(draft: CardSetImportDraft, existing: Array
   return null;
 }
 
-/** Đọc sheet đầu tiên của một file .xlsx thành lưới chuỗi. */
-export async function readFirstSheet(file: File): Promise<string[][]> {
-  return readXlsxSheet(new Uint8Array(await file.arrayBuffer()));
+/** Đọc workbook Excel .xlsx thành ma trận dữ liệu kèm các ảnh nhúng theo dòng. */
+export async function readCardImportWorkbook(file: File): Promise<XlsxSheetResult> {
+  return parseXlsxWorkbook(new Uint8Array(await file.arrayBuffer()));
 }
 
-export async function readXlsxSheet(bytes: Uint8Array): Promise<string[][]> {
+export async function parseXlsxWorkbook(bytes: Uint8Array): Promise<XlsxSheetResult> {
   const zip = readZipDirectory(bytes);
   const workbookEntry = zip.get('xl/workbook.xml');
   if (!workbookEntry) throw new Error('File không phải bảng tính Excel .xlsx hợp lệ (thiếu xl/workbook.xml).');
@@ -149,11 +163,27 @@ export async function readXlsxSheet(bytes: Uint8Array): Promise<string[][]> {
 
   const sharedEntry = zip.get('xl/sharedStrings.xml');
   const shared = sharedEntry ? parseSharedStrings(decodeBytes(await extractEntry(bytes, sharedEntry))) : [];
-  return parseSheetXml(decodeBytes(await extractEntry(bytes, sheetEntry)), shared);
+  const matrix = parseSheetXml(decodeBytes(await extractEntry(bytes, sheetEntry)), shared);
+  const images = await extractEmbeddedImages(zip, sheetPath, bytes);
+
+  return { matrix, images };
 }
 
-/** Chuẩn hóa lưới ô Excel thành các dòng thẻ đã kiểm tra. */
-export function parseCardImport(matrix: string[][], characters: CardImportCharacter[]): CardImportPreview {
+/** Đọc sheet đầu tiên của một file .xlsx thành lưới chuỗi. */
+export async function readFirstSheet(file: File): Promise<string[][]> {
+  return (await readCardImportWorkbook(file)).matrix;
+}
+
+export async function readXlsxSheet(bytes: Uint8Array): Promise<string[][]> {
+  return (await parseXlsxWorkbook(bytes)).matrix;
+}
+
+/** Chuẩn hóa lưới ô Excel thành các dòng thẻ đã kiểm tra, liên kết ảnh nhúng nếu có. */
+export function parseCardImport(
+  matrix: string[][],
+  characters: CardImportCharacter[],
+  images?: Map<number, CardEmbeddedImage>
+): CardImportPreview {
   const headerIndex = matrix.findIndex((row, index) => index < 20 && Object.keys(mapHeaders(row)).length >= 2 && hasHeader(row, 'code') && hasHeader(row, 'name'));
   if (headerIndex < 0) {
     return {
@@ -230,9 +260,18 @@ export function parseCardImport(matrix: string[][], characters: CardImportCharac
       errors.push('Thứ tự hiển thị phải là số nguyên từ 0 đến 100000.');
     }
 
+    const embeddedImage = images?.get(line) ?? null;
     const artworkUrl = value('artworkUrl') || null;
     if (artworkUrl && !isAllowedArtworkUrl(artworkUrl)) {
       errors.push('Ảnh phải là URL HTTPS công khai, /assets/... hoặc /media/cards/<hash>.(png|jpg|webp).');
+    }
+
+    if (embeddedImage) {
+      if (!['image/png', 'image/jpeg', 'image/webp'].includes(embeddedImage.mimeType)) {
+        errors.push(`Ảnh nhúng ở dòng ${line} phải có định dạng PNG, JPEG hoặc WebP.`);
+      } else if (embeddedImage.size > 25 * 1024 * 1024) {
+        errors.push(`Ảnh nhúng ở dòng ${line} quá lớn (tối đa 25 MB).`);
+      }
     }
 
     const rawCharacterCode = value('characterCode').toUpperCase();
@@ -268,6 +307,7 @@ export function parseCardImport(matrix: string[][], characters: CardImportCharac
       characterId,
       characterCode,
       errors,
+      embeddedImage,
     });
   }
 
@@ -289,7 +329,7 @@ export function buildCardImportTemplate(): Uint8Array {
       ['3. Slug để trống sẽ được tạo tự động từ tên thẻ. Mã thẻ được tự động chuyển thành chữ hoa.'],
       ['4. Trạng thái luật: CONFIRMED hoặc NEEDS_REVIEW (mặc định CONFIRMED).'],
       ['5. Số bản: 1–1000 (mặc định 1). Thứ tự để trống sẽ theo thứ tự dòng.'],
-      ['6. Ảnh: URL HTTPS công khai, /assets/... hoặc /media/cards/<hash>.(png|jpg|webp) sau khi tải ảnh lên. Ảnh nhúng trong Excel không được hỗ trợ.'],
+      ['6. Ảnh: Chèn ảnh trực tiếp vào ô trong cột "Ảnh (URL)" (hệ thống sẽ tự động tối ưu WebP và tải lên Azure khi nhập), hoặc dán link HTTPS công khai / đường dẫn /media/cards/<hash>.(png|jpg|webp).'],
       ['7. Mã nhân vật phải tồn tại trong bản phát hành; để trống nếu thẻ không gắn nhân vật.'],
       ['8. Mã thẻ và slug không được trùng nhau trong file hoặc trùng với thẻ đã có.'],
       [''],
@@ -467,6 +507,122 @@ function resolveZipPath(baseFile: string, target: string): string {
     else parts.push(segment);
   }
   return parts.join('/');
+}
+
+function parseAllRelationships(xml: string): Array<{ id: string; type: string; target: string }> {
+  const list: Array<{ id: string; type: string; target: string }> = [];
+  const re = /<Relationship\b([^>]*?)(?:\/>|>[\s\S]*?<\/Relationship>)/gi;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(xml))) {
+    const attrs = match[1];
+    const id = /\bId="([^"]+)"/i.exec(attrs)?.[1];
+    const type = /\bType="([^"]+)"/i.exec(attrs)?.[1];
+    const target = /\bTarget="([^"]+)"/i.exec(attrs)?.[1];
+    if (id && target) list.push({ id, type: type ?? '', target: decodeXml(target) });
+  }
+  return list;
+}
+
+function mimeTypeForExtension(fileName: string): string {
+  const ext = fileName.split('.').pop()?.toLowerCase();
+  switch (ext) {
+    case 'png': return 'image/png';
+    case 'jpg':
+    case 'jpeg': return 'image/jpeg';
+    case 'webp': return 'image/webp';
+    case 'gif': return 'image/gif';
+    case 'bmp': return 'image/bmp';
+    default: return 'application/octet-stream';
+  }
+}
+
+async function extractEmbeddedImages(
+  zip: Map<string, ZipEntry>,
+  sheetPath: string,
+  bytes: Uint8Array
+): Promise<Map<number, CardEmbeddedImage>> {
+  const images = new Map<number, CardEmbeddedImage>();
+
+  const slash = sheetPath.lastIndexOf('/');
+  const dir = slash >= 0 ? sheetPath.slice(0, slash) : '';
+  const file = slash >= 0 ? sheetPath.slice(slash + 1) : sheetPath;
+  const sheetRelsPath = dir ? `${dir}/_rels/${file}.rels` : `_rels/${file}.rels`;
+
+  const sheetRelsEntry = zip.get(sheetRelsPath);
+  if (!sheetRelsEntry) return images;
+
+  const sheetRelsXml = decodeBytes(await extractEntry(bytes, sheetRelsEntry));
+  const sheetRels = parseAllRelationships(sheetRelsXml);
+
+  const drawingRel = sheetRels.find(r => r.type.includes('drawing') || r.type.endsWith('/drawing'));
+  if (!drawingRel) return images;
+
+  const drawingPath = resolveZipPath(sheetPath, drawingRel.target);
+  const drawingEntry = zip.get(drawingPath);
+  if (!drawingEntry) return images;
+
+  const dSlash = drawingPath.lastIndexOf('/');
+  const dDir = dSlash >= 0 ? drawingPath.slice(0, dSlash) : '';
+  const dFile = dSlash >= 0 ? drawingPath.slice(dSlash + 1) : drawingPath;
+  const drawingRelsPath = dDir ? `${dDir}/_rels/${dFile}.rels` : `_rels/${dFile}.rels`;
+
+  const drawingRelsEntry = zip.get(drawingRelsPath);
+  const drawingRels = new Map<string, string>();
+  if (drawingRelsEntry) {
+    const drawingRelsXml = decodeBytes(await extractEntry(bytes, drawingRelsEntry));
+    for (const rel of parseAllRelationships(drawingRelsXml)) {
+      drawingRels.set(rel.id, rel.target);
+    }
+  }
+
+  const drawingXml = decodeBytes(await extractEntry(bytes, drawingEntry));
+  const anchorRe = /<(?:[a-zA-Z0-9]+:)?(?:twoCellAnchor|oneCellAnchor)\b[\s\S]*?<\/(?:[a-zA-Z0-9]+:)?(?:twoCellAnchor|oneCellAnchor)>/gi;
+  let match: RegExpExecArray | null;
+
+  while ((match = anchorRe.exec(drawingXml))) {
+    const anchorXml = match[0];
+    const fromBlock = /<(?:[a-zA-Z0-9]+:)?from\b[\s\S]*?<\/(?:[a-zA-Z0-9]+:)?from>/i.exec(anchorXml)?.[0];
+    if (!fromBlock) continue;
+
+    const rowMatch = /<(?:[a-zA-Z0-9]+:)?row>(\d+)<\//i.exec(fromBlock);
+    const colMatch = /<(?:[a-zA-Z0-9]+:)?col>(\d+)<\//i.exec(fromBlock);
+    const blipMatch = /<(?:[a-zA-Z0-9]+:)?blip\b[^>]*\b(?:[a-zA-Z0-9]+:)?(?:embed|link)="([^"]+)"/i.exec(anchorXml);
+
+    if (rowMatch && blipMatch) {
+      const row0 = parseInt(rowMatch[1], 10);
+      const col = colMatch ? parseInt(colMatch[1], 10) : 0;
+      const line = row0 + 1;
+      const rId = blipMatch[1];
+      const targetPath = drawingRels.get(rId);
+
+      if (targetPath) {
+        const imageZipPath = resolveZipPath(drawingPath, targetPath);
+        const imageEntry = zip.get(imageZipPath);
+        if (imageEntry) {
+          try {
+            const imageBytes = await extractEntry(bytes, imageEntry);
+            const fileName = imageZipPath.split('/').pop() ?? 'image.png';
+            const mimeType = mimeTypeForExtension(fileName);
+
+            const existing = images.get(line);
+            if (!existing || (existing.col !== undefined && col === 8 && existing.col !== 8)) {
+              images.set(line, {
+                name: fileName,
+                bytes: imageBytes,
+                mimeType,
+                size: imageBytes.byteLength,
+                col,
+              });
+            }
+          } catch {
+            // Ignore unreadable image entry
+          }
+        }
+      }
+    }
+  }
+
+  return images;
 }
 
 function parseSharedStrings(xml: string): string[] {

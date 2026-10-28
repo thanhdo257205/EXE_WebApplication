@@ -4,6 +4,23 @@
 
 ## Cập nhật gần nhất
 
+### Tự động trích xuất ảnh nhúng từ Excel và tải lên Azure Storage khi import bộ thẻ — 2026-10-28
+
+- Yêu cầu chủ dự án: cho phép người dùng đưa ảnh thẻ trực tiếp vào trong file Excel (.xlsx), sau đó hệ thống tự động bóc tách ảnh và đẩy lên Azure Blob Storage thay vì bắt buộc phải điền URL ảnh.
+- Frontend:
+  - Bổ sung parser ZIP/OpenXML drawings trong `card-import.ts`: đọc các relationship `xl/worksheets/_rels/sheet1.xml.rels`, `xl/drawings/_rels/drawing1.xml.rels`, parse `xl/drawings/drawing1.xml` với thẻ `<xdr:from><xdr:row>` để ánh xạ chính xác vị trí ảnh nhúng trong bảng tính (0-indexed sang 1-indexed row). Trích xuất binary image nguyên bản từ `xl/media/*`.
+  - Hỗ trợ định dạng ảnh nhúng: PNG, JPEG, WebP. Giới hạn ảnh đơn tối đa 25 MB.
+  - Tăng giới hạn dung lượng file Excel import từ 5 MB lên **50 MB** để chứa vừa file có hàng chục ảnh nhúng độ phân giải cao.
+  - Tích hợp pipeline nén `prepareCardImage` (aspect-ratio chuẩn 750×1050, nén WebP lũy tiến dưới 1 MB) và tải lên Azure Blob Storage qua `POST /api/v1/admin/media/card-image` trong `submitCardImport`. URL trả về (`/media/cards/<hash>.webp`) được tự động gán vào trường `artworkUrl` của thẻ trước khi tạo thẻ (`createCard`).
+  - Giao diện xem trước: hiển thị huy hiệu `📷 Nhúng (<size> kB)` tại cột Ảnh của các dòng có ảnh nhúng; cập nhật trạng thái tiến độ thời gian thực (đang tải ảnh dòng X lên Azure, đang tạo thẻ X).
+  - Cập nhật file mẫu `mau-import-bo-the.xlsx` với hướng dẫn chèn ảnh trực tiếp vào ô Excel.
+- Kiểm thử local:
+  - `card-import.spec.ts`: 14/14 tests pass (bổ sung test trích xuất drawings và ánh xạ ảnh nhúng vào dòng dữ liệu).
+  - `admin-section.page.spec.ts`: 24/24 tests pass (bổ sung test chặn file >50 MB và test luồng tải ảnh nhúng lên Azure trước khi tạo thẻ).
+  - Toàn bộ frontend test suite: 53 files, **365/365 tests pass 100%**.
+  - Production build & static prerender (`ng build`): hoàn tất thành công 0 lỗi.
+- Tài liệu chi tiết: cập nhật [ADMIN_CARD_IMPORT.md](docs/ADMIN_CARD_IMPORT.md).
+
 ### Mời đồng quản trị bằng email trước khi đăng ký — 2026-10-25, đã lên main và deploy
 
 - Yêu cầu chủ dự án: admin chính có thể thêm đồng quản trị chỉ bằng email của người đó, không cần người đó đã đăng ký hệ thống; khi người đó đăng ký đúng email thì quyền được áp dụng.
