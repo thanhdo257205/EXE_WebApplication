@@ -20,6 +20,7 @@ export interface AssistantSettings {
   order: string[];
   models: Record<string, string>;
   disabledSlots: string[];
+  tokenBudgets: Record<string, number>;
   version: number;
   updatedAt: string | null;
 }
@@ -36,6 +37,8 @@ export interface AssistantUsageTotals {
   failures: number;
   answered: number;
   avgLatencyMs: number;
+  tokensIn: number;
+  tokensOut: number;
 }
 
 export interface AssistantUsageProvider {
@@ -43,6 +46,8 @@ export interface AssistantUsageProvider {
   requests: number;
   failures: number;
   avgLatencyMs: number;
+  tokensIn: number;
+  tokensOut: number;
 }
 
 export interface AssistantUsageSlot {
@@ -52,6 +57,8 @@ export interface AssistantUsageSlot {
   requests: number;
   failures: number;
   avgLatencyMs: number;
+  tokensIn: number;
+  tokensOut: number;
 }
 
 export interface AssistantUsageDay {
@@ -59,6 +66,14 @@ export interface AssistantUsageDay {
   requests: number;
   cacheHits: number;
   failures: number;
+  tokensIn: number;
+  tokensOut: number;
+}
+
+export interface AssistantUsageTodayProvider {
+  provider: string;
+  tokensIn: number;
+  tokensOut: number;
 }
 
 export interface AssistantUsage {
@@ -68,12 +83,14 @@ export interface AssistantUsage {
   providers: AssistantUsageProvider[];
   slots: AssistantUsageSlot[];
   daily: AssistantUsageDay[];
+  today: { day: string; providers: AssistantUsageTodayProvider[] };
 }
 
 export interface AssistantSettingsSave {
   order: string[];
   models: Record<string, string>;
   disabledSlots: string[];
+  tokenBudgets: Record<string, number>;
   expectedVersion: number;
 }
 

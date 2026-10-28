@@ -28,6 +28,20 @@ const TEST_FAILURE_LABELS: Record<string, string> = {
   EMPTY: 'không có câu trả lời',
 };
 
+const MAX_TOKEN_BUDGET = 2_000_000_000;
+
+interface BudgetBar {
+  id: string;
+  label: string;
+  used: number;
+  budget: number;
+  remaining: number;
+  percent: number;
+  over: boolean;
+  warn: boolean;
+  hasBudget: boolean;
+}
+
 @Component({
   selector: 'app-admin-assistant',
   standalone: true,
@@ -50,6 +64,7 @@ export class AdminAssistantPage implements OnInit {
   readonly order = signal<string[]>([]);
   readonly models = signal<Record<string, string>>({});
   readonly disabled = signal<string[]>([]);
+  readonly budgets = signal<Record<string, string>>({});
   readonly usage = signal<AssistantUsage | null>(null);
   readonly days = signal(7);
   readonly loading = signal(false);
@@ -91,6 +106,24 @@ export class AdminAssistantPage implements OnInit {
     const totals = this.usage()?.totals;
     return totals && totals.requests ? Math.round(totals.cacheHits / totals.requests * 100) : 0;
   });
+  // Providers report token usage per request, so "used today" is a measured total, not a quota probe.
+  readonly budgetBars = computed<BudgetBar[]>(() => {
+    const today = new Map((this.usage()?.today.providers ?? []).map(row => [row.provider, row.tokensIn + row.tokensOut]));
+    return this.orderedProviders().map(provider => {
+      const used = today.get(provider.id) ?? 0;
+      const parsed = Number(this.budgets()[provider.id]);
+      const hasBudget = Number.isSafeInteger(parsed) && parsed > 0 && parsed <= MAX_TOKEN_BUDGET;
+      const budget = hasBudget ? parsed : 0;
+      return {
+        id: provider.id, label: provider.label, used, budget, hasBudget,
+        remaining: Math.max(0, budget - used),
+        percent: hasBudget ? Math.min(100, Math.round(used / budget * 100)) : 0,
+        over: hasBudget && used > budget,
+        warn: hasBudget && used <= budget && used >= budget * 0.8,
+      };
+    });
+  });
+  readonly hasBudgets = computed(() => this.budgetBars().some(bar => bar.hasBudget));
   readonly updatedLabel = computed(() => {
     const settings = this.settings()?.settings;
     if (!settings?.updatedAt) return 'Đang dùng mặc định từ biến môi trường';
@@ -354,6 +387,17 @@ export class AdminAssistantPage implements OnInit {
     this.notice.set('');
   }
 
+  setBudget(id: string, event: Event): void {
+    const value = (event.target as HTMLInputElement).value;
+    this.budgets.update(budgets => ({ ...budgets, [id]: value }));
+    this.notice.set('');
+    this.error.set('');
+  }
+
+  formatTokens(value: number): string {
+    return Math.max(0, Math.round(value)).toLocaleString('vi-VN');
+  }
+
   isSlotEnabled(slot: string): boolean {
     return !this.disabled().includes(slot);
   }
@@ -376,6 +420,11 @@ export class AdminAssistantPage implements OnInit {
 
   save(): void {
     if (!this.canManage() || this.saving()) return;
+    const invalid = this.invalidBudget();
+    if (invalid) {
+      this.error.set(`Ngân sách token của ${invalid} phải là số nguyên từ 1 đến 2.000.000.000, hoặc để trống.`);
+      return;
+    }
     this.saving.set(true);
     this.error.set('');
     this.notice.set('');
@@ -383,6 +432,7 @@ export class AdminAssistantPage implements OnInit {
       order: this.order(),
       models: this.models(),
       disabledSlots: this.disabled(),
+      tokenBudgets: this.budgetPayload(),
       expectedVersion: this.settings()?.settings.version ?? 0,
     }).subscribe({
       next: response => {
@@ -410,6 +460,31 @@ export class AdminAssistantPage implements OnInit {
     this.order.set(ordered);
     this.models.set({ ...response.settings.models });
     this.disabled.set([...response.settings.disabledSlots]);
+    const budgets: Record<string, string> = {};
+    for (const provider of response.providers) {
+      const amount = response.settings.tokenBudgets[provider.id];
+      budgets[provider.id] = amount ? String(amount) : '';
+    }
+    this.budgets.set(budgets);
+  }
+
+  private invalidBudget(): string | null {
+    for (const provider of this.orderedProviders()) {
+      const raw = (this.budgets()[provider.id] ?? '').trim();
+      if (!raw) continue;
+      const amount = Number(raw);
+      if (!Number.isSafeInteger(amount) || amount <= 0 || amount > MAX_TOKEN_BUDGET) return provider.label;
+    }
+    return null;
+  }
+
+  private budgetPayload(): Record<string, number> {
+    const budgets: Record<string, number> = {};
+    for (const provider of this.orderedProviders()) {
+      const amount = Number(this.budgets()[provider.id]);
+      if (Number.isSafeInteger(amount) && amount > 0) budgets[provider.id] = amount;
+    }
+    return budgets;
   }
 
   private messageFor(error: any, fallback: string): string {

@@ -61,6 +61,20 @@ button.danger { background: #3a1a1c; color: #fecaca; border-color: #7f1d1d; }
 .totals dd { margin: .3rem 0 0; font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .totals small { font-size: .75rem; font-weight: 400; color: #a6aaa3; }
 
+.budgets { display: grid; gap: .7rem; padding: 1rem; background: #0d0f10; border: 1px solid #292d25; border-radius: .5rem; }
+.budgets-head { display: flex; justify-content: space-between; align-items: baseline; gap: .5rem; flex-wrap: wrap; }
+.budgets-head span { font-size: .72rem; }
+.budget-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .8rem; }
+.budget-line { display: flex; justify-content: space-between; align-items: baseline; gap: .5rem; flex-wrap: wrap; font-size: .82rem; }
+.budget-line span { color: #a6aaa3; font-variant-numeric: tabular-nums; }
+.bar { height: 8px; margin-top: .4rem; background: #242a20; border-radius: 999px; overflow: hidden; }
+.bar span { display: block; height: 100%; background: #dafa76; border-radius: inherit; transition: width .25s ease; }
+.budget.warn .bar span { background: #fcd34d; }
+.budget.over .bar span { background: #fca5a5; }
+.budget small { display: block; margin-top: .3rem; color: #a6aaa3; font-size: .72rem; font-variant-numeric: tabular-nums; }
+.budget.warn small { color: #fcd34d; }
+.budget.over small { color: #fca5a5; }
+
 .table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: .85rem; text-align: left; }
 caption { text-align: left; color: #a6aaa3; padding: 0 0 .6rem; font-size: .75rem; text-transform: uppercase; letter-spacing: .1em; }
@@ -77,8 +91,12 @@ td.model { font-family: ui-monospace, monospace; font-size: .78rem; white-space:
 .order-actions { display: flex; gap: .35rem; }
 .order-actions button { min-height: 36px; min-width: 36px; padding: .25rem; font-size: 1rem; }
 
+.provider-fields { display: grid; grid-template-columns: minmax(0, 2fr) minmax(200px, 1fr); gap: .75rem; align-items: start; }
 .model-field { display: grid; gap: .35rem; font-size: .78rem; color: #a6aaa3; }
 .model-field input { width: 100%; padding: .6rem .75rem; background: #121415; color: inherit; border: 1px solid #41463c; border-radius: .4rem; font-family: ui-monospace, monospace; font-size: .82rem; }
+.budget-field { display: grid; gap: .35rem; font-size: .78rem; color: #a6aaa3; }
+.budget-field input { width: 100%; padding: .6rem .75rem; background: #121415; color: inherit; border: 1px solid #41463c; border-radius: .4rem; font-size: .82rem; font-variant-numeric: tabular-nums; }
+.field-note { font-size: .7rem; color: #a6aaa3; }
 
 .slots { display: flex; flex-wrap: wrap; gap: .5rem; margin: 0; padding: 0; border: 0; }
 .slots legend { padding: 0; margin-bottom: .4rem; font-size: .78rem; color: #a6aaa3; }
@@ -95,4 +113,5 @@ td.model { font-family: ui-monospace, monospace; font-size: .78rem; white-space:
   .day-filter button { flex: 1; }
   .key-form label, .key-form .key-secret-field { flex-basis: 100%; }
   .key-form button { width: 100%; }
+  .provider-fields { grid-template-columns: 1fr; }
 }

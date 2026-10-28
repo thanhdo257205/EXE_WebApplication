@@ -17,6 +17,7 @@ const settingsResponse = (canManage = true, version = 3): AssistantSettingsRespo
     order: ['gemini', 'groq'],
     models: { gemini: 'gemini-2.5-flash-lite', groq: 'llama-3.1-8b-instant' },
     disabledSlots: ['groq#2'],
+    tokenBudgets: { gemini: 100_000, groq: 3_000 },
     version,
     updatedAt: '2026-10-28T10:00:00.000Z',
   },
@@ -30,10 +31,17 @@ const settingsResponse = (canManage = true, version = 3): AssistantSettingsRespo
 const usage: AssistantUsage = {
   days: 7,
   since: '2026-10-22',
-  totals: { requests: 10, cacheHits: 4, failures: 1, answered: 6, avgLatencyMs: 820 },
-  providers: [{ provider: 'groq', requests: 6, failures: 1, avgLatencyMs: 900 }],
-  slots: [{ slot: 'groq#1', provider: 'groq', model: 'llama-3.1-8b-instant', requests: 6, failures: 1, avgLatencyMs: 900 }],
-  daily: [{ day: '2026-10-28', requests: 10, cacheHits: 4, failures: 1 }],
+  totals: { requests: 10, cacheHits: 4, failures: 1, answered: 6, avgLatencyMs: 820, tokensIn: 8_000, tokensOut: 2_000 },
+  providers: [{ provider: 'groq', requests: 6, failures: 1, avgLatencyMs: 900, tokensIn: 2_000, tokensOut: 500 }],
+  slots: [{ slot: 'groq#1', provider: 'groq', model: 'llama-3.1-8b-instant', requests: 6, failures: 1, avgLatencyMs: 900, tokensIn: 2_000, tokensOut: 500 }],
+  daily: [{ day: '2026-10-28', requests: 10, cacheHits: 4, failures: 1, tokensIn: 8_000, tokensOut: 2_000 }],
+  today: {
+    day: '2026-10-28',
+    providers: [
+      { provider: 'gemini', tokensIn: 6_000, tokensOut: 1_500 },
+      { provider: 'groq', tokensIn: 2_000, tokensOut: 500 },
+    ],
+  },
 };
 
 const activeKey: AssistantKey = {
@@ -121,6 +129,11 @@ describe('AdminAssistantPage', () => {
     expect(el.textContent).toContain('Google Gemini');
     expect([...el.querySelectorAll<HTMLInputElement>('.model-field input')].map(input => input.value))
       .toEqual(['gemini-2.5-flash-lite', 'llama-3.1-8b-instant']);
+    expect([...el.querySelectorAll<HTMLInputElement>('.budget-field input')].map(input => input.value))
+      .toEqual(['100000', '3000']);
+    expect(el.querySelectorAll('.budget')).toHaveLength(2);
+    expect(el.textContent).toContain('8.000');
+    expect(el.textContent).toContain('2.000');
     expect(el.querySelectorAll('.slot')).toHaveLength(4);
     expect(el.textContent).toContain('40%');
     expect(el.textContent).toContain('820');
@@ -138,21 +151,47 @@ describe('AdminAssistantPage', () => {
       .toEqual(['Kiểm tra', 'Tạm tắt', 'Thu hồi']);
   });
 
-  it('sends order, model overrides, disabled slots and the expected version', () => {
+  it('sends order, model overrides, disabled slots, token budgets and the expected version', () => {
     const { page } = setup();
     page.move(0, 1);
     page.toggleSlot('gemini#1');
     page.setModel('groq', event('llama-3.3-70b-versatile'));
+    page.setBudget('groq', event('2000'));
+    page.setBudget('gemini', event(''));
     page.save();
 
     expect(api.saveSettings).toHaveBeenCalledExactlyOnceWith({
       order: ['groq', 'gemini'],
       models: { gemini: 'gemini-2.5-flash-lite', groq: 'llama-3.3-70b-versatile' },
       disabledSlots: ['groq#2', 'gemini#1'],
+      tokenBudgets: { groq: 2000 },
       expectedVersion: 3,
     });
     expect(page.notice()).toContain('Đã lưu cấu hình');
     expect(page.settings()?.settings.version).toBe(4);
+  });
+
+  it('renders today token progress bars and turns them warm near the budget', () => {
+    const { el } = setup();
+    const bars = [...el.querySelectorAll<HTMLElement>('.budget')];
+    expect(bars).toHaveLength(2);
+    expect(bars[0].textContent).toContain('7.500 / 100.000 token');
+    expect(bars[0].querySelector('[role="progressbar"]')?.getAttribute('aria-valuenow')).toBe('8');
+    expect(bars[1].classList.contains('warn')).toBe(true);
+    expect(bars[1].textContent).toContain('Còn 500 token');
+  });
+
+  it('marks an over-budget provider and refuses invalid budget input', () => {
+    const { fixture, page, el } = setup();
+    page.setBudget('groq', event('2000'));
+    fixture.detectChanges();
+    expect(el.querySelectorAll('.budget.over')).toHaveLength(1);
+    expect(el.textContent).toContain('Đã vượt 500 token');
+
+    page.setBudget('groq', event('1.5'));
+    page.save();
+    expect(api.saveSettings).not.toHaveBeenCalled();
+    expect(page.error()).toContain('Ngân sách token của Groq');
   });
 
   it('reloads the latest settings after a version conflict and keeps the edit unsaved', () => {
@@ -175,6 +214,7 @@ describe('AdminAssistantPage', () => {
     expect([...el.querySelectorAll('.actions button')].map(button => button.textContent?.trim()))
       .toEqual(['Kiểm tra', 'Thu hồi']);
     expect([...el.querySelectorAll<HTMLInputElement>('.slot input')].every(input => input.disabled)).toBe(true);
+    expect([...el.querySelectorAll<HTMLInputElement>('.budget-field input')].every(input => input.disabled)).toBe(true);
     page.move(0, 1);
     page.toggleSlot('gemini#1');
     page.save();
