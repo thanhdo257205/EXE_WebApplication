@@ -15,15 +15,18 @@ const masterBase64 = master.toString('base64');
 
 function fetchFixture() {
   const calls: string[] = [];
+  const bodies: { key: string; body: Record<string, unknown> }[] = [];
   const fetch: FetchLike = async (_url, init) => {
     const authorization = String((init.headers as Record<string, string>).Authorization ?? '');
-    calls.push(authorization.replace(/^Bearer /, ''));
+    const key = authorization.replace(/^Bearer /, '');
+    calls.push(key);
+    bodies.push({ key, body: JSON.parse(String(init.body)) });
     if (authorization === 'Bearer db-key-1234') return Response.json({ choices: [{ message: { content: 'db answer' } }] });
     if (authorization === 'Bearer env-key') return Response.json({ choices: [{ message: { content: 'env answer' } }] });
     if (authorization === 'Bearer delegated-key-9999') return Response.json({ choices: [{ message: { content: 'delegated answer' } }] });
     return new Response(null, { status: 429 });
   };
-  return { fetch, calls };
+  return { fetch, calls, bodies };
 }
 
 async function publishRelease(db: Client) {
@@ -211,6 +214,8 @@ test('manual key test reports the provider outcome, is audited and never changes
   assert.match(okBody.testedAt, /^\d{4}-\d{2}-\d{2}T/);
   assert.equal(JSON.stringify(okBody).includes('db-key-1234'), false);
   assert.ok(f.fetchCalls.calls.includes('db-key-1234'));
+  // Reasoning models spend tokens before visible text, so the probe budget must cover more than the word OK.
+  assert.equal(f.fetchCalls.bodies.find(call => call.key === 'db-key-1234')?.body.max_tokens, 1_024);
   assert.equal((await one(f.db, 'SELECT status FROM assistant_credentials WHERE id=?', [good.id])).status, 'ACTIVE');
   const auditRow = await one(f.db, "SELECT * FROM audit_events WHERE action='ASSISTANT_KEY_TESTED' AND entity_id=?", [good.id]);
   assert.equal(auditRow.outcome, 'SUCCESS');

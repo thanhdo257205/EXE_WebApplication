@@ -147,6 +147,8 @@ const audit = (db: Executor, actorId: string, action: string, id: string, detail
 
 const KEY_TEST_COOLDOWN_MS = 30_000;
 const KEY_TEST_TIMEOUT_MS = 10_000;
+/** Reasoning models spend this budget before any visible text, so a 16-token probe reads as EMPTY. */
+const KEY_TEST_MAX_TOKENS = 1_024;
 const MODEL_PATTERN = /^[A-Za-z0-9@._:/+-]{1,120}$/;
 
 /** The test must call the same model the live router would use, including the admin override. */
@@ -341,7 +343,7 @@ export function assistantCredentialRoutes(app: Api, db: Client, options: Assista
       await provider.complete({
         system: 'You are a connectivity probe. Reply with the single word OK.',
         messages: [{ role: 'user', content: 'ping' }],
-        maxTokens: 16,
+        maxTokens: KEY_TEST_MAX_TOKENS,
         temperature: 0,
         signal: AbortSignal.timeout(KEY_TEST_TIMEOUT_MS),
       });

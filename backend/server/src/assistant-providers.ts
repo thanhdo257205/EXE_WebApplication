@@ -178,8 +178,10 @@ const openAiCompatible = (provider: 'groq' | 'openrouter', url: string, options:
     id: provider, slot, model,
     withModel: next => build(next, slot),
     async complete(request) {
+      // GPT-OSS spends the completion budget on hidden reasoning first; low effort keeps short answers from coming back empty.
+      const reasoning = provider === 'groq' && /^openai\/gpt-oss/i.test(model) ? { reasoning_effort: 'low' } : {};
       const data = await postJson(provider, fetcher, url, { Authorization: `Bearer ${options.apiKey}`, ...options.headers },
-        { model, messages: [{ role: 'system', content: request.system }, ...request.messages], max_tokens: request.maxTokens, temperature: request.temperature },
+        { model, messages: [{ role: 'system', content: request.system }, ...request.messages], max_tokens: request.maxTokens, temperature: request.temperature, ...reasoning },
         request.signal);
       const root = record(data);
       if (root.error) {
