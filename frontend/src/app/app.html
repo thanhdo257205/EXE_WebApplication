@@ -91,6 +91,12 @@
   <main id="main" tabindex="-1" class="main-content" [class.admin-main]="isAdminRoute()">
     <router-outlet />
   </main>
+
+  <!-- Floating assistant, available on every public page; loaded after first paint so it stays out of the initial bundle -->
+  @defer (on idle) {
+    <app-assistant-dock />
+  }
+
   @if (!isAdminRoute()) {
     <footer class="public-footer">
       <div class="footer-cta">

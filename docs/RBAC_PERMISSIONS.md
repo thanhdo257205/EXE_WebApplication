@@ -78,6 +78,8 @@ Thông báo quản trị (chuông, stream, đánh dấu đã đọc) là tiện 
 | `assistant:models:reorder` | Sắp xếp thứ tự nhà cung cấp | `PUT .../settings` (trường `order`) | Có |
 | `assistant:slots:update` | Bật/tắt slot key hệ thống | `PUT .../settings` (trường `disabledSlots`) | Có |
 | `assistant:budgets:update` | Đặt hạn mức token/ngày | `PUT .../settings` (trường `tokenBudgets`) | Có |
+| `assistant:prompt:request` | Soạn và gửi **yêu cầu** sửa system prompt (không tự áp dụng) | `POST /api/v1/admin/assistant/prompt/requests` | Có |
+| `assistant:prompt:update` | Lưu system prompt thẳng vào DB và duyệt/từ chối yêu cầu của người khác | `PUT /api/v1/admin/assistant/prompt`, `POST .../prompt/requests/:id/approve`, `.../reject` | Không |
 | `assistant:keys:read` | Xem danh sách API key được phép thấy | `GET /api/v1/admin/assistant/keys` | Có |
 | `assistant:keys:create` | Thêm API key (key của đồng quản trị vào trạng thái `PENDING` nếu không có quyền quản lý) | `POST /api/v1/admin/assistant/keys` | Có |
 | `assistant:keys:reveal` | Xem nội dung key của chính mình | `POST .../keys/:id/reveal` (key của mình) | Có |
@@ -86,6 +88,8 @@ Thông báo quản trị (chuông, stream, đánh dấu đã đọc) là tiện 
 | `assistant:keys:manage` | Quản lý mọi key: thấy tất cả, duyệt/tắt/bật, xem nội dung, kiểm tra, thu hồi key của người khác; key tự thêm được kích hoạt ngay | Toàn bộ API key với mọi key | Không |
 
 `assistant:read` là quyền đọc chung của module và tự kèm khi lưu mọi quyền `assistant:*` khác. `assistant:usage:read` tách riêng để có thể chỉ cho xem số liệu mà không xem cấu hình (khi đó vẫn cần `assistant:read` để mở trang).
+
+`assistant:read` cũng mở `GET /api/v1/admin/assistant/prompt` để **xem** prompt đang dùng; chỉ hai quyền trên mới thay đổi nó. Không có quyền xóa: prompt không có bản ghi trong DB thì hệ thống dùng đúng mẫu đã ship trong code, và không tồn tại API nào làm mất trạng thái đó ngoài việc lưu lại mẫu mặc định.
 
 ### 3.4. Tài khoản
 
@@ -99,10 +103,11 @@ Hai quyền cuối không nằm trong danh mục gán được; owner nhận ng�
 
 ## 4. Bộ quyền mặc định của đồng quản trị
 
-Bộ mặc định giữ đúng hành vi trước khi có phân quyền chi tiết: toàn bộ quyền gán được **trừ** `assistant:keys:manage`. Cụ thể:
+Bộ mặc định giữ đúng hành vi trước khi có phân quyền chi tiết: toàn bộ quyền gán được **trừ** `assistant:keys:manage` và `assistant:prompt:update`. Cụ thể:
 
-- Toàn bộ quyền nội dung, phản hồi, `users:read`, toàn bộ quyền trợ lý AI trừ `assistant:keys:manage`.
+- Toàn bộ quyền nội dung, phản hồi, `users:read`, toàn bộ quyền trợ lý AI trừ hai quyền kể trên.
 - Đồng quản trị mặc định vẫn thêm key ở trạng thái chờ duyệt, tự xem/kiểm tra/thu hồi key của mình; không thấy key người khác, không duyệt key.
+- Đồng quản trị mặc định **chỉ gửi yêu cầu** sửa system prompt; prompt trong DB đổi khi owner hoặc người được cấp `assistant:prompt:update` duyệt yêu cầu đó.
 - Tài khoản không có bản ghi tùy chỉnh dùng bộ mặc định này. Khi owner lưu bộ quyền, bộ đó thay thế hoàn toàn bộ mặc định (không cộng dồn).
 
 ## 5. Chuẩn hóa và phụ thuộc
@@ -159,6 +164,15 @@ Khi lưu, máy chủ thực hiện trong một transaction:
 - **Chốt an toàn không đổi**: xóa bộ thẻ/cư dân còn thẻ tham chiếu trả `409 CONTENT_IN_USE` dù là tác giả; bản phát hành đã publish là bất biến (`409 RELEASE_IMMUTABLE`); lệch version là `409 VERSION_CONFLICT`.
 - **API key** đã theo quy tắc tác giả từ trước: `assistant:keys:reveal/test/revoke` chỉ áp cho key do chính mình thêm, trừ khi có `assistant:keys:manage`.
 
+### 6.5. System prompt của trợ lý AI
+
+System prompt chuyển từ code sang DB để chỉnh trong **Quản trị → Trợ lý AI**. Không có quyền xóa: bảng rỗng thì server dùng lại đúng mẫu ship trong code, nên "xóa" chỉ là một trạng thái ngầm định, không phải thao tác nghiệp vụ.
+
+- **Xem** cần `assistant:read`; response kèm `canUpdate`, `canRequest`, `prompt.source` (`CUSTOM`/`DEFAULT`), `prompt.version`, danh sách token và `defaultTemplate`.
+- **Lưu trực tiếp** cần `assistant:prompt:update` (không thuộc bộ mặc định): `PUT /api/v1/admin/assistant/prompt` với `expectedVersion`. Prompt có hiệu lực cho câu trả lời ngay (cache 30 s, và key cache câu trả lời gắn số version nên không trả lời cũ cho prompt mới).
+- **Mặc định là gửi yêu cầu**: người chỉ có `assistant:prompt:request` soạn nội dung + ghi chú, hàng đợi `PENDING` chờ owner hoặc người có `assistant:prompt:update` duyệt. Duyệt (`.../requests/:id/approve`) mới là lúc DB đổi; từ chối (`.../reject`) chỉ ghi trạng thái.
+- **Chốt an toàn**: template bắt buộc chứa `{TAI_LIEU}` (thiếu → `400 PROMPT_MISSING_DOCUMENTS`; viết sai hoa/thường → `400 PROMPT_TOKEN_CASE`), tối đa 6000 ký tự, lệch `expectedVersion` → `409 VERSION_CONFLICT`, yêu cầu đã xử lý → `409 REQUEST_NOT_PENDING`, duyệt khi bản đang dùng đã khác bản mà bản nháp được soạn ra → `409 VERSION_CONFLICT`. Người gửi chỉ xem được yêu cầu của mình; hàng đợi đầy đủ chỉ dành cho người duyệt.
+
 ## 7. API
 
 ### 7.1. Lưu bộ quyền
@@ -211,6 +225,7 @@ Giao diện không tự suy ra quyền từ danh sách khóa; mỗi API trả s�
 | --- | --- |
 | `GET /admin/assistant/settings` | `canManage`, `canReorder`, `canEditModels`, `canManageSlots`, `canEditBudgets`, `canReadUsage` |
 | `GET /admin/assistant/keys` | `canManage`, `canCreate`, `storageAvailable`, `limits` |
+| `GET /admin/assistant/prompt` | `canUpdate`, `canRequest`; `pending` chỉ có với người duyệt, `myRequests` luôn là yêu cầu của chính mình |
 | Mỗi item trong `GET /admin/assistant/keys` | `canReveal`, `canTest`, `canRevoke`, `canManageStatus` (key của mình hay key của người khác) |
 | `GET /admin/users` | `canManagePermissions` + `permissions`, `permissionsVersion`, `customPermissions` từng tài khoản ADMIN |
 
@@ -267,6 +282,8 @@ ALTER TABLE wiki_page_revisions  ADD COLUMN created_by TEXT REFERENCES app_users
 - Không backfill: bản ghi cũ giữ `NULL` (không suy đoán tác giả từ audit).
 - `ON DELETE SET NULL`: xóa tài khoản không kéo theo nội dung.
 
+Bảng system prompt (migration `V16__assistant_prompt.sql` + `initializeAssistantPrompt` idempotent lúc boot): `assistant_prompt` một dòng `slot=1` (template, version, updated_by, updated_at) và `assistant_prompt_requests` (hàng đợi yêu cầu, `base_version` để chặn duyệt đè). Xem mục 6.5 và tài liệu trợ lý AI.
+
 ## 11. Tiêu chí nghiệm thu
 
 - Owner phân quyền cho đồng quản trị; đồng quản trị chỉ gọi được đúng API được cấp, API khác trả `403 PERMISSION_REQUIRED` (kể cả gọi trực tiếp, bỏ qua giao diện).
@@ -303,3 +320,26 @@ Code đã commit/push và deploy production `a674b4e` (PR #37); phần kiểm ch
 - Backend: `npm test` **113 pass / 1 skip (Turso remote) / 0 fail** (tổng 114). File mới `backend/server/test/content-publish.test.ts` có 3 ca: (1) xuất bản đưa bản nháp lên `current_slot=1`, API công khai và snapshot đọc được ngay (cache admin bị xóa), bản đã xuất bản bất biến (`409 RELEASE_IMMUTABLE`), audit có actor + version; (2) xuất bản bản mới lưu trữ bản đang công khai (giữ `published_at`, version tăng), bản cũ vẫn đọc được bằng `releaseId`; (3) thiếu `releases:publish` trả `403`, khách chưa đăng nhập bị chặn CSRF, version lệch trả `409 VERSION_CONFLICT`, bản nháp rỗng trả `409 RELEASE_EMPTY` và không đổi trạng thái.
 - Frontend: `ng test --watch=false` **57 file / 432 test pass**. Thêm 2 ca service (gửi đúng `expectedVersion` + header CSRF; ánh xạ `RELEASE_EMPTY`) và 6 ca trang (xuất bản thành công đổi trạng thái + tải lại danh sách; nút chỉ hiện với DRAFT + quyền; mở/hủy hộp xác nhận; chặn ở mức method khi thiếu quyền; thông báo rỗng/xung đột; đổi bản phát hành thì đóng hộp xác nhận).
 - Build: `ng build` exit 0, không thêm cảnh báo ngân sách cho `admin-section.page.css`.
+
+## 14. Kiểm chứng đợt system prompt có duyệt (2026-10-29)
+
+Code đã commit ở local (`6511fef`), **chưa push/deploy**. Mục tiêu của đợt: chứng minh hai đường ghi quyền khác nhau bằng trình duyệt thật, và chứng minh prompt trong DB chỉ đổi sau khi được duyệt.
+
+Dựng stack: backend `PORT=8080` + sqlite throwaway + `fetch` giả ghi lại mọi request provider (không gọi dịch vụ thật), `ng serve` cổng 4213, `PUBLIC_ORIGIN` trùng origin trình duyệt; hai tài khoản dummy `owner@…` (bootstrap, `adminLevel=OWNER`) và `coadmin@…` (được nâng từ CUSTOMER, `adminLevel=DELEGATED`, 33 quyền mặc định).
+
+| Bước | Thao tác | Kết quả đo |
+| --- | --- | --- |
+| 1 | Owner sửa template, bấm "Lưu trực tiếp" | Nút "Lưu trực tiếp" hiện; `assistant_prompt.version=1`, template 162 ký tự; audit `ASSISTANT_PROMPT_UPDATED` |
+| 2 | Hỏi trợ lý | Provider nhận `chars=1663`, mở đầu bằng template vừa lưu, kèm khối "TÀI LIỆU (bản phát hành 1.0)" — không phải bản ship trong code |
+| 3 | Co-admin mở tab System prompt | `.prompt-actions` chỉ có "Gửi yêu cầu sửa" + "Điền mẫu mặc định"; **không** "Lưu trực tiếp"; không có khối hàng chờ; textarea sửa được; thông báo đọc-only không hiện vì còn quyền gửi yêu cầu |
+| 4 | Co-admin gọi thẳng `PUT /api/v1/admin/assistant/prompt` (có CSRF, bỏ qua UI) | `403 PERMISSION_REQUIRED` — quyền vẫn được kiểm ở route, không chỉ ẩn nút |
+| 5 | Co-admin gửi yêu cầu kèm lý do | Notice "Đã gửi yêu cầu sửa system prompt…"; `assistant_prompt.version` **vẫn 1**; 1 dòng `assistant_prompt_requests` `PENDING`, `base_version=1`; audit `ASSISTANT_PROMPT_REQUESTED` |
+| 6 | Owner mở tab | Badge tab "1 chờ duyệt"; hàng chờ ghi người gửi, thời điểm, "bản cơ sở v1", lý do, nút "Duyệt và lưu"/"Từ chối" |
+| 7 | Owner bấm "Duyệt và lưu" | Status "phiên bản 2"; DB template = đúng bản đề xuất (84 ký tự), `reviewed_by` = owner; request `APPROVED`; audit `ASSISTANT_PROMPT_REQUEST_APPROVED`; hàng chờ về 0 |
+| 8 | Hỏi trợ lý lần nữa | Provider log `chars=1593`, mở đầu "YEU CAU TUA CO-ADMIN: …", `{TAI_LIEU}` thay bằng 4 nguồn, không còn token sót |
+
+Ghi chú kỹ thuật:
+
+- Sau khi duyệt, form phải nạp lại bản vừa duyệt; bản cũ giữ draft khiến "Lưu trực tiếp" ghi đè ngay kết quả duyệt. Đã sửa và thêm test hồi quy (đỏ khi bỏ fix, xanh khi có fix).
+- Trong cùng phiên đo, một agent khác đang thêm quyền `permissions:manage` vào danh mục; test danh mục của đợt này được viết lại để chỉ chốt đúng hai quyền prompt thay vì chốt toàn bộ danh sách khác-mặc-định, tránh đỏ dây chuyền khi danh mục mở rộng.
+- Số liệu lượt chạy: backend `npm test` **143 test / 142 pass / 1 skip (Turso) / 0 fail**; frontend `admin-assistant.page.spec.ts` **49/49**; `tsc --noEmit` sạch ở cả ba cấu hình; `ng build --configuration production` exit 0, 0 cảnh báo budget.

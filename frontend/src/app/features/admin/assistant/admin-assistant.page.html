@@ -46,6 +46,17 @@
         (click)="setView('usage')"
       >Số liệu</button>
     }
+    @if (showPromptTab()) {
+      <button
+        type="button"
+        role="tab"
+        id="tab-prompt"
+        aria-controls="panel-prompt"
+        [attr.aria-selected]="view() === 'prompt'"
+        [class.active]="view() === 'prompt'"
+        (click)="setView('prompt')"
+      >System prompt @if (pendingPromptRequests().length) { <span class="tab-count">{{ pendingPromptRequests().length }} chờ duyệt</span> }</button>
+    }
   </nav>
 
   <section class="panel tab-panel" id="panel-providers" role="tabpanel" aria-labelledby="tab-providers" [hidden]="view() !== 'providers'">
@@ -522,6 +533,142 @@
       }
     } @else if (usageLoading()) {
       <p class="muted" role="status">Đang tải số liệu…</p>
+    }
+  </section>
+
+  <section class="panel tab-panel" id="panel-prompt" role="tabpanel" aria-labelledby="tab-prompt" [hidden]="view() !== 'prompt'">
+    <div class="panel-head">
+      <div>
+        <h2>System prompt của trợ lý</h2>
+        <p class="muted">Chỉ dẫn gửi kèm mọi câu hỏi của khách. Không có nút xoá: bản đang dùng luôn được thay bằng bản khác, còn “Điền mẫu mặc định” chỉ chép lại mẫu ship trong code. Người có quyền <code>assistant:prompt:update</code> lưu trực tiếp; quyền mặc định chỉ gửi yêu cầu và bản trong cơ sở dữ liệu đổi khi admin duyệt.</p>
+      </div>
+      <div class="prompt-head-actions">
+        <button type="button" (click)="loadPrompt()" [disabled]="promptBusy()">Tải lại</button>
+      </div>
+    </div>
+
+    @if (promptState(); as state) {
+      <p class="prompt-status">{{ promptStatusLabel() }}</p>
+      @if (promptError()) { <div class="error" role="alert">{{ promptError() }}</div> }
+      @if (promptNotice()) { <p class="notice" role="status">{{ promptNotice() }}</p> }
+
+      <label class="prompt-editor">
+        <span>
+          Nội dung system prompt
+          <small class="muted" [class.prompt-over]="promptOverLimit()">{{ promptLength() }} / {{ promptMaxChars() }} ký tự</small>
+        </span>
+        <textarea
+          rows="18"
+          [value]="promptDraft()"
+          (input)="setPromptDraft($event)"
+          [readonly]="!canEditPrompt()"
+          [attr.aria-readonly]="!canEditPrompt()"
+          spellcheck="false"
+        ></textarea>
+      </label>
+
+      @if (!canEditPrompt()) {
+        <p class="warning" role="note">Tài khoản của bạn chưa có quyền sửa system prompt nên ô này chỉ đọc. Admin chính hoặc người được cấp <code>assistant:prompt:update</code> mới lưu được.</p>
+      }
+      @if (promptTokenProblem()) { <p class="warning" role="note">{{ promptTokenProblem() }}</p> }
+      @else if (promptOverLimit()) { <p class="warning" role="note">Vượt quá {{ promptMaxChars() }} ký tự nên bản này sẽ bị từ chối khi lưu.</p> }
+
+      <ul class="prompt-tokens">
+        @for (token of promptTokens(); track token.token) {
+          <li>
+            <code>{{ token.token }}</code>
+            <span class="muted">{{ token.label }}</span>
+            @if (token.required) { <span class="prompt-chip">bắt buộc</span> }
+          </li>
+        }
+      </ul>
+
+      <div class="prompt-actions">
+        @if (canUpdatePrompt()) {
+          <button type="button" class="primary" (click)="savePrompt()" [disabled]="!canSavePrompt()">
+            {{ promptSaving() ? 'Đang lưu…' : 'Lưu trực tiếp' }}
+          </button>
+        }
+        @if (canRequestPrompt()) {
+          <button type="button" class="primary" (click)="filePromptRequest()" [disabled]="!canFilePromptRequest()">
+            {{ promptSaving() ? 'Đang gửi…' : 'Gửi yêu cầu sửa' }}
+          </button>
+        }
+        @if (canEditPrompt()) {
+          <button type="button" (click)="usePromptDefault()" [disabled]="promptBusy()">Điền mẫu mặc định</button>
+        }
+      </div>
+      @if (canUpdatePrompt() && canRequestPrompt()) {
+        <p class="muted form-note">“Lưu trực tiếp” áp dụng ngay; “Gửi yêu cầu sửa” xếp vào hàng chờ để một người có quyền <code>assistant:prompt:update</code> khác duyệt.</p>
+      }
+
+      @if (canRequestPrompt()) {
+        <label class="prompt-note">
+          <span>Lý do gửi yêu cầu (không bắt buộc, chỉ người duyệt nhìn thấy)</span>
+          <input type="text" [value]="promptNote()" (input)="setPromptNote($event)" maxlength="500" [disabled]="promptBusy()" autocomplete="off" />
+        </label>
+      }
+
+      @if (canUpdatePrompt()) {
+        <h3 class="prompt-sub">Hàng chờ duyệt ({{ pendingPromptRequests().length }})</h3>
+        @if (pendingPromptRequests().length) {
+          <ul class="prompt-requests">
+            @for (request of pendingPromptRequests(); track request.id) {
+              <li class="prompt-request">
+                <p class="prompt-request-head">
+                  <strong>{{ request.requesterName || request.requesterEmail }}</strong>
+                  <span class="muted">gửi {{ formatKeyDate(request.createdAt) }} · bản cơ sở v{{ request.baseVersion }}</span>
+                </p>
+                @if (request.note) { <p class="prompt-request-note">Lý do: {{ request.note }}</p> }
+                <details class="prompt-diff">
+                  <summary>Xem toàn bộ bản đề xuất ({{ request.template.length }} ký tự)</summary>
+                  <pre>{{ request.template }}</pre>
+                </details>
+                @if (rejectTarget() === request.id) {
+                  <div class="prompt-reject">
+                    <label>
+                      <span>Lý do từ chối (chỉ lưu độ dài vào audit log)</span>
+                      <input type="text" [value]="rejectNote()" (input)="setRejectNote($event)" maxlength="500" [disabled]="promptReviewing()" autocomplete="off" />
+                    </label>
+                    <button type="button" class="primary" (click)="confirmReject()" [disabled]="promptReviewing()">Xác nhận từ chối</button>
+                    <button type="button" (click)="cancelReject()" [disabled]="promptReviewing()">Huỷ</button>
+                  </div>
+                } @else {
+                  <div class="prompt-review-actions">
+                    <button type="button" class="primary" (click)="approvePromptRequest(request)" [disabled]="promptReviewing()">
+                      {{ promptReviewBusy() === request.id ? 'Đang duyệt…' : 'Duyệt và lưu' }}
+                    </button>
+                    <button type="button" (click)="askReject(request)" [disabled]="promptReviewing()">Từ chối</button>
+                  </div>
+                }
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="muted">Chưa có yêu cầu nào chờ duyệt. System prompt đang dùng không bị ảnh hưởng bởi hàng chờ trống.</p>
+        }
+
+        <p class="muted form-note">Duyệt chỉ áp dụng khi bản đang dùng vẫn là v{{ state.version }}; nếu có người lưu trước, yêu cầu sẽ báo xung đột phiên bản và ở lại hàng chờ.</p>
+      }
+
+      @if (myPromptRequests().length) {
+        <h3 class="prompt-sub">Yêu cầu của bạn</h3>
+        <ul class="prompt-requests">
+          @for (request of myPromptRequests(); track request.id) {
+            <li class="prompt-request">
+              <p class="prompt-request-head">
+                <span class="prompt-chip">{{ promptRequestStatusLabel(request) }}</span>
+                <span class="muted">gửi {{ formatKeyDate(request.createdAt) }} · bản cơ sở v{{ request.baseVersion }}</span>
+              </p>
+              @if (request.note) { <p class="prompt-request-note">Lý do của bạn: {{ request.note }}</p> }
+              @if (request.reviewNote) { <p class="prompt-request-note">Phản hồi của người duyệt: {{ request.reviewNote }}</p> }
+              @if (request.status === 'APPROVED') { <p class="prompt-request-note">Đã lưu thành v{{ request.baseVersion + 1 }} vào {{ formatKeyDate(request.reviewedAt ?? request.createdAt) }}.</p> }
+            </li>
+          }
+        </ul>
+      }
+    } @else if (promptLoading()) {
+      <p class="muted" role="status">Đang tải system prompt…</p>
     }
   </section>
 </section>

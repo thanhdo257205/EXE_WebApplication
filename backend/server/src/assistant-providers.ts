@@ -3,16 +3,17 @@
 
 import { decodeMasterKey } from './assistant-crypto.ts';
 
-export const PROVIDER_LABELS: Readonly<Record<'workers-ai' | 'gemini' | 'groq' | 'openrouter', string>> = {
+export const PROVIDER_LABELS: Readonly<Record<ProviderId, string>> = {
   'workers-ai': 'Cloudflare Workers AI',
   gemini: 'Google Gemini',
   groq: 'Groq',
   openrouter: 'OpenRouter',
+  motapis: 'MộtAPI',
 };
 
 export type ChatRole = 'user' | 'assistant';
 export interface ChatMessage { role: ChatRole; content: string; }
-export type ProviderId = 'workers-ai' | 'gemini' | 'groq' | 'openrouter';
+export type ProviderId = 'workers-ai' | 'gemini' | 'groq' | 'openrouter' | 'motapis';
 export type ProviderFailure = 'QUOTA' | 'AUTH' | 'TIMEOUT' | 'UNAVAILABLE' | 'INVALID' | 'EMPTY';
 export type FetchLike = (url: string, init: RequestInit) => Promise<Response>;
 
@@ -183,7 +184,7 @@ export function geminiProvider(options: GeminiOptions): ChatProvider {
   return build(options.model || DEFAULT_MODELS.gemini, options.slot || 'gemini#1');
 }
 
-const openAiCompatible = (provider: 'groq' | 'openrouter', url: string, options: { apiKey: string; model: string; slot: string; headers?: Record<string, string>; fetch?: FetchLike }): ChatProvider => {
+const openAiCompatible = (provider: 'groq' | 'openrouter' | 'motapis', url: string, options: { apiKey: string; model: string; slot: string; headers?: Record<string, string>; fetch?: FetchLike }): ChatProvider => {
   const fetcher = options.fetch ?? fetch;
   const build = (model: string, slot: string): ChatProvider => ({
     id: provider, slot, model,
@@ -222,6 +223,13 @@ export function openRouterProvider(options: OpenRouterOptions): ChatProvider {
   if (options.siteUrl) headers['HTTP-Referer'] = options.siteUrl;
   return openAiCompatible('openrouter', 'https://openrouter.ai/api/v1/chat/completions',
     { apiKey: options.apiKey, model: options.model || DEFAULT_MODELS.openrouter, slot: options.slot || 'openrouter#1', headers, fetch: options.fetch });
+}
+
+export interface MotapisOptions { apiKey: string; model?: string; slot?: string; fetch?: FetchLike; }
+/** MộtAPI (motapis.com) is a paid per-token aggregator with an OpenAI-compatible endpoint and no extra headers. */
+export function motapisProvider(options: MotapisOptions): ChatProvider {
+  return openAiCompatible('motapis', 'https://motapis.com/v1/chat/completions',
+    { apiKey: options.apiKey, model: options.model || DEFAULT_MODELS.motapis, slot: options.slot || 'motapis#1', fetch: options.fetch });
 }
 
 const DEFAULT_COOLDOWNS: Readonly<Record<ProviderFailure, number>> = {
@@ -300,8 +308,10 @@ export const DEFAULT_MODELS: Readonly<Record<ProviderId, string>> = {
   gemini: 'gemini-3.5-flash-lite',
   groq: 'openai/gpt-oss-120b',
   openrouter: 'google/gemma-4-26b-a4b-it:free',
+  motapis: 'claude-sonnet-5',
 };
-export const DEFAULT_ORDER: readonly ProviderId[] = ['workers-ai', 'gemini', 'groq', 'openrouter'];
+// MộtAPI is billed per token, so it sits last: it only carries traffic after the free tiers fail.
+export const DEFAULT_ORDER: readonly ProviderId[] = ['workers-ai', 'gemini', 'groq', 'openrouter', 'motapis'];
 export const isProviderId = (value: string): value is ProviderId => (DEFAULT_ORDER as readonly string[]).includes(value);
 
 export interface AssistantModelChoice {
@@ -312,8 +322,11 @@ export interface AssistantModelChoice {
   note: string;
 }
 
-// Free-tier chat lineups as of 2026-10. Retired ids are handled by RETIRED_MODEL_REPLACEMENTS;
-// a model removed by its provider should be dropped here in the same change.
+// Free-tier chat lineups as of 2026-10; the MộtAPI list is paid per token. Retired ids are handled by
+// RETIRED_MODEL_REPLACEMENTS; a model removed by its provider should be dropped here in the same change.
+// MộtAPI notes come from live probes with an admin key on 2026-10-29: ids that answered 200 with visible
+// text are listed, while 503 ids (grok-4.6, kimi-k3.1-pro) and reasoning-only ids (hy3, glm-5.3-flash,
+// DeepSeek-V4-Flash-0731 — `content` empty because the whole budget went to reasoning) are kept out.
 export const MODEL_CATALOG: Readonly<Record<ProviderId, readonly AssistantModelChoice[]>> = {
   'workers-ai': [
     { id: '@cf/meta/llama-3.1-8b-instruct', label: 'Llama 3.1 8B Instruct', recommended: true, note: 'Nhẹ, độ trễ thấp, phù hợp chat' },
@@ -345,6 +358,16 @@ export const MODEL_CATALOG: Readonly<Record<ProviderId, readonly AssistantModelC
     { id: 'xingchen-agi/xing4.0-29b-a4b:free', label: 'Xing 4.0 29B', note: 'Miễn phí, đa ngôn ngữ' },
     { id: 'recursive/flint-v1.0:free', label: 'Flint v1.0', note: 'Miễn phí, tối ưu lập trình' },
     { id: 'liquid/lfm-2.5-2.6b:free', label: 'LFM 2.5 2.6B', note: 'Miễn phí, rất nhẹ' },
+  ],
+  motapis: [
+    { id: 'claude-sonnet-5', label: 'Claude Sonnet 5', recommended: true, note: 'Trả phí, nhanh nhất đã đo (~5 s), chỉ tính prompt của mình (~41 token)' },
+    { id: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6', note: 'Trả phí, ổn định (~9 s)' },
+    { id: 'deepseek-v4.1-flash-1017', label: 'DeepSeek V4.1 Flash', note: 'Trả phí, rẻ nhất đã đo (~62 token prompt)' },
+    { id: 'deepseek-v4-flash', label: 'DeepSeek V4 Flash', note: 'Trả phí, nhà cung cấp cộng prompt ẩn (~900 token)' },
+    { id: 'minimax-m3', label: 'MiniMax M3', note: 'Trả phí, có reasoning, ~11 s' },
+    { id: 'gpt-5.6-sol', label: 'GPT-5.6 Sol', note: 'Trả phí, trả lời tốt' },
+    { id: 'gpt-6-astra', label: 'GPT-6 Astra', note: 'Trả phí, chậm: có lần quá 40 s' },
+    { id: 'qwen3.8-max', label: 'Qwen 3.8 Max', note: 'Trả phí, prompt ẩn lớn (~2K token)' },
   ],
 };
 
@@ -408,6 +431,12 @@ export function assistantFromEnv(env: Record<string, string | undefined>, fetchI
         apiKey, model: clean(env.OPENROUTER_MODEL) || DEFAULT_MODELS.openrouter, slot: `openrouter#${index + 1}`, siteUrl, fetch: fetchImpl,
       }));
     },
+    motapis: () => {
+      const keys = [...credentialList(env.MOTAPIS_API_KEYS), clean(env.MOTAPIS_API_KEY)].filter(Boolean);
+      return [...new Set(keys)].map((apiKey, index) => motapisProvider({
+        apiKey, model: clean(env.MOTAPIS_MODEL) || DEFAULT_MODELS.motapis, slot: `motapis#${index + 1}`, fetch: fetchImpl,
+      }));
+    },
   };
   const providers: ChatProvider[] = [];
   for (const id of order) providers.push(...build[id]());
@@ -421,6 +450,7 @@ export function assistantFromEnv(env: Record<string, string | undefined>, fetchI
     gemini: clean(env.GEMINI_MODEL) || DEFAULT_MODELS.gemini,
     groq: clean(env.GROQ_MODEL) || DEFAULT_MODELS.groq,
     openrouter: clean(env.OPENROUTER_MODEL) || DEFAULT_MODELS.openrouter,
+    motapis: clean(env.MOTAPIS_MODEL) || DEFAULT_MODELS.motapis,
   };
   return {
     providers,

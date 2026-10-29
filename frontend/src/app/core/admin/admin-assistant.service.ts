@@ -203,6 +203,57 @@ export interface AssistantKeyTestOutcome {
   error: unknown;
 }
 
+export interface AssistantPromptState {
+  template: string;
+  /** DEFAULT means no row in the database: the template shipped in code is in use. */
+  source: 'CUSTOM' | 'DEFAULT';
+  /** Optimistic-lock token; 0 while no row exists. */
+  version: number;
+  updatedAt: string | null;
+}
+
+export interface AssistantPromptToken {
+  token: string;
+  required: boolean;
+  label: string;
+}
+
+export type AssistantPromptRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+export interface AssistantPromptRequest {
+  id: string;
+  template: string;
+  note: string;
+  status: AssistantPromptRequestStatus;
+  requestedBy: string;
+  requesterEmail: string;
+  requesterName: string;
+  reviewedBy: string | null;
+  reviewNote: string;
+  baseVersion: number;
+  createdAt: string;
+  reviewedAt: string | null;
+}
+
+export interface AssistantPromptResponse {
+  prompt: AssistantPromptState;
+  defaultTemplate: string;
+  tokens: AssistantPromptToken[];
+  maxChars: number;
+  canUpdate: boolean;
+  canRequest: boolean;
+  /** Only filled for a reviewer; empty for request-only admins. */
+  pending: AssistantPromptRequest[];
+  myRequests: AssistantPromptRequest[];
+}
+
+/** The write endpoints answer with the new prompt but never re-send the queues. */
+export interface AssistantPromptSaveResponse extends Omit<AssistantPromptResponse, 'pending' | 'myRequests'> {
+  changed: boolean;
+  item?: AssistantPromptRequest;
+  request?: AssistantPromptRequest;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AdminAssistantService {
   private readonly http = inject(HttpClient);
@@ -283,6 +334,48 @@ export class AdminAssistantService {
   revokeKey(id: string) {
     return this.auth.getCsrf().pipe(switchMap(csrf =>
       this.http.delete<{ removed: boolean }>(`${this.base}/keys/${encodeURIComponent(id)}`, {
+        withCredentials: true,
+        headers: new HttpHeaders({ [csrf.headerName]: csrf.token }),
+      })
+    ));
+  }
+
+  getPrompt() {
+    return this.http.get<AssistantPromptResponse>(`${this.base}/prompt`, { withCredentials: true });
+  }
+
+  /** Requires assistant:prompt:update; the write is live as soon as it succeeds. */
+  savePrompt(body: { template: string; expectedVersion: number }) {
+    return this.auth.getCsrf().pipe(switchMap(csrf =>
+      this.http.put<AssistantPromptSaveResponse>(`${this.base}/prompt`, body, {
+        withCredentials: true,
+        headers: new HttpHeaders({ [csrf.headerName]: csrf.token }),
+      })
+    ));
+  }
+
+  /** The default path: the draft waits in the queue until a reviewer approves it. */
+  requestPrompt(body: { template: string; expectedVersion: number; note: string }) {
+    return this.auth.getCsrf().pipe(switchMap(csrf =>
+      this.http.post<AssistantPromptSaveResponse>(`${this.base}/prompt/requests`, body, {
+        withCredentials: true,
+        headers: new HttpHeaders({ [csrf.headerName]: csrf.token }),
+      })
+    ));
+  }
+
+  approvePromptRequest(id: string, expectedVersion: number) {
+    return this.auth.getCsrf().pipe(switchMap(csrf =>
+      this.http.post<AssistantPromptSaveResponse>(`${this.base}/prompt/requests/${encodeURIComponent(id)}/approve`, { expectedVersion }, {
+        withCredentials: true,
+        headers: new HttpHeaders({ [csrf.headerName]: csrf.token }),
+      })
+    ));
+  }
+
+  rejectPromptRequest(id: string, note: string) {
+    return this.auth.getCsrf().pipe(switchMap(csrf =>
+      this.http.post<AssistantPromptSaveResponse>(`${this.base}/prompt/requests/${encodeURIComponent(id)}/reject`, { note }, {
         withCredentials: true,
         headers: new HttpHeaders({ [csrf.headerName]: csrf.token }),
       })

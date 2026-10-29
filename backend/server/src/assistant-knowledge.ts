@@ -25,6 +25,8 @@ export interface RetrievedContext {
   documents: KnowledgeDocument[];
   context: string;
   sources: { title: string; url: string }[];
+  /** Documents that matched at least one keyword, before the context budget capped the selection. */
+  considered: number;
 }
 
 // Vietnamese diacritics are stripped so "cách chơi", "cach choi" and mixed typing retrieve the same content.
@@ -175,6 +177,7 @@ export function retrieve(knowledge: PublishedKnowledge, question: string): Retri
   const documents: KnowledgeDocument[] = [];
   const sources: { title: string; url: string }[] = [];
   const blocks: string[] = [];
+  const considered = ranked.length;
   let total = 0;
   for (const doc of selected) {
     const text = doc.text.length > MAX_DOCUMENT_CHARS ? `${doc.text.slice(0, MAX_DOCUMENT_CHARS - 3)}...` : doc.text;
@@ -186,5 +189,5 @@ export function retrieve(knowledge: PublishedKnowledge, question: string): Retri
     // Keep sources 1:1 with the numbered documents so a [n] citation points at the same UI entry.
     sources.push({ title: doc.title, url: doc.url });
   }
-  return { documents, context: blocks.join('\n\n'), sources };
+  return { documents, context: blocks.join('\n\n'), sources, considered };
 }

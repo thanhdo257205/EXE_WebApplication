@@ -7,6 +7,9 @@ import {
   AdminAssistantService,
   AssistantKey,
   AssistantKeysResponse,
+  AssistantPromptRequest,
+  AssistantPromptResponse,
+  AssistantPromptState,
   AssistantSettingsResponse,
   AssistantUsage,
   AssistantKeyTestResult,
@@ -150,6 +153,45 @@ const keyTestResult = (overrides: Partial<AssistantKeyTestResult> = {}): Assista
   ...overrides,
 });
 
+const promptState = (overrides: Partial<AssistantPromptState> = {}): AssistantPromptState => ({
+  template: 'Bạn là trợ lý EXE. Chỉ trả lời theo tài liệu đã phát hành.\n{TAI_LIEU}',
+  source: 'CUSTOM',
+  version: 2,
+  updatedAt: '2026-10-28T10:00:00.000Z',
+  ...overrides,
+});
+
+const promptResponse = (overrides: Partial<AssistantPromptResponse> = {}): AssistantPromptResponse => ({
+  prompt: promptState(),
+  defaultTemplate: 'Mẫu mặc định ship trong code, bắt buộc chèn khối tài liệu.\n{TAI_LIEU}',
+  tokens: [
+    { token: '{TAI_LIEU}', required: true, label: 'Khối tài liệu retrieved từ bản phát hành đang công khai' },
+    { token: '{PHIEN_BAN}', required: false, label: 'Nhãn phiên bản bản phát hành, ví dụ 1.0' },
+  ],
+  maxChars: 6_000,
+  canUpdate: true,
+  canRequest: true,
+  pending: [],
+  myRequests: [],
+  ...overrides,
+});
+
+const promptRequest = (overrides: Partial<AssistantPromptRequest> = {}): AssistantPromptRequest => ({
+  id: '33333333-3333-4333-8333-333333333333',
+  template: 'Bản đề xuất của đồng quản trị, vẫn giữ khối tài liệu.\n{TAI_LIEU}',
+  note: 'Muốn trợ lý xưng hô thân mật hơn',
+  status: 'PENDING',
+  requestedBy: 'co-admin-1',
+  requesterEmail: 'coadmin@example.test',
+  requesterName: 'Đồng quản trị',
+  reviewedBy: null,
+  reviewNote: '',
+  baseVersion: 2,
+  createdAt: '2026-10-28T10:10:00.000Z',
+  reviewedAt: null,
+  ...overrides,
+});
+
 describe('AdminAssistantPage', () => {
   let api: {
     getSettings: ReturnType<typeof vi.fn>;
@@ -162,6 +204,11 @@ describe('AdminAssistantPage', () => {
     revokeKey: ReturnType<typeof vi.fn>;
     testKey: ReturnType<typeof vi.fn>;
     testKeys: ReturnType<typeof vi.fn>;
+    getPrompt: ReturnType<typeof vi.fn>;
+    savePrompt: ReturnType<typeof vi.fn>;
+    requestPrompt: ReturnType<typeof vi.fn>;
+    approvePromptRequest: ReturnType<typeof vi.fn>;
+    rejectPromptRequest: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(() => {
@@ -176,6 +223,20 @@ describe('AdminAssistantPage', () => {
       revokeKey: vi.fn(() => of({ removed: true })),
       testKey: vi.fn(() => of(keyTestResult())),
       testKeys: vi.fn(() => of({ id: activeKey.id, result: keyTestResult(), error: null })),
+      getPrompt: vi.fn(() => of(promptResponse())),
+      savePrompt: vi.fn(() => of({ ...promptResponse(), prompt: promptState({ version: 3 }), changed: true })),
+      requestPrompt: vi.fn(() => of({ ...promptResponse(), changed: true, item: promptRequest() })),
+      approvePromptRequest: vi.fn(() => of({
+        ...promptResponse(),
+        prompt: promptState({ version: 3, template: promptRequest().template }),
+        changed: true,
+        request: promptRequest({ status: 'APPROVED', reviewedBy: 'owner-1', reviewedAt: '2026-10-28T10:20:00.000Z' }),
+      })),
+      rejectPromptRequest: vi.fn(() => of({
+        ...promptResponse(),
+        changed: false,
+        request: promptRequest({ status: 'REJECTED', reviewedBy: 'owner-1', reviewNote: 'Câu chữ quá suồng sã', reviewedAt: '2026-10-28T10:20:00.000Z' }),
+      })),
     };
     TestBed.configureTestingModule({
       imports: [AdminAssistantPage],
@@ -234,22 +295,27 @@ describe('AdminAssistantPage', () => {
       .toContain('ngoài danh mục');
   });
 
-  it('switches between the provider, key and usage tabs', () => {
+  it('switches between the provider, key, usage and prompt tabs', () => {
     const { fixture, page, el } = setup();
     const hidden = () => [...el.querySelectorAll<HTMLElement>('.tab-panel')].map(panel => panel.hidden);
     expect(page.view()).toBe('providers');
-    expect(hidden()).toEqual([false, true, true]);
+    expect(hidden()).toEqual([false, true, true, true]);
     expect(el.querySelector('#tab-providers')?.getAttribute('aria-selected')).toBe('true');
 
     page.setView('keys');
     fixture.detectChanges();
-    expect(hidden()).toEqual([true, false, true]);
+    expect(hidden()).toEqual([true, false, true, true]);
     expect(el.querySelector('#tab-keys')?.getAttribute('aria-selected')).toBe('true');
     expect(el.querySelector('#tab-providers')?.getAttribute('aria-selected')).toBe('false');
 
     page.setView('usage');
     fixture.detectChanges();
-    expect(hidden()).toEqual([true, true, false]);
+    expect(hidden()).toEqual([true, true, false, true]);
+
+    page.setView('prompt');
+    fixture.detectChanges();
+    expect(hidden()).toEqual([true, true, true, false]);
+    expect(el.querySelector('#tab-prompt')?.getAttribute('aria-selected')).toBe('true');
   });
 
   it('lists masked admin keys and never renders plaintext before reveal', () => {
@@ -573,6 +639,22 @@ describe('AdminAssistantPage', () => {
     expect(api.getKeys).toHaveBeenCalledTimes(2);
   });
 
+  it('offers MộtAPI in the key form and creates it without a Cloudflare account', () => {
+    const { page, el } = setup();
+    const select = el.querySelector<HTMLSelectElement>('.key-form select');
+    expect(Array.from(select!.options).map(option => option.value)).toContain('motapis');
+
+    page.setKeyProvider(event('motapis'));
+    page.setKeyLabel(event('MộtAPI dự phòng'));
+    page.setKeyValue(event('sk-motapis-1234'));
+    // The account field belongs to workers-ai only, so a paid aggregator key stays a plain API key.
+    expect(page.needsAccount()).toBe(false);
+    expect(page.canAddKey()).toBe(true);
+
+    page.createKey();
+    expect(api.createKey).toHaveBeenCalledExactlyOnceWith({ provider: 'motapis', label: 'MộtAPI dự phòng', apiKey: 'sk-motapis-1234' });
+  });
+
   it('reveals a key only on demand, then hides and forgets it', () => {
     const { page } = setup();
     const key = page.keys()[0];
@@ -721,5 +803,174 @@ describe('AdminAssistantPage', () => {
     const { el } = setup();
     expect(el.querySelector('.key-form')).toBeNull();
     expect(el.textContent).toContain('ASSISTANT_KEY_SECRET');
+  });
+
+  const promptSetup = (overrides: Partial<AssistantPromptResponse> = {}) => {
+    api.getPrompt.mockReturnValue(of(promptResponse(overrides)));
+    const { fixture, page, el } = setup();
+    page.setView('prompt');
+    fixture.detectChanges();
+    return { fixture, page, el };
+  };
+
+  it('renders the live prompt with its tokens and version for an update right', () => {
+    const { page, el } = promptSetup();
+    expect(el.querySelector<HTMLTextAreaElement>('.prompt-editor textarea')!.value).toContain('{TAI_LIEU}');
+    expect(el.textContent).toContain('Đang dùng bản tùy chỉnh · phiên bản 2');
+    expect(el.querySelectorAll('.prompt-tokens li')).toHaveLength(2);
+    expect(el.textContent).toContain('bắt buộc');
+    expect([...el.querySelectorAll('.prompt-actions button')].map(button => button.textContent?.trim()))
+      .toEqual(['Lưu trực tiếp', 'Gửi yêu cầu sửa', 'Điền mẫu mặc định']);
+    expect(el.querySelector('.prompt-note')).not.toBeNull();
+    expect(page.canSavePrompt()).toBe(false);
+  });
+
+  it('hides the prompt tab and stays quiet when the endpoint answers 403', () => {
+    api.getPrompt.mockReturnValue(throwError(() => ({ status: 403 })));
+    const { page, el } = setup();
+    expect(el.querySelector('#tab-prompt')).toBeNull();
+    expect(page.showPromptTab()).toBe(false);
+    expect(page.promptError()).toBe('');
+    expect(el.querySelector('#tab-providers')).not.toBeNull();
+  });
+
+  it('shows a read-only prompt to an admin without either prompt right', () => {
+    const { page, el } = promptSetup({ canUpdate: false, canRequest: false });
+    expect(el.querySelector<HTMLTextAreaElement>('.prompt-editor textarea')!.hasAttribute('readonly')).toBe(true);
+    expect(el.querySelectorAll('.prompt-actions button')).toHaveLength(0);
+    expect(el.querySelector('.prompt-sub')).toBeNull();
+    expect(el.textContent).toContain('assistant:prompt:update');
+    expect(page.canSavePrompt()).toBe(false);
+    expect(page.canFilePromptRequest()).toBe(false);
+  });
+
+  it('saves an edited draft with the version it was loaded at and refreshes the panel', () => {
+    const draft = 'Bản mới vẫn giữ {TAI_LIEU} và thêm ràng buộc trả lời ngắn gọn.';
+    // The re-read after the write answers with the stored version, which is what the next save must carry.
+    api.getPrompt.mockReturnValueOnce(of(promptResponse())).mockReturnValue(of(promptResponse({ prompt: promptState({ version: 3, template: draft }) })));
+    const { fixture, page, el } = setup();
+    page.setView('prompt');
+    fixture.detectChanges();
+    const textarea = el.querySelector<HTMLTextAreaElement>('.prompt-editor textarea')!;
+    textarea.value = draft;
+    textarea.dispatchEvent(new Event('input'));
+    expect(page.canSavePrompt()).toBe(true);
+    page.savePrompt();
+    expect(api.savePrompt).toHaveBeenCalledExactlyOnceWith({ template: draft, expectedVersion: 2 });
+    expect(api.getPrompt).toHaveBeenCalledTimes(2);
+    expect(page.promptState()?.version).toBe(3);
+    expect(page.promptNotice()).toContain('phiên bản 3');
+    expect(page.canSavePrompt()).toBe(false);
+  });
+
+  it('refuses to send a template that lost the required token or broke its case', () => {
+    const { page } = promptSetup();
+    page.setPromptDraft(event('Bản này không còn khối tài liệu nào cả, nên bị chặn lưu.'));
+    expect(page.promptTokenProblem()).toContain('Thiếu {TAI_LIEU}');
+    expect(page.canSavePrompt()).toBe(false);
+    page.setPromptDraft(event('Chèn sai case: {Tai Lieu} thì server cũng từ chối bản này.'));
+    expect(page.promptTokenProblem()).toContain('đúng nguyên văn');
+    expect(page.canFilePromptRequest()).toBe(false);
+    page.setPromptDraft(event('Đúng dấu gạch dưới nhưng sai hoa: {tai_lieu} vẫn bị chặn.'));
+    expect(page.promptTokenProblem()).toContain('đúng nguyên văn');
+    page.setPromptDraft(event('A'.repeat(6_001) + ' {TAI_LIEU}'));
+    expect(page.promptOverLimit()).toBe(true);
+    expect(page.canSavePrompt()).toBe(false);
+    expect(api.savePrompt).not.toHaveBeenCalled();
+    expect(api.requestPrompt).not.toHaveBeenCalled();
+  });
+
+  it('files a request instead of a write for the default request-only admin', () => {
+    const { page, el } = promptSetup({ canUpdate: false, canRequest: true, pending: [] });
+    expect(el.querySelector('.prompt-actions .primary')?.textContent).toContain('Gửi yêu cầu sửa');
+    expect([...el.querySelectorAll('.prompt-actions button')].map(button => button.textContent?.trim()))
+      .not.toContain('Lưu trực tiếp');
+    const note = el.querySelector<HTMLInputElement>('.prompt-note input')!;
+    note.value = 'Đề xuất thêm ràng buộc không bịa luật chơi';
+    note.dispatchEvent(new Event('input'));
+    page.setPromptDraft(event('Bản đề xuất giữ nguyên {TAI_LIEU} cho hàng chờ duyệt.'));
+    expect(page.canFilePromptRequest()).toBe(true);
+    page.filePromptRequest();
+    expect(api.savePrompt).not.toHaveBeenCalled();
+    expect(api.requestPrompt).toHaveBeenCalledExactlyOnceWith({
+      template: 'Bản đề xuất giữ nguyên {TAI_LIEU} cho hàng chờ duyệt.',
+      expectedVersion: 2,
+      note: 'Đề xuất thêm ràng buộc không bịa luật chơi',
+    });
+    expect(page.promptNotice()).toContain('Đã gửi yêu cầu sửa system prompt');
+    expect(page.promptState()?.version).toBe(2);
+  });
+
+  it('lists pending requests only for a reviewer and approves through the queue', () => {
+    // The approved draft becomes the live prompt, so the refreshed view no longer carries it in the queue.
+    api.getPrompt.mockReturnValueOnce(of(promptResponse({ pending: [promptRequest()] })))
+      .mockReturnValue(of(promptResponse({ prompt: promptState({ version: 3, template: promptRequest().template }) })));
+    const { fixture, page, el } = setup();
+    page.setView('prompt');
+    fixture.detectChanges();
+    expect(el.querySelector('#tab-prompt .tab-count')?.textContent).toContain('1 chờ duyệt');
+    expect(el.textContent).toContain('Đồng quản trị');
+    expect(el.querySelectorAll('.prompt-request')).toHaveLength(1);
+    page.approvePromptRequest(page.pendingPromptRequests()[0]);
+    expect(api.approvePromptRequest).toHaveBeenCalledExactlyOnceWith(promptRequest().id, 2);
+    expect(page.pendingPromptRequests()).toHaveLength(0);
+    expect(page.promptState()?.version).toBe(3);
+    expect(page.promptNotice()).toContain('Đã duyệt yêu cầu');
+    // Regression: the editor used to keep the reviewer's stale draft, one "Lưu trực tiếp" away from
+    // overwriting the approval that just landed.
+    expect(page.promptDraft()).toBe(promptRequest().template);
+    expect(page.promptDirty()).toBe(false);
+    fixture.detectChanges();
+    expect(el.querySelector<HTMLTextAreaElement>('textarea')?.value).toBe(promptRequest().template);
+  });
+
+  it('requires a second step with a reason before rejecting a request', () => {
+    const { fixture, page, el } = promptSetup({ pending: [promptRequest()] });
+    page.askReject(page.pendingPromptRequests()[0]);
+    fixture.detectChanges();
+    expect(api.rejectPromptRequest).not.toHaveBeenCalled();
+    const input = el.querySelector<HTMLInputElement>('.prompt-reject input')!;
+    input.value = 'Câu chữ quá suồng sã';
+    input.dispatchEvent(new Event('input'));
+    page.confirmReject();
+    expect(api.rejectPromptRequest).toHaveBeenCalledExactlyOnceWith(promptRequest().id, 'Câu chữ quá suồng sã');
+    expect(page.rejectTarget()).toBe('');
+    expect(page.promptNotice()).toContain('System prompt đang dùng không thay đổi');
+  });
+
+  it('re-reads the live version after a conflict and keeps the draft typed', () => {
+    api.savePrompt.mockReturnValue(throwError(() => ({ status: 409, error: { code: 'VERSION_CONFLICT' } })));
+    const { page } = promptSetup();
+    const draft = 'Bản soạn dở vẫn còn sau xung đột phiên bản {TAI_LIEU}.';
+    page.setPromptDraft(event(draft));
+    page.savePrompt();
+    expect(page.promptError()).toContain('khác với bản bạn đang sửa');
+    expect(page.promptNotice()).toContain('Đã đọc lại bản mới nhất');
+    expect(api.getPrompt).toHaveBeenCalledTimes(2);
+    expect(page.promptDraft()).toBe(draft);
+    expect(page.promptSaving()).toBe(false);
+  });
+
+  it('fills the shipped template on reset because there is no delete path', () => {
+    const { page, el } = promptSetup();
+    page.setPromptDraft(event('Một bản tùy chỉnh khác hẳn nội dung gốc đang dùng.'));
+    (el.querySelector('.prompt-actions button:nth-child(3)') as HTMLButtonElement).click();
+    expect(page.promptDraft()).toContain('Mẫu mặc định ship trong code');
+    expect(api.savePrompt).not.toHaveBeenCalled();
+    expect(page.canSavePrompt()).toBe(true);
+    const labels = [...el.querySelectorAll('.tab-panel button')].map(button => button.textContent?.trim().toLowerCase() ?? '');
+    expect(labels.some(label => label.includes('xóa') || label.includes('xoá') || label.includes('delete'))).toBe(false);
+  });
+
+  it('shows the requester their own queue with the reviewer answer', () => {
+    const { page, el } = promptSetup({
+      canUpdate: false,
+      myRequests: [promptRequest({ status: 'REJECTED', reviewNote: 'Cần giữ đúng giọng điệu thương hiệu' })],
+    });
+    expect(el.querySelectorAll('.prompt-sub')).toHaveLength(1);
+    expect(el.textContent).toContain('Đã từ chối');
+    expect(el.textContent).toContain('Cần giữ đúng giọng điệu thương hiệu');
+    expect(el.querySelector('.prompt-request-head .prompt-chip')?.textContent).toContain('Đã từ chối');
+    expect(page.promptRequestStatusLabel(page.myPromptRequests()[0])).toBe('Đã từ chối');
   });
 });

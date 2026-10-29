@@ -636,3 +636,64 @@ ALTER TABLE character_revisions ADD COLUMN created_by TEXT REFERENCES app_users(
 ALTER TABLE card_set_revisions ADD COLUMN created_by TEXT REFERENCES app_users(id) ON DELETE SET NULL;
 ALTER TABLE card_revisions ADD COLUMN created_by TEXT REFERENCES app_users(id) ON DELETE SET NULL;
 ALTER TABLE wiki_page_revisions ADD COLUMN created_by TEXT REFERENCES app_users(id) ON DELETE SET NULL;
+
+-- V15__assistant_credentials_motapis.sql
+-- SQLite cannot widen a CHECK in place, so the provider list (one new paid provider, motapis)
+-- needs a copy-and-swap rebuild. initializeAssistantCredentials runs the same steps at boot for
+-- databases that already exist, so this section only shapes fresh installs.
+CREATE TABLE assistant_credentials_next (
+    id TEXT NOT NULL PRIMARY KEY,
+    provider TEXT NOT NULL CHECK (provider IN ('workers-ai','gemini','groq','openrouter','motapis')),
+    owner_id TEXT NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+    label TEXT NOT NULL,
+    secret_enc TEXT NOT NULL,
+    key_hint TEXT NOT NULL,
+    account_hint TEXT,
+    fingerprint TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING','ACTIVE','DISABLED','REVOKED')),
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000Z','now')),
+    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000Z','now')),
+    approved_by TEXT REFERENCES app_users(id) ON DELETE SET NULL,
+    approved_at TEXT,
+    revoked_at TEXT,
+    last_test_status TEXT,
+    last_test_code TEXT,
+    last_test_model TEXT,
+    last_test_latency_ms INTEGER,
+    last_tested_at TEXT
+);
+INSERT INTO assistant_credentials_next(id,provider,owner_id,label,secret_enc,key_hint,account_hint,fingerprint,status,created_at,updated_at,approved_by,approved_at,revoked_at,last_test_status,last_test_code,last_test_model,last_test_latency_ms,last_tested_at)
+  SELECT id,provider,owner_id,label,secret_enc,key_hint,account_hint,fingerprint,status,created_at,updated_at,approved_by,approved_at,revoked_at,last_test_status,last_test_code,last_test_model,last_test_latency_ms,last_tested_at FROM assistant_credentials;
+DROP TABLE assistant_credentials;
+ALTER TABLE assistant_credentials_next RENAME TO assistant_credentials;
+CREATE UNIQUE INDEX ux_assistant_credentials_fingerprint ON assistant_credentials(provider,fingerprint) WHERE status <> 'REVOKED';
+CREATE INDEX ix_assistant_credentials_owner ON assistant_credentials(owner_id,created_at);
+CREATE INDEX ix_assistant_credentials_active ON assistant_credentials(status,created_at);
+
+-- V16__assistant_prompt.sql
+-- The assistant system prompt lives in the database so admins can edit it from the dashboard.
+-- No row means the template shipped in code. version is the optimistic-lock token for every save.
+CREATE TABLE assistant_prompt (
+    slot INTEGER NOT NULL PRIMARY KEY CHECK (slot = 1),
+    template TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 1 CHECK (version >= 1),
+    updated_by TEXT REFERENCES app_users(id) ON DELETE SET NULL,
+    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000Z','now'))
+);
+
+-- Request-only editors draft a change here; the prompt table is written when a reviewer with
+-- assistant:prompt:update approves. base_version records which prompt version the draft was written
+-- against, so an approval that would overwrite a newer save is refused instead of silently merged.
+CREATE TABLE assistant_prompt_requests (
+    id TEXT NOT NULL PRIMARY KEY,
+    template TEXT NOT NULL,
+    note TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING','APPROVED','REJECTED')),
+    requested_by TEXT NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+    reviewed_by TEXT REFERENCES app_users(id) ON DELETE SET NULL,
+    review_note TEXT NOT NULL DEFAULT '',
+    base_version INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    reviewed_at TEXT
+);
+CREATE INDEX ix_assistant_prompt_requests_status ON assistant_prompt_requests(status,created_at);

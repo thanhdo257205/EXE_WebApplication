@@ -188,6 +188,51 @@ test('active database keys are used before env keys and fall back after disable'
   assert.ok(usage.providers.some((provider: any) => provider.provider === 'groq'));
 });
 
+/**
+ * MộtAPI has no env credential in this fixture, so a stored key alone has to light the provider up:
+ * the create schema, the credential factory and the settings screen each need it by name.
+ */
+test('a stored MộtAPI key answers after the free tier and is probed at its own endpoint', async t => {
+  const calls: { key: string; url: string }[] = [];
+  const fetch: FetchLike = async (url, init) => {
+    const key = String((init.headers as Record<string, string>).Authorization).replace(/^Bearer /, '');
+    calls.push({ key, url: String(url) });
+    return key === 'sk-motapis-live'
+      ? Response.json({ choices: [{ message: { content: 'Phở bò' } }], usage: { prompt_tokens: 41, completion_tokens: 8 } })
+      : new Response(null, { status: 429 });
+  };
+  const f = await fixture({ fetch }); t.after(() => f.db.close());
+  const created = await f.createKey(f.owner, { provider: 'motapis', label: 'MộtAPI dự phòng', apiKey: 'sk-motapis-live' });
+  assert.equal(created.status, 200);
+  const item = (await created.json()).item;
+  assert.deepEqual([item.provider, item.providerLabel, item.hint], ['motapis', 'MộtAPI', '••••live']);
+
+  const settings = await (await f.request('GET', '/api/v1/admin/assistant/settings', f.owner)).json();
+  const motapis = settings.providers.find((provider: any) => provider.id === 'motapis');
+  assert.deepEqual(motapis.slots.map((slot: any) => slot.slot), [`db:${item.id}`]);
+  assert.equal(motapis.defaultModel, DEFAULT_MODELS.motapis);
+  assert.equal(motapis.models.find((model: any) => model.recommended).id, DEFAULT_MODELS.motapis);
+  // The paid provider is the last thing the router reaches for, even when it is the only DB key stored.
+  assert.equal(settings.settings.order.at(-1), 'motapis');
+
+  const answered = await f.ask(f.customer, 'Món nào đặc trưng của Huế?');
+  assert.equal(answered.status, 200);
+  assert.equal((await answered.json()).answer, 'Phở bò');
+  assert.deepEqual(calls.map(call => call.url), ['https://api.groq.com/openai/v1/chat/completions', 'https://motapis.com/v1/chat/completions']);
+  assert.deepEqual(calls.map(call => call.key), ['env-key', 'sk-motapis-live']);
+
+  calls.length = 0;
+  const tested = await (await f.request('POST', `/api/v1/admin/assistant/keys/${item.id}/test`, f.owner)).json();
+  assert.deepEqual([tested.status, tested.provider, tested.model], ['OK', 'motapis', DEFAULT_MODELS.motapis]);
+  assert.deepEqual(calls.map(call => call.url), ['https://motapis.com/v1/chat/completions']);
+  assert.equal((await one(f.db, 'SELECT last_test_status FROM assistant_credentials WHERE id=?', [item.id])).last_test_status, 'OK');
+
+  // The Cloudflare account field belongs to workers-ai only, and an unknown provider must fail as
+  // input, not as a database CHECK error.
+  assert.equal((await f.createKey(f.owner, { provider: 'motapis', label: 'Nhầm', apiKey: 'sk-another-key', accountId: 'acc-1234' })).status, 400);
+  assert.equal((await f.createKey(f.owner, { provider: 'openai', label: 'Không có', apiKey: 'sk-not-a-provider' })).status, 400);
+});
+
 test('without the master key key management is disabled while env providers keep working', async t => {
   const f = await fixture({ secret: null }); t.after(() => f.db.close());
   const list = await f.request('GET', '/api/v1/admin/assistant/keys', f.owner);

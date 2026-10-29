@@ -1,0 +1,171 @@
+@if (visible()) {
+  <div class="dock" [class.is-open]="open()">
+    @if (open()) {
+      <section id="assistant-dock-panel" class="panel" role="dialog" aria-modal="false" aria-labelledby="assistant-dock-title">
+        <header class="panel-top">
+          <div class="identity">
+            <span class="avatar" aria-hidden="true">N</span>
+            <div class="identity-copy">
+              <h2 id="assistant-dock-title">Trợ lý Nhà Chung</h2>
+              <p class="identity-sub">
+                <i aria-hidden="true"></i>
+                <span class="identity-page">{{ suggestions().page }}</span>
+                <span class="sep" aria-hidden="true">·</span>
+                <span class="release-label" [title]="latestRelease()?.title ?? 'Nội dung công khai đang phát hành'">{{ releaseLabel() }}</span>
+              </p>
+            </div>
+          </div>
+          <div class="top-actions">
+            <button type="button" class="clear" (click)="reset()" [disabled]="!messages().length && !error()">Xóa</button>
+            <a routerLink="/tro-ly" class="expand" title="Mở trang trợ lý đầy đủ">Trang đầy đủ</a>
+            <button type="button" class="close" (click)="close()" aria-label="Đóng trợ lý">
+              <app-morph-icon name="close" [size]="15" color="currentColor" />
+            </button>
+          </div>
+        </header>
+
+        <div #transcript class="transcript" role="log" aria-live="polite" aria-relevant="additions text" [attr.aria-busy]="pending()">
+          <article class="turn assistant">
+            <div class="bubble">
+              <p>Chào bạn! Mình trả lời về luật chơi, thẻ bài, cư dân và Quỹ Nhà Chung dựa trên nội dung đã phát hành.</p>
+              <p class="bubble-page">Bạn đang ở <strong>{{ suggestions().page }}</strong> — chọn gợi ý bên dưới hoặc hỏi tự do.</p>
+            </div>
+          </article>
+
+          @for (message of messages(); track message.id) {
+            <article class="turn" [class.user]="message.role === 'user'" [class.assistant]="message.role === 'assistant'">
+              <div class="bubble">
+                @if (message.role === 'assistant') {
+                  <div class="answer" [innerHTML]="message.html"></div>
+                  @if (message.meta; as meta) {
+                    <details class="trace" [open]="message.id === lastAssistantId()">
+                      <summary>
+                        <span class="trace-mark" aria-hidden="true">✦</span>
+                        <span class="trace-label">Quá trình trả lời</span>
+                        <span class="trace-model">{{ providerLabel(meta.provider) }} · {{ meta.model }}</span>
+                      </summary>
+                      <ol class="trace-steps">
+                        <li>
+                          <span class="step-dot" aria-hidden="true"></span>
+                          <div>
+                            <b>Đọc bản phát hành</b>
+                            <small>Chỉ dùng nội dung công khai{{ message.release ? ' · Bản ' + message.release.versionLabel : '' }}</small>
+                          </div>
+                        </li>
+                        <li>
+                          <span class="step-dot" aria-hidden="true"></span>
+                          <div>
+                            <b>Tìm trong kho nội dung</b>
+                            <small>{{ meta.considered }} đoạn khớp · chọn {{ meta.selected }} nguồn</small>
+                          </div>
+                        </li>
+                        <li>
+                          <span class="step-dot" aria-hidden="true"></span>
+                          <div>
+                            <b>Hỏi {{ providerLabel(meta.provider) }}</b>
+                            <small>{{ meta.cached ? 'Lấy từ bộ đệm, không gọi lại model' : formatTokens(meta.tokensIn) + ' token vào' }}</small>
+                          </div>
+                        </li>
+                        <li>
+                          <span class="step-dot" aria-hidden="true"></span>
+                          <div>
+                            <b>Soạn câu trả lời có nguồn</b>
+                            <small>{{ meta.cached ? '0 token mới' : formatTokens(meta.tokensOut) + ' token ra' }} · {{ formatDuration(meta.latencyMs) }}</small>
+                          </div>
+                        </li>
+                      </ol>
+                    </details>
+                  }
+                  @if (message.sources?.length) {
+                    <div class="sources">
+                      <span class="sources-label">Nguồn</span>
+                      @for (source of message.sources ?? []; track $index) {
+                        <a [routerLink]="source.url" class="source"><b>{{ $index + 1 }}</b>{{ source.title }}</a>
+                      }
+                    </div>
+                  }
+                } @else {
+                  <p>{{ message.content }}</p>
+                }
+              </div>
+            </article>
+          }
+
+          @if (pending()) {
+            <article class="turn assistant">
+              <div class="bubble live" role="status">
+                <ol class="live-steps">
+                  @for (label of stages; track label; let i = $index) {
+                    <li [class.done]="i < stage()" [class.active]="i === stage()">
+                      <span class="step-dot" aria-hidden="true"></span>
+                      <span>{{ label }}</span>
+                    </li>
+                  }
+                </ol>
+              </div>
+            </article>
+          }
+
+          @if (error(); as errorMessage) {
+            <article class="turn assistant">
+              <div class="bubble failure" role="alert">
+                <p>{{ errorMessage }}</p>
+                <div class="failure-actions">
+                  @if (signedIn()) {
+                    <button type="button" (click)="retry()" [disabled]="pending() || !lastQuestion()">Thử lại</button>
+                  } @else {
+                    <a routerLink="/dang-nhap" [queryParams]="{ returnUrl: path() }">Đăng nhập lại</a>
+                  }
+                  <a routerLink="/wiki">Wiki luật</a>
+                  <a routerLink="/cach-choi">Cách chơi</a>
+                </div>
+              </div>
+            </article>
+          }
+        </div>
+
+        @if (signedIn() && !pending()) {
+          <div class="suggestions">
+            <p>Gợi ý cho {{ suggestions().page }}</p>
+            <div class="chips">
+              @for (question of suggestions().questions; track $index) {
+                <button type="button" class="chip" (click)="ask(question)">{{ question }}</button>
+              }
+            </div>
+          </div>
+        }
+
+        @if (signedIn()) {
+          <form class="composer" (submit)="submit($event)">
+            <label class="sr" for="assistant-dock-question">Câu hỏi của bạn</label>
+            <textarea #input id="assistant-dock-question" rows="2" [value]="draft()" (input)="onInput($event)" (keydown.enter)="onEnter($event)"
+              [attr.maxlength]="maxQuestion" placeholder="Hỏi về luật, thẻ bài, cư dân, Quỹ Nhà Chung…" autocomplete="off"></textarea>
+            <div class="composer-foot">
+              <span class="count">{{ draft().length }}/{{ maxQuestion }}</span>
+              <button type="submit" class="send" [disabled]="pending() || !draft().trim()">
+                @if (pending()) { Đang trả lời } @else { Gửi <span aria-hidden="true">→</span> }
+              </button>
+            </div>
+          </form>
+        } @else if (auth.checkingSession()) {
+          <p class="login-note">Đang kiểm tra phiên đăng nhập…</p>
+        } @else if (onAuthPage()) {
+          <p class="login-note">Đăng nhập bằng form trên trang này để dùng trợ lý.</p>
+        } @else {
+          <div class="login-gate">
+            <p>Trợ lý dùng chung hạn mức AI miễn phí nên chỉ dành cho tài khoản đã đăng nhập.</p>
+            <a routerLink="/dang-nhap" [queryParams]="{ returnUrl: path() }" class="login-cta">Đăng nhập để hỏi</a>
+          </div>
+        }
+        <p class="disclaimer">Trợ lý có thể sai. Đối chiếu Wiki luật cho các quyết định quan trọng.</p>
+      </section>
+    }
+
+    <button #launcher type="button" class="launcher" [class.panel-open]="open()" (click)="toggle()"
+      [attr.aria-expanded]="open()" [attr.aria-controls]="open() ? 'assistant-dock-panel' : null"
+      [attr.aria-label]="open() ? 'Đóng trợ lý AI' : 'Mở trợ lý AI'" [title]="open() ? 'Đóng trợ lý' : 'Hỏi trợ lý AI'">
+      <app-morph-icon [name]="open() ? 'close' : 'search'" [size]="22" [color]="open() ? '#f3f1ea' : '#183c2b'" />
+      @if (!open()) { <span class="launcher-ping" aria-hidden="true"></span> }
+    </button>
+  </div>
+}

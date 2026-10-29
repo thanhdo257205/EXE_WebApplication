@@ -558,6 +558,16 @@ test('assistant requires login and CSRF, falls back on quota and grounds the pro
   assert.equal(body.answer, 'Mỗi người góp 0–4 Tiền [1].');
   assert.equal(body.release.versionLabel, 'test-v1');
   assert.ok(body.sources.some((source: any) => source.url === '/wiki/luat-co-ban'));
+  // The dock renders this trace: provider/model, retrieval counts and spend, never prompts or keys.
+  assert.equal(body.meta.provider, 'gemini');
+  assert.equal(body.meta.model, 'test-model');
+  assert.equal(body.meta.cached, false);
+  assert.equal(body.meta.tokensIn, 50);
+  assert.equal(body.meta.tokensOut, 12);
+  assert.ok(body.meta.considered >= body.meta.selected);
+  assert.ok(body.meta.selected >= 1);
+  assert.equal(typeof body.meta.latencyMs, 'number');
+  assert.equal(body.meta.slot, undefined);
   assert.deepEqual(attempts, ['workers-ai', 'gemini']);
   assert.match(prompt, /TÀI LIỆU/); assert.match(prompt, /Luật cơ bản/); assert.match(prompt, /Quỹ Chung/);
   assert.deepEqual(messages.map(message => message.role), ['user', 'assistant', 'user']);
@@ -573,9 +583,18 @@ test('assistant caches answers per release and conversation without sharing acro
   await publishKnowledge(f.db);
   const ask = (message = 'Cách chơi?', history: { role: 'user' | 'assistant'; content: string }[] = []) =>
     f.request('POST', '/api/v1/assistant/chat', { message, history }, f.user);
-  assert.equal((await (await ask()).json()).answer, 'Trả lời 1');
+  const first = await (await ask()).json();
+  assert.equal(first.answer, 'Trả lời 1');
+  assert.equal(first.meta.cached, false);
   assert.equal((await (await ask('  cách chơi  ')).json()).answer, 'Trả lời 1');
-  assert.equal((await (await ask('Cách chơi!')).json()).answer, 'Trả lời 1');
+  const replay = await (await ask('Cách chơi!')).json();
+  assert.equal(replay.answer, 'Trả lời 1');
+  // A cache hit reports zero fresh spend and zero latency instead of the original model run.
+  assert.equal(replay.meta.cached, true);
+  assert.equal(replay.meta.tokensIn, 0);
+  assert.equal(replay.meta.tokensOut, 0);
+  assert.equal(replay.meta.latencyMs, 0);
+  assert.equal(replay.meta.model, 'test-model');
   assert.equal(calls, 1);
   const prior = [{ role: 'user' as const, content: 'Hỏi trước đó' }];
   assert.equal((await (await ask('Cách chơi?', prior)).json()).answer, 'Trả lời 2');

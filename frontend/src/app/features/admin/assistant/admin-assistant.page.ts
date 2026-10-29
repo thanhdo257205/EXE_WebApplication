@@ -9,6 +9,8 @@ import {
   AssistantKeyTestOutcome,
   AssistantKeyTestResult,
   AssistantModelOption,
+  AssistantPromptRequest,
+  AssistantPromptResponse,
   AssistantProviderConfig,
   AssistantSettingsResponse,
   AssistantUsage,
@@ -32,6 +34,15 @@ const TEST_FAILURE_LABELS: Record<string, string> = {
 
 const MAX_TOKEN_BUDGET = 2_000_000_000;
 const DB_SLOT_PREFIX = 'db:';
+
+const PROMPT_REQUEST_STATUS_LABELS: Record<AssistantPromptRequest['status'], string> = {
+  PENDING: 'Chờ duyệt',
+  APPROVED: 'Đã duyệt',
+  REJECTED: 'Đã từ chối',
+};
+
+// Mirrors promptTemplateError() on the server, which is the authority; this only warns before the request goes out.
+const loosePromptToken = (value: string): string => value.toLowerCase().replace(/_/g, ' ');
 
 interface BudgetBar {
   id: string;
@@ -108,7 +119,7 @@ interface BulkOutcomeRow {
   templateUrl: './admin-assistant.page.html',
   // Split along the tab boundary: the budget check runs per stylesheet file, and the single 9.9 kB file
   // sat 100 bytes under the 10 kB error that fails ng build (and CI) for any new rule.
-  styleUrls: ['./admin-assistant.page.css', './admin-assistant.keys.css'],
+  styleUrls: ['./admin-assistant.page.css', './admin-assistant.keys.css', './admin-assistant.prompt.css'],
 })
 export class AdminAssistantPage implements OnInit {
   private readonly api = inject(AdminAssistantService);
@@ -119,6 +130,7 @@ export class AdminAssistantPage implements OnInit {
     { id: 'groq', label: 'Groq' },
     { id: 'openrouter', label: 'OpenRouter' },
     { id: 'workers-ai', label: 'Cloudflare Workers AI' },
+    { id: 'motapis', label: 'MộtAPI' },
   ] as const;
 
   readonly settings = signal<AssistantSettingsResponse | null>(null);
@@ -134,7 +146,7 @@ export class AdminAssistantPage implements OnInit {
   readonly usageLoading = signal(false);
   readonly error = signal('');
   readonly notice = signal('');
-  readonly view = signal<'providers' | 'keys' | 'usage'>('providers');
+  readonly view = signal<'providers' | 'keys' | 'usage' | 'prompt'>('providers');
 
   readonly keys = signal<AssistantKey[]>([]);
   readonly keyStorage = signal(true);
@@ -155,6 +167,17 @@ export class AdminAssistantPage implements OnInit {
   readonly keyValue = signal('');
   readonly keyAccount = signal('');
 
+  readonly prompt = signal<AssistantPromptResponse | null>(null);
+  readonly promptDraft = signal('');
+  readonly promptNote = signal('');
+  readonly promptLoading = signal(false);
+  readonly promptSaving = signal(false);
+  readonly promptReviewBusy = signal('');
+  readonly promptError = signal('');
+  readonly promptNotice = signal('');
+  readonly rejectTarget = signal<string | null>(null);
+  readonly rejectNote = signal('');
+
   readonly bulkOpen = signal(false);
   readonly bulkSelection = signal<Record<string, boolean>>({});
   readonly bulkModels = signal<Record<string, string>>({});
@@ -169,6 +192,47 @@ export class AdminAssistantPage implements OnInit {
   readonly canManageSlots = computed(() => this.settings()?.canManageSlots ?? false);
   readonly canEditBudgets = computed(() => this.settings()?.canEditBudgets ?? false);
   readonly canReadUsage = computed(() => this.settings()?.canReadUsage ?? false);
+
+  readonly promptState = computed(() => this.prompt()?.prompt ?? null);
+  readonly canUpdatePrompt = computed(() => this.prompt()?.canUpdate ?? false);
+  readonly canRequestPrompt = computed(() => this.prompt()?.canRequest ?? false);
+  readonly canEditPrompt = computed(() => this.canUpdatePrompt() || this.canRequestPrompt());
+  readonly pendingPromptRequests = computed(() => this.prompt()?.pending ?? []);
+  readonly myPromptRequests = computed(() => this.prompt()?.myRequests ?? []);
+  // The server owns the token list and the character ceiling; the UI mirrors them only to warn early.
+  readonly promptTokens = computed(() => this.prompt()?.tokens ?? []);
+  readonly promptMaxChars = computed(() => this.prompt()?.maxChars ?? 0);
+  readonly requiredPromptToken = computed(() => this.promptTokens().find(token => token.required)?.token ?? '');
+  readonly promptLength = computed(() => this.promptDraft().length);
+  readonly promptOverLimit = computed(() => this.promptMaxChars() > 0 && this.promptLength() > this.promptMaxChars());
+  readonly promptTokenProblem = computed(() => {
+    const required = this.requiredPromptToken();
+    const draft = this.promptDraft();
+    if (!required || draft.includes(required)) return '';
+    return loosePromptToken(draft).includes(loosePromptToken(required))
+      ? `${required} phải viết đúng nguyên văn: in hoa, không dấu, có gạch dưới.`
+      : `Thiếu ${required}: tài liệu truy hồi từ bản phát hành sẽ không được đưa vào prompt.`;
+  });
+  readonly promptValid = computed(() => !this.promptTokenProblem() && !this.promptOverLimit() && this.promptDraft().trim().length >= 20);
+  readonly promptDirty = computed(() => {
+    const state = this.promptState();
+    return state !== null && this.promptDraft() !== state.template;
+  });
+  readonly canSavePrompt = computed(() => this.canUpdatePrompt() && this.promptValid() && this.promptDirty()
+    && !this.promptSaving() && !this.promptLoading());
+  readonly canFilePromptRequest = computed(() => this.canRequestPrompt() && this.promptValid() && this.promptDirty()
+    && !this.promptSaving() && !this.promptLoading());
+  readonly promptStatusLabel = computed(() => {
+    const state = this.promptState();
+    if (!state) return '';
+    if (state.source === 'DEFAULT') return 'Đang dùng mẫu mặc định ship trong code — chưa có bản nào được lưu.';
+    const updated = state.updatedAt ? ` · cập nhật ${new Date(state.updatedAt).toLocaleString('vi-VN')}` : '';
+    return `Đang dùng bản tùy chỉnh · phiên bản ${state.version}${updated}`;
+  });
+  // The endpoint answers 403 without assistant:read, so the tab only appears once the prompt actually loads.
+  readonly showPromptTab = computed(() => this.prompt() !== null);
+  readonly promptReviewing = computed(() => this.promptReviewBusy() !== '');
+  readonly promptBusy = computed(() => this.promptLoading() || this.promptSaving() || this.promptReviewing());
   readonly needsAccount = computed(() => this.keyProvider() === 'workers-ai');
   readonly canAddKey = computed(() => this.canCreateKey() && this.keyStorage() && !this.keySaving()
     && this.keyLabel().trim().length > 0
@@ -295,6 +359,7 @@ export class AdminAssistantPage implements OnInit {
   ngOnInit(): void {
     this.load();
     this.loadKeys();
+    this.loadPrompt();
   }
 
   load(keepError = false): void {
@@ -329,7 +394,7 @@ export class AdminAssistantPage implements OnInit {
     this.loadUsage();
   }
 
-  setView(view: 'providers' | 'keys' | 'usage'): void {
+  setView(view: 'providers' | 'keys' | 'usage' | 'prompt'): void {
     this.view.set(view);
   }
 
@@ -809,6 +874,152 @@ export class AdminAssistantPage implements OnInit {
       if (amount) budgets[id] = amount;
     }
     return budgets;
+  }
+
+  loadPrompt(keepDraft = false): void {
+    this.promptLoading.set(true);
+    this.api.getPrompt().subscribe({
+      next: response => {
+        this.prompt.set(response);
+        // A reviewer or requester keeps their own text across refreshes; the first load seeds it from the live prompt.
+        if (!keepDraft) this.promptDraft.set(response.prompt.template);
+        this.promptLoading.set(false);
+      },
+      error: error => {
+        this.promptLoading.set(false);
+        // 403 simply means this admin has no assistant:read; the other tabs stay usable and the tab hides itself.
+        if (error?.status !== 403) this.promptError.set(this.promptMessage(error, 'Không tải được system prompt.'));
+      },
+    });
+  }
+
+  setPromptDraft(event: Event): void {
+    this.promptDraft.set((event.target as HTMLTextAreaElement).value);
+    this.promptError.set('');
+  }
+
+  setPromptNote(event: Event): void {
+    this.promptNote.set((event.target as HTMLTextAreaElement).value);
+  }
+
+  setRejectNote(event: Event): void {
+    this.rejectNote.set((event.target as HTMLTextAreaElement).value);
+  }
+
+  /** There is no delete: "về mặc định" chỉ là điền lại mẫu ship trong code, rồi lưu hoặc gửi yêu cầu như thường. */
+  usePromptDefault(): void {
+    const template = this.prompt()?.defaultTemplate ?? '';
+    if (!template || this.promptBusy()) return;
+    this.promptDraft.set(template);
+    this.promptError.set('');
+    this.promptNotice.set('Đã điền mẫu mặc định của chương trình. Nội dung đang dùng chưa đổi cho tới khi bạn lưu hoặc gửi yêu cầu.');
+  }
+
+  savePrompt(): void {
+    if (!this.canSavePrompt()) return;
+    this.promptSaving.set(true);
+    this.promptError.set('');
+    this.promptNotice.set('');
+    this.api.savePrompt({ template: this.promptDraft(), expectedVersion: this.promptState()?.version ?? 0 }).subscribe({
+      next: response => {
+        this.promptSaving.set(false);
+        this.promptNotice.set(`Đã lưu system prompt phiên bản ${response.prompt.version}. Trợ lý dùng bản này cho các câu hỏi mới.`);
+        this.loadPrompt(true);
+      },
+      error: error => this.onPromptError(error, 'Không lưu được system prompt.'),
+    });
+  }
+
+  filePromptRequest(): void {
+    if (!this.canFilePromptRequest()) return;
+    this.promptSaving.set(true);
+    this.promptError.set('');
+    this.promptNotice.set('');
+    const note = this.promptNote().trim();
+    this.api.requestPrompt({ template: this.promptDraft(), expectedVersion: this.promptState()?.version ?? 0, note }).subscribe({
+      next: response => {
+        this.promptSaving.set(false);
+        this.promptNote.set('');
+        this.promptNotice.set('Đã gửi yêu cầu sửa system prompt. Bản đang dùng vẫn nguyên cho tới khi admin có quyền duyệt.');
+        this.loadPrompt(true);
+      },
+      error: error => this.onPromptError(error, 'Không gửi được yêu cầu sửa system prompt.'),
+    });
+  }
+
+  approvePromptRequest(request: AssistantPromptRequest): void {
+    if (!this.canUpdatePrompt() || this.promptReviewing()) return;
+    this.promptReviewBusy.set(request.id);
+    this.promptError.set('');
+    this.promptNotice.set('');
+    this.api.approvePromptRequest(request.id, this.promptState()?.version ?? 0).subscribe({
+      next: response => {
+        this.promptReviewBusy.set('');
+        // The approved text is now what live traffic uses, so the editor must show it: leaving the reviewer's
+        // previously loaded draft on screen would invite "Lưu trực tiếp" to overwrite the fresh approval.
+        this.promptNotice.set(`Đã duyệt yêu cầu của ${request.requesterName || request.requesterEmail}. System prompt phiên bản ${response.prompt.version} đang được dùng.`);
+        this.loadPrompt();
+      },
+      error: error => {
+        this.promptReviewBusy.set('');
+        this.onPromptError(error, 'Không duyệt được yêu cầu.');
+      },
+    });
+  }
+
+  askReject(request: AssistantPromptRequest): void {
+    this.rejectTarget.set(request.id);
+    this.rejectNote.set('');
+    this.promptError.set('');
+  }
+
+  cancelReject(): void {
+    this.rejectTarget.set('');
+    this.rejectNote.set('');
+  }
+
+  confirmReject(): void {
+    const requestId = this.rejectTarget();
+    if (!requestId || this.promptReviewing()) return;
+    this.promptReviewBusy.set(requestId);
+    this.promptError.set('');
+    this.api.rejectPromptRequest(requestId, this.rejectNote().trim()).subscribe({
+      next: () => {
+        this.promptReviewBusy.set('');
+        this.rejectTarget.set('');
+        this.rejectNote.set('');
+        this.promptNotice.set('Đã từ chối yêu cầu. System prompt đang dùng không thay đổi.');
+        this.loadPrompt(true);
+      },
+      error: error => {
+        this.promptReviewBusy.set('');
+        this.onPromptError(error, 'Không từ chối được yêu cầu.');
+      },
+    });
+  }
+
+  promptRequestStatusLabel(request: AssistantPromptRequest): string {
+    return PROMPT_REQUEST_STATUS_LABELS[request.status];
+  }
+
+  /** The queue row was built against an older live version: re-read so the next attempt carries the current one. */
+  private onPromptError(error: any, fallback: string): void {
+    this.promptSaving.set(false);
+    this.promptError.set(this.promptMessage(error, fallback));
+    if (error?.error?.code === 'VERSION_CONFLICT') {
+      this.promptNotice.set('System prompt đã đổi phiên bản (hoặc yêu cầu đã bị xử lý) kể từ khi bạn tải trang. Đã đọc lại bản mới nhất; phần bạn soạn vẫn được giữ.');
+      this.loadPrompt(true);
+    }
+  }
+
+  private promptMessage(error: any, fallback: string): string {
+    const code = error?.error?.code;
+    const required = this.requiredPromptToken();
+    if (code === 'PROMPT_MISSING_DOCUMENTS') return `Thiếu ${required} trong template, nên tài liệu truy hồi sẽ không được đưa vào prompt.`;
+    if (code === 'PROMPT_TOKEN_CASE') return `${required} phải viết đúng nguyên văn: in hoa, không dấu, có gạch dưới.`;
+    if (code === 'VERSION_CONFLICT') return 'Bản đang dùng đã khác với bản bạn đang sửa.';
+    if (code === 'REQUEST_NOT_PENDING') return 'Yêu cầu này đã được duyệt hoặc từ chối rồi.';
+    return this.messageFor(error, fallback);
   }
 
   private messageFor(error: any, fallback: string): string {
