@@ -13,10 +13,11 @@ describe('AdminPermissionEditorComponent', () => {
   let saved: Mock<(value: string[]) => void>;
   let cancelled: Mock<() => void>;
 
-  const render = (account = coAdmin, saving = false) => {
+  const render = (account = coAdmin, saving = false, readOnly = false) => {
     const fixture = TestBed.createComponent(AdminPermissionEditorComponent);
     fixture.componentRef.setInput('account', account);
     fixture.componentRef.setInput('saving', saving);
+    fixture.componentRef.setInput('readOnly', readOnly);
     fixture.componentInstance.saved.subscribe(saved);
     fixture.componentInstance.cancelled.subscribe(cancelled);
     fixture.detectChanges();
@@ -45,9 +46,8 @@ describe('AdminPermissionEditorComponent', () => {
     expect(checked).toBe(2);
     expect((el.querySelector('.actions .primary') as HTMLButtonElement).disabled).toBe(true);
     expect(el.textContent).toContain('Admin chính luôn giữ lại');
-    for (const item of ['users:manage-roles', 'permissions:manage']) {
-      expect(el.textContent).not.toContain(item);
-    }
+    expect(el.textContent).toContain(permissionLabel('permissions:manage'));
+    expect(el.textContent).not.toContain('users:manage-roles');
   });
 
   it('ignores keys the catalog no longer knows about', () => {
@@ -100,6 +100,41 @@ describe('AdminPermissionEditorComponent', () => {
     expect(boxes(el).filter(box => box.checked)).toHaveLength(DEFAULT_DELEGATED_PERMISSIONS.length);
     (el.querySelector('.actions .primary') as HTMLButtonElement).click();
     expect(saved).toHaveBeenCalledWith(DEFAULT_DELEGATED_PERMISSIONS);
+  });
+
+  it('announces the account-read right that the manage right drags in', () => {
+    const { fixture, el } = render();
+    toggle(el, 'permissions:manage', true);
+    fixture.detectChanges();
+    expect(el.querySelector('.implied')!.textContent).toContain(permissionLabel('users:read'));
+  });
+
+  it('shows the same grid read-only, with no way to change or save the set', () => {
+    const font = render({ ...coAdmin, permissionsGrantedBy: 'Chị Quản Trị' }, false, true);
+    expect(font.el.textContent).toContain('Quyền đang cấp');
+    expect(font.el.textContent).toContain('Bộ này do Chị Quản Trị cấp');
+    expect(font.el.textContent).toContain('Chỉ admin chính hoặc người có quyền phân quyền mới sửa được');
+    expect(font.el.querySelector('.toolbar')).toBeNull();
+    expect(font.el.querySelector('.implied')).toBeNull();
+    expect(font.el.querySelector('.actions .primary')).toBeNull();
+    expect(font.el.querySelector('.actions button')!.textContent).toContain('Đóng');
+    expect(boxes(font.el).every(box => box.disabled)).toBe(true);
+    expect(boxes(font.el).filter(box => box.checked)).toHaveLength(2);
+    const component = font.fixture.componentInstance;
+    toggle(font.el, 'cards:delete', true);
+    component.toggle('cards:delete', true);
+    component.useDefault();
+    component.clearAll();
+    component.save();
+    font.fixture.detectChanges();
+    expect(component.selected()).toEqual(component.account().permissions);
+    expect(saved).not.toHaveBeenCalled();
+  });
+
+  it('explains the manager case when the set has no delegated author', () => {
+    const { el } = render({ ...coAdmin, permissionsGrantedBy: null }, false, true);
+    expect(el.textContent).not.toContain('Bộ này do');
+    expect(el.textContent).toContain('Chỉ admin chính hoặc người có quyền phân quyền mới sửa được.');
   });
 
   it('closes through the cancel button', () => {

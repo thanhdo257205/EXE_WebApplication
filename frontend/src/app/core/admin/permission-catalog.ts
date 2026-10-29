@@ -85,24 +85,32 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
   {
     id: 'users',
     label: 'Tài khoản cư dân',
-    items: [{ key: 'users:read', label: 'Xem danh sách tài khoản' }],
+    note: 'Xem ai đang giữ quyền gì thì mọi đồng quản trị được xem danh sách làm được; sửa phân quyền là một quyền riêng.',
+    items: [
+      { key: 'users:read', label: 'Xem danh sách tài khoản', hint: 'Tự thêm khi cấp quyền phân quyền' },
+      {
+        key: 'permissions:manage',
+        label: 'Phân quyền chi tiết cho đồng quản trị',
+        hint: 'Không sửa được bộ quyền của admin chính, của chính mình hay của người đã cấp quyền cho mình. Không nằm trong bộ mặc định.',
+      },
+    ],
   },
 ];
 
 /** Capabilities the owner keeps for itself; shown as information only, never grantable. */
 export const OWNER_ONLY_PERMISSIONS: PermissionItem[] = [
   { key: 'users:manage-roles', label: 'Cấp/thu hồi quyền đồng quản trị' },
-  { key: 'permissions:manage', label: 'Phân quyền chi tiết cho đồng quản trị' },
 ];
 
 export const ALL_PERMISSION_KEYS: string[] = PERMISSION_GROUPS.flatMap(group => group.items.map(item => item.key));
 
 /**
- * Mirrors DEFAULT_DELEGATED_PERMISSIONS in the backend: everything except the two rights that
- * change shared state without a review step — the all-keys supervisor and the direct prompt write.
+ * Mirrors DEFAULT_DELEGATED_PERMISSIONS in the backend: everything except the rights that change
+ * shared state or shared authority without a review step — the all-keys supervisor, the direct
+ * prompt write, and the right to hand out permissions.
  */
 export const DEFAULT_DELEGATED_PERMISSIONS: string[] = ALL_PERMISSION_KEYS.filter(
-  key => key !== 'assistant:keys:manage' && key !== 'assistant:prompt:update',
+  key => key !== 'assistant:keys:manage' && key !== 'assistant:prompt:update' && key !== 'permissions:manage',
 );
 
 const LABELS = new Map<string, string>(
@@ -120,6 +128,7 @@ export function impliedPermissions(keys: readonly string[]): Set<string> {
     if (/^(releases|cards|card-sets|characters|wiki|media):/.test(key)) granted.add('content:read');
     if (key.startsWith('assistant:')) granted.add('assistant:read');
     if (/^assistant:keys:(create|reveal|test|revoke|manage)$/.test(key)) granted.add('assistant:keys:read');
+    if (key === 'permissions:manage') granted.add('users:read');
     if (key === 'assistant:keys:manage') {
       granted.add('assistant:keys:reveal');
       granted.add('assistant:keys:test');

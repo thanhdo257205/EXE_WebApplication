@@ -3,13 +3,13 @@
   <header>
     <p class="eyebrow">Tài khoản & quyền truy cập</p>
     <h1>Người cùng quản trị</h1>
-    <p>Admin chính cấp và thu hồi quyền, đồng thời chọn từng quyền (nội dung, phản hồi, trợ lý AI, API key) cho mỗi đồng quản trị. Đồng quản trị được vận hành đúng phần đã được cấp, không được phân quyền lại cho người khác.</p>
+    <p>Admin chính cấp và thu hồi quyền đồng quản trị, đồng thời chọn từng quyền (nội dung, phản hồi, trợ lý AI, API key) cho mỗi người. Mọi đồng quản trị xem được danh sách tài khoản đều thấy ai đang giữ quyền cụ thể nào và ai đã cấp bộ quyền đó, nhưng chỉ admin chính — hoặc người được cấp quyền "Phân quyền chi tiết" — mới sửa được; người được cấp quyền đó không sửa được bộ quyền của chính mình, của admin chính hay của người đã cấp quyền cho mình.</p>
   </header>
 
   <div class="access-note" role="note">
-    {{ canManageRoles() ? 'Bạn có quyền quản lý đồng quản trị. Quyền admin chính luôn được bảo vệ.' : 'Bạn có thể xem tài khoản. Chỉ admin chính được thay đổi quyền.' }}
+    {{ canManageRoles() ? 'Bạn có quyền quản lý đồng quản trị. Quyền admin chính luôn được bảo vệ.' : 'Bạn xem được tài khoản và bộ quyền của từng người. Chỉ admin chính được cấp hoặc thu hồi quyền đồng quản trị.' }}
     Admin chính có thể thêm đồng quản trị bằng email trước khi người đó đăng ký; quyền chỉ tự áp dụng khi người đó đăng ký bằng Google với email đã xác minh.
-    @if (canManagePermissions()) { Phân quyền chi tiết theo từng module cũng chỉ mình bạn sửa được; đồng quản trị bị ảnh hưởng thấy ngay ở yêu cầu kế tiếp. }
+    @if (canManagePermissions()) { Bạn phân quyền chi tiết được cho các đồng quản trị khác, nhưng không tự sửa bộ quyền của mình và không sửa được của admin chính hay của người đã cấp quyền cho bạn. }
   </div>
 
   @if (error()) {
@@ -110,11 +110,11 @@
             </td>
             <td>
               <p class="summary">{{ permissionSummary(account) }}</p>
-              @if (canManagePermissions() && account.role === 'ADMIN' && account.adminLevel !== 'OWNER' && account.enabled) {
+              @if (account.role === 'ADMIN' && account.adminLevel !== 'OWNER' && account.permissions !== undefined) {
                 <button type="button" (click)="openPermissions(account)"
                   [disabled]="loading() || saving() || inviteSaving() || needsReload() || editing()[0]?.id === account.id"
-                  [attr.aria-label]="'Phân quyền chi tiết cho ' + account.email">
-                  {{ editing()[0]?.id === account.id ? 'Đang phân quyền' : 'Phân quyền chi tiết' }}
+                  [attr.aria-label]="permissionActionLabel(account) + ' cho ' + account.email">
+                  {{ permissionActionLabel(account) }}
                 </button>
               }
             </td>
@@ -130,6 +130,7 @@
     <app-admin-permission-editor
       [account]="account"
       [saving]="saving()"
+      [readOnly]="!canEdit(account)"
       (saved)="savePermissions($event)"
       (cancelled)="closePermissions()"
     />

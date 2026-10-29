@@ -24,6 +24,7 @@ test('permission catalog normalizes dependencies, keeps canonical order and igno
   assert.deepEqual(normalizePermissions(['assistant:read', 'assistant:usage:read']), ['assistant:read', 'assistant:usage:read']);
   assert.deepEqual(normalizePermissions(['media:upload']), ['content:read', 'media:upload']);
   assert.deepEqual(normalizePermissions(['cards:create', 'cards:create'].concat(OWNER_ONLY_PERMISSIONS as unknown as string[])), ['content:read', 'cards:create']);
+  assert.deepEqual(normalizePermissions(['permissions:manage']), ['users:read', 'permissions:manage']);
   assert.deepEqual(decodePermissions('{"not":"an array"}'), []);
   assert.deepEqual(decodePermissions('null'), []);
   assert.deepEqual(decodePermissions('[1,"cards:update",null]'), ['content:read', 'cards:update']);
@@ -32,6 +33,9 @@ test('permission catalog normalizes dependencies, keeps canonical order and igno
   assert.deepEqual(effectivePermissions('ADMIN', false, null), [...DEFAULT_DELEGATED_PERMISSIONS]);
   assert.deepEqual(effectivePermissions('ADMIN', false, []), []);
   assert.equal(DEFAULT_DELEGATED_PERMISSIONS.includes('assistant:keys:manage'), false);
+  // Delegating the grant write has to be a deliberate act: accounts promoted before it existed must not gain it.
+  assert.equal(DEFAULT_DELEGATED_PERMISSIONS.includes('permissions:manage'), false);
+  assert.equal(GRANTABLE_PERMISSIONS.includes('permissions:manage'), true);
   assert.equal(GRANTABLE_PERMISSIONS.some(permission => (OWNER_ONLY_PERMISSIONS as readonly string[]).includes(permission)), false);
 });
 
@@ -71,12 +75,19 @@ async function fixture() {
   const assign = (who: string | null, id: string, permissions: string[], expectedVersion: number) =>
     request('PUT', `/api/v1/admin/users/${id}/permissions`, who, { permissions, expectedVersion });
   const me = async (who: string) => (await request('GET', '/api/v1/auth/me', who)).json();
+  // A ready-made extra admin, so the delegation tests build a real grant tree instead of mocking rows.
+  const addAdmin = async () => {
+    const id = uuid();
+    await execute(db, "INSERT INTO app_users(id,email,display_name,role) VALUES (?,?,?,'ADMIN')", [id, `${id}@example.test`, `Đồng quản trị ${id.slice(0, 4)}`]);
+    await sign(id);
+    return id;
+  };
   // A draft release with one set and one card, written by the owner: version is 2 afterwards.
   const release = await (await request('POST', '/api/v1/admin/content/releases', owner, { title: 'Nội dung thử', versionLabel: 'rbac-v1' })).json();
   const set = await (await request('POST', `/api/v1/admin/content/releases/${release.id}/card-sets`, owner, { expectedVersion: 0, code: 'TEST', slug: 'test-set', name: 'Bộ thử' })).json();
   const card = { expectedVersion: 1, code: 'CARD', slug: 'the-thu', name: 'Thẻ thử', cardSetId: set.entityId, effectText: 'Hiệu ứng', ruleStatus: 'CONFIRMED', copiesInDeck: 1 };
   const createdCard = await (await request('POST', `/api/v1/admin/content/releases/${release.id}/cards`, owner, card)).json();
-  return { db, owner, co, customer, request, assign, me, sign, release, set, card, cardId: createdCard.entityId as string, uploaded };
+  return { db, owner, co, customer, request, assign, me, sign, addAdmin, release, set, card, cardId: createdCard.entityId as string, uploaded };
 }
 
 test('owner stores a normalized set that replaces the default and gates each module', async t => {
@@ -121,7 +132,7 @@ test('owner stores a normalized set that replaces the default and gates each mod
   assert.match(audit.details_redacted, /version=1;source=admin-permissions/);
 });
 
-test('permission writes are owner-only, validated, versioned and never disturb the session', async t => {
+test('permission writes need the manage right, are validated, versioned and never disturb the session', async t => {
   const f = await fixture(); t.after(() => f.db.close());
   assert.equal((await f.assign(f.co, f.co, ['cards:update'], 0)).status, 403);
   assert.equal((await f.assign(f.customer, f.co, ['cards:update'], 0)).status, 403);
@@ -130,8 +141,8 @@ test('permission writes are owner-only, validated, versioned and never disturb t
   assert.equal((await f.assign(f.owner, f.customer, [], 0)).status, 409);
   assert.equal((await f.assign(f.owner, uuid(), [], 0)).status, 404);
 
+  // Only creating and demoting admins stays unassignable; the grant write itself is now delegable.
   assert.equal((await f.assign(f.owner, f.co, ['users:manage-roles'], 0)).status, 400);
-  assert.equal((await f.assign(f.owner, f.co, ['permissions:manage'], 0)).status, 400);
   assert.equal((await f.assign(f.owner, f.co, ['content:admin'], 0)).status, 400);
   assert.equal((await f.request('PUT', `/api/v1/admin/users/${f.co}/permissions`, f.owner, { permissions: [], expectedVersion: 0, role: 'ADMIN' })).status, 400);
 
@@ -192,24 +203,142 @@ test('role changes drop custom grants and the promoted account returns to the de
   assert.equal(await scalar(f.db, 'SELECT COUNT(*) FROM admin_permission_sets'), 0);
 });
 
-test('the users list exposes stored sets only to the owner and an audit failure rolls the set back', async t => {
+test('the users list shows every stored set to any account reader while the audit failure rolls the write back', async t => {
   const f = await fixture(); t.after(() => f.db.close());
   await f.assign(f.owner, f.co, ['cards:update', 'users:read'], 0);
   const ownerList = await (await f.request('GET', '/api/v1/admin/users', f.owner)).json();
   assert.equal(ownerList.canManageRoles, true);
   assert.equal(ownerList.canManagePermissions, true);
-  assert.deepEqual(ownerList.items.find((item: any) => item.id === f.co).permissions, ['content:read', 'cards:update', 'users:read']);
-  assert.equal(ownerList.items.find((item: any) => item.id === f.owner).customPermissions, false);
+  const ownerRow = ownerList.items.find((item: any) => item.id === f.owner);
+  const coRow = ownerList.items.find((item: any) => item.id === f.co);
+  assert.deepEqual(coRow.permissions, ['content:read', 'cards:update', 'users:read']);
+  assert.equal(coRow.permissionsEditable, true);
+  assert.equal(coRow.permissionsGrantedBy, ownerRow.displayName, 'the owner wrote the set, so the owner is named as granter');
+  assert.equal(ownerRow.customPermissions, false);
+  assert.equal(ownerRow.permissionsEditable, false);
+  assert.equal(ownerRow.permissionsGrantedBy, null);
 
+  // Seeing who holds what is a users:read capability, not a manage capability: the detail is the same,
+  // the edit affordance is not.
   const delegatedList = await (await f.request('GET', '/api/v1/admin/users', f.co)).json();
   assert.equal(delegatedList.canManagePermissions, false);
-  assert.equal(delegatedList.items.every((item: any) => !('permissions' in item)), true);
+  assert.deepEqual(delegatedList.items.find((item: any) => item.id === f.co).permissions, coRow.permissions);
+  assert.equal(delegatedList.items.find((item: any) => item.id === f.owner).permissionsEditable, false);
+  assert.equal(delegatedList.items.filter((item: any) => item.role === 'ADMIN').every((item: any) => item.permissionsEditable === false), true);
+  assert.equal(delegatedList.items.filter((item: any) => item.role === 'ADMIN').every((item: any) => 'permissions' in item), true);
 
   await execute(f.db, "CREATE TRIGGER reject_permission_audit BEFORE INSERT ON audit_events WHEN NEW.action='USER_PERMISSIONS_CHANGED' BEGIN SELECT RAISE(ABORT,'audit unavailable'); END");
   assert.equal((await f.assign(f.owner, f.co, ['wiki:update'], 1)).status, 409);
   const stored = await one(f.db, 'SELECT permissions,version FROM admin_permission_sets WHERE user_id=?', [f.co]);
   assert.equal(stored.version, 1);
   assert.deepEqual(JSON.parse(stored.permissions), ['content:read', 'cards:update', 'users:read']);
+});
+
+test('the manage right delegates downward: the holder grants others but never itself or its granter', async t => {
+  const f = await fixture(); t.after(() => f.db.close());
+  const mid = await f.addAdmin();
+  const leaf = await f.addAdmin();
+
+  const granted = await (await f.assign(f.owner, f.co, ['permissions:manage'], 0)).json();
+  assert.deepEqual(granted.account.permissions, ['users:read', 'permissions:manage'], 'the account list is read with the right that manages it');
+  assert.equal((await f.me(f.co)).permissions.includes('permissions:manage'), true);
+
+  const list = await (await f.request('GET', '/api/v1/admin/users', f.co)).json();
+  assert.equal(list.canManagePermissions, true);
+  assert.equal(list.canManageRoles, false, 'delegating the grant write never delegates creating or demoting admins');
+  const row = (id: string) => list.items.find((item: any) => item.id === id);
+  assert.equal(row(f.owner).permissionsEditable, false);
+  assert.equal(row(f.co).permissionsEditable, false, 'the viewer never sees an edit affordance on their own row');
+  assert.equal(row(mid).permissionsEditable, true);
+
+  const below = await (await f.assign(f.co, mid, ['cards:update'], 0)).json();
+  assert.deepEqual(below.account.permissions, ['content:read', 'cards:update']);
+  assert.equal(below.account.permissionsGrantedBy, row(f.co).displayName);
+  assert.deepEqual((await f.me(mid)).permissions, ['content:read', 'cards:update']);
+
+  // Upward and self edits are refused, with the codes the UI explains separately.
+  const self = await f.assign(f.co, f.co, ['cards:update'], 1);
+  assert.equal(self.status, 403); assert.equal((await self.json()).code, 'SELF_GRANT_FORBIDDEN');
+  const up = await f.assign(f.co, f.owner, ['cards:update'], 0);
+  assert.equal(up.status, 403); assert.equal((await up.json()).code, 'OWNER_PROTECTED');
+
+  // Passing the right one level down does not widen it upward: the new manager cannot touch its granter.
+  await f.assign(f.co, leaf, ['permissions:manage'], 0);
+  assert.equal((await one(f.db, 'SELECT granted_by FROM admin_permission_sets WHERE user_id=?', [leaf])).granted_by, f.co);
+  const refused = [['GRANTOR_PROTECTED', f.co, 1, 1], ['OWNER_PROTECTED', f.owner, 0, 0], ['SELF_GRANT_FORBIDDEN', leaf, 1, 1]] as const;
+  for (const [code, target, expectedVersion, sets] of refused) {
+    const response = await f.assign(leaf, target, ['cards:update'], expectedVersion);
+    assert.equal(response.status, 403, code); assert.equal((await response.json()).code, code);
+    assert.equal(await scalar(f.db, 'SELECT COUNT(*) FROM admin_permission_sets WHERE user_id=?', [target]), sets, `${code} writes nothing`);
+  }
+  // Editing sideways is allowed, so the owner is not the only person maintaining the tree.
+  assert.equal((await f.assign(leaf, mid, ['wiki:update'], 1)).status, 200);
+  // A holder without the right is refused by the generic permission gate, not a special owner code.
+  const plain = await f.assign(mid, leaf, ['cards:update'], 1);
+  assert.equal(plain.status, 403); assert.equal((await plain.json()).code, 'PERMISSION_REQUIRED');
+
+  // The owner still outranks the tree and can edit anyone in it.
+  assert.equal((await f.assign(f.owner, leaf, ['cards:update'], 1)).status, 200);
+  const audit = await one(f.db, "SELECT actor_id FROM audit_events WHERE action='USER_PERMISSIONS_CHANGED' AND entity_id=?", [mid]);
+  assert.equal(audit.actor_id, f.co, 'the delegated granter is who the audit names');
+});
+
+test('the owner rewriting a delegated set does not move the provenance that protects the granter', async t => {
+  const f = await fixture(); t.after(() => f.db.close());
+  const managed = await f.addAdmin();
+  await f.assign(f.owner, f.co, ['permissions:manage'], 0);
+  await f.assign(f.co, managed, ['cards:update', 'permissions:manage'], 0);
+
+  // The owner tweaks the same account afterwards and keeps the right: updated_by moves, granted_by must not.
+  assert.equal((await f.assign(f.owner, managed, ['cards:update', 'wiki:update', 'permissions:manage'], 1)).status, 200);
+  const stored = await one(f.db, 'SELECT granted_by,updated_by FROM admin_permission_sets WHERE user_id=?', [managed]);
+  assert.equal(stored.granted_by, f.co);
+  assert.equal(stored.updated_by, f.owner);
+  // So the managed account still cannot reach up to the co-admin that first granted it.
+  const refused = await f.assign(managed, f.co, ['cards:update'], 1);
+  assert.equal(refused.status, 403); assert.equal((await refused.json()).code, 'GRANTOR_PROTECTED');
+
+  // Demoting drops the row with the provenance; the next promotion starts from the default set again.
+  assert.equal((await f.request('PUT', `/api/v1/admin/users/${managed}/role`, f.owner, { role: 'CUSTOMER', expectedVersion: 0 })).status, 200);
+  assert.equal(await scalar(f.db, 'SELECT COUNT(*) FROM admin_permission_sets WHERE user_id=?', [managed]), 0);
+});
+
+test('a grant chain written outside the API terminates and still protects the granter', async t => {
+  const f = await fixture(); t.after(() => f.db.close());
+  const other = await f.addAdmin();
+  await f.assign(f.owner, f.co, ['permissions:manage'], 0);
+  // Two rows that point at each other: the walk has to stop instead of looping forever.
+  await execute(f.db, 'INSERT INTO admin_permission_sets(user_id,permissions,version,granted_by) VALUES (?,?,?,?)', [other, '["users:read","permissions:manage"]', 1, f.co]);
+  await execute(f.db, 'UPDATE admin_permission_sets SET granted_by=? WHERE user_id=?', [other, f.co]);
+  const response = await f.assign(other, f.co, ['cards:update'], 1);
+  assert.equal(response.status, 403);
+  assert.equal((await response.json()).code, 'GRANTOR_PROTECTED');
+  // And the cycle account is not protected from the owner, who may still repair the data.
+  assert.equal((await f.assign(f.owner, other, ['cards:update'], 1)).status, 200);
+});
+
+test('the grant provenance initializer adds granted_by to databases written before it', async t => {
+  const db = database('file::memory:'); t.after(() => db.close());
+  await execute(db, 'PRAGMA foreign_keys=ON');
+  await execute(db, 'CREATE TABLE app_users (id TEXT PRIMARY KEY, email TEXT, display_name TEXT, role TEXT, enabled INTEGER NOT NULL DEFAULT 1, auth_version INTEGER NOT NULL DEFAULT 0, created_at TEXT)');
+  await execute(db, 'CREATE TABLE audit_events (id TEXT PRIMARY KEY, actor_id TEXT, action TEXT, entity_type TEXT, entity_id TEXT, outcome TEXT, details_redacted TEXT)');
+  // The exact shape shipped before provenance existed, with a stored row already in it.
+  await execute(db, `CREATE TABLE admin_permission_sets (
+    user_id TEXT NOT NULL PRIMARY KEY REFERENCES app_users(id) ON DELETE CASCADE,
+    permissions TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 1 CHECK (version >= 1),
+    updated_by TEXT REFERENCES app_users(id) ON DELETE SET NULL,
+    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000Z','now'))
+  )`);
+  await execute(db, "INSERT INTO app_users(id,email,display_name,role) VALUES ('u','u@example.test','Chủ','ADMIN')");
+  await execute(db, `INSERT INTO admin_permission_sets(user_id,permissions,version,updated_by) VALUES ('u','["cards:update"]',1,NULL)`);
+  await initializeRbac(db);
+  assert.equal(await scalar(db, "SELECT COUNT(*) FROM pragma_table_info('admin_permission_sets') WHERE name='granted_by'"), 1);
+  // No backfill: a pre-existing set was owner-written, so the column stays NULL and the owner keeps control.
+  assert.equal((await one(db, "SELECT granted_by FROM admin_permission_sets WHERE user_id='u'")).granted_by, null);
+  assert.equal(await scalar(db, 'SELECT COUNT(*) FROM rbac_owner'), 1);
+  await initializeRbac(db);
+  assert.equal(await scalar(db, 'SELECT COUNT(*) FROM rbac_owner'), 1);
 });
 
 test('assistant settings require the permission of each changed field instead of a blanket admin switch', async t => {
