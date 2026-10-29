@@ -916,6 +916,12 @@ describe('AdminAssistantPage', () => {
     expect(page.pendingPromptRequests()).toHaveLength(0);
     expect(page.promptState()?.version).toBe(3);
     expect(page.promptNotice()).toContain('Đã duyệt yêu cầu');
+    // Regression: the editor used to keep the reviewer's stale draft, one "Lưu trực tiếp" away from
+    // overwriting the approval that just landed.
+    expect(page.promptDraft()).toBe(promptRequest().template);
+    expect(page.promptDirty()).toBe(false);
+    fixture.detectChanges();
+    expect(el.querySelector<HTMLTextAreaElement>('textarea')?.value).toBe(promptRequest().template);
   });
 
   it('requires a second step with a reason before rejecting a request', () => {

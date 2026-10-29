@@ -955,8 +955,10 @@ export class AdminAssistantPage implements OnInit {
     this.api.approvePromptRequest(request.id, this.promptState()?.version ?? 0).subscribe({
       next: response => {
         this.promptReviewBusy.set('');
+        // The approved text is now what live traffic uses, so the editor must show it: leaving the reviewer's
+        // previously loaded draft on screen would invite "Lưu trực tiếp" to overwrite the fresh approval.
         this.promptNotice.set(`Đã duyệt yêu cầu của ${request.requesterName || request.requesterEmail}. System prompt phiên bản ${response.prompt.version} đang được dùng.`);
-        this.loadPrompt(true);
+        this.loadPrompt();
       },
       error: error => {
         this.promptReviewBusy.set('');
