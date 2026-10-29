@@ -28,7 +28,7 @@
       <button type="button" class="clear" (click)="reset()" [disabled]="!messages().length && !error()">Xóa hội thoại</button>
     </div>
 
-    <div #transcript class="transcript" role="log" aria-live="polite" aria-relevant="additions text" [attr.aria-busy]="pending()">
+    <div #transcript class="transcript" role="log" aria-live="polite" aria-relevant="additions text" [attr.aria-busy]="pending()" data-lenis-prevent>
       <article class="turn assistant">
         <div class="bubble">
           <p>Chào bạn! Mình là trợ lý của <strong>Nhà Này Hơi Báo!</strong> Mình trả lời về luật chơi, thẻ bài, cư dân và Quỹ Nhà Chung dựa trên nội dung đã phát hành.</p>

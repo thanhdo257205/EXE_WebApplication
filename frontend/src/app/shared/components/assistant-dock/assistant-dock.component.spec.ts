@@ -66,7 +66,10 @@ describe('AssistantDockComponent', () => {
 
   it('shows a floating launcher on public pages and hides it on the full assistant page and admin', async () => {
     const { fixture, root, router, http } = await setup('/');
-    expect(root.querySelector('.launcher')).toBeTruthy();
+    const launcher = root.querySelector('.launcher');
+    expect(launcher).toBeTruthy();
+    expect(launcher?.textContent).toContain('Hỏi AI');
+    expect(launcher?.getAttribute('aria-label')).toBe('Mở trợ lý AI');
     expect(root.querySelector('.panel')).toBeNull();
 
     await router.navigateByUrl('/tro-ly');
@@ -177,10 +180,19 @@ describe('AssistantDockComponent', () => {
     const { fixture, root, http } = await setup('/', null);
     open(root);
     fixture.detectChanges();
-    expect(root.querySelector('.login-gate')?.textContent).toContain('chỉ dành cho tài khoản đã đăng nhập');
+    expect(root.querySelector('.login-gate')?.textContent?.trim()).toBe('Đăng nhập để hỏi');
+    expect(root.querySelector('.login-gate p')).toBeNull();
     expect(root.querySelector('.login-cta')?.getAttribute('href')).toContain('/dang-nhap');
     expect(root.querySelector('#assistant-dock-question')).toBeNull();
     expect(root.querySelectorAll('.chip')).toHaveLength(0);
+    http.verify();
+  });
+
+  it('opts the panel out of Lenis smooth scroll so the wheel scrolls the chat', async () => {
+    const { fixture, root, http } = await setup('/');
+    open(root);
+    fixture.detectChanges();
+    expect(root.querySelector('.panel')?.hasAttribute('data-lenis-prevent')).toBe(true);
     http.verify();
   });
 

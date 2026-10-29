@@ -60,6 +60,7 @@ describe('AssistantPage', () => {
     expect(root.querySelectorAll('.chip')).toHaveLength(4);
     expect(root.querySelector('label[for="assistant-question"]')).toBeTruthy();
     expect(root.querySelector('textarea#assistant-question')?.getAttribute('maxlength')).toBe('1000');
+    expect(root.querySelector('.transcript')?.hasAttribute('data-lenis-prevent')).toBe(true);
     http.verify();
   });
 
