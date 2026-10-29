@@ -99,7 +99,7 @@ Cập nhật: 2026-10-29 (Asia/Saigon).
 - [x] RBAC-FG-07 — Mọi route admin gắn quyền tương ứng (dashboard chỉ cần ADMIN; đọc nội dung `content:read`; ghi theo `<kind>:create/update/delete`; tải ảnh `media:upload`; feedback read/moderate; trợ lý theo từng quyền; `users:read`). PUT cấu hình trợ lý chỉ kiểm tra quyền của trường thực sự thay đổi.
 - [x] RBAC-FG-08 — Cờ khả năng trả về giao diện: `settingsView` (`canReorder/canEditModels/canManageSlots/canEditBudgets/canReadUsage/canManage`), `keyView` (`canReveal/canTest/canRevoke/canManageStatus`), `GET keys` (`canCreate/canManage/storageAvailable/limits`).
 - [x] RBAC-FG-09 — Frontend: `permission-catalog.ts` mirror danh mục backend, `permission.guard.ts` + nav theo quyền, `AuthService.hasPermission/hasAnyPermission`, 403 → thông báo thiếu quyền.
-- [x] RBAC-FG-10 — Trình "Phân quyền chi tiết" trên `/admin/users` chỉ owner thấy; đồng quản trị chỉ đọc và thấy "Chỉ admin chính"; có conflict/refresh giữ dữ liệu, không tự retry mutation.
+- [x] RBAC-FG-10 — Trình "Phân quyền chi tiết" trên `/admin/users` chỉ hiện nút ghi khi máy chủ trả `permissionsEditable=true`; đồng quản trị khác mở bảng ở chế độ chỉ đọc; có conflict/refresh giữ dữ liệu, không tự retry mutation. (Cập nhật 2026-10-29: trước đó chỉ owner thấy nút.)
 - [x] RBAC-FG-11 — Trang trợ lý AI gate từng control theo từng cờ; form thêm key ẩn khi thiếu `assistant:keys:create`; nút dòng key theo `canManageStatus`/`canRevoke` của chính key.
 - [x] RBAC-FG-12 — Trang thẻ/bộ thẻ gate form tạo release, nhân bản, tạo thẻ, tạo bộ thẻ, import Excel (cần `card-sets:create` + `cards:create`) và ô tải ảnh (`media:upload`); method ghi tự chặn trước khi gọi API.
 - [x] RBAC-FG-13 — Sửa lỗi dữ liệu: save không có `assistant:models:reorder` gửi `order` nguyên văn; payload hạn mức giữ map đầy đủ để không xóa hạn mức key của admin khác.
@@ -110,6 +110,16 @@ Cập nhật: 2026-10-29 (Asia/Saigon).
 - [x] RBAC-FG-18 — Cột `created_by` cho `character_revisions`/`card_set_revisions`/`card_revisions`/`wiki_page_revisions` (`V14__content_authorship.sql` + `initializeContentAuthorship()` idempotent lúc boot, không backfill); ghi tác giả khi tạo và khi nhân bản (bản sao thuộc người nhân bản), không ghi đè khi sửa.
 - [x] RBAC-FG-19 — Quyền tác giả: sửa/xóa thẻ/bộ thẻ/cư dân/wiki và sửa release nháp khi có quyền module **hoặc** (`created_by` = mình **và** còn `content:read`); tạo mới vẫn cần quyền tạo; mất `content:read` thì phần của mình bị khóa; không đụng bản ghi người khác. Test backend +3 ca (110 pass/1 skip), đã chứng minh đỏ khi vô hiệu quy tắc.
 - [ ] RBAC-FG-20 — Xác minh trên Chromium/production sau khi deploy: đồng quản trị tạo rồi sửa/xóa được bản ghi của mình, bị `403` với bản ghi của người khác, và bị khóa sau khi owner thu hồi `content:read`.
+
+### RBAC chi tiết: ủy nhiệm phân quyền và xem quyền của người khác (2026-10-29, local)
+
+- [x] RBAC-FG-21 — `permissions:manage` trở thành quyền gán được (danh mục 36 quyền), không nằm trong bộ mặc định, tự kèm `users:read`; `users:manage-roles` vẫn chỉ owner.
+- [x] RBAC-FG-22 — `GET /admin/users` trả `permissions`, `permissionsVersion`, `customPermissions`, `permissionsGrantedBy`, `permissionsEditable` cho mọi người có `users:read` (trước chỉ owner); ghi quyền vẫn kiểm tra ở server.
+- [x] RBAC-FG-23 — Cột `granted_by` (`V17__permission_grant_provenance.sql` + initializer idempotent, không backfill) ghi một lần khi tạo bộ quyền; guard chặn `SELF_GRANT_FORBIDDEN` và `GRANTOR_PROTECTED` theo chuỗi người cấp (tối đa 16 bước, chống chu trình, fail closed).
+- [x] RBAC-FG-24 — Trình phân quyền có chế độ chỉ đọc (khóa ô, ẩn nút lưu/bộ mặc định, nêu ai đã cấp bộ quyền và ai sửa được); trang người dùng hiển thị người cấp bộ quyền và nhãn "Xem quyền"/"Phân quyền chi tiết" theo cờ server.
+- [x] RBAC-FG-25 — Test local: backend `npm test` **143 test / 142 pass / 1 skip (Turso) / 0 fail** (rbac-permissions 17 ca, +4 ca ủy nhiệm/provenance/chu trình/initializer); frontend **59 file / 464 pass**; hai typecheck frontend + `tsc --noEmit` backend qua. Đã chứng minh đỏ khi bỏ fix: bỏ guard chuỗi → 3 ca `GRANTOR_PROTECTED` đỏ; chỉ owner tải bộ quyền → ca hiển thị đỏ; thêm `permissions:manage` vào mặc định → ca danh mục đỏ; luôn truyền `readOnly=false` → ca chỉ-đọc đỏ.
+- [ ] RBAC-FG-26 — Chromium với API thật + deploy: owner cấp `permissions:manage` cho A, A cấp cho B và sửa được B nhưng không sửa được A/owner/chính mình; đồng quản trị không có quyền vẫn xem được bộ quyền của người khác; mobile không tràn ngang.
+- [ ] RBAC-FG-27 — Chủ dự án chọn người nhận `permissions:manage` trên production (sau deploy phải cấp thủ công; bộ mặc định không tự có).
 
 ## Lối vào đăng ký & chuyển động trang xác thực (2026-10-25)
 

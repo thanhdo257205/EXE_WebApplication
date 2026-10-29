@@ -697,3 +697,10 @@ CREATE TABLE assistant_prompt_requests (
     reviewed_at TEXT
 );
 CREATE INDEX ix_assistant_prompt_requests_status ON assistant_prompt_requests(status,created_at);
+
+-- V17__permission_grant_provenance.sql
+-- permissions:manage became delegable, so a grant now records who issued it. The upward guard reads
+-- this column: an account may never edit the permissions of anyone above it in the grant tree.
+-- granted_by is written only when the row is created and never rewritten, so a later tweak by
+-- somebody else cannot unlock an edit that points upward. Rows from before it are owner-written.
+ALTER TABLE admin_permission_sets ADD COLUMN granted_by TEXT REFERENCES app_users(id) ON DELETE SET NULL;

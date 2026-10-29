@@ -4,7 +4,8 @@ Tài liệu này mô tả nghiệp vụ phân quyền chi tiết (fine-grained R
 
 ## 1. Mục tiêu và phạm vi
 
-- Chỉ **admin chính (`OWNER`)** được cấp/thu hồi quyền chi tiết cho tài khoản quản trị khác.
+- **Admin chính (`OWNER`)**, hoặc người được cấp `permissions:manage`, được cấp/thu hồi quyền chi tiết cho tài khoản quản trị khác — trừ chính mình, admin chính và người đã cấp quyền cho mình (mục 6.1).
+- **Mọi đồng quản trị có `users:read` đều xem được** ai đang giữ bộ quyền cụ thể nào và ai đã cấp bộ quyền đó; xem là quyền đọc, không kèm quyền sửa.
 - Đồng quản trị (`DELEGATED`, vẫn giữ `app_users.role=ADMIN`) có thể bị giới hạn còn đúng một phần thao tác: thêm thẻ, sửa thẻ, thêm API key, sửa model, sắp xếp model, thu hồi API key, v.v.
 - Quyền được kiểm tra ở **máy chủ** trên mọi request; giao diện chỉ phản ánh quyền đã được cấp, không phải nguồn quyết định.
 - Không thay đổi luồng đăng ký/đăng nhập, không cấp quyền quản trị cho vai trò `CUSTOMER`, không thay đổi thanh toán hay dữ liệu nội dung hiện có.
@@ -14,8 +15,8 @@ Tài liệu này mô tả nghiệp vụ phân quyền chi tiết (fine-grained R
 
 | Vai trò hiệu lực | Cách xác định | Quyền chi tiết |
 | --- | --- | --- |
-| Admin chính (`OWNER`) | `app_users.role=ADMIN` và khớp `rbac_owner.user_id` | Toàn bộ quyền, kể cả 2 quyền chỉ owner. Không thể bị sửa bởi API. |
-| Đồng quản trị (`DELEGATED`) | `role=ADMIN`, không khớp owner | Bộ mặc định hoặc bộ tùy chỉnh do owner lưu. |
+| Admin chính (`OWNER`) | `app_users.role=ADMIN` và khớp `rbac_owner.user_id` | Toàn bộ quyền, kể cả `users:manage-roles`. Không thể bị sửa bởi API. |
+| Đồng quản trị (`DELEGATED`) | `role=ADMIN`, không khớp owner | Bộ mặc định hoặc bộ tùy chỉnh do owner/người có `permissions:manage` lưu. |
 | Thành viên (`CUSTOMER`/`EDITOR`) | role khác `ADMIN` | Không có quyền quản trị, không truy cập `/admin`. |
 
 Nguyên tắc bắt buộc:
@@ -23,10 +24,11 @@ Nguyên tắc bắt buộc:
 1. **Default deny**: không có quyền trong danh mục thì API trả `403 PERMISSION_REQUIRED`; riêng vai trò không phải ADMIN bị chặn sớm bởi `ADMIN_REQUIRED`/`AUTH_REQUIRED`.
 2. **Quyền đọc DB mỗi request**: JWT chỉ giữ `ver` (phiên bản tài khoản); không tin role/permission do client hoặc token tự khai.
 3. **Owner không bị phân quyền**: `PUT .../permissions` lên chính owner trả `403 OWNER_PROTECTED`; owner luôn có đủ quyền và không có bản ghi tùy chỉnh.
-4. **Hai quyền chỉ owner**: `users:manage-roles`, `permissions:manage`. Hai khóa này không thể gán cho đồng quản trị; payload chứa chúng bị từ chối.
-5. **Thay đổi quyền không thu hồi phiên**: quyền có hiệu lực từ request kế tiếp. Giao diện của người bị đổi quyền cần tải lại để cập nhật nav/nút; máy chủ vẫn chặn ngay.
-6. **Đổi vai trò thì xóa bộ tùy chỉnh**: nâng lên đồng quản trị hoặc hạ về thành viên đều xóa `admin_permission_sets` của tài khoản để tránh quyền cũ tồn đọng.
-7. **Tác giả được tự sửa/xóa phần mình tạo**: thiếu quyền sửa/xóa của module, tài khoản vẫn sửa/xóa được bản ghi do chính mình tạo, miễn còn `content:read`. Chi tiết ở mục 6.4; API key đã áp quy tắc tương tự từ trước.
+4. **Chỉ một quyền chỉ owner**: `users:manage-roles` (cấp/thu hồi đồng quản trị, lời mời). `permissions:manage` thì gán được và không nằm trong bộ mặc định, nên việc trao nó luôn là một hành động chủ đích.
+5. **Không sửa ngược lên trên**: người có `permissions:manage` không sửa được bộ quyền của chính mình (`SELF_GRANT_FORBIDDEN`) và của bất kỳ ai nằm trong chuỗi người đã cấp quyền cho mình (`GRANTOR_PROTECTED`). Chuỗi đọc từ cột `granted_by`, ghi một lần lúc tạo bộ quyền và không bao giờ bị ghi đè.
+6. **Thay đổi quyền không thu hồi phiên**: quyền có hiệu lực từ request kế tiếp. Giao diện của người bị đổi quyền cần tải lại để cập nhật nav/nút; máy chủ vẫn chặn ngay.
+7. **Đổi vai trò thì xóa bộ tùy chỉnh**: nâng lên đồng quản trị hoặc hạ về thành viên đều xóa `admin_permission_sets` của tài khoản để tránh quyền cũ tồn đọng.
+8. **Tác giả được tự sửa/xóa phần mình tạo**: thiếu quyền sửa/xóa của module, tài khoản vẫn sửa/xóa được bản ghi do chính mình tạo, miễn còn `content:read`. Chi tiết ở mục 6.4; API key đã áp quy tắc tương tự từ trước.
 
 ## 3. Danh mục quyền
 
@@ -95,20 +97,21 @@ Thông báo quản trị (chuông, stream, đánh dấu đã đọc) là tiện 
 
 | Mã quyền | Nghiệp vụ | API | Mặc định |
 | --- | --- | --- | --- |
-| `users:read` | Xem danh sách/tìm kiếm tài khoản | `GET /api/v1/admin/users` | Có |
+| `users:read` | Xem danh sách/tìm kiếm tài khoản, kèm bộ quyền hiệu lực và người đã cấp bộ quyền của từng đồng quản trị | `GET /api/v1/admin/users` | Có |
 | `users:manage-roles` | Cấp/thu hồi đồng quản trị, mời/thu hồi lời mời | `PUT .../users/:id/role`, `GET/POST/DELETE .../users/invites` | Chỉ owner |
-| `permissions:manage` | Lưu bộ quyền chi tiết cho đồng quản trị | `PUT .../users/:id/permissions` | Chỉ owner |
+| `permissions:manage` | Lưu bộ quyền chi tiết cho đồng quản trị khác (trừ chính mình và người đã cấp quyền cho mình); tự kèm `users:read` | `PUT .../users/:id/permissions` | Không |
 
-Hai quyền cuối không nằm trong danh mục gán được; owner nhận ngầm định. Danh sách tài khoản trả thêm dữ liệu quyền chi tiết chỉ cho owner.
+`users:manage-roles` không nằm trong danh mục gán được; owner nhận ngầm định. `permissions:manage` gán được cho đồng quản trị nhưng **không** thuộc bộ mặc định: tài khoản được nâng trước đây không tự có quyền này. Danh sách tài khoản trả bộ quyền chi tiết cho **mọi** người có `users:read`; cờ `permissionsEditable` của từng dòng mới quyết định người xem có được sửa hay không.
 
 ## 4. Bộ quyền mặc định của đồng quản trị
 
-Bộ mặc định giữ đúng hành vi trước khi có phân quyền chi tiết: toàn bộ quyền gán được **trừ** `assistant:keys:manage` và `assistant:prompt:update`. Cụ thể:
+Bộ mặc định giữ đúng hành vi trước khi có phân quyền chi tiết: toàn bộ quyền gán được **trừ** `assistant:keys:manage`, `assistant:prompt:update` và `permissions:manage`. Cụ thể:
 
 - Toàn bộ quyền nội dung, phản hồi, `users:read`, toàn bộ quyền trợ lý AI trừ hai quyền kể trên.
 - Đồng quản trị mặc định vẫn thêm key ở trạng thái chờ duyệt, tự xem/kiểm tra/thu hồi key của mình; không thấy key người khác, không duyệt key.
 - Đồng quản trị mặc định **chỉ gửi yêu cầu** sửa system prompt; prompt trong DB đổi khi owner hoặc người được cấp `assistant:prompt:update` duyệt yêu cầu đó.
-- Tài khoản không có bản ghi tùy chỉnh dùng bộ mặc định này. Khi owner lưu bộ quyền, bộ đó thay thế hoàn toàn bộ mặc định (không cộng dồn).
+- Đồng quản trị mặc định **xem** được bộ quyền của người khác nhưng không sửa được; `permissions:manage` phải được cấp riêng.
+- Tài khoản không có bản ghi tùy chỉnh dùng bộ mặc định này. Khi lưu bộ quyền, bộ đó thay thế hoàn toàn bộ mặc định (không cộng dồn).
 
 ## 5. Chuẩn hóa và phụ thuộc
 
@@ -120,25 +123,30 @@ Khi lưu, máy chủ thực hiện trong một transaction:
    - Bất kỳ `assistant:*` (trừ chính `assistant:read`) → thêm `assistant:read`.
    - Bất kỳ `assistant:keys:create|reveal|test|revoke|manage` → thêm `assistant:keys:read`, vì không thể thao tác trên key mà danh sách key không hiện ra.
    - `assistant:keys:manage` → thêm `assistant:keys:reveal`, `test`, `revoke` (quyền supervisor với mọi key, bao gồm cả key của chính mình).
+   - `permissions:manage` → thêm `users:read`, vì không thấy danh sách tài khoản thì không có đích để phân quyền.
 3. Sắp xếp theo thứ tự danh mục để kết quả ổn định, dễ so sánh/audit.
 4. `media:upload` **không** tự kèm khi cấp quyền thẻ/cư dân: người chỉ sửa chữ có thể không được tải ảnh. Giao diện hiển thị rõ để owner chọn thêm khi cần.
-5. Payload chứa khóa lạ → `400 INVALID_REQUEST`; chứa `users:manage-roles`/`permissions:manage` → `400 PERMISSION_NOT_GRANTABLE`.
+5. Payload chứa khóa lạ → `400 INVALID_REQUEST`; chứa `users:manage-roles` → `400 PERMISSION_NOT_GRANTABLE`.
 
 ## 6. Luồng nghiệp vụ
 
-### 6.1. Owner xem và sửa quyền
+### 6.1. Xem và sửa quyền
 
-1. Owner mở **Quản trị → Tài khoản cư dân** (`/admin/users`).
-2. Mỗi đồng quản trị có nút **Phân quyền chi tiết**; owner thấy số quyền đang có; tài khoản owner hiện "Toàn quyền — được bảo vệ".
-3. Bấm nút mở bảng quyền theo nhóm (Nội dung, Phản hồi, Trợ lý AI, Tài khoản), có mô tả từng quyền và đánh dấu quyền phụ thuộc.
-4. Chọn/bỏ chọn, bấm **Lưu phân quyền**; giao diện gửi `permissions` + `expectedVersion` của tài khoản đích.
-5. Server kiểm tra lại quyền owner + phiên, target, version; ghi audit; trả tài khoản đã cập nhật. Giao diện cập nhật danh sách và thông báo.
-6. Nếu người bị đổi quyền đang đăng nhập, request kế tiếp của họ dùng quyền mới; giao diện của họ cập nhật sau khi tải lại trang hoặc mở lại khu quản trị.
+Ai có `users:read` cũng mở **Quản trị → Tài khoản cư dân** (`/admin/users`) và thấy, với từng đồng quản trị, số quyền đang giữ, loại bộ quyền (mặc định/tùy chỉnh) và **người đã cấp** bộ đó. Tài khoản owner hiện "Toàn quyền — được bảo vệ".
+
+1. Nút **Xem quyền** mở bảng quyền theo nhóm (Nội dung, Phản hồi, Trợ lý AI, Tài khoản) ở chế độ chỉ đọc: mọi ô bị khóa, không có nút lưu, kèm câu "Bộ này do *người đã cấp* cấp. Chỉ admin chính hoặc người có quyền phân quyền mới sửa được."
+2. Người có `permissions:manage` thấy nút **Phân quyền chi tiết** trên những dòng mà máy chủ trả `permissionsEditable=true` (mọi đồng quản trị đang hoạt động, trừ admin chính, chính họ và người đã cấp quyền cho họ).
+3. Chọn/bỏ chọn, bấm **Lưu phân quyền**; giao diện gửi `permissions` + `expectedVersion` của tài khoản đích.
+4. Server kiểm tra lại `permissions:manage` + phiên trong transaction, rồi mới xét owner đích, tự-sửa, chuỗi người cấp, target và version; ghi audit; trả tài khoản đã cập nhật. Giao diện cập nhật danh sách và thông báo.
+5. Nếu người bị đổi quyền đang đăng nhập, request kế tiếp của họ dùng quyền mới; giao diện của họ cập nhật sau khi tải lại trang hoặc mở lại khu quản trị.
+6. Phân cấp: A cấp `permissions:manage` cho B thì B sửa được bộ quyền của mọi đồng quản trị khác — kể cả người không liên quan trong cây quyền — **trừ** A (người đã cấp quyền cho B; thực tế chặn cả chuỗi phía trên A), chính B, và admin chính. Quan hệ ngang hàng (cùng do một người cấp) sửa được của nhau.
 
 ### 6.2. Quy tắc trạng thái
 
 - Tài khoản đích phải đang hoạt động và là `ADMIN`; nếu không: `409 ACCOUNT_DISABLED` hoặc `409 TARGET_NOT_ADMIN`.
-- Không sửa owner: `403 OWNER_PROTECTED`.
+- Không sửa owner: `403 OWNER_PROTECTED`. Không tự sửa: `403 SELF_GRANT_FORBIDDEN`. Sửa ngược lên người đã cấp quyền cho mình: `403 GRANTOR_PROTECTED`.
+- Người gọi thiếu `permissions:manage`: `403 PERMISSION_REQUIRED` (kể cả khi đã từng có và vừa bị thu hồi).
+- `granted_by` chỉ ghi khi tạo bộ quyền. Owner viết lại một bộ do người khác cấp thì `updated_by` đổi còn `granted_by` giữ nguyên, nên lần sửa sau vẫn không mở được đường sửa ngược lên người cấp cũ.
 - `expectedVersion` không khớp: `409 VERSION_CONFLICT`; giao diện buộc tải lại danh sách trước khi thử tiếp, không tự retry.
 - Bộ quyền không đổi: trả `changed=false`, không tăng version, không ghi audit.
 - Lưu thành công: tăng `version`, ghi `USER_PERMISSIONS_CHANGED` trong cùng transaction; audit lỗi thì rollback toàn bộ.
@@ -179,7 +187,7 @@ System prompt chuyển từ code sang DB để chỉnh trong **Quản trị → 
 
 `PUT /api/v1/admin/users/:id/permissions`
 
-Quyền gọi: owner (`permissions:manage`). Yêu cầu phiên hợp lệ, CSRF và origin/proxy guard như mọi API ghi admin.
+Quyền gọi: `permissions:manage` (owner luôn có). Yêu cầu phiên hợp lệ, CSRF và origin/proxy guard như mọi API ghi admin.
 
 ```json
 { "permissions": ["content:read", "cards:create", "media:upload"], "expectedVersion": 0 }
@@ -187,16 +195,16 @@ Quyền gọi: owner (`permissions:manage`). Yêu cầu phiên hợp lệ, CSRF 
 
 - `permissions`: mảng khóa trong danh mục, tối đa 64; được chuẩn hóa như mục 5.
 - `expectedVersion`: `permissionsVersion` đọc từ danh sách tài khoản (`0` nếu chưa có bộ tùy chỉnh).
-- Trả `200 { account, changed }`; `account` gồm `permissions`, `permissionsVersion`, `customPermissions`.
-- Payload có trường lạ → `400 INVALID_REQUEST`; khóa không gán được → `400 PERMISSION_NOT_GRANTABLE`; thiếu quyền → `403 OWNER_REQUIRED`; owner đích → `403 OWNER_PROTECTED`; target không phải admin/đã khóa → `409 TARGET_NOT_ADMIN`/`409 ACCOUNT_DISABLED`; version lệch → `409 VERSION_CONFLICT`.
+- Trả `200 { account, changed }`; `account` gồm `permissions`, `permissionsVersion`, `customPermissions`, `permissionsGrantedBy`, `permissionsEditable`.
+- Payload có trường lạ → `400 INVALID_REQUEST`; khóa không gán được → `400 PERMISSION_NOT_GRANTABLE`; thiếu quyền → `403 PERMISSION_REQUIRED`; owner đích → `403 OWNER_PROTECTED`; tự sửa → `403 SELF_GRANT_FORBIDDEN`; đích là người đã cấp quyền cho mình → `403 GRANTOR_PROTECTED`; target không phải admin/đã khóa → `409 TARGET_NOT_ADMIN`/`409 ACCOUNT_DISABLED`; version lệch → `409 VERSION_CONFLICT`.
 
 ### 7.2. Danh sách tài khoản
 
 `GET /api/v1/admin/users` trả thêm:
 
-- `canManagePermissions` (boolean): requester là owner.
-- Với mỗi tài khoản `ADMIN`, khi requester là owner: `permissions` (quyền hiệu lực), `permissionsVersion`, `customPermissions` (đang dùng bộ tùy chỉnh hay mặc định).
-- Không trả các trường này cho đồng quản trị khác; không trả hash/mật khẩu/google subject.
+- `canManagePermissions` (boolean): requester có `permissions:manage`.
+- Với **mỗi** tài khoản `ADMIN`, cho **mọi** người gọi có `users:read`: `permissions` (quyền hiệu lực), `permissionsVersion`, `customPermissions` (đang dùng bộ tùy chỉnh hay mặc định), `permissionsGrantedBy` (tên người đã cấp bộ quyền; `null` nghĩa là do owner hoặc bộ mặc định) và `permissionsEditable` (người xem được sửa dòng này hay không).
+- Không trả hash/mật khẩu/google subject, không trả `granted_by` dạng id.
 
 ### 7.3. Bảng áp quyền tóm tắt
 
@@ -212,8 +220,9 @@ Quyền gọi: owner (`permissions:manage`). Yêu cầu phiên hợp lệ, CSRF 
 | Sửa cấu hình trợ lý | Mỗi trường yêu cầu quyền tương ứng; trường không đổi không bị kiểm tra |
 | API key của mình | `assistant:keys:read/create/reveal/test/revoke` |
 | API key của người khác | `assistant:keys:manage` |
-| Danh sách tài khoản | `users:read` |
-| Đổi vai trò, lời mời, phân quyền | Owner |
+| Danh sách tài khoản | `users:read` (kèm bộ quyền của từng người) |
+| Đổi vai trò, lời mời | Owner (`users:manage-roles`) |
+| Lưu phân quyền | `permissions:manage`; không áp cho chính mình, admin chính hay người đã cấp quyền cho mình |
 
 Khi PUT cấu hình trợ lý gửi nhiều trường, server so sánh với cấu hình hiện tại và chỉ kiểm tra quyền cho các trường **thực sự thay đổi**; thiếu bất kỳ quyền nào trong số đó → `403 PERMISSION_REQUIRED`, không áp dụng phần nào.
 
@@ -227,7 +236,7 @@ Giao diện không tự suy ra quyền từ danh sách khóa; mỗi API trả s�
 | `GET /admin/assistant/keys` | `canManage`, `canCreate`, `storageAvailable`, `limits` |
 | `GET /admin/assistant/prompt` | `canUpdate`, `canRequest`; `pending` chỉ có với người duyệt, `myRequests` luôn là yêu cầu của chính mình |
 | Mỗi item trong `GET /admin/assistant/keys` | `canReveal`, `canTest`, `canRevoke`, `canManageStatus` (key của mình hay key của người khác) |
-| `GET /admin/users` | `canManagePermissions` + `permissions`, `permissionsVersion`, `customPermissions` từng tài khoản ADMIN |
+| `GET /admin/users` | `canManagePermissions` + `permissions`, `permissionsVersion`, `customPermissions`, `permissionsGrantedBy`, `permissionsEditable` từng tài khoản ADMIN |
 
 Quy tắc nối tiếp ở trang trợ lý: khi không có `assistant:models:reorder`, payload PUT gửi lại `order` nguyên văn như bản đã tải (không append nhà cung cấp chưa liệt kê, vì append sẽ bị tính là đổi thứ tự và chặn `403`); khi không có `assistant:usage:read`, hạn mức theo key vẫn lưu đủ cho mọi key kể cả key của admin khác, chỉ là không trừ số token đã dùng.
 
@@ -237,7 +246,8 @@ Quy tắc nối tiếp ở trang trợ lý: khi không có `assistant:models:reo
 
 - **Nav quản trị** chỉ hiện mục người dùng có quyền: Thẻ/Cư dân/Wiki/Hệ thống cần `content:read`; Tài khoản cư dân cần `users:read`; Trợ lý AI cần `assistant:read`. Tổng quan luôn hiện. Các mục chưa có API quản trị thật (kho, đơn hàng, thanh toán) giữ nguyên cho mọi ADMIN.
 - **Route guard** kiểm tra quyền tương ứng; vào thẳng URL không đủ quyền bị chuyển về `/admin` kèm thông báo, hoặc về đăng nhập nếu chưa có phiên.
-- **Trang người dùng**: owner có trình phân quyền; đồng quản trị chỉ đọc và thấy "Chỉ admin chính".
+- **Trang người dùng**: mọi người đọc danh sách thấy bộ quyền của từng đồng quản trị và người đã cấp bộ đó, mở được bảng quyền ở chế độ chỉ đọc. Người có `permissions:manage` thấy nút **Phân quyền chi tiết** chỉ trên các dòng máy chủ trả `permissionsEditable=true`; dòng khác hiện **Xem quyền**. Bảng chỉ đọc khóa mọi ô và ẩn nút lưu, không có bộ mặc định/bỏ hết.
+- Lỗi `403` khi lưu được ánh xạ riêng cho `OWNER_PROTECTED`, `SELF_GRANT_FORBIDDEN`, `GRANTOR_PROTECTED`, `PERMISSION_REQUIRED`, và trang khóa lại quyền phân quyền sau lần từ chối đó.
 - **Trang thẻ/cư dân/wiki**: form tạo bản phát hành, nhân bản, tạo thẻ, tạo bộ thẻ và panel import Excel bị ẩn theo `releases:create`, `releases:clone`, `cards:create`, `card-sets:create`; import chỉ mở khi có cả `card-sets:create` và `cards:create`. Nút **Xuất bản** chỉ hiện trên bản nháp khi có `releases:publish`, kèm hộp xác nhận nêu rõ bản đang công khai sẽ bị lưu trữ; import có ảnh nhúng bị chặn ngay ở bước kiểm tra với thông báo nêu tên quyền thiếu. Ô tải ảnh (`app-card-image-upload`) thay bằng ghi chú khi thiếu `media:upload`. Method ghi (`createRelease`, `createCardSet`, `saveCard`, `submitCloneToDraft`, `submitPublish`, `submitCardImport`, các toggle) đều kiểm tra lại quyền trước khi gọi API.
 - **Trang trợ lý AI**: nút sắp xếp, ô model, ô hạn mức, công tắc slot và tab số liệu bật/tắt theo từng cờ ở mục 7.4; form thêm key ẩn khi thiếu `assistant:keys:create`; mỗi dòng key chỉ hiện nút đổi trạng thái/thu hồi theo `canManageStatus` và `canRevoke` của chính key đó.
 - Sau khi lưu quyền, giao diện của người bị ảnh hưởng có thể còn hiển thị nút cũ tới khi tải lại; API vẫn trả `403 PERMISSION_REQUIRED`. Khi gặp lỗi này, tải lại trang để đồng bộ.
@@ -247,9 +257,11 @@ Quy tắc nối tiếp ở trang trợ lý: khi không có `assistant:models:reo
 
 - Audit `USER_PERMISSIONS_CHANGED` (entity `USER`, outcome `SUCCESS`) trong cùng transaction với thay đổi; chi tiết chỉ gồm `added`, `removed`, `version` — không ghi secret/token.
 - Không tin `permissions` từ JWT, body đăng ký/đăng nhập hay localStorage; mọi kiểm tra đọc từ DB.
-- Owner-only guard kiểm tra lại trong transaction ghi để tránh race với thay đổi vai trò.
+- Quyền `permissions:manage` được kiểm tra lại trong transaction ghi (không tin cờ giao diện), cùng với owner đích, tự-sửa và chuỗi người cấp.
+- Chuỗi người cấp đọc từ DB theo từng request, giới hạn 16 bước và dừng khi gặp lại một id (dữ liệu chu trình); vượt giới hạn thì fail closed bằng `403 GRANTOR_PROTECTED` chứ không đoán.
 - Quyền bị thu hồi có hiệu lực ngay ở request kế tiếp dù JWT còn hạn.
 - Không tạo API chuyển owner, không cho owner tự hạ quyền qua API phân quyền.
+- `granted_by` là dữ liệu kiểm soát quyền, không phải lịch sử: chỉ ghi lúc tạo và không có API nào sửa nó; owner viết lại bộ quyền chỉ đổi `updated_by`.
 - Khi rollback runtime: giữ bảng `admin_permission_sets` và audit; không xóa dữ liệu quyền đã cấu hình. Code cũ bỏ qua bảng này và quay về bộ mặc định cũ.
 
 ## 10. Dữ liệu
@@ -262,12 +274,15 @@ CREATE TABLE admin_permission_sets (
     permissions TEXT NOT NULL,              -- JSON array, đã chuẩn hóa
     version INTEGER NOT NULL DEFAULT 1 CHECK (version >= 1),
     updated_by TEXT REFERENCES app_users(id) ON DELETE SET NULL,
+    granted_by TEXT REFERENCES app_users(id) ON DELETE SET NULL,  -- V17: người cấp bộ quyền, ghi một lần
     updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000Z','now'))
 );
 ```
 
 - Không có dòng = dùng bộ mặc định của đồng quản trị.
 - Không sửa `runtime_schema`, không đổi enum role, không đụng dữ liệu nội dung/thanh toán.
+- `granted_by` thêm bằng `V17__permission_grant_provenance.sql` (đồng thời chạy idempotent lúc boot vì SQLite không có `ADD COLUMN IF NOT EXISTS`). **Không backfill**: dòng cũ giữ `NULL` = do owner cấp, và điều đó chỉ làm guard chặt hơn, không nới quyền.
+- `ON DELETE SET NULL` ở cả hai cột người dùng: xóa tài khoản không kéo theo bộ quyền; `NULL` sau đó vẫn fail closed.
 
 Cột bổ sung cho quyền tác giả (migration `V14__content_authorship.sql` + khởi tạo idempotent lúc boot, vì SQLite không có `ADD COLUMN IF NOT EXISTS`):
 
@@ -286,10 +301,10 @@ Bảng system prompt (migration `V16__assistant_prompt.sql` + `initializeAssista
 
 ## 11. Tiêu chí nghiệm thu
 
-- Owner phân quyền cho đồng quản trị; đồng quản trị chỉ gọi được đúng API được cấp, API khác trả `403 PERMISSION_REQUIRED` (kể cả gọi trực tiếp, bỏ qua giao diện).
-- Đồng quản trị không thể tự nâng quyền, không sửa owner, không gán quyền cho người khác.
-- Bộ mặc định giữ nguyên hành vi cũ; dữ liệu production không đổi ngoài bảng mới.
-- Quyền phụ thuộc (`content:read`, `assistant:read`) được tự thêm và hiển thị đúng.
+- Người có `permissions:manage` phân quyền được cho các đồng quản trị khác; không tự nâng quyền, không sửa owner, không sửa ngược lên người đã cấp quyền cho mình; mọi API khác vẫn trả `403 PERMISSION_REQUIRED` (kể cả gọi trực tiếp, bỏ qua giao diện).
+- Mọi đồng quản trị có `users:read` thấy đúng bộ quyền của từng người và người đã cấp; bảng quyền mở ở chế độ chỉ đọc, không có thao tác ghi nào lọt qua.
+- Bộ mặc định giữ nguyên hành vi cũ và **không** tự chứa `permissions:manage`; dữ liệu production không đổi ngoài cột mới.
+- Quyền phụ thuộc (`content:read`, `assistant:read`, `users:read`) được tự thêm và hiển thị đúng.
 - Đồng quản trị thiếu quyền sửa/xóa vẫn sửa/xóa được bản ghi do chính mình tạo khi còn `content:read`; không sửa/xóa được của người khác; mất `content:read` thì phần của mình cũng bị khóa.
 - Thay đổi quyền có audit, chịu kiểm soát version, rollback khi audit lỗi; không làm mất phiên người dùng.
 - Xuất bản chỉ thành công khi có `releases:publish`; bản nháp rỗng bị từ chối, version lệch trả `409`, bản đang công khai được lưu trữ và vẫn đọc được theo mã.
@@ -344,3 +359,14 @@ Ghi chú kỹ thuật:
 - Trong cùng phiên đo, một agent khác đang thêm quyền `permissions:manage` vào danh mục; test danh mục của đợt này được viết lại để chỉ chốt đúng hai quyền prompt thay vì chốt toàn bộ danh sách khác-mặc-định, tránh đỏ dây chuyền khi danh mục mở rộng.
 - Số liệu lượt chạy: backend `npm test` **143 test / 142 pass / 1 skip (Turso) / 0 fail**; frontend `admin-assistant.page.spec.ts` **49/49**; `tsc --noEmit` sạch ở cả ba cấu hình; `ng build --configuration production` exit 0, 0 cảnh báo budget.
 - Deploy: PR **#42** merge `main` tại **`1f2d58c`**; CI main `40857774665` xanh 4/4, CD `40857922834` xanh 2/2 (Pages `117227f9`, Render nhận đúng `1f2d58c`). Sau deploy: `/api/v1/info` trả `1f2d58c…` (`storage: turso`), `/actuator/health` 200, `/admin/assistant` 200, `GET /api/v1/admin/assistant/prompt` không phiên trả `401 AUTH_REQUIRED`; chunk Pages `chunk-DLoe1Aw2.js` chứa "Lưu trực tiếp", "Gửi yêu cầu sửa", "Hàng chờ duyệt", "Duyệt và lưu".
+
+## 15. Kiểm chứng đợt phân quyền ủy nhiệm (2026-10-29)
+
+Code hoàn tất ở local, **chưa commit/push/deploy** và **chưa kiểm tra bằng trình duyệt với API thật**.
+
+Danh mục tăng lên **36 quyền**; `permissions:manage` trở thành quyền gán được nhưng không nằm trong bộ mặc định và tự kèm `users:read`. `users:manage-roles` vẫn chỉ owner.
+
+- Backend: `tsc --noEmit` qua. `npm test` **143 test / 142 pass / 1 skip (Turso remote) / 0 fail**; riêng `test/rbac.test.ts` + `test/rbac-permissions.test.ts` là **33 pass**. `rbac-permissions.test.ts` có 17 ca, thêm 4: (1) người có quyền phân quyền cấp tiếp cho người dưới, sửa được bộ của người mình cấp, bị `SELF_GRANT_FORBIDDEN`/`OWNER_PROTECTED`/`GRANTOR_PROTECTED` đúng chỗ, sửa ngang hàng được, người không có quyền bị `PERMISSION_REQUIRED`, owner vẫn sửa trên mọi bộ, audit ghi đúng người thao tác; (2) owner viết lại bộ đã cấp thì `updated_by` đổi, `granted_by` không đổi, đường sửa ngược vẫn bị chặn, hạ vai trò xóa cả dòng; (3) chuỗi người cấp bị tạo vòng ngoài API vẫn dừng và bảo vệ đúng người cấp; (4) initializer thêm cột `granted_by` cho DB cũ và chạy lại lần hai không lỗi.
+- Frontend: `tsc` cả hai cấu hình qua; `ng test --watch=false` **59 file / 464 test pass**. `admin-users.page.spec.ts` 27 ca (thêm ca chỉ-đọc, ca cờ `permissionsEditable`, ca ánh xạ 3 mã lỗi sửa ngược), `admin-permission-editor.component.spec.ts` 11 ca (thêm 3 ca chỉ-đọc/quyền phụ thuộc), `permission-catalog.spec.ts` giữ 7 ca.
+- Chứng cứ test hồi quy đỏ khi bỏ fix (đo thật rồi khôi phục): (a) bỏ dòng kiểm tra `grantorChain` → 3 ca đỏ đúng `expected: 403` ở `GRANTOR_PROTECTED`; (b) giới hạn danh sách quyền như cũ (chỉ owner tải bộ quyền) → ca người đọc thấy bộ quyền đỏ (`expected: ['content:read','cards:update','users:read']`); (c) đưa `permissions:manage` vào bộ mặc định (backend và frontend) → ca danh mục đỏ ở cả hai phía; (d) truyền `[readOnly]="false"` vào trình phân quyền → ca chỉ-đọc đỏ vì nút lưu xuất hiện.
+- Ghi chú vận hành: sau deploy, owner cần **cấp thủ công** `permissions:manage` cho người được ủy nhiệm; tài khoản đang có bộ mặc định sẽ không tự nhận quyền này.
