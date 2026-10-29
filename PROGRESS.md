@@ -4,7 +4,7 @@
 
 ## Cập nhật gần nhất
 
-### Ủy nhiệm quyền phân quyền: đồng quản trị xem được bộ quyền của nhau, người được cấp thì sửa được cấp dưới — 2026-10-29 (local, chưa commit/push/deploy)
+### Ủy nhiệm quyền phân quyền: đồng quản trị xem được bộ quyền của nhau, người được cấp thì sửa được cấp dưới — 2026-10-29 (đã deploy `e3a8237`, PR #43)
 
 - Yêu cầu của chủ dự án: "Tôi muốn các đồng admin khác có thể xem được ai có quyền được cấp cụ thể nào nhé, nhưng không được chỉnh sửa, chỉ admin chính hoặc ai được cấp quyền đó mới được cấp quyền sửa quyền của người khác trừ người cấp quyền cho họ".
 - Đọc quyền: `GET /api/v1/admin/users` trả `permissions`, `permissionsVersion`, `customPermissions`, `permissionsGrantedBy`, `permissionsEditable` cho **mọi** tài khoản ADMIN với **mọi** người gọi có `users:read` (trước chỉ owner). Trang `/admin/users` thêm cột tóm tắt "N quyền (bộ tùy chỉnh) · do X cấp" và nút **Xem quyền** mở cùng bảng quyền ở chế độ chỉ đọc (khóa mọi ô, ẩn nút lưu/bộ mặc định, nêu tên người sửa được).
@@ -14,6 +14,10 @@
 - Kiểm thử: backend `tsc --noEmit` sạch, `npm test` **143 test / 142 pass / 1 skip (Turso) / 0 fail**; `rbac-permissions.test.ts` 17 ca, thêm 4 ca (ủy nhiệm xuống + các mã chặn + audit đúng người thao tác; provenance không đổi khi owner ghi lại; chuỗi bị tạo vòng ngoài API vẫn dừng; initializer thêm cột cho DB cũ). Frontend hai `tsc --noEmit` sạch, `ng test --watch=false` **59 file / 464 test pass** (users page 27, permission editor 11, catalog 7).
 - Chứng cứ test hồi quy đỏ khi bỏ fix (đo thật rồi khôi phục): bỏ kiểm tra chuỗi → 3 ca đỏ ở `GRANTOR_PROTECTED`; giới hạn danh sách quyền như cũ → ca người đọc thấy bộ quyền đỏ; thêm `permissions:manage` vào bộ mặc định (backend và frontend) → ca danh mục đỏ; luôn truyền `readOnly=false` → ca chỉ-đọc đỏ vì nút lưu xuất hiện.
 - Chưa commit/push/deploy. Sau deploy, owner phải **cấp thủ công** `permissions:manage` cho người được ủy nhiệm và chủ dự án cần chốt danh sách người nhận.
+- Phát hành: hai commit `59ea8dd` (code + test) và `64c4824` (tài liệu), đẩy lên `GLM-5.3`, PR #43 xanh cả 3 job CI ở cả hai lượt chạy, merge commit `e3a8237`. CD 40859229385 success với đủ bước thật: Worker → Render đúng commit đã test → Pages artifact → smoke production. Baseline trước deploy là `1f2d58c` (turso).
+- Nghiệm thu production sau deploy (chỉ đọc + một lần ghi bị từ chối, không đổi dữ liệu): `/api/v1/info` trả `commit=e3a8237f98e5f1674c15a3e775258586c9978aa6`, `storage=turso`; SPA `/` 200; `GET /api/v1/admin/users` thiếu phiên 401. Với phiên owner (JWT ký cục bộ từ env, không ghi ra file/log): `canManagePermissions=true`, owner 37 quyền; ba đồng quản trị trả đủ `permissions`/`permissionsVersion`/`permissionsGrantedBy`/`permissionsEditable`, không ai có `permissions:manage`, hai bộ tùy chỉnh cũ có `granted_by=NULL` (đúng thiết kế: cột mới không backfill).
+- Với phiên một đồng quản trị **không** có `permissions:manage`: `GET /api/v1/admin/users` 200, `canManagePermissions=false`, vẫn thấy `permissions` + `permissionsGrantedBy` của mọi ADMIN, mọi `permissionsEditable=false`; `PUT /api/v1/admin/users/:id/permissions` trả `403 PERMISSION_REQUIRED` (payload gửi đúng bộ hiện tại của đích nên kể cả guard hỏng cũng chỉ là no-op).
+- Còn mở: nghiệm thu giao diện `/admin/users` trên production bằng trình duyệt và một lần owner cấp thật `permissions:manage` cho người được chọn (FG-26, FG-27).
 
 ### System prompt của trợ lý chuyển vào DB, sửa qua dashboard có duyệt — 2026-10-29 (local, code đã commit `6511fef`; lượt kiểm chứng browser + 1 fix hồi quy chưa commit)
 
