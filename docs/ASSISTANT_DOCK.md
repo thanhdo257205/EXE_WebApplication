@@ -115,6 +115,21 @@ Trước đây system prompt nằm cứng trong `assistant.ts`; nay nó là mộ
 
 Quyền liên quan và hàng đợi duyệt: mục 6.5 của [docs/RBAC_PERMISSIONS.md](docs/RBAC_PERMISSIONS.md).
 
+**Kiểm chứng bằng trình duyệt (local, 2026-10-29)** — stack sqlite throwaway + `fetch` giả (không gọi provider thật), owner dummy và co-admin dummy:
+
+| Bước | Thao tác | Kết quả đo |
+| --- | --- | --- |
+| 1 | Owner lưu trực tiếp | Nút "Lưu trực tiếp" hiện; DB v1, template 162 ký tự |
+| 2 | Hỏi trợ lý | Provider nhận `chars=1663` mở đầu bằng template vừa lưu (không phải bản ship) |
+| 3 | Co-admin mở tab | Chỉ "Gửi yêu cầu sửa" + "Điền mẫu mặc định"; không nút lưu, không hàng chờ |
+| 4 | Co-admin `PUT` thẳng | `403 PERMISSION_REQUIRED` |
+| 5 | Co-admin gửi yêu cầu | DB **vẫn v1**; request PENDING `base_version=1`; audit ghi nhận |
+| 6 | Owner mở tab | Badge "1 chờ duyệt" + hàng chờ có lý do và nút Duyệt/Từ chối |
+| 7 | Owner duyệt | DB v2 = bản đề xuất, `reviewed_by`=owner, request `APPROVED`, hàng chờ 0 |
+| 8 | Hỏi trợ lý | Provider log `chars=1593` mở đầu "YEU CAU TUA CO-ADMIN: …", `{TAI_LIEU}` đã thay, không còn token sót |
+
+Lỗi UX phát hiện khi đo: sau khi duyệt, textarea vẫn giữ draft cũ nên "Lưu trực tiếp" sẽ ghi đè bản vừa duyệt — đã đổi sang nạp lại bản vừa duyệt kèm test hồi quy. Số liệu: backend `npm test` **143 / 142 pass / 1 skip / 0 fail**, frontend file spec của trang **49/49**, `ng build --configuration production` exit 0, 0 cảnh báo budget.
+
 ## Mã nguồn
 
 | File | Vai trò |

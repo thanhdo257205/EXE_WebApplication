@@ -2,6 +2,18 @@
 
 Cập nhật: 2026-10-29 (Asia/Saigon).
 
+## System prompt trong DB, sửa có duyệt — 2026-10-29 (local, code đã commit `6511fef`; kiểm chứng + 1 fix hồi quy chưa commit)
+
+- [x] ASSISTANT-PROMPT-01 — Bảng `assistant_prompt` một dòng `slot=1` (template, version, updated_by, updated_at) + `assistant_prompt_requests`; initializer idempotent cho DB cũ (V16). Không có dòng nào thì dùng `DEFAULT_PROMPT_TEMPLATE` trong code, đúng nội dung đã ship nên deploy đầu tiên không đổi hành vi.
+- [x] ASSISTANT-PROMPT-02 — Bốn route trong [assistant-prompt.ts](backend/server/src/assistant-prompt.ts): đọc, lưu trực tiếp, gửi yêu cầu, duyệt/từ chối. **Không có route xoá**; "Điền mẫu mặc định" chỉ chép lại template ship trong code. Validate: `{TAI_LIEU}` bắt buộc (`PROMPT_MISSING_DOCUMENTS`), sai hoa/thường hoặc dùng dấu cách (`PROMPT_TOKEN_CASE`), tối đa 6000 ký tự; `expectedVersion` chống ghi đè (`VERSION_CONFLICT`, `REQUEST_NOT_PENDING`).
+- [x] ASSISTANT-PROMPT-03 — RBAC: `assistant:prompt:request` thuộc bộ mặc định của đồng quản trị, `assistant:prompt:update` **không** thuộc bộ mặc định; hàng chờ chỉ trả cho người có quyền sửa; duyệt mới ghi DB; audit `ASSISTANT_PROMPT_UPDATED`/`_REQUESTED`/`_REQUEST_APPROVED`/`_REQUEST_REJECTED`.
+- [x] ASSISTANT-PROMPT-04 — Tab "System prompt" trong dashboard: textarea chỉ đọc khi thiếu quyền, đếm ký tự, danh sách token có chip "bắt buộc", nút theo quyền, hàng chờ duyệt có Duyệt/Từ chối + lý do, "Yêu cầu của bạn" hiện trạng thái và phản hồi của người duyệt; tab tự ẩn khi tài khoản không có `assistant:read`.
+- [x] ASSISTANT-PROMPT-05 — Hiệu lực tức thì: cache prompt 30 s + `cache.clear()` sau mỗi ghi; key cache câu trả lời chứa `p<version>` nên prompt mới không dùng lại câu trả lời cũ; API công khai không trả template.
+- [x] ASSISTANT-PROMPT-06 — Nghiệm thu browser local (sqlite throwaway + `fetch` giả, không gọi provider thật): owner lưu trực tiếp → v1 → chat gửi đúng template 1663 ký tự; co-admin 33 quyền chỉ thấy "Gửi yêu cầu sửa", gọi thẳng `PUT` bị `403 PERMISSION_REQUIRED`, gửi yêu cầu xong **DB vẫn v1**; owner thấy badge "1 chờ duyệt", duyệt → DB v2 đúng bản đề xuất, request `APPROVED`, audit ghi nhận; chat sau đó gửi bản v2 (provider log 1593 ký tự, `{TAI_LIEU}` đã thay, không còn token sót).
+- [x] ASSISTANT-PROMPT-07 — Sửa lỗi UX do nghiệm thu: sau khi duyệt, ô soạn vẫn giữ draft cũ nên bấm "Lưu trực tiếp" sẽ ghi đè bản vừa duyệt → đổi sang nạp lại bản mới ([admin-assistant.page.ts](frontend/src/app/features/admin/assistant/admin-assistant.page.ts)); test hồi quy đỏ khi bỏ fix, xanh khi giữ.
+- [x] ASSISTANT-PROMPT-08 — Kiểm thử/typecheck: backend `tsc --noEmit` sạch + `npm test` **143 / 142 pass / 1 skip / 0 fail** (gồm test của agent khác đang làm `permissions:manage`); frontend hai `tsc --noEmit` sạch, `admin-assistant.page.spec.ts` **49/49**; build production exit 0, **0 cảnh báo budget**, `admin-assistant.prompt.css` **3.020 B** sau minify.
+- [ ] ASSISTANT-PROMPT-09 — Push/PR/deploy và nghiệm thu production.
+
 ## Trợ lý AI dạng popup toàn trang — 2026-10-29 (local, đã commit `6511fef`, chưa push/deploy)
 
 - [x] ASSISTANT-DOCK-01 — Mount `app-assistant-dock` một lần trong shell công khai bằng `@defer (on idle)` sau `<main>` ([app.html:95-98](frontend/src/app/app.html#L95)); panel nổi góc phải dưới 404px, toàn màn hình ≤560px, `z-index: 70`, dialog không modal (`aria-modal="false"`), Escape đóng và trả focus về launcher. Ẩn ở `/admin/*` và `/tro-ly`; link "Trang đầy đủ" mở `/tro-ly`.

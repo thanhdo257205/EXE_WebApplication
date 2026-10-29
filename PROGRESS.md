@@ -4,6 +4,31 @@
 
 ## Cập nhật gần nhất
 
+### System prompt của trợ lý chuyển vào DB, sửa qua dashboard có duyệt — 2026-10-29 (local, code đã commit `6511fef`; lượt kiểm chứng browser + 1 fix hồi quy chưa commit)
+
+- Yêu cầu của chủ dự án: "không có xóa system prompt nhé, chỉ có sửa thôi, và ai được admin cấp quyền sửa thì mới được sửa trực tiếp nhé, quyền mặc định là yêu cầu sửa sau khi đã sửa, và admin chính hay admin có quyền sửa nhận được yêu cầu, sau đó system prompt trong DB mới được update nhé".
+- Backend: bảng `assistant_prompt` một dòng `slot=1` ([schema.sql](backend/server/schema.sql) V16, initializer idempotent); mọi route trong [assistant-prompt.ts](backend/server/src/assistant-prompt.ts) — `GET/PUT /api/v1/admin/assistant/prompt`, `POST /requests`, `POST /requests/:id/approve|reject`. Không có route xoá: bản đang dùng luôn bị **thay**, không bao giờ bị bỏ trống. `{TAI_LIEU}` bắt buộc (`400 PROMPT_MISSING_DOCUMENTS`), viết sai hoa/thường hoặc dùng dấu cách thay gạch dưới (`{Tai Lieu}`, `{tai_lieu}`) trả `400 PROMPT_TOKEN_CASE` thay vì âm thầm bỏ khối tài liệu; `{PHIEN_BAN}` tùy chọn; tối đa 6000 ký tự.
+- RBAC: hai quyền mới `assistant:prompt:request` (mặc định của đồng quản trị) và `assistant:prompt:update` (chỉ khi owner cấp). Người không có quyền sửa vẫn gửi được yêu cầu; hàng chờ chỉ trả cho người có `assistant:prompt:update`; duyệt mới ghi DB, kèm audit `ASSISTANT_PROMPT_UPDATED` / `_REQUESTED` / `_REQUEST_APPROVED` / `_REQUEST_REJECTED` và chống ghi đè bằng `expectedVersion` (`409 VERSION_CONFLICT`, `409 REQUEST_NOT_PENDING`).
+- Frontend: tab thứ tư **System prompt** trong [admin-assistant.page.ts](frontend/src/app/features/admin/assistant/admin-assistant.page.ts) — textarea chỉ đọc khi thiếu quyền sửa, đếm ký tự, danh sách token kèm chip "bắt buộc", nút "Lưu trực tiếp" chỉ hiện với `assistant:prompt:update`, "Gửi yêu cầu sửa" + ô lý do cho bộ mặc định, "Điền mẫu mặc định" chỉ chép lại `defaultTemplate` trong code (không phải thao tác xoá), hàng chờ duyệt có nút Duyệt/Từ chối và danh sách yêu cầu của chính mình.
+- Hiệu lực: cache prompt 30 s + `cache.clear()` sau mỗi lần ghi; key cache câu trả lời chứa `p<version>` nên bản mới không ăn câu trả lời của bản cũ (TTL 30 phút). API công khai không trả template.
+- Nghiệm thu browser local (backend `PORT=8080` + sqlite throwaway, `ng serve` 4213, `fetch` giả ghi lại request provider nên **không gọi dịch vụ thật**, hai tài khoản dummy owner/co-admin):
+
+| Bước | Thao tác | Kết quả đo |
+| --- | --- | --- |
+| 1 | Owner sửa và bấm "Lưu trực tiếp" | Có nút "Lưu trực tiếp"; DB `assistant_prompt.version=1`, template 162 ký tự |
+| 2 | Hỏi trợ lý sau khi lưu | Provider nhận `chars=1663`, mở đầu đúng template đã lưu + khối "TÀI LIỆU (bản phát hành 1.0)" chứ không phải bản ship trong code |
+| 3 | Co-admin (DELEGATED, 33 quyền) mở tab | Chỉ còn "Gửi yêu cầu sửa" + "Điền mẫu mặc định"; **không** có "Lưu trực tiếp", không có hàng chờ duyệt; textarea vẫn sửa được |
+| 4 | Co-admin gọi thẳng `PUT /api/v1/admin/assistant/prompt` | `403 PERMISSION_REQUIRED` (bỏ qua giao diện vẫn bị chặn) |
+| 5 | Co-admin gửi yêu cầu kèm lý do | Notice "Đã gửi yêu cầu sửa…"; DB `assistant_prompt.version` **vẫn 1**; 1 dòng `assistant_prompt_requests` PENDING `base_version=1`; audit `ASSISTANT_PROMPT_REQUESTED` |
+| 6 | Owner mở tab | Badge "1 chờ duyệt"; hàng chờ ghi người gửi, thời điểm, "bản cơ sở v1", lý do, hai nút "Duyệt và lưu" / "Từ chối" |
+| 7 | Owner duyệt tại UI | Status "phiên bản 2"; DB template = đúng bản của người yêu cầu, `reviewed_by` = owner, request `APPROVED`; audit `ASSISTANT_PROMPT_REQUEST_APPROVED`; hàng chờ về 0 |
+| 8 | Hỏi trợ lý sau khi duyệt | Provider log: `chars=1593`, mở đầu "YEU CAU TUA CO-ADMIN: …", `{TAI_LIEU}` đã thay bằng 4 nguồn, không còn token sót |
+
+- Một lỗi UX do nghiệm thu, đã sửa kèm test hồi quy: sau khi duyệt, ô soạn thảo vẫn giữ draft cũ đang tải từ trước trong khi status đã báo phiên bản mới — người duyệt chỉ cần bấm "Lưu trực tiếp" là ghi đè ngay bản vừa duyệt. Đổi `loadPrompt(true)` → `loadPrompt()` ở nhánh duyệt ([admin-assistant.page.ts](frontend/src/app/features/admin/assistant/admin-assistant.page.ts)). Test mới đỏ đúng chỗ khi tạm bỏ fix (`promptDraft()` trả template cũ) và xanh lại khi khôi phục.
+- Kiểm thử: backend `tsc --noEmit` sạch, `npm test` **143 test / 142 pass / 1 skip (Turso) / 0 fail** (con số gồm 4 test từ thay đổi `permissions:manage` đang làm dở của agent khác trong cùng cây); frontend `tsc -p tsconfig.app.json --noEmit` + `tsconfig.spec.json --noEmit` sạch, `admin-assistant.page.spec.ts` **49/49 pass**. Lượt chạy toàn bộ hiện có 2 file đỏ (`permission-catalog.spec.ts`, `admin-users.page.spec.ts`) do agent khác đang sửa dở `permission-catalog.ts` (mtime 16:03) — ngoài phạm vi đợt này, không sửa file của họ.
+- Build: `npx ng build --configuration production` exit 0, **0 cảnh báo budget**, 6 route prerender, chunk `admin-assistant-page` **87,09 kB raw / 19,19 kB transfer**; stylesheet mới `admin-assistant.prompt.css` **3.020 B** sau minify (warning `anyComponentStyle` là 6 kB).
+- Chưa push/deploy. Bộ đồ nghề kiểm chứng nằm ngoài repo (`live-prompt-check/`, sqlite tạm) và đã dọn sau khi đo.
+
 ### Trợ lý AI dạng popup toàn trang: gợi ý theo trang, trace, lịch sử phiên — 2026-10-29 (local, đã commit `6511fef`, chưa push/deploy)
 
 - Yêu cầu của chủ dự án (tham khảo AI Elements của shadcn): chat nằm ở popup góc phải dưới, có mặt trên **mọi trang**, mỗi trang gợi ý câu hỏi khác nhau, hiển thị được "quá trình suy luận" càng tốt; sau đó bổ sung yêu cầu **giữ lịch sử chat khi chuyển trang**, chỉ mất khi thoát hẳn web.

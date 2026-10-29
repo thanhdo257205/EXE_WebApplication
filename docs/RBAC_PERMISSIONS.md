@@ -320,3 +320,27 @@ Code đã commit/push và deploy production `a674b4e` (PR #37); phần kiểm ch
 - Backend: `npm test` **113 pass / 1 skip (Turso remote) / 0 fail** (tổng 114). File mới `backend/server/test/content-publish.test.ts` có 3 ca: (1) xuất bản đưa bản nháp lên `current_slot=1`, API công khai và snapshot đọc được ngay (cache admin bị xóa), bản đã xuất bản bất biến (`409 RELEASE_IMMUTABLE`), audit có actor + version; (2) xuất bản bản mới lưu trữ bản đang công khai (giữ `published_at`, version tăng), bản cũ vẫn đọc được bằng `releaseId`; (3) thiếu `releases:publish` trả `403`, khách chưa đăng nhập bị chặn CSRF, version lệch trả `409 VERSION_CONFLICT`, bản nháp rỗng trả `409 RELEASE_EMPTY` và không đổi trạng thái.
 - Frontend: `ng test --watch=false` **57 file / 432 test pass**. Thêm 2 ca service (gửi đúng `expectedVersion` + header CSRF; ánh xạ `RELEASE_EMPTY`) và 6 ca trang (xuất bản thành công đổi trạng thái + tải lại danh sách; nút chỉ hiện với DRAFT + quyền; mở/hủy hộp xác nhận; chặn ở mức method khi thiếu quyền; thông báo rỗng/xung đột; đổi bản phát hành thì đóng hộp xác nhận).
 - Build: `ng build` exit 0, không thêm cảnh báo ngân sách cho `admin-section.page.css`.
+
+## 14. Kiểm chứng đợt system prompt có duyệt (2026-10-29)
+
+Code đã commit ở local (`6511fef`), **chưa push/deploy**. Mục tiêu của đợt: chứng minh hai đường ghi quyền khác nhau bằng trình duyệt thật, và chứng minh prompt trong DB chỉ đổi sau khi được duyệt.
+
+Dựng stack: backend `PORT=8080` + sqlite throwaway + `fetch` giả ghi lại mọi request provider (không gọi dịch vụ thật), `ng serve` cổng 4213, `PUBLIC_ORIGIN` trùng origin trình duyệt; hai tài khoản dummy `owner@…` (bootstrap, `adminLevel=OWNER`) và `coadmin@…` (được nâng từ CUSTOMER, `adminLevel=DELEGATED`, 33 quyền mặc định).
+
+| Bước | Thao tác | Kết quả đo |
+| --- | --- | --- |
+| 1 | Owner sửa template, bấm "Lưu trực tiếp" | Nút "Lưu trực tiếp" hiện; `assistant_prompt.version=1`, template 162 ký tự; audit `ASSISTANT_PROMPT_UPDATED` |
+| 2 | Hỏi trợ lý | Provider nhận `chars=1663`, mở đầu bằng template vừa lưu, kèm khối "TÀI LIỆU (bản phát hành 1.0)" — không phải bản ship trong code |
+| 3 | Co-admin mở tab System prompt | `.prompt-actions` chỉ có "Gửi yêu cầu sửa" + "Điền mẫu mặc định"; **không** "Lưu trực tiếp"; không có khối hàng chờ; textarea sửa được; thông báo đọc-only không hiện vì còn quyền gửi yêu cầu |
+| 4 | Co-admin gọi thẳng `PUT /api/v1/admin/assistant/prompt` (có CSRF, bỏ qua UI) | `403 PERMISSION_REQUIRED` — quyền vẫn được kiểm ở route, không chỉ ẩn nút |
+| 5 | Co-admin gửi yêu cầu kèm lý do | Notice "Đã gửi yêu cầu sửa system prompt…"; `assistant_prompt.version` **vẫn 1**; 1 dòng `assistant_prompt_requests` `PENDING`, `base_version=1`; audit `ASSISTANT_PROMPT_REQUESTED` |
+| 6 | Owner mở tab | Badge tab "1 chờ duyệt"; hàng chờ ghi người gửi, thời điểm, "bản cơ sở v1", lý do, nút "Duyệt và lưu"/"Từ chối" |
+| 7 | Owner bấm "Duyệt và lưu" | Status "phiên bản 2"; DB template = đúng bản đề xuất (84 ký tự), `reviewed_by` = owner; request `APPROVED`; audit `ASSISTANT_PROMPT_REQUEST_APPROVED`; hàng chờ về 0 |
+| 8 | Hỏi trợ lý lần nữa | Provider log `chars=1593`, mở đầu "YEU CAU TUA CO-ADMIN: …", `{TAI_LIEU}` thay bằng 4 nguồn, không còn token sót |
+
+Ghi chú kỹ thuật:
+
+- Sau khi duyệt, form phải nạp lại bản vừa duyệt; bản cũ giữ draft khiến "Lưu trực tiếp" ghi đè ngay kết quả duyệt. Đã sửa và thêm test hồi quy (đỏ khi bỏ fix, xanh khi có fix).
+- Trong cùng phiên đo, một agent khác đang thêm quyền `permissions:manage` vào danh mục; test danh mục của đợt này được viết lại để chỉ chốt đúng hai quyền prompt thay vì chốt toàn bộ danh sách khác-mặc-định, tránh đỏ dây chuyền khi danh mục mở rộng.
+- Số liệu lượt chạy: backend `npm test` **143 test / 142 pass / 1 skip (Turso) / 0 fail**; frontend `admin-assistant.page.spec.ts` **49/49**; `tsc --noEmit` sạch ở cả ba cấu hình; `ng build --configuration production` exit 0, 0 cảnh báo budget.
+
