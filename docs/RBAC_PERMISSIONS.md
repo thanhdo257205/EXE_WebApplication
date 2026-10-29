@@ -323,7 +323,7 @@ Code đã commit/push và deploy production `a674b4e` (PR #37); phần kiểm ch
 
 ## 14. Kiểm chứng đợt system prompt có duyệt (2026-10-29)
 
-Code đã commit ở local (`6511fef`), **chưa push/deploy**. Mục tiêu của đợt: chứng minh hai đường ghi quyền khác nhau bằng trình duyệt thật, và chứng minh prompt trong DB chỉ đổi sau khi được duyệt.
+Code đã deploy production `1f2d58c` (PR #42, 2026-10-29). Bảng kiểm chứng dưới đây chạy ở **local**; trên production mới xác minh route + UI có mặt, chưa thử đường ghi bằng phiên admin thật (Turnstile chặn đăng nhập tự động). Mục tiêu của đợt: chứng minh hai đường ghi quyền khác nhau bằng trình duyệt thật, và chứng minh prompt trong DB chỉ đổi sau khi được duyệt.
 
 Dựng stack: backend `PORT=8080` + sqlite throwaway + `fetch` giả ghi lại mọi request provider (không gọi dịch vụ thật), `ng serve` cổng 4213, `PUBLIC_ORIGIN` trùng origin trình duyệt; hai tài khoản dummy `owner@…` (bootstrap, `adminLevel=OWNER`) và `coadmin@…` (được nâng từ CUSTOMER, `adminLevel=DELEGATED`, 33 quyền mặc định).
 
@@ -343,3 +343,4 @@ Ghi chú kỹ thuật:
 - Sau khi duyệt, form phải nạp lại bản vừa duyệt; bản cũ giữ draft khiến "Lưu trực tiếp" ghi đè ngay kết quả duyệt. Đã sửa và thêm test hồi quy (đỏ khi bỏ fix, xanh khi có fix).
 - Trong cùng phiên đo, một agent khác đang thêm quyền `permissions:manage` vào danh mục; test danh mục của đợt này được viết lại để chỉ chốt đúng hai quyền prompt thay vì chốt toàn bộ danh sách khác-mặc-định, tránh đỏ dây chuyền khi danh mục mở rộng.
 - Số liệu lượt chạy: backend `npm test` **143 test / 142 pass / 1 skip (Turso) / 0 fail**; frontend `admin-assistant.page.spec.ts` **49/49**; `tsc --noEmit` sạch ở cả ba cấu hình; `ng build --configuration production` exit 0, 0 cảnh báo budget.
+- Deploy: PR **#42** merge `main` tại **`1f2d58c`**; CI main `40857774665` xanh 4/4, CD `40857922834` xanh 2/2 (Pages `117227f9`, Render nhận đúng `1f2d58c`). Sau deploy: `/api/v1/info` trả `1f2d58c…` (`storage: turso`), `/actuator/health` 200, `/admin/assistant` 200, `GET /api/v1/admin/assistant/prompt` không phiên trả `401 AUTH_REQUIRED`; chunk Pages `chunk-DLoe1Aw2.js` chứa "Lưu trực tiếp", "Gửi yêu cầu sửa", "Hàng chờ duyệt", "Duyệt và lưu".
