@@ -343,4 +343,3 @@ Ghi chú kỹ thuật:
 - Sau khi duyệt, form phải nạp lại bản vừa duyệt; bản cũ giữ draft khiến "Lưu trực tiếp" ghi đè ngay kết quả duyệt. Đã sửa và thêm test hồi quy (đỏ khi bỏ fix, xanh khi có fix).
 - Trong cùng phiên đo, một agent khác đang thêm quyền `permissions:manage` vào danh mục; test danh mục của đợt này được viết lại để chỉ chốt đúng hai quyền prompt thay vì chốt toàn bộ danh sách khác-mặc-định, tránh đỏ dây chuyền khi danh mục mở rộng.
 - Số liệu lượt chạy: backend `npm test` **143 test / 142 pass / 1 skip (Turso) / 0 fail**; frontend `admin-assistant.page.spec.ts` **49/49**; `tsc --noEmit` sạch ở cả ba cấu hình; `ng build --configuration production` exit 0, 0 cảnh báo budget.
-
