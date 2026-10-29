@@ -20,7 +20,7 @@
 .clear:hover:not(:disabled) { color: var(--ink); }
 .clear:disabled { opacity: .35; }
 
-.transcript { flex: 1; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; padding: 22px; scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, .18) transparent; }
+.transcript { flex: 1; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; padding: 22px; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, .18) transparent; }
 .transcript::-webkit-scrollbar { width: 6px; }
 .transcript::-webkit-scrollbar-thumb { border-radius: 999px; background: rgba(255, 255, 255, .16); }
 .turn { display: flex; }

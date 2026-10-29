@@ -92,11 +92,6 @@
     <router-outlet />
   </main>
 
-  <!-- Floating assistant, available on every public page; loaded after first paint so it stays out of the initial bundle -->
-  @defer (on idle) {
-    <app-assistant-dock />
-  }
-
   @if (!isAdminRoute()) {
     <footer class="public-footer">
       <div class="footer-cta">
@@ -116,3 +111,8 @@
     </footer>
   }
 </div>
+
+<!-- Floating assistant: a self-contained surface outside .app-container so the global glass-control styles do not repaint its controls. Loaded after first paint to stay out of the initial bundle. -->
+@defer (on idle) {
+  <app-assistant-dock />
+}

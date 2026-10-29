@@ -21,9 +21,8 @@
 .disclaimer { margin: 8px 16px 12px; font-size: 10px; line-height: 1.5; text-align: center; color: #737c8c; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
 
-.login-gate { display: grid; gap: 9px; justify-items: start; margin: 0 16px; padding: 14px; border: 1px dashed var(--line-strong); border-radius: 15px; background: rgba(218, 250, 118, .05); }
-.login-gate p { margin: 0; font-size: 12.5px; line-height: 1.55; color: #c9d3e3; }
-.login-cta { display: inline-flex; padding: 9px 16px; border-radius: 999px; background: var(--accent); color: #183c2b; font-size: 12px; font-weight: 800; }
+.login-gate { margin: 0 16px; }
+.login-cta { display: flex; justify-content: center; padding: 12px 16px; border-radius: 999px; background: var(--accent); color: #183c2b; font-size: 12.5px; font-weight: 800; }
 .login-note { margin: 0 16px; font-size: 12.5px; color: var(--muted); }
 
 @media (max-width: 560px) {
