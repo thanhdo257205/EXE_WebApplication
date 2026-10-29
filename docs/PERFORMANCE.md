@@ -1,4 +1,18 @@
-# Hiệu năng frontend — cập nhật 2026-10-28
+# Hiệu năng frontend — cập nhật 2026-10-29
+
+## Trợ lý nổi toàn trang: giữ dock ngoài initial bundle bằng `@defer (on idle)` — 2026-10-29 (local)
+
+`app-assistant-dock` là component thật (không phải icon) nên khi mount trực tiếp trong shell, nó đẩy initial bundle vượt ngưỡng warning 500 kB: build production báo **532,05 kB** trong khi baseline trước đó sạch. Cách xử lý là giữ đúng thiết kế "có mặt trên mọi trang" nhưng nạp sau lần paint đầu:
+
+```html
+@defer (on idle) {
+  <app-assistant-dock />
+}
+```
+
+Kết quả đo trên build production cùng ngày (sau khi sửa header + nhánh login gate): `Initial total` **498,81 kB raw / 130,92 kB transfer**, dock tách thành lazy chunk `assistant-dock-component` **34,07 kB raw / 9,59 kB transfer**, **0 cảnh báo budget** (chỉ còn 2 cảnh báo ESM có sẵn của `qrcode`/`dijkstrajs`), 6 route prerender. Ba stylesheet của dock sau minify là **4,46 / 2,79 / 5,81 kB**, đều dưới warning `anyComponentStyle` 6 kB — tách theo khối panel, form/gợi ý, transcript/trace chứ không nâng ngưỡng.
+
+Đánh đổi: launcher không có trong HTML đầu tiên; nó xuất hiện sau khi trình duyệt rảnh (thường ngay sau paint đầu) và không chặn nội dung/LCP. Dock không cần cho SEO, không chứa nội dung trang, và không nằm trong critical path của bất kỳ route nào. Nếu sau này cần launcher hiện đồng thời với paint đầu, phải chấp nhận tăng initial bundle hoặc tách riêng một launcher tĩnh rất nhỏ.
 
 ## Ngân sách `anyComponentStyle`: mọi stylesheet component dưới warning 6 kB — 2026-10-28 (đã deploy production `968ee43`)
 

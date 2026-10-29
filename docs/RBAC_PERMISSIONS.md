@@ -78,6 +78,8 @@ Thông báo quản trị (chuông, stream, đánh dấu đã đọc) là tiện 
 | `assistant:models:reorder` | Sắp xếp thứ tự nhà cung cấp | `PUT .../settings` (trường `order`) | Có |
 | `assistant:slots:update` | Bật/tắt slot key hệ thống | `PUT .../settings` (trường `disabledSlots`) | Có |
 | `assistant:budgets:update` | Đặt hạn mức token/ngày | `PUT .../settings` (trường `tokenBudgets`) | Có |
+| `assistant:prompt:request` | Soạn và gửi **yêu cầu** sửa system prompt (không tự áp dụng) | `POST /api/v1/admin/assistant/prompt/requests` | Có |
+| `assistant:prompt:update` | Lưu system prompt thẳng vào DB và duyệt/từ chối yêu cầu của người khác | `PUT /api/v1/admin/assistant/prompt`, `POST .../prompt/requests/:id/approve`, `.../reject` | Không |
 | `assistant:keys:read` | Xem danh sách API key được phép thấy | `GET /api/v1/admin/assistant/keys` | Có |
 | `assistant:keys:create` | Thêm API key (key của đồng quản trị vào trạng thái `PENDING` nếu không có quyền quản lý) | `POST /api/v1/admin/assistant/keys` | Có |
 | `assistant:keys:reveal` | Xem nội dung key của chính mình | `POST .../keys/:id/reveal` (key của mình) | Có |
@@ -86,6 +88,8 @@ Thông báo quản trị (chuông, stream, đánh dấu đã đọc) là tiện 
 | `assistant:keys:manage` | Quản lý mọi key: thấy tất cả, duyệt/tắt/bật, xem nội dung, kiểm tra, thu hồi key của người khác; key tự thêm được kích hoạt ngay | Toàn bộ API key với mọi key | Không |
 
 `assistant:read` là quyền đọc chung của module và tự kèm khi lưu mọi quyền `assistant:*` khác. `assistant:usage:read` tách riêng để có thể chỉ cho xem số liệu mà không xem cấu hình (khi đó vẫn cần `assistant:read` để mở trang).
+
+`assistant:read` cũng mở `GET /api/v1/admin/assistant/prompt` để **xem** prompt đang dùng; chỉ hai quyền trên mới thay đổi nó. Không có quyền xóa: prompt không có bản ghi trong DB thì hệ thống dùng đúng mẫu đã ship trong code, và không tồn tại API nào làm mất trạng thái đó ngoài việc lưu lại mẫu mặc định.
 
 ### 3.4. Tài khoản
 
@@ -99,10 +103,11 @@ Hai quyền cuối không nằm trong danh mục gán được; owner nhận ng�
 
 ## 4. Bộ quyền mặc định của đồng quản trị
 
-Bộ mặc định giữ đúng hành vi trước khi có phân quyền chi tiết: toàn bộ quyền gán được **trừ** `assistant:keys:manage`. Cụ thể:
+Bộ mặc định giữ đúng hành vi trước khi có phân quyền chi tiết: toàn bộ quyền gán được **trừ** `assistant:keys:manage` và `assistant:prompt:update`. Cụ thể:
 
-- Toàn bộ quyền nội dung, phản hồi, `users:read`, toàn bộ quyền trợ lý AI trừ `assistant:keys:manage`.
+- Toàn bộ quyền nội dung, phản hồi, `users:read`, toàn bộ quyền trợ lý AI trừ hai quyền kể trên.
 - Đồng quản trị mặc định vẫn thêm key ở trạng thái chờ duyệt, tự xem/kiểm tra/thu hồi key của mình; không thấy key người khác, không duyệt key.
+- Đồng quản trị mặc định **chỉ gửi yêu cầu** sửa system prompt; prompt trong DB đổi khi owner hoặc người được cấp `assistant:prompt:update` duyệt yêu cầu đó.
 - Tài khoản không có bản ghi tùy chỉnh dùng bộ mặc định này. Khi owner lưu bộ quyền, bộ đó thay thế hoàn toàn bộ mặc định (không cộng dồn).
 
 ## 5. Chuẩn hóa và phụ thuộc
@@ -159,6 +164,15 @@ Khi lưu, máy chủ thực hiện trong một transaction:
 - **Chốt an toàn không đổi**: xóa bộ thẻ/cư dân còn thẻ tham chiếu trả `409 CONTENT_IN_USE` dù là tác giả; bản phát hành đã publish là bất biến (`409 RELEASE_IMMUTABLE`); lệch version là `409 VERSION_CONFLICT`.
 - **API key** đã theo quy tắc tác giả từ trước: `assistant:keys:reveal/test/revoke` chỉ áp cho key do chính mình thêm, trừ khi có `assistant:keys:manage`.
 
+### 6.5. System prompt của trợ lý AI
+
+System prompt chuyển từ code sang DB để chỉnh trong **Quản trị → Trợ lý AI**. Không có quyền xóa: bảng rỗng thì server dùng lại đúng mẫu ship trong code, nên "xóa" chỉ là một trạng thái ngầm định, không phải thao tác nghiệp vụ.
+
+- **Xem** cần `assistant:read`; response kèm `canUpdate`, `canRequest`, `prompt.source` (`CUSTOM`/`DEFAULT`), `prompt.version`, danh sách token và `defaultTemplate`.
+- **Lưu trực tiếp** cần `assistant:prompt:update` (không thuộc bộ mặc định): `PUT /api/v1/admin/assistant/prompt` với `expectedVersion`. Prompt có hiệu lực cho câu trả lời ngay (cache 30 s, và key cache câu trả lời gắn số version nên không trả lời cũ cho prompt mới).
+- **Mặc định là gửi yêu cầu**: người chỉ có `assistant:prompt:request` soạn nội dung + ghi chú, hàng đợi `PENDING` chờ owner hoặc người có `assistant:prompt:update` duyệt. Duyệt (`.../requests/:id/approve`) mới là lúc DB đổi; từ chối (`.../reject`) chỉ ghi trạng thái.
+- **Chốt an toàn**: template bắt buộc chứa `{TAI_LIEU}` (thiếu → `400 PROMPT_MISSING_DOCUMENTS`; viết sai hoa/thường → `400 PROMPT_TOKEN_CASE`), tối đa 6000 ký tự, lệch `expectedVersion` → `409 VERSION_CONFLICT`, yêu cầu đã xử lý → `409 REQUEST_NOT_PENDING`, duyệt khi bản đang dùng đã khác bản mà bản nháp được soạn ra → `409 VERSION_CONFLICT`. Người gửi chỉ xem được yêu cầu của mình; hàng đợi đầy đủ chỉ dành cho người duyệt.
+
 ## 7. API
 
 ### 7.1. Lưu bộ quyền
@@ -211,6 +225,7 @@ Giao diện không tự suy ra quyền từ danh sách khóa; mỗi API trả s�
 | --- | --- |
 | `GET /admin/assistant/settings` | `canManage`, `canReorder`, `canEditModels`, `canManageSlots`, `canEditBudgets`, `canReadUsage` |
 | `GET /admin/assistant/keys` | `canManage`, `canCreate`, `storageAvailable`, `limits` |
+| `GET /admin/assistant/prompt` | `canUpdate`, `canRequest`; `pending` chỉ có với người duyệt, `myRequests` luôn là yêu cầu của chính mình |
 | Mỗi item trong `GET /admin/assistant/keys` | `canReveal`, `canTest`, `canRevoke`, `canManageStatus` (key của mình hay key của người khác) |
 | `GET /admin/users` | `canManagePermissions` + `permissions`, `permissionsVersion`, `customPermissions` từng tài khoản ADMIN |
 
@@ -266,6 +281,8 @@ ALTER TABLE wiki_page_revisions  ADD COLUMN created_by TEXT REFERENCES app_users
 - `content_releases.created_by` đã có từ trước; bốn bảng revision nay có cùng cột.
 - Không backfill: bản ghi cũ giữ `NULL` (không suy đoán tác giả từ audit).
 - `ON DELETE SET NULL`: xóa tài khoản không kéo theo nội dung.
+
+Bảng system prompt (migration `V16__assistant_prompt.sql` + `initializeAssistantPrompt` idempotent lúc boot): `assistant_prompt` một dòng `slot=1` (template, version, updated_by, updated_at) và `assistant_prompt_requests` (hàng đợi yêu cầu, `base_version` để chặn duyệt đè). Xem mục 6.5 và tài liệu trợ lý AI.
 
 ## 11. Tiêu chí nghiệm thu
 
