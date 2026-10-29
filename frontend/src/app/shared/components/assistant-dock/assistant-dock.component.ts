@@ -126,9 +126,6 @@ export class AssistantDockComponent {
     const release = this.latestRelease();
     return release ? `Bản ${release.versionLabel}` : 'Nội dung đã phát hành';
   });
-  readonly lastAssistantId = computed(() =>
-    this.messages().reduce((latest, message) => message.role === 'assistant' ? message.id : latest, -1));
-
   constructor() {
     this.router.events.pipe(
       filter(event => event instanceof NavigationEnd),

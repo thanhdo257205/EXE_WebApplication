@@ -167,14 +167,18 @@
                       <div class="bar" role="progressbar" [attr.aria-valuenow]="card.quota.percent" aria-valuemin="0" aria-valuemax="100" [attr.aria-label]="'Hạn mức token hôm nay cho ' + card.title">
                         <span [style.width.%]="card.quota.percent"></span>
                       </div>
-                      <small>{{ card.quota.over ? 'Đã vượt ' + formatTokens(card.quota.used - card.quota.budget) + ' token' : 'Còn ' + formatTokens(card.quota.remaining) + ' token' }} · {{ card.quota.percent }}%</small>
+                      @if (card.quota.isDefault) {
+                        <small>Mức mặc định {{ formatTokens(card.quota.budget) }} token/ngày · nhập ô bên dưới để đổi.</small>
+                      } @else {
+                        <small>{{ card.quota.over ? 'Đã vượt ' + formatTokens(card.quota.used - card.quota.budget) + ' token' : 'Còn ' + formatTokens(card.quota.remaining) + ' token' }} · {{ card.quota.percent }}%</small>
+                      }
                     } @else {
                       <div class="bar unset" aria-hidden="true"></div>
                       <small>{{ card.key ? 'Chưa đặt hạn mức riêng cho key này' : 'Chưa có ngân sách nhà cung cấp' }}</small>
                     }
                   </div>
 
-                  <p class="card-stats">{{ card.requests }} câu hỏi · {{ card.failures }} lỗi · {{ card.avgLatencyMs }} ms · {{ formatTokens(card.tokens) }} token hôm nay</p>
+                  <p class="card-stats">{{ days() }} ngày · {{ card.requests }} câu hỏi · {{ card.failures }} lỗi · {{ card.avgLatencyMs }} ms · {{ formatTokens(card.tokens) }} token</p>
 
                   @if (card.key; as key) {
                     @if (testChip(key); as chip) {
@@ -192,9 +196,12 @@
                           [value]="keyBudgets()[key.id] ?? ''"
                           (input)="setKeyBudget(key.id, $event)"
                           [disabled]="saving()"
-                          placeholder="Không đặt"
+                          [placeholder]="keyBudgetDefault() ? 'Mặc định ' + formatTokens(keyBudgetDefault()) : 'Không đặt'"
                           [attr.aria-label]="'Hạn mức token mỗi ngày cho key ' + key.label"
                         />
+                        @if (keyBudgetDefault()) {
+                          <small class="field-note">Bỏ trống để dùng mức mặc định {{ formatTokens(keyBudgetDefault()) }} token/ngày.</small>
+                        }
                       </label>
                     }
                   }

@@ -38,4 +38,13 @@ td:first-child { min-width: 200px; }
 .summary + button { white-space: nowrap; }
 .role.owner { color: #dafa76; border-color: #dafa76; }
 .pagination { display: flex; gap: 1rem; align-items: center; justify-content: space-between; font-size: .8rem; }
+.users-header { display: grid; gap: 1rem; }
+.filters { display: flex; gap: 1rem; align-items: center; padding: .5rem 0; }
+.filter-group { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+.filter-group span { color: #a6aaa3; font-size: .85rem; }
+.filter-group button { padding: .4rem .75rem; background: transparent; border-color: #30352b; font-size: .8rem; }
+.filter-group button.active { background: #dafa76; color: #18200e; border-color: #dafa76; }
+.clear-filter { cursor: pointer; color: #dafa76; font-size: .8rem; white-space: nowrap; padding: .4rem .75rem; }
+.clear-filter:hover { text-decoration: underline; }
+@media (max-width: 600px) { .filters { flex-direction: column; align-items: stretch; } .filter-group { justify-content: flex-start; } .clear-filter { text-align: right; } }
 @media (max-width: 600px) { .search > div, .invite-panel form > div { flex-direction: column; } .access-note, .search, .table-wrap, .confirmation, .invite-panel { padding: .85rem; } .actions button { width: 100%; } }

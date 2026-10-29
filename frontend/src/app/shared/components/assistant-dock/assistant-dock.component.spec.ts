@@ -128,7 +128,9 @@ describe('AssistantDockComponent', () => {
     expect(trace?.textContent).toContain('1.234 token vào');
     expect(trace?.textContent).toContain('45 token ra');
     expect(trace?.textContent).toContain('1,2 giây');
-    expect((trace as HTMLDetailsElement).open).toBe(true);
+    // The answer is the product; the pipeline trace stays folded until the reader asks for it.
+    expect((trace as HTMLDetailsElement).open).toBe(false);
+    expect(trace?.querySelector('.trace-caret')).toBeTruthy();
     expect(root.querySelector('.identity-sub')?.textContent).toContain('Bản 1.0');
   });
 

@@ -40,6 +40,18 @@ export class AdminUsersPage {
   readonly invitesLoading = signal(false);
   readonly inviteSaving = signal(false);
   readonly pendingRevoke = signal<AdminInvite | null>(null);
+  filterLevel: 'ALL' | 'DELEGATED' | 'CUSTOMER' = 'ALL';
+  readonly searchQuery = signal('');
+  readonly filteredAccounts = computed(() => {
+    const list = this.accounts();
+    const search = this.searchQuery().toLowerCase().trim();
+    return list.filter(a => {
+      if (this.filterLevel === 'ALL') return true;
+      if (this.filterLevel === 'DELEGATED') return a.adminLevel !== 'OWNER';
+      if (this.filterLevel === 'CUSTOMER') return a.role !== 'ADMIN';
+      return true;
+    }).filter(a => !search || a.email.toLowerCase().includes(search) || (a.displayName?.toLowerCase() ?? '').includes(search));
+  });
 
   constructor() { this.load(); }
 

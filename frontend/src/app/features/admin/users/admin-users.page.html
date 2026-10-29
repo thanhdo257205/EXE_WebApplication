@@ -68,10 +68,22 @@
     </div>
   }
 
-  <form class="search" (ngSubmit)="search()">
+  <div class="users-header">
+    <div class="filters">
+      <div class="filter-group">
+        <span>Vai trò:</span>
+        <button type="button" (click)="filterLevel = 'ALL'; searchQuery.set('')" [class.active]="filterLevel === 'ALL' && searchQuery() === ''">Tất cả</button>
+        <button type="button" (click)="filterLevel = 'DELEGATED'; searchQuery.set('')" [class.active]="filterLevel === 'DELEGATED'">Đồng quản trị</button>
+        <button type="button" (click)="filterLevel = 'CUSTOMER'; searchQuery.set('')" [class.active]="filterLevel === 'CUSTOMER'">Thành viên</button>
+      </div>
+      <div class="clear-filter" (click)="filterLevel = 'ALL'; searchQuery.set('')" [hidden]="filterLevel === 'ALL' && searchQuery() === ''">Xóa</div>
+    </div>
+  </div>
+
+  <form class="search" (ngSubmit)="$event.preventDefault(); searchQuery.set(input.value); input.value='';">
     <label for="account-search">Tìm bằng email hoặc tên</label>
     <div>
-      <input id="account-search" name="query" [(ngModel)]="query" maxlength="100" placeholder="Email hoặc tên tài khoản" [disabled]="saving() || inviteSaving()" />
+      <input id="account-search" name="query" #input [(ngModel)]="searchQuery" maxlength="100" placeholder="Email hoặc tên tài khoản" [disabled]="saving() || inviteSaving()" />
       <button type="submit" [disabled]="loading() || saving() || inviteSaving()">Tìm tài khoản</button>
     </div>
   </form>
@@ -94,7 +106,7 @@
       <caption>{{ loading() ? 'Đang tải tài khoản…' : total() + ' tài khoản trong hệ thống' }}</caption>
       <thead><tr><th scope="col">Tài khoản</th><th scope="col">Vai trò</th><th scope="col">Trạng thái</th><th scope="col">Đồng quản trị</th><th scope="col">Quyền chi tiết</th></tr></thead>
       <tbody>
-        @for (account of accounts(); track account.id) {
+          @for (account of filteredAccounts(); track account.id) {
           <tr>
             <td><strong>{{ account.displayName }}</strong><span class="email">{{ account.email }}</span></td>
             <td><span class="role" [class.owner]="account.adminLevel === 'OWNER'">{{ roleLabel(account) }}</span></td>
