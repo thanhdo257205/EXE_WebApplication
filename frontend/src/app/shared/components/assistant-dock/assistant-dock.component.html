@@ -38,11 +38,12 @@
                 @if (message.role === 'assistant') {
                   <div class="answer" [innerHTML]="message.html"></div>
                   @if (message.meta; as meta) {
-                    <details class="trace" [open]="message.id === lastAssistantId()">
+                    <details class="trace">
                       <summary>
                         <span class="trace-mark" aria-hidden="true">✦</span>
                         <span class="trace-label">Quá trình trả lời</span>
                         <span class="trace-model">{{ providerLabel(meta.provider) }} · {{ meta.model }}</span>
+                        <span class="trace-caret" aria-hidden="true">›</span>
                       </summary>
                       <ol class="trace-steps">
                         <li>

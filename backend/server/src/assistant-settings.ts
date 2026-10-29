@@ -35,6 +35,8 @@ export const SETTINGS_TTL_MS = 30_000;
 const SLOT_PATTERN = /^(?:[a-z0-9-]+#\d{1,3}|db:[0-9a-f-]{36})$/;
 const KEY_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_TOKEN_BUDGET = 2_000_000_000;
+/** Daily ceiling every stored key shows until an admin gives that key its own budget. */
+export const DEFAULT_KEY_TOKEN_BUDGET = 200_000;
 
 // Providers retired these ids, so any stored override would fail every request with INVALID.
 // Only exact ids shipped as product defaults are rewritten; custom admin choices stay untouched.
@@ -248,6 +250,8 @@ const settingsView = (settings: AssistantSettings, options: AssistantOptions | n
   const holds = (permission: string) => permissions.includes(permission);
   return {
     settings,
+    // Shown on each stored key card so the quota line always has a max even before a budget is saved.
+    keyBudgetDefault: DEFAULT_KEY_TOKEN_BUDGET,
     canReorder: holds(SETTINGS_PERMISSIONS.order),
     canEditModels: holds(SETTINGS_PERMISSIONS.models),
     canManageSlots: holds(SETTINGS_PERMISSIONS.slots),

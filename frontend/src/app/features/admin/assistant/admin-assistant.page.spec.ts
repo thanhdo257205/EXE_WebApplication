@@ -34,6 +34,7 @@ const settingsResponse = (canManage = true, version = 3): AssistantSettingsRespo
     version,
     updatedAt: '2026-10-28T10:00:00.000Z',
   },
+  keyBudgetDefault: 200_000,
   providers: [
     { id: 'gemini', label: 'Google Gemini', defaultModel: 'gemini-3.5-flash-lite', models: geminiModels, slots: [{ slot: 'gemini#1', disabled: false }, { slot: 'gemini#2', disabled: false }] },
     { id: 'groq', label: 'Groq', defaultModel: 'openai/gpt-oss-120b', models: groqModels, slots: [{ slot: 'groq#1', disabled: false }, { slot: 'groq#2', disabled: true }] },
@@ -419,6 +420,22 @@ describe('AdminAssistantPage', () => {
     page.toggleSlot(dbSlot);
     fixture.detectChanges();
     expect(label()).toContain('1/2 key đang thử');
+  });
+
+  it('shows the default daily ceiling on a stored key until an admin saves its own budget', () => {
+    const response = settingsWithStoredKey();
+    response.settings.keyBudgets = {};
+    api.getSettings.mockReturnValue(of(response));
+    api.getUsage.mockReturnValue(of(usageWithStoredKey));
+    const { el } = setup();
+    const keyCard = [...el.querySelectorAll<HTMLElement>('.key-card')]
+      .find(card => card.querySelector('.key-card-title')?.textContent === 'Groq chính')!;
+    expect(keyCard.textContent).toContain('900 / 200.000 token');
+    expect(keyCard.textContent).toContain('Mức mặc định 200.000 token/ngày');
+    const input = keyCard.querySelector<HTMLInputElement>('.key-budget-field input');
+    expect(input?.value).toBe('');
+    expect(input?.getAttribute('placeholder')).toBe('Mặc định 200.000');
+    expect(keyCard.querySelector('[role="progressbar"]')?.getAttribute('aria-valuenow')).toBe('0');
   });
 
   it('sends a per-key budget together with the provider budgets', () => {

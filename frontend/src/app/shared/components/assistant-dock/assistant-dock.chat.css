@@ -45,6 +45,8 @@
 .trace-mark { color: var(--accent); font-size: 10px; }
 .trace-label { letter-spacing: .02em; }
 .trace-model { margin-left: auto; font-size: 9.5px; font-weight: 600; color: #7f8899; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 52%; }
+.trace-caret { flex: none; font-size: 13px; line-height: 1; color: #7f8899; transition: transform .2s ease; }
+.trace[open] .trace-caret { transform: rotate(90deg); }
 .trace-steps, .live-steps { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 7px; }
 .trace-steps li, .live-steps li { display: flex; align-items: flex-start; gap: 8px; font-size: 11.5px; line-height: 1.45; color: #aeb8c9; }
 .trace-steps b, .live-steps b { display: block; font-size: 11.5px; font-weight: 700; color: #dfe6f1; }
@@ -69,5 +71,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .live-steps li.active .step-dot { animation: none; }
-  .source, .live-steps li { transition: none; }
+  .source, .live-steps li, .trace-caret { transition: none; }
 }

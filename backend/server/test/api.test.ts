@@ -10,6 +10,7 @@ import { createApp } from '../src/app.ts';
 import { type Config, type Actor } from '../src/auth.ts';
 import { type Provider, checkoutSchema, payosProvider, webhookSignedString, verifyWebhookSignature, MAX_CATALOG_PRODUCTS } from '../src/payments.ts';
 import { type AssistantOptions, type ChatProvider, type CompletionRequest, type CompletionResult, ProviderError } from '../src/assistant-providers.ts';
+import { DEFAULT_KEY_TOKEN_BUDGET } from '../src/assistant-settings.ts';
 
 const asResult = (value: CompletionResult | string): CompletionResult =>
   typeof value === 'string' ? { text: value, tokensIn: 0, tokensOut: 0 } : value;
@@ -653,6 +654,8 @@ test('admins configure provider order, models and slots while usage stays provid
 
   const settings = await (await f.request('GET', '/api/v1/admin/assistant/settings', undefined, f.admin)).json();
   assert.deepEqual(settings.settings.order, ['gemini', 'groq']);
+  // The admin page shows this ceiling on every stored key until a per-key budget is saved.
+  assert.equal(settings.keyBudgetDefault, DEFAULT_KEY_TOKEN_BUDGET);
   assert.deepEqual(settings.providers.find((provider: any) => provider.id === 'gemini').slots.map((slot: any) => slot.slot), ['gemini#1', 'gemini#2']);
   assert.equal((await f.request('GET', '/api/v1/admin/assistant/settings', undefined, f.user)).status, 403);
 

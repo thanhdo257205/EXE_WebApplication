@@ -54,6 +54,8 @@ interface BudgetBar {
   over: boolean;
   warn: boolean;
   hasBudget: boolean;
+  // The key has no saved budget yet and the bar is showing the shared default ceiling.
+  isDefault: boolean;
   // Tells the card whose budget a bar represents: a stored key, or the provider shared pool.
   source: 'key' | 'provider' | null;
 }
@@ -192,6 +194,7 @@ export class AdminAssistantPage implements OnInit {
   readonly canManageSlots = computed(() => this.settings()?.canManageSlots ?? false);
   readonly canEditBudgets = computed(() => this.settings()?.canEditBudgets ?? false);
   readonly canReadUsage = computed(() => this.settings()?.canReadUsage ?? false);
+  readonly keyBudgetDefault = computed(() => this.settings()?.keyBudgetDefault ?? 0);
 
   readonly promptState = computed(() => this.prompt()?.prompt ?? null);
   readonly canUpdatePrompt = computed(() => this.prompt()?.canUpdate ?? false);
@@ -267,10 +270,10 @@ export class AdminAssistantPage implements OnInit {
     return totals && totals.requests ? Math.round(totals.cacheHits / totals.requests * 100) : 0;
   });
   // Providers report token usage per request, so "used today" is a measured total, not a quota probe.
-  private bar(id: string, label: string, used: number, budget: number, source: BudgetBar['source']): BudgetBar {
+  private bar(id: string, label: string, used: number, budget: number, source: BudgetBar['source'], isDefault = false): BudgetBar {
     const hasBudget = budget > 0;
     return {
-      id, label, used, budget, source, hasBudget,
+      id, label, used, budget, source, hasBudget, isDefault: isDefault && hasBudget,
       remaining: Math.max(0, budget - used),
       percent: hasBudget ? Math.min(100, Math.round(used / budget * 100)) : 0,
       over: hasBudget && used > budget,
@@ -301,9 +304,11 @@ export class AdminAssistantPage implements OnInit {
         const title = key?.label ?? this.slotLabel(slot.slot);
         const used = todaySlot.get(slot.slot) ?? 0;
         const stats = slotStats.get(slot.slot);
-        // A stored key only compares against its own budget; env keys share the provider pool.
+        // A stored key only compares against its own budget; env keys share the provider pool. Until the
+        // admin saves a per-key budget the card still shows the shared default, so the quota line has a max.
+        const ownBudget = isDatabaseSlot ? this.parseBudget(key ? keyBudgets[key.id] : undefined) : 0;
         const quota = isDatabaseSlot
-          ? this.bar(slot.slot, title, used, this.parseBudget(key ? keyBudgets[key.id] : undefined), 'key')
+          ? this.bar(slot.slot, title, used, ownBudget || this.keyBudgetDefault(), 'key', !ownBudget)
           : this.bar(slot.slot, title, used, budget, 'provider');
         return {
           slot: slot.slot,

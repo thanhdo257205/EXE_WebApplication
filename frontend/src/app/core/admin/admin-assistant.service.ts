@@ -36,6 +36,8 @@ export interface AssistantSettings {
 
 export interface AssistantSettingsResponse {
   settings: AssistantSettings;
+  /** Daily token ceiling a stored key shows until it has a budget of its own. */
+  keyBudgetDefault: number;
   providers: AssistantProviderConfig[];
   canManage: boolean;
   canReorder: boolean;
