@@ -32,6 +32,8 @@ export const GRANTABLE_PERMISSIONS = [
   'assistant:models:reorder',
   'assistant:slots:update',
   'assistant:budgets:update',
+  'assistant:prompt:request',
+  'assistant:prompt:update',
   'assistant:keys:read',
   'assistant:keys:create',
   'assistant:keys:reveal',
@@ -49,7 +51,9 @@ export const OWNER_ONLY_PERMISSIONS = ['users:manage-roles', 'permissions:manage
 
 /** Default co-admin set keeps the behaviour that existed before fine-grained RBAC. */
 export const DEFAULT_DELEGATED_PERMISSIONS: readonly Permission[] =
-  GRANTABLE_PERMISSIONS.filter(permission => permission !== 'assistant:keys:manage');
+  // Saving the assistant system prompt straight to the database is an explicit grant; the role default is
+  // request-only, so a co-admin proposes a change and it lands only after someone with the update right approves it.
+  GRANTABLE_PERMISSIONS.filter(permission => permission !== 'assistant:keys:manage' && permission !== 'assistant:prompt:update');
 
 const grantable = new Set<string>(GRANTABLE_PERMISSIONS);
 export const isGrantablePermission = (value: string): value is Permission => grantable.has(value);

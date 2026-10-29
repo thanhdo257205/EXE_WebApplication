@@ -14,6 +14,7 @@ import { Payments, paymentRoutes, type Provider } from './payments.ts';
 import { rbacRoutes } from './rbac.ts';
 import { assistantRoutes } from './assistant.ts';
 import { assistantAdminRoutes } from './assistant-settings.ts';
+import { assistantPromptAdminRoutes } from './assistant-prompt.ts';
 import { assistantCredentialRoutes } from './assistant-credentials.ts';
 import { createUsageRecorder } from './assistant-usage.ts';
 import type { AssistantOptions } from './assistant-providers.ts';
@@ -81,6 +82,7 @@ export function createApp(db: Client, config: Config, provider: Provider | null 
   addressRoutes(app, db);
   assistantRoutes(app, db, cache, assistant, usage);
   assistantAdminRoutes(app, db, cache, assistant);
+  assistantPromptAdminRoutes(app, db);
   assistantCredentialRoutes(app, db, assistant);
   const payments = new Payments(db, provider, config.publicOrigin); paymentRoutes(app, db, payments, cache);
   app.notFound(c => c.json({ type: 'about:blank', title: 'Not Found', status: 404 }, 404));

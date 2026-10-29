@@ -9,7 +9,7 @@ describe('admin permission catalog', () => {
     const grouped = PERMISSION_GROUPS.flatMap(group => group.items.map(item => item.key));
     expect(grouped).toEqual(ALL_PERMISSION_KEYS);
     expect(new Set(ALL_PERMISSION_KEYS).size).toBe(ALL_PERMISSION_KEYS.length);
-    expect(ALL_PERMISSION_KEYS).toHaveLength(33);
+    expect(ALL_PERMISSION_KEYS).toHaveLength(35);
   });
 
   it('gives every permission a Vietnamese label of its own', () => {
@@ -24,9 +24,13 @@ describe('admin permission catalog', () => {
       .toEqual(['users:manage-roles', 'permissions:manage']);
   });
 
-  it('defaults co-admins to everything except the all-keys supervisor right', () => {
-    expect(DEFAULT_DELEGATED_PERMISSIONS).toEqual(ALL_PERMISSION_KEYS.filter(key => key !== 'assistant:keys:manage'));
+  it('defaults co-admins to everything except the two rights that skip a review step', () => {
+    expect(DEFAULT_DELEGATED_PERMISSIONS).toEqual(
+      ALL_PERMISSION_KEYS.filter(key => key !== 'assistant:keys:manage' && key !== 'assistant:prompt:update'),
+    );
     expect(DEFAULT_DELEGATED_PERMISSIONS).not.toContain('assistant:keys:manage');
+    expect(DEFAULT_DELEGATED_PERMISSIONS).toContain('assistant:prompt:request');
+    expect(DEFAULT_DELEGATED_PERMISSIONS).not.toContain('assistant:prompt:update');
   });
 
   it('mirrors the server read dependencies', () => {

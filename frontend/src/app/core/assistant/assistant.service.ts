@@ -14,10 +14,23 @@ export interface AssistantRelease {
   title: string;
 }
 
+/** How the backend produced the answer; shown as the reasoning trace in the UI. */
+export interface AssistantMeta {
+  provider: string;
+  model: string;
+  cached: boolean;
+  latencyMs: number;
+  tokensIn: number;
+  tokensOut: number;
+  considered: number;
+  selected: number;
+}
+
 export interface AssistantReply {
   answer: string;
   sources: AssistantSource[];
   release: AssistantRelease | null;
+  meta?: AssistantMeta;
 }
 
 export interface AssistantHistoryMessage {

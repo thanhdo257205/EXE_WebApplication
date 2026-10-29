@@ -51,7 +51,13 @@ const RETIRED_MODEL_REPLACEMENTS: Readonly<Record<ProviderId, Readonly<Record<st
   openrouter: {
     'meta-llama/llama-3.3-70b-instruct:free': DEFAULT_MODELS.openrouter,
   },
+  motapis: {},
 };
+
+// MộtAPI bills per token, so a small daily ceiling ships with it and shows up as a quota bar the admin
+// can raise or clear; the free tiers keep their own provider-side limits. Budgets are advisory counters
+// (see usageSummary) — the real spend guard is that motapis sits last in DEFAULT_ORDER.
+export const DEFAULT_TOKEN_BUDGETS: Readonly<Partial<Record<ProviderId, number>>> = { motapis: 200_000 };
 
 function upgradedModelOverrides(raw: string): string | null {
   const overrides = jsonObject(raw);
@@ -89,10 +95,13 @@ export function defaultAssistantSettings(options: AssistantOptions | null): Assi
   const configured = options?.providers ?? [];
   const order: ProviderId[] = [];
   for (const provider of configured) if (!order.includes(provider.id)) order.push(provider.id);
+  // A stored credential makes its provider appear before the env slots it was merged with, so arrival
+  // order alone would float a paid last-resort provider to the front of a database that has no plan yet.
+  order.sort((a, b) => DEFAULT_ORDER.indexOf(a) - DEFAULT_ORDER.indexOf(b));
   const models: Record<string, string> = { ...DEFAULT_MODELS };
   // The first slot of a provider carries the env-configured model, so it becomes the default override.
   for (const provider of configured) if (!(provider.id in models) || models[provider.id] === DEFAULT_MODELS[provider.id]) models[provider.id] = provider.model;
-  return { order: order.length ? order : [...DEFAULT_ORDER], models, disabledSlots: [], tokenBudgets: {}, keyBudgets: {}, version: 0, updatedAt: null };
+  return { order: order.length ? order : [...DEFAULT_ORDER], models, disabledSlots: [], tokenBudgets: { ...DEFAULT_TOKEN_BUDGETS }, keyBudgets: {}, version: 0, updatedAt: null };
 }
 
 const jsonArray = (value: unknown): string[] => {

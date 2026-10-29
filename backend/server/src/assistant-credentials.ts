@@ -11,6 +11,7 @@ import {
   isCatalogModel,
   isProviderId,
   isSafeModelPath,
+  motapisProvider,
   openRouterProvider,
   workersAiProvider,
   ProviderError,
@@ -29,36 +30,87 @@ export const MAX_ACTIVE_KEYS = 32;
 
 export type CredentialStatus = 'PENDING' | 'ACTIVE' | 'DISABLED' | 'REVOKED';
 const statusSchema = z.enum(['PENDING', 'ACTIVE', 'DISABLED', 'REVOKED']);
-const providerSchema = z.enum(['workers-ai', 'gemini', 'groq', 'openrouter']);
+const providerSchema = z.enum(['workers-ai', 'gemini', 'groq', 'openrouter', 'motapis']);
 
-export async function initializeAssistantCredentials(db: Client): Promise<void> {
-  await execute(db, `CREATE TABLE IF NOT EXISTS assistant_credentials (
-    id TEXT NOT NULL PRIMARY KEY,
-    provider TEXT NOT NULL CHECK (provider IN ('workers-ai','gemini','groq','openrouter')),
-    owner_id TEXT NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
-    label TEXT NOT NULL,
-    secret_enc TEXT NOT NULL,
-    key_hint TEXT NOT NULL,
-    account_hint TEXT,
-    fingerprint TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING','ACTIVE','DISABLED','REVOKED')),
-    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000Z','now')),
-    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000Z','now')),
-    approved_by TEXT REFERENCES app_users(id) ON DELETE SET NULL,
-    approved_at TEXT,
-    revoked_at TEXT
-  )`);
+// One definition serves the fresh CREATE and the rebuild below, so a migrated database and a new one
+// cannot drift apart. SQLite cannot ALTER a CHECK in place, so widening the provider list means
+// copying the table: create -> copy -> drop -> rename -> recreate indexes.
+const CREDENTIAL_TABLE = 'assistant_credentials';
+const CREDENTIAL_STAGING_TABLE = 'assistant_credentials_next';
+const CREDENTIAL_COLUMNS = [
+  'id', 'provider', 'owner_id', 'label', 'secret_enc', 'key_hint', 'account_hint', 'fingerprint', 'status',
+  'created_at', 'updated_at', 'approved_by', 'approved_at', 'revoked_at',
+  'last_test_status', 'last_test_code', 'last_test_model', 'last_test_latency_ms', 'last_tested_at',
+] as const;
+
+const credentialsDdl = (table: string): string => `CREATE TABLE ${table} (
+  id TEXT NOT NULL PRIMARY KEY,
+  provider TEXT NOT NULL CHECK (provider IN ('workers-ai','gemini','groq','openrouter','motapis')),
+  owner_id TEXT NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+  label TEXT NOT NULL,
+  secret_enc TEXT NOT NULL,
+  key_hint TEXT NOT NULL,
+  account_hint TEXT,
+  fingerprint TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING','ACTIVE','DISABLED','REVOKED')),
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000Z','now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000Z','now')),
+  approved_by TEXT REFERENCES app_users(id) ON DELETE SET NULL,
+  approved_at TEXT,
+  revoked_at TEXT,
+  last_test_status TEXT,
+  last_test_code TEXT,
+  last_test_model TEXT,
+  last_test_latency_ms INTEGER,
+  last_tested_at TEXT
+)`;
+
+const credentialIndexes = async (db: Executor): Promise<void> => {
   // A key can be re-added after revocation, so only live rows participate in the duplicate check.
   await execute(db, `CREATE UNIQUE INDEX IF NOT EXISTS ux_assistant_credentials_fingerprint
-    ON assistant_credentials(provider,fingerprint) WHERE status <> 'REVOKED'`);
-  await execute(db, 'CREATE INDEX IF NOT EXISTS ix_assistant_credentials_owner ON assistant_credentials(owner_id,created_at)');
-  await execute(db, 'CREATE INDEX IF NOT EXISTS ix_assistant_credentials_active ON assistant_credentials(status,created_at)');
+    ON ${CREDENTIAL_TABLE}(provider,fingerprint) WHERE status <> 'REVOKED'`);
+  await execute(db, `CREATE INDEX IF NOT EXISTS ix_assistant_credentials_owner ON ${CREDENTIAL_TABLE}(owner_id,created_at)`);
+  await execute(db, `CREATE INDEX IF NOT EXISTS ix_assistant_credentials_active ON ${CREDENTIAL_TABLE}(status,created_at)`);
+};
+
+/** True only for the positively recognised pre-motapis DDL; an unreadable definition is never rebuilt. */
+async function providerCheckNeedsWidening(db: Executor): Promise<boolean> {
+  const ddl = String((await all(db, `SELECT sql FROM sqlite_master WHERE type='table' AND name='${CREDENTIAL_TABLE}'`))[0]?.sql ?? '');
+  return ddl.includes("'openrouter'") && !ddl.includes("'motapis'");
+}
+
+export async function initializeAssistantCredentials(db: Client): Promise<void> {
+  // A rebuild that died between the drop and the rename leaves the copy behind; restore it before a
+  // fresh CREATE would shadow the only surviving rows.
+  const staged = (await all(db, `SELECT name FROM sqlite_master WHERE type='table' AND name='${CREDENTIAL_STAGING_TABLE}'`))[0];
+  if (staged) {
+    const live = (await all(db, `SELECT name FROM sqlite_master WHERE type='table' AND name='${CREDENTIAL_TABLE}'`))[0];
+    if (!live) await execute(db, `ALTER TABLE ${CREDENTIAL_STAGING_TABLE} RENAME TO ${CREDENTIAL_TABLE}`);
+    else if (await scalar(db, `SELECT COUNT(*) FROM ${CREDENTIAL_TABLE}`) === 0) {
+      await execute(db, `DROP TABLE ${CREDENTIAL_TABLE}`);
+      await execute(db, `ALTER TABLE ${CREDENTIAL_STAGING_TABLE} RENAME TO ${CREDENTIAL_TABLE}`);
+    } else await execute(db, `DROP TABLE ${CREDENTIAL_STAGING_TABLE}`);
+  }
+  await execute(db, credentialsDdl(`IF NOT EXISTS ${CREDENTIAL_TABLE}`));
+  if (await providerCheckNeedsWidening(db)) {
+    await execute(db, `DROP TABLE IF EXISTS ${CREDENTIAL_STAGING_TABLE}`);
+    await execute(db, credentialsDdl(CREDENTIAL_STAGING_TABLE));
+    // Only columns the old table actually has are copied: a database that predates the telemetry
+    // columns would otherwise fail the insert, and the ALTER loop below adds them afterwards.
+    const stored = new Set((await all(db, `PRAGMA table_info(${CREDENTIAL_TABLE})`)).map(column => String(column.name)));
+    const columns = CREDENTIAL_COLUMNS.filter(column => stored.has(column)).join(',');
+    await execute(db, `INSERT INTO ${CREDENTIAL_STAGING_TABLE}(${columns}) SELECT ${columns} FROM ${CREDENTIAL_TABLE}`);
+    await execute(db, `DROP TABLE ${CREDENTIAL_TABLE}`);
+    await execute(db, `ALTER TABLE ${CREDENTIAL_STAGING_TABLE} RENAME TO ${CREDENTIAL_TABLE}`);
+  }
+  // DROP removes the indexes with the table, so they are (re)created only once the final name exists.
+  await credentialIndexes(db);
   // Test telemetry is advisory: it never changes the key status, but admins need to see the last outcome.
   for (const [column, type] of [
     ['last_test_status', 'TEXT'], ['last_test_code', 'TEXT'], ['last_test_model', 'TEXT'],
     ['last_test_latency_ms', 'INTEGER'], ['last_tested_at', 'TEXT'],
   ] as const) {
-    await execute(db, `ALTER TABLE assistant_credentials ADD COLUMN ${column} ${type}`).catch(() => undefined);
+    await execute(db, `ALTER TABLE ${CREDENTIAL_TABLE} ADD COLUMN ${column} ${type}`).catch(() => undefined);
   }
 }
 
@@ -86,6 +138,8 @@ const factoryFor = (provider: ProviderId, secret: string, accountId: string | un
       return groqProvider({ apiKey: secret, model, slot, fetch: fetchImpl });
     case 'openrouter':
       return openRouterProvider({ apiKey: secret, model, slot, siteUrl: options.siteUrl, fetch: fetchImpl });
+    case 'motapis':
+      return motapisProvider({ apiKey: secret, model, slot, fetch: fetchImpl });
   }
 };
 

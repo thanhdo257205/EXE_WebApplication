@@ -2,6 +2,7 @@ import { afterNextRender, Component, inject, NgZone, OnDestroy, signal } from '@
 import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
 import { AuthService } from './core/auth/auth.service';
+import { AssistantDockComponent } from './shared/components/assistant-dock/assistant-dock.component';
 import { GlobalBarComponent } from './shared/components/global-bar/global-bar.component';
 import { MorphIconComponent } from './shared/components/morph-icon/morph-icon.component';
 import { CursorGhost } from './shared/utils/cursor-ghost';
@@ -12,7 +13,7 @@ import { GlassControlsDirective } from './shared/motion/glass-controls.directive
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterLink, RouterOutlet, GlobalBarComponent, MorphIconComponent, GlassControlsDirective],
+  imports: [RouterLink, RouterOutlet, GlobalBarComponent, AssistantDockComponent, MorphIconComponent, GlassControlsDirective],
   templateUrl: './app.html',
   styleUrls: ['./app.css', './app-footer.css'],
   host: { '(document:keydown.escape)': 'closeMobileMenu()' },

@@ -1,0 +1,75 @@
+/* Khung popup trợ lý: nút nổi, bảng chat, đầu bảng, gợi ý và ô soạn câu hỏi */
+:host {
+  --accent: var(--ed-accent, #dafa76); --accent-2: #9fd14a;
+  --ink: #f3f1ea; --muted: #9aa3b5;
+  --line: rgba(170, 190, 230, .13); --line-strong: rgba(170, 190, 230, .26);
+  --glass: rgba(11, 16, 26, .95);
+  --sans: 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-family: var(--sans);
+}
+
+.dock { position: fixed; right: clamp(14px, 2vw, 26px); bottom: clamp(14px, 2vw, 26px); z-index: 70; display: flex; flex-direction: column; align-items: flex-end; gap: 12px; }
+
+.launcher {
+  position: relative; display: grid; place-items: center; width: 58px; height: 58px; border-radius: 50%;
+  background: radial-gradient(circle at 32% 24%, #f4ffc2, var(--accent) 58%, #a6ce46); color: #183c2b;
+  box-shadow: 0 18px 44px -14px rgba(0, 0, 0, .9), 0 0 0 1px rgba(218, 250, 118, .45), 0 0 32px -6px rgba(218, 250, 118, .5);
+  transition: transform .2s ease, width .2s ease, height .2s ease, background .2s ease;
+}
+.launcher:hover { transform: translateY(-2px); }
+.launcher.panel-open {
+  width: 42px; height: 42px; background: rgba(20, 26, 38, .96); color: var(--ink);
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 12px 30px -14px rgba(0, 0, 0, .9);
+}
+.launcher-ping {
+  position: absolute; inset: -4px; border-radius: inherit; border: 1px solid rgba(218, 250, 118, .5);
+  animation: launcher-ping 2.8s ease-out infinite; pointer-events: none;
+}
+@keyframes launcher-ping { 0% { transform: scale(.9); opacity: .8; } 70%, 100% { transform: scale(1.25); opacity: 0; } }
+
+.panel {
+  display: flex; flex-direction: column; width: min(404px, calc(100vw - 28px)); height: min(628px, calc(100dvh - 108px));
+  border: 1px solid var(--line-strong); border-radius: 24px; overflow: hidden; color: var(--ink);
+  background: linear-gradient(160deg, rgba(255, 255, 255, .05), transparent 46%), var(--glass);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 44px 110px -42px rgba(0, 0, 0, .95), inset 0 1px 0 rgba(255, 255, 255, .07);
+  animation: dock-in .24s cubic-bezier(.16, 1, .3, 1);
+}
+@keyframes dock-in { from { opacity: 0; transform: translateY(14px) scale(.97); } to { opacity: 1; transform: none; } }
+
+.panel-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 13px 14px 13px 16px; border-bottom: 1px solid var(--line); }
+.identity { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.avatar {
+  display: grid; place-items: center; width: 38px; height: 38px; flex: none; border-radius: 13px;
+  background: radial-gradient(circle at 30% 20%, #f0ffb0, var(--accent) 60%, #86b52e);
+  color: #183c2b; font: 900 16px/1 var(--sans); box-shadow: 0 0 22px -6px rgba(218, 250, 118, .7);
+}
+.identity-copy { min-width: 0; }
+.identity h2 { margin: 0; font-size: 14px; font-weight: 800; letter-spacing: -.01em; white-space: nowrap; }
+.identity-sub { display: flex; align-items: center; gap: 6px; margin: 3px 0 0; font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; }
+.identity-sub i { width: 6px; height: 6px; flex: none; border-radius: 50%; background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+.identity-page { flex: none; font-weight: 600; color: #cfd6e4; }
+.sep { flex: none; color: #5b6474; }
+.release-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.top-actions { display: flex; align-items: center; gap: 4px; flex: none; }
+.clear, .expand { padding: 6px 6px; border: 0; background: none; color: var(--muted); font-size: 11px; font-weight: 600; text-underline-offset: 4px; }
+.clear { text-decoration: underline; }
+.clear:hover:not(:disabled), .expand:hover { color: var(--ink); }
+.clear:disabled { opacity: .35; }
+.expand { text-decoration: underline; }
+.close { display: grid; place-items: center; width: 30px; height: 30px; margin-left: 2px; border: 1px solid transparent; border-radius: 10px; color: #c3ccdb; }
+.close:hover { border-color: var(--line-strong); background: rgba(255, 255, 255, .06); color: #fff; }
+
+@media (max-width: 560px) {
+  .dock { right: 12px; bottom: 12px; }
+  .panel { position: fixed; inset: 0; width: 100%; height: 100dvh; max-height: none; border-radius: 0; border: 0; }
+  .panel-top { padding-top: max(13px, env(safe-area-inset-top)); }
+  .launcher.panel-open { display: none; }
+  .expand { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .panel { animation: none; }
+  .launcher { transition: none; }
+  .launcher-ping { display: none; }
+}

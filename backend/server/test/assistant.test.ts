@@ -1,14 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  assistantFromEnv, DEFAULT_MODELS, DEFAULT_ORDER, MODEL_CATALOG, geminiProvider, groqProvider, isSafeModelPath, NoProviderAvailable, openRouterProvider,
+  assistantFromEnv, DEFAULT_MODELS, DEFAULT_ORDER, MODEL_CATALOG, geminiProvider, groqProvider, isSafeModelPath, motapisProvider, NoProviderAvailable, openRouterProvider,
   ProviderError, ProviderRouter, workersAiProvider,
   type ChatProvider, type CompletionRequest, type CompletionResult, type FetchLike,
 } from '../src/assistant-providers.ts';
 import {
   chunkMarkdown, retrieve, tokenize, type KnowledgeDocument, type PublishedKnowledge,
 } from '../src/assistant-knowledge.ts';
-import { activeProviders } from '../src/assistant-settings.ts';
+import { activeProviders, defaultAssistantSettings, DEFAULT_TOKEN_BUDGETS } from '../src/assistant-settings.ts';
 
 const request = (overrides: Partial<CompletionRequest> = {}): CompletionRequest => ({
   system: 'SYSTEM',
@@ -146,6 +146,44 @@ test('Groq and OpenRouter adapters use OpenAI-compatible bodies and normalize fa
   await assert.rejects(quota.complete(request()), isFailure('QUOTA'));
 });
 
+/**
+ * MộtAPI is the only paid provider in the lineup: the request contract is plain OpenAI (no vendor
+ * headers, no reasoning_effort) and every token it reports is money, so the usage block must map.
+ */
+test('MộtAPI adapter posts to motapis.com with a bearer key and maps paid usage and failures', async () => {
+  let seen: { url: string; init: RequestInit } | undefined;
+  const adapter = motapisProvider({
+    apiKey: 'sk-motapis-key', model: 'claude-sonnet-5',
+    fetch: async (url, init) => {
+      seen = { url, init };
+      return Response.json({ choices: [{ message: { content: 'Phở bò', reasoning_content: 'Đang suy nghĩ...' } }], usage: { prompt_tokens: 41, completion_tokens: 326, total_tokens: 367 } });
+    },
+  });
+  assert.deepEqual(await adapter.complete(request()), { text: 'Phở bò', tokensIn: 41, tokensOut: 326 });
+  assert.equal(seen!.url, 'https://motapis.com/v1/chat/completions');
+  assert.equal(header(seen!.init, 'Authorization'), 'Bearer sk-motapis-key');
+  const body = jsonBody(seen!.init);
+  assert.equal(body.model, 'claude-sonnet-5');
+  assert.deepEqual(body.messages, [{ role: 'system', content: 'SYSTEM' }, { role: 'user', content: 'Xin chào' }]);
+  assert.equal(body.max_tokens, 123);
+  assert.equal(body.temperature, 0.4);
+  // reasoning_effort is Groq-specific and OpenRouter's vendor headers would be sent to the wrong host.
+  assert.equal('reasoning_effort' in body, false);
+  assert.equal(header(seen!.init, 'X-Title'), null);
+  assert.equal(motapisProvider({ apiKey: 'k' }).slot, 'motapis#1');
+
+  // A model that put its whole budget into reasoning has no visible answer: the router must not
+  // record an empty reply as a working provider.
+  const reasoningOnly = motapisProvider({ apiKey: 'k', fetch: async () => Response.json({ choices: [{ message: { content: null, reasoning_content: 'chuẩn bị trả lời' } }] }) });
+  await assert.rejects(reasoningOnly.complete(request()), isFailure('EMPTY'));
+  const retired = motapisProvider({ apiKey: 'k', fetch: async () => new Response(null, { status: 503 }) });
+  await assert.rejects(retired.complete(request()), isFailure('UNAVAILABLE'));
+  const billed = motapisProvider({ apiKey: 'k', fetch: async () => new Response(null, { status: 429 }) });
+  await assert.rejects(billed.complete(request()), isFailure('QUOTA'));
+  const outOfCredit = motapisProvider({ apiKey: 'k', fetch: async () => Response.json({ error: { code: 402 } }) });
+  await assert.rejects(outOfCredit.complete(request()), isFailure('QUOTA'));
+});
+
 test('router fails over and skips a cooling provider until its cooldown expires', async () => {
   let clock = 1_000, primary = 0, backup = 0;
   const router = new ProviderRouter({
@@ -254,6 +292,54 @@ test('assistantFromEnv numbers every credential slot without duplicating keys', 
   ]);
 });
 
+test('assistantFromEnv builds motapis slots from its own variables and numbers them', () => {
+  const fetchStub: FetchLike = async () => Response.json({});
+  const options = assistantFromEnv({
+    GROQ_API_KEY: 'q', MOTAPIS_API_KEYS: 'sk-1, sk-1\nsk-2', MOTAPIS_API_KEY: 'sk-2', MOTAPIS_MODEL: 'minimax-m3',
+  }, fetchStub);
+  assert.deepEqual(options.providers.map(provider => provider.slot), ['groq#1', 'motapis#1', 'motapis#2']);
+  assert.deepEqual(options.providers.map(provider => provider.model), ['openai/gpt-oss-120b', 'minimax-m3', 'minimax-m3']);
+  assert.equal(options.models?.motapis, 'minimax-m3');
+  // No MOTAPIS_* credential at all means no slot, exactly like the other providers.
+  assert.equal(assistantFromEnv({ GROQ_API_KEY: 'q' }, fetchStub).providers.some(provider => provider.id === 'motapis'), false);
+});
+
+/**
+ * The paid provider is the last resort of the whole lineup, so two things are locked here: it is ordered
+ * last, and no selectable model can bill for a reply that never arrives.
+ */
+test('the paid MộtAPI provider ships last and lists only models that answered a live probe', () => {
+  assert.equal(DEFAULT_ORDER.at(-1), 'motapis');
+  assert.equal(DEFAULT_MODELS.motapis, 'claude-sonnet-5');
+  // Admin overrides are validated against this list, so every id must pass the same path safety filter.
+  MODEL_CATALOG.motapis.forEach(choice => assert.equal(isSafeModelPath(choice.id), true, choice.id));
+  // Measured on 2026-10-29 with an admin key: these returned HTTP 503, or HTTP 200 whose content stayed
+  // null because the whole budget went to hidden reasoning — both would read as a broken provider.
+  for (const id of ['grok-4.6', 'kimi-k3.1-pro', 'hy3', 'glm-5.3-flash', 'DeepSeek-V4-Flash-0731']) {
+    assert.equal(MODEL_CATALOG.motapis.some(choice => choice.id === id), false, id);
+  }
+});
+
+test('a stored paid key does not float its provider ahead of the free tiers', () => {
+  const options = {
+    providers: [
+      // Database credentials load before env slots, so arrival order alone would put motapis first.
+      chatProvider('motapis', async () => 'paid', 'claude-sonnet-5', 'db:11111111-2222-3333-4444-555555555555'),
+      chatProvider('groq', async () => 'free', 'openai/gpt-oss-120b', 'groq#1'),
+    ],
+    timeoutMs: 30_000, attemptTimeoutMs: 7_000, maxOutputTokens: 700, temperature: 0.3,
+  };
+  const plan = defaultAssistantSettings(options);
+  assert.deepEqual(plan.order, ['groq', 'motapis']);
+  // The shipped ceiling exists only for the paid provider; the free tiers keep provider-side limits.
+  assert.deepEqual(plan.tokenBudgets, { motapis: DEFAULT_TOKEN_BUDGETS.motapis });
+  // An already-saved plan that predates motapis must still try it last, not first.
+  const active = activeProviders(options.providers, {
+    order: ['groq'], models: {}, disabledSlots: [], tokenBudgets: {}, keyBudgets: {}, version: 1, updatedAt: null,
+  });
+  assert.deepEqual(active.map(provider => provider.slot), ['groq#1', 'db:11111111-2222-3333-4444-555555555555']);
+});
+
 test('Vietnamese tokens keep card words while dropping filler, and long wiki pages chunk', () => {
   assert.deepEqual(tokenize('Như thế nào là thẻ?'), ['the']);
   assert.deepEqual(tokenize('Cách chơi boardgame'), ['cach', 'choi', 'board', 'game']);
@@ -282,6 +368,8 @@ test('citations keep [n] aligned with sources when a page is split into several 
   const knowledge: PublishedKnowledge = { releaseId: 'r1', versionLabel: '1.0', releaseTitle: 'Bản 1.0', documents, frequency };
   const result = retrieve(knowledge, 'quỹ chung trả hóa đơn thế nào');
   assert.equal(result.sources.length, result.documents.length);
+  assert.ok(result.considered >= result.documents.length);
+  assert.equal(result.considered, 3);
   const blocks = result.context.split('\n\n');
   result.documents.forEach((doc, index) => {
     assert.equal(result.sources[index].url, doc.url);

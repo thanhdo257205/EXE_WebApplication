@@ -39,7 +39,7 @@ describe('AdminPermissionEditorComponent', () => {
   it('renders one labelled checkbox per grantable permission and starts clean', () => {
     const { el } = render();
     expect(boxes(el)).toHaveLength(ALL_PERMISSION_KEYS.length);
-    expect(el.textContent).toContain('2/33 quyền đã chọn');
+    expect(el.textContent).toContain(`2/${ALL_PERMISSION_KEYS.length} quyền đã chọn`);
     expect(el.textContent).toContain('bộ tùy chỉnh (phiên bản 4)');
     const checked = boxes(el).filter(box => box.checked).length;
     expect(checked).toBe(2);
@@ -52,7 +52,7 @@ describe('AdminPermissionEditorComponent', () => {
 
   it('ignores keys the catalog no longer knows about', () => {
     const { el } = render({ ...coAdmin, permissions: ['content:read', 'wiki:archive', 'users:manage-roles'] });
-    expect(el.textContent).toContain('1/33 quyền đã chọn');
+    expect(el.textContent).toContain(`1/${ALL_PERMISSION_KEYS.length} quyền đã chọn`);
     expect(boxes(el).filter(box => box.checked)).toHaveLength(1);
   });
 
@@ -92,11 +92,11 @@ describe('AdminPermissionEditorComponent', () => {
     const [useDefault, clearAll] = Array.from(el.querySelectorAll('.toolbar button')) as HTMLButtonElement[];
     clearAll.click();
     fixture.detectChanges();
-    expect(el.textContent).toContain('0/33 quyền đã chọn');
+    expect(el.textContent).toContain(`0/${ALL_PERMISSION_KEYS.length} quyền đã chọn`);
     expect(boxes(el).every(box => !box.checked)).toBe(true);
     useDefault.click();
     fixture.detectChanges();
-    expect(el.textContent).toContain('32/33 quyền đã chọn');
+    expect(el.textContent).toContain(`${DEFAULT_DELEGATED_PERMISSIONS.length}/${ALL_PERMISSION_KEYS.length} quyền đã chọn`);
     expect(boxes(el).filter(box => box.checked)).toHaveLength(DEFAULT_DELEGATED_PERMISSIONS.length);
     (el.querySelector('.actions .primary') as HTMLButtonElement).click();
     expect(saved).toHaveBeenCalledWith(DEFAULT_DELEGATED_PERMISSIONS);

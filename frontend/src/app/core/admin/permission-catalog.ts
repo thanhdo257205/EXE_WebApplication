@@ -57,6 +57,12 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
       { key: 'assistant:models:reorder', label: 'Sắp xếp thứ tự nhà cung cấp' },
       { key: 'assistant:slots:update', label: 'Bật/tắt slot key' },
       { key: 'assistant:budgets:update', label: 'Đặt hạn mức token mỗi ngày' },
+      { key: 'assistant:prompt:request', label: 'Gửi yêu cầu sửa system prompt' },
+      {
+        key: 'assistant:prompt:update',
+        label: 'Lưu system prompt trực tiếp',
+        hint: 'Sửa ngay bản đang dùng và duyệt/yêu cầu của người khác. Không nằm trong bộ mặc định.',
+      },
     ],
   },
   {
@@ -91,8 +97,13 @@ export const OWNER_ONLY_PERMISSIONS: PermissionItem[] = [
 
 export const ALL_PERMISSION_KEYS: string[] = PERMISSION_GROUPS.flatMap(group => group.items.map(item => item.key));
 
-/** Mirrors DEFAULT_DELEGATED_PERMISSIONS in the backend: everything except the key supervisor right. */
-export const DEFAULT_DELEGATED_PERMISSIONS: string[] = ALL_PERMISSION_KEYS.filter(key => key !== 'assistant:keys:manage');
+/**
+ * Mirrors DEFAULT_DELEGATED_PERMISSIONS in the backend: everything except the two rights that
+ * change shared state without a review step — the all-keys supervisor and the direct prompt write.
+ */
+export const DEFAULT_DELEGATED_PERMISSIONS: string[] = ALL_PERMISSION_KEYS.filter(
+  key => key !== 'assistant:keys:manage' && key !== 'assistant:prompt:update',
+);
 
 const LABELS = new Map<string, string>(
   [...PERMISSION_GROUPS.flatMap(group => group.items), ...OWNER_ONLY_PERMISSIONS].map(item => [item.key, item.label]),

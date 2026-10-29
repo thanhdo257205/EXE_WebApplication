@@ -145,7 +145,10 @@ export class AuthService {
           headers: new HttpHeaders({ [csrf.headerName]: csrf.token }),
         })
       ),
-      tap(() => this.currentUser.set(null))
+      tap(() => {
+        this.currentUser.set(null);
+        this.notifySignedOut();
+      })
     );
   }
 
@@ -164,11 +167,19 @@ export class AuthService {
         withCredentials: true,
         headers: new HttpHeaders({ [csrf.headerName]: csrf.token }),
       })
-    ), tap(() => this.currentUser.set(null)));
+    ), tap(() => {
+      this.currentUser.set(null);
+      this.notifySignedOut();
+    }));
   }
 
   getCsrf() {
     return this.csrf();
+  }
+
+  /** Lets UI that keeps per-session state (like the assistant dock) drop it on an explicit sign-out. */
+  private notifySignedOut(): void {
+    if (typeof window !== 'undefined') window.dispatchEvent(new Event('auth:signed-out'));
   }
 
   private csrf() {
