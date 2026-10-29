@@ -105,6 +105,15 @@ const SETS: Record<string, AssistantSuggestionSet> = {
       'Cần lưu địa chỉ giao hàng ở đâu?',
     ],
   },
+  'don-hang': {
+    page: 'Đơn hàng của tôi',
+    questions: [
+      'Đơn hàng đang ở trạng thái nào?',
+      'Đã thanh toán nhưng đơn chưa xác nhận thì làm sao?',
+      'Kiểm tra thanh toán PayOS thế nào?',
+      'Đơn chưa thanh toán bị hết hạn bao lâu?',
+    ],
+  },
   'dia-chi': {
     page: 'Sổ địa chỉ',
     questions: [
