@@ -125,7 +125,8 @@ export class AdminUsersPage {
   reload(): void { this.load(); }
 
   openPermissions(account: AdminAccount): void {
-    if (!this.canManagePermissions() || account.adminLevel === 'OWNER' || account.role !== 'ADMIN'
+    // Every reader of the list may open the grid; the server decides who may write, and the grid mirrors that.
+    if (account.role !== 'ADMIN' || account.adminLevel === 'OWNER' || account.permissions === undefined
       || this.loading() || this.saving() || this.inviteSaving() || this.needsReload()) return;
     this.error.set('');
     this.notice.set('');
@@ -134,11 +135,20 @@ export class AdminUsersPage {
     this.editing.set([account]);
   }
 
+  /** The server answers per account; the page-level flag keeps a stale row from offering a write after a denial. */
+  canEdit(account: AdminAccount): boolean { return this.canManagePermissions() && account.permissionsEditable === true; }
+
+  permissionActionLabel(account: AdminAccount): string {
+    const open = this.editing()[0]?.id === account.id;
+    if (this.canEdit(account)) return open ? 'Đang phân quyền' : 'Phân quyền chi tiết';
+    return open ? 'Đang xem quyền' : 'Xem quyền';
+  }
+
   closePermissions(): void { if (!this.saving()) this.editing.set([]); }
 
   savePermissions(permissions: string[]): void {
     const account = this.editing()[0];
-    if (!account || !this.canManagePermissions() || this.saving() || this.loading() || this.needsReload()) return;
+    if (!account || !this.canEdit(account) || this.saving() || this.loading() || this.needsReload()) return;
     this.saving.set(true);
     this.error.set('');
     this.notice.set('');
@@ -164,9 +174,11 @@ export class AdminUsersPage {
 
   permissionSummary(account: AdminAccount): string {
     if (account.adminLevel === 'OWNER') return 'Toàn quyền — được bảo vệ';
-    if (account.role !== 'ADMIN') return '—';
-    if (!this.canManagePermissions()) return 'Chỉ admin chính mới phân quyền được';
-    return `${account.permissions?.length ?? 0} quyền (${account.customPermissions ? 'bộ tùy chỉnh' : 'bộ mặc định'})`;
+    if (account.role !== 'ADMIN' || account.permissions === undefined) return '—';
+    const count = `${account.permissions.length} quyền`;
+    if (!account.customPermissions) return `${count} (bộ mặc định)`;
+    // A custom set always has an author, so naming it answers "ai đã cấp bộ quyền này".
+    return `${count} (bộ tùy chỉnh) · do ${account.permissionsGrantedBy ?? 'admin chính'} cấp`;
   }
 
   loadInvites(): void {
@@ -272,7 +284,11 @@ export class AdminUsersPage {
       this.canManageRoles.set(false);
       this.canManagePermissions.set(false);
       this.editing.set([]);
-      this.error.set(code === 'OWNER_PROTECTED' ? 'Không thể thay đổi quyền của admin chính.' : 'Chỉ admin chính được cấp, thu hồi hoặc phân quyền cho người khác.');
+      this.error.set(code === 'OWNER_PROTECTED' ? 'Không thể thay đổi quyền của admin chính.'
+        : code === 'SELF_GRANT_FORBIDDEN' ? 'Bạn không tự sửa bộ quyền của mình được; hãy nhờ admin chính hoặc người đã cấp quyền cho bạn.'
+        : code === 'GRANTOR_PROTECTED' ? 'Không sửa được quyền của người đã cấp quyền phân quyền cho bạn.'
+        : code === 'PERMISSION_REQUIRED' ? 'Bạn không còn quyền này. Chỉ admin chính hoặc người được cấp quyền phân quyền mới sửa được.'
+        : 'Bạn không được cấp, thu hồi hoặc phân quyền cho tài khoản này.');
     } else if (code === 'ACCOUNT_DISABLED') {
       this.error.set('Tài khoản đã bị khóa, không thể cấp quyền quản trị.');
     } else if (code === 'TARGET_NOT_ADMIN') {

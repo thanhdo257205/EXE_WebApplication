@@ -1,4 +1,4 @@
-import { all, type Executor, type Row } from './db.ts';
+import { all, fail, type Executor, type Row } from './db.ts';
 
 /**
  * Fine-grained admin permissions. The catalog is the single source of truth for
@@ -41,19 +41,24 @@ export const GRANTABLE_PERMISSIONS = [
   'assistant:keys:revoke',
   'assistant:keys:manage',
   'users:read',
+  // Delegable so the owner does not have to be the single person writing grant sets, but it never
+  // ships in the default set: handing it out is itself the privilege that must be an explicit act.
+  'permissions:manage',
 ] as const;
 
 export type Permission = (typeof GRANTABLE_PERMISSIONS)[number];
 export type PermissionSet = readonly string[];
 
-/** Owner-only capabilities. They are never stored in admin_permission_sets. */
-export const OWNER_ONLY_PERMISSIONS = ['users:manage-roles', 'permissions:manage'] as const;
+/** Creating and demoting admins stays with the owner; only the grant write is delegable. */
+export const OWNER_ONLY_PERMISSIONS = ['users:manage-roles'] as const;
 
 /** Default co-admin set keeps the behaviour that existed before fine-grained RBAC. */
 export const DEFAULT_DELEGATED_PERMISSIONS: readonly Permission[] =
   // Saving the assistant system prompt straight to the database is an explicit grant; the role default is
   // request-only, so a co-admin proposes a change and it lands only after someone with the update right approves it.
-  GRANTABLE_PERMISSIONS.filter(permission => permission !== 'assistant:keys:manage' && permission !== 'assistant:prompt:update');
+  // permissions:manage is excluded for the same reason: accounts promoted before this change must not gain it silently.
+  GRANTABLE_PERMISSIONS.filter(permission =>
+    permission !== 'assistant:keys:manage' && permission !== 'assistant:prompt:update' && permission !== 'permissions:manage');
 
 const grantable = new Set<string>(GRANTABLE_PERMISSIONS);
 export const isGrantablePermission = (value: string): value is Permission => grantable.has(value);
@@ -76,6 +81,8 @@ export function normalizePermissions(input: readonly string[]): Permission[] {
     if (permission.startsWith('assistant:')) granted.add('assistant:read');
     // A key action without keys:read would let the account act on a key it can never list.
     if (/^assistant:keys:(create|reveal|test|revoke|manage)$/.test(permission)) granted.add('assistant:keys:read');
+    // Managing grants without reading the account list is useless: the target is never visible.
+    if (permission === 'permissions:manage') granted.add('users:read');
     // keys:manage is the supervisor role: it can reach every other key action.
     if (permission === 'assistant:keys:manage') {
       granted.add('assistant:keys:reveal');
@@ -136,4 +143,24 @@ export async function accessView(db: Executor, user: Row) {
     adminLevel: admin ? (isOwner ? 'OWNER' : 'DELEGATED') : null,
     ...snapshot,
   };
+}
+
+/** A grant tree this deep means corrupted data; refusing the write is safer than guessing the ancestors. */
+const MAX_GRANT_DEPTH = 16;
+
+/**
+ * Every account above `userId` in the grant tree: whoever wrote its permission set, then whoever wrote
+ * that one. A grant holder may never work upward, so the caller deny-lists these ids. A row with no
+ * granted_by was written by the owner, and the owner is already protected by its own guard, so the walk ends.
+ */
+export async function grantorChain(db: Executor, userId: string): Promise<Set<string>> {
+  const chain = new Set<string>();
+  let current = userId;
+  for (let depth = 0; depth < MAX_GRANT_DEPTH; depth++) {
+    const granter = (await all(db, 'SELECT granted_by FROM admin_permission_sets WHERE user_id=?', [current]))[0]?.granted_by;
+    if (typeof granter !== 'string' || granter === '' || chain.has(granter)) return chain;
+    chain.add(granter);
+    current = granter;
+  }
+  return fail(403, 'GRANTOR_PROTECTED');
 }

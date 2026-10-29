@@ -4,6 +4,17 @@
 
 ## Cập nhật gần nhất
 
+### Ủy nhiệm quyền phân quyền: đồng quản trị xem được bộ quyền của nhau, người được cấp thì sửa được cấp dưới — 2026-10-29 (local, chưa commit/push/deploy)
+
+- Yêu cầu của chủ dự án: "Tôi muốn các đồng admin khác có thể xem được ai có quyền được cấp cụ thể nào nhé, nhưng không được chỉnh sửa, chỉ admin chính hoặc ai được cấp quyền đó mới được cấp quyền sửa quyền của người khác trừ người cấp quyền cho họ".
+- Đọc quyền: `GET /api/v1/admin/users` trả `permissions`, `permissionsVersion`, `customPermissions`, `permissionsGrantedBy`, `permissionsEditable` cho **mọi** tài khoản ADMIN với **mọi** người gọi có `users:read` (trước chỉ owner). Trang `/admin/users` thêm cột tóm tắt "N quyền (bộ tùy chỉnh) · do X cấp" và nút **Xem quyền** mở cùng bảng quyền ở chế độ chỉ đọc (khóa mọi ô, ẩn nút lưu/bộ mặc định, nêu tên người sửa được).
+- Ghi quyền: `permissions:manage` chuyển từ quyền chỉ-owner thành quyền **gán được** (danh mục 36), **không** nằm trong bộ mặc định để tài khoản cũ không tự nhận, tự kèm `users:read`. `users:manage-roles` (cấp/thu hồi đồng quản trị, lời mời) vẫn chỉ owner.
+- Chống sửa ngược: bảng `admin_permission_sets` thêm cột `granted_by` (`V17__permission_grant_provenance.sql` + initializer idempotent, không backfill). Cột chỉ ghi khi **tạo** bộ quyền, không bao giờ ghi đè — owner sửa lại bộ của người khác chỉ đổi `updated_by`. Guard đọc chuỗi `granted_by` của người thao tác (tối đa 16 bước, dừng khi lặp, vượt giới hạn → fail closed) và trả `403 SELF_GRANT_FORBIDDEN` khi tự sửa, `403 GRANTOR_PROTECTED` khi đích nằm trong chuỗi người đã cấp cho mình; sửa ngang hàng được phép.
+- Frontend: `AdminAccount` thêm `permissionsGrantedBy`/`permissionsEditable`; `canEdit()`/`permissionActionLabel()` quyết định nhãn nút và chế độ chỉ đọc; `savePermissions` chặn lại lần nữa ở method; `handleError` ánh xạ riêng `OWNER_PROTECTED`, `SELF_GRANT_FORBIDDEN`, `GRANTOR_PROTECTED`, `PERMISSION_REQUIRED`, và khóa quyền ghi sau lần bị từ chối. `impliedPermissions` và trình phân quyền dùng chung một bộ quy tắc phụ thuộc (thêm `permissions:manage` → `users:read`).
+- Kiểm thử: backend `tsc --noEmit` sạch, `npm test` **143 test / 142 pass / 1 skip (Turso) / 0 fail**; `rbac-permissions.test.ts` 17 ca, thêm 4 ca (ủy nhiệm xuống + các mã chặn + audit đúng người thao tác; provenance không đổi khi owner ghi lại; chuỗi bị tạo vòng ngoài API vẫn dừng; initializer thêm cột cho DB cũ). Frontend hai `tsc --noEmit` sạch, `ng test --watch=false` **59 file / 464 test pass** (users page 27, permission editor 11, catalog 7).
+- Chứng cứ test hồi quy đỏ khi bỏ fix (đo thật rồi khôi phục): bỏ kiểm tra chuỗi → 3 ca đỏ ở `GRANTOR_PROTECTED`; giới hạn danh sách quyền như cũ → ca người đọc thấy bộ quyền đỏ; thêm `permissions:manage` vào bộ mặc định (backend và frontend) → ca danh mục đỏ; luôn truyền `readOnly=false` → ca chỉ-đọc đỏ vì nút lưu xuất hiện.
+- Chưa commit/push/deploy. Sau deploy, owner phải **cấp thủ công** `permissions:manage` cho người được ủy nhiệm và chủ dự án cần chốt danh sách người nhận.
+
 ### System prompt của trợ lý chuyển vào DB, sửa qua dashboard có duyệt — 2026-10-29 (local, code đã commit `6511fef`; lượt kiểm chứng browser + 1 fix hồi quy chưa commit)
 
 - Yêu cầu của chủ dự án: "không có xóa system prompt nhé, chỉ có sửa thôi, và ai được admin cấp quyền sửa thì mới được sửa trực tiếp nhé, quyền mặc định là yêu cầu sửa sau khi đã sửa, và admin chính hay admin có quyền sửa nhận được yêu cầu, sau đó system prompt trong DB mới được update nhé".

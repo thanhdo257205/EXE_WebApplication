@@ -13,10 +13,14 @@ export interface AdminAccount {
   enabled: boolean;
   version: number;
   createdAt: string;
-  /** Only present when the requester holds permissions:manage. */
+  /** Present for every ADMIN account when the requester holds users:read. */
   permissions?: string[];
   permissionsVersion?: number;
   customPermissions?: boolean;
+  /** Who first stored this set; null means the main admin wrote it or no custom set exists yet. */
+  permissionsGrantedBy?: string | null;
+  /** Server-side answer to "may this viewer edit that account's set"; the UI never re-derives it. */
+  permissionsEditable?: boolean;
 }
 export interface AdminAccountsPage {
   items: AdminAccount[];
@@ -69,7 +73,7 @@ export class AdminUsersService {
     ));
   }
 
-  /** Owner-only write; expectedVersion is the permission-set version, not the account's auth version. */
+  /** Needs permissions:manage; the server also refuses the caller's own account and their granters. */
   updatePermissions(account: AdminAccount, permissions: readonly string[]) {
     return this.auth.getCsrf().pipe(switchMap(csrf =>
       this.http.put<AdminPermissionsResult>(`${this.base}/${account.id}/permissions`, {

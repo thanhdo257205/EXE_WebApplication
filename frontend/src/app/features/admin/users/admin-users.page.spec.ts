@@ -9,7 +9,13 @@ import { AuthService } from '../../../core/auth/auth.service';
 describe('RBAC users page', () => {
   const owner: AdminAccount = {id:'owner',email:'owner@example.test',displayName:'Admin chính',role:'ADMIN',adminLevel:'OWNER',enabled:true,version:0,createdAt:''};
   const customer: AdminAccount = {id:'customer',email:'customer@example.test',displayName:'Thành viên',role:'CUSTOMER',adminLevel:null,enabled:true,version:3,createdAt:''};
-  const delegated: AdminAccount = {...customer,id:'admin',email:'admin@example.test',role:'ADMIN',adminLevel:'DELEGATED'};
+  /** A co-admin whose set was handed down: visible to every list reader, editable only by its authors. */
+  const delegated: AdminAccount = {...customer,id:'admin',email:'admin@example.test',role:'ADMIN',adminLevel:'DELEGATED',
+    permissions:['content:read'],permissionsVersion:0,customPermissions:false,permissionsGrantedBy:null,permissionsEditable:false};
+  /** A co-admin granted by the signed-in account, so the server marks the set writable. */
+  const managed: AdminAccount = {...delegated,id:'managed',email:'managed@example.test',displayName:'Đồng quản trị được cấp',
+    permissions:['users:read','permissions:manage'],permissionsVersion:2,customPermissions:true,
+    permissionsGrantedBy:'Admin chính',permissionsEditable:true};
   const result = (canManageRoles = true, items = [owner, customer, delegated], canManagePermissions = false) => ({items,canManageRoles,canManagePermissions,page:0,size:20,totalPages:1,totalElements:items.length});
   const pendingInvite = {id:'invite-1',email:'future@example.test',invitedByName:'Admin chính',createdAt:'2026-10-25T10:00:00.000Z'};
   const inviteResult = (items: any[] = [], canManageRoles = true) => ({items,canManageRoles});
@@ -24,11 +30,12 @@ describe('RBAC users page', () => {
     const fixture = TestBed.createComponent(AdminUsersPage); fixture.detectChanges();
     return {fixture,page:fixture.componentInstance,el:fixture.nativeElement as HTMLElement};
   };
+  const buttonLabels = (el: HTMLElement) => [...el.querySelectorAll('tbody button')].map(button => button.textContent?.trim());
 
   it('protects the owner and renders grant and revoke actions for the owner only', () => {
     const {page,el} = setup();
     expect(el.textContent).toContain('Được bảo vệ');
-    expect(el.querySelectorAll('tbody button').length).toBe(2);
+    expect(buttonLabels(el)).toEqual(['Cấp đồng quản trị','Thu hồi quyền','Xem quyền']);
     page.propose(owner); expect(page.pending()).toBeNull();
     expect(api.changeRole).not.toHaveBeenCalled();
   });
@@ -37,7 +44,7 @@ describe('RBAC users page', () => {
     api.list.mockReturnValue(of(result(false)));
     api.listInvites.mockReturnValue(of(inviteResult([], false)));
     const {page,el} = setup();
-    expect(el.querySelectorAll('tbody button').length).toBe(0);
+    expect(buttonLabels(el)).toEqual(['Xem quyền']);
     page.propose(customer); page.confirm();
     expect(page.pending()).toBeNull(); expect(api.changeRole).not.toHaveBeenCalled();
   });
@@ -84,7 +91,7 @@ describe('RBAC users page', () => {
     const {page,fixture,el} = setup();
     page.propose(customer); page.confirm(); fixture.detectChanges();
     expect(page.canManageRoles()).toBe(false);
-    expect(el.querySelectorAll('tbody button').length).toBe(0);
+    expect(buttonLabels(el)).toEqual(['Xem quyền']);
   });
 
   it('redirects expired sessions to login and clears stale account state', () => {
@@ -189,7 +196,7 @@ describe('RBAC users page', () => {
     const {el} = setup();
     expect(api.listInvites).not.toHaveBeenCalled();
     expect(el.textContent).not.toContain(pendingInvite.email);
-    expect(el.textContent).toContain('Chỉ admin chính được thay đổi quyền');
+    expect(el.textContent).toContain('Chỉ admin chính được cấp hoặc thu hồi quyền đồng quản trị');
   });
 
   it('maps invite conflicts and keeps the email for correction', () => {
@@ -215,41 +222,54 @@ describe('RBAC users page', () => {
     expect(navigate).toHaveBeenCalledWith(['/dang-nhap'],{queryParams:{returnUrl:'/admin/users'}});
   });
 
-  it('keeps the permission column read-only for co-admins', () => {
-    const {el} = setup();
-    expect(el.textContent).toContain('Chỉ admin chính mới phân quyền được');
-    expect(el.querySelector('app-admin-permission-editor')).toBeNull();
+  it('lets any list reader see each stored set read-only, including co-admins', () => {
+    const {page,fixture,el} = setup();
+    expect(el.textContent).toContain('1 quyền (bộ mặc định)');
+    expect(buttonLabels(el)).toContain('Xem quyền');
+    page.openPermissions(delegated); fixture.detectChanges();
+    const editor = el.querySelector('app-admin-permission-editor')!;
+    expect(editor).not.toBeNull();
+    expect(editor.querySelector('.actions .primary')).toBeNull();
+    expect(page.canEdit(delegated)).toBe(false);
+    page.savePermissions(['cards:update']);
+    expect(api.updatePermissions).not.toHaveBeenCalled();
   });
 
-  it('offers the permission editor only for active co-admins and never for the owner or members', () => {
-    api.list.mockReturnValue(of(result(true,[owner,customer,delegated],true)));
+  it('offers a write only for accounts the server marks editable, never the owner or members', () => {
+    api.list.mockReturnValue(of(result(true,[owner,customer,delegated,managed],true)));
     const {page,el} = setup();
     expect(el.textContent).toContain('Toàn quyền — được bảo vệ');
-    expect(el.textContent).toContain('0 quyền (bộ mặc định)');
-    const labels = [...el.querySelectorAll('tbody button')].map(button => button.textContent?.trim());
+    expect(el.textContent).toContain('1 quyền (bộ mặc định)');
+    expect(el.textContent).toContain('2 quyền (bộ tùy chỉnh) · do Admin chính cấp');
+    const labels = buttonLabels(el);
     expect(labels.filter(label => label === 'Phân quyền chi tiết')).toHaveLength(1);
+    expect(labels.filter(label => label === 'Xem quyền')).toHaveLength(1);
+    expect(page.canEdit(managed)).toBe(true);
+    expect(page.canEdit(delegated)).toBe(false);
+    expect(page.canEdit(owner)).toBe(false);
+    expect(page.canEdit(customer)).toBe(false);
     page.openPermissions(owner); expect(page.editing()).toEqual([]);
     page.openPermissions(customer); expect(page.editing()).toEqual([]);
     page.openPermissions(delegated); expect(page.editing()).toEqual([delegated]);
+    page.openPermissions(managed); expect(page.editing()).toEqual([managed]);
   });
 
   it('writes the chosen set with the permission version and adopts the normalized response', () => {
-    const granted: AdminAccount = {...delegated,permissions:['content:read','cards:update'],permissionsVersion:4,customPermissions:true};
-    const stored: AdminAccount = {...granted,permissions:['content:read','cards:update','media:upload'],permissionsVersion:5};
-    api.list.mockReturnValue(of(result(true,[granted],true)));
+    const stored: AdminAccount = {...managed,permissions:['content:read','cards:update','media:upload'],permissionsVersion:3};
+    api.list.mockReturnValue(of(result(true,[managed],true)));
     api.updatePermissions.mockReturnValue(of({changed:true,account:stored}));
     const {page,fixture,el} = setup();
-    page.openPermissions(granted); fixture.detectChanges();
+    page.openPermissions(managed); fixture.detectChanges();
     expect(el.querySelector('app-admin-permission-editor')).not.toBeNull();
     page.savePermissions(['content:read','cards:update','media:upload']);
-    expect(api.updatePermissions).toHaveBeenCalledExactlyOnceWith(granted,['content:read','cards:update','media:upload']);
+    expect(api.updatePermissions).toHaveBeenCalledExactlyOnceWith(managed,['content:read','cards:update','media:upload']);
     expect(page.accounts()).toEqual([stored]);
     expect(page.editing()).toEqual([stored]);
     expect(page.notice()).toContain('hiệu lực từ yêu cầu kế tiếp');
   });
 
   it('says so when the server reports the set was already stored', () => {
-    const granted: AdminAccount = {...delegated,permissions:['content:read'],permissionsVersion:2,customPermissions:true};
+    const granted: AdminAccount = {...managed,permissions:['content:read'],permissionsVersion:2};
     api.list.mockReturnValue(of(result(true,[granted],true)));
     api.updatePermissions.mockReturnValue(of({changed:false,account:granted}));
     const {page} = setup();
@@ -260,10 +280,10 @@ describe('RBAC users page', () => {
   });
 
   it('closes the editor and forces a reload when the permission version is stale', () => {
-    api.list.mockReturnValue(of(result(true,[owner,customer,delegated],true)));
+    api.list.mockReturnValue(of(result(true,[owner,customer,managed],true)));
     api.updatePermissions.mockReturnValue(throwError(() => ({status:409,error:{code:'VERSION_CONFLICT'}})));
     const {page,fixture,el} = setup();
-    page.openPermissions(delegated); fixture.detectChanges();
+    page.openPermissions(managed); fixture.detectChanges();
     page.savePermissions(['content:read']);
     fixture.detectChanges();
     expect(page.editing()).toEqual([]);
@@ -272,22 +292,37 @@ describe('RBAC users page', () => {
     expect(el.querySelector('app-admin-permission-editor')).toBeNull();
   });
 
-  it('drops the permission editor when the account turns out not to be assignable', () => {
-    api.list.mockReturnValue(of(result(true,[owner,customer,delegated],true)));
-    api.updatePermissions.mockReturnValue(throwError(() => ({status:403,error:{code:'OWNER_REQUIRED'}})));
+  it('drops the write access and explains it when the manage right is gone', () => {
+    api.list.mockReturnValue(of(result(true,[owner,customer,managed],true)));
+    api.updatePermissions.mockReturnValue(throwError(() => ({status:403,error:{code:'PERMISSION_REQUIRED'}})));
     const {page,fixture,el} = setup();
-    page.openPermissions(delegated); fixture.detectChanges();
+    page.openPermissions(managed); fixture.detectChanges();
     page.savePermissions(['content:read']); fixture.detectChanges();
     expect(page.canManagePermissions()).toBe(false);
-    expect(page.error()).toContain('Chỉ admin chính');
-    expect(el.querySelectorAll('tbody button').length).toBe(0);
+    expect(page.error()).toContain('không còn quyền này');
+    expect(buttonLabels(el)).toEqual(['Xem quyền']);
+  });
+
+  it('explains each upward-edit refusal with its own message', () => {
+    for (const [code, message] of [
+      ['OWNER_PROTECTED','Không thể thay đổi quyền của admin chính'],
+      ['SELF_GRANT_FORBIDDEN','không tự sửa bộ quyền của mình'],
+      ['GRANTOR_PROTECTED','người đã cấp quyền phân quyền cho bạn'],
+    ] as const) {
+      api.list.mockReturnValue(of(result(true,[managed],true)));
+      api.updatePermissions.mockReturnValue(throwError(() => ({status:403,error:{code}})));
+      const {page} = setup();
+      page.openPermissions(managed);
+      page.savePermissions(['content:read']);
+      expect(page.error()).toContain(message);
+    }
   });
 
   it('closes the editor when a refresh no longer returns that account', () => {
-    api.list.mockReturnValue(of(result(true,[owner,customer,delegated],true)));
+    api.list.mockReturnValue(of(result(true,[owner,customer,managed],true)));
     const {page,fixture} = setup();
-    page.openPermissions(delegated); fixture.detectChanges();
-    expect(page.editing()).toEqual([delegated]);
+    page.openPermissions(managed); fixture.detectChanges();
+    expect(page.editing()).toEqual([managed]);
     api.list.mockReturnValue(of(result(true,[customer],true)));
     page.load();
     expect(page.editing()).toEqual([]);
@@ -295,22 +330,22 @@ describe('RBAC users page', () => {
 
   it('switches modes instead of stacking a role confirmation over the editor, and blocks writes while saving', () => {
     const inflight = new Subject<any>();
-    api.list.mockReturnValue(of(result(true,[owner,customer,delegated],true)));
+    api.list.mockReturnValue(of(result(true,[owner,customer,managed],true)));
     api.updatePermissions.mockReturnValue(inflight);
     const {page} = setup();
-    page.propose(delegated);
-    page.openPermissions(delegated);
+    page.propose(managed);
+    page.openPermissions(managed);
     expect(page.pending()).toBeNull();
-    expect(page.editing()).toEqual([delegated]);
+    expect(page.editing()).toEqual([managed]);
     page.savePermissions(['content:read']);
     expect(api.updatePermissions).toHaveBeenCalledOnce();
-    page.openPermissions(delegated);
-    expect(page.editing()).toEqual([delegated]);
+    page.openPermissions(managed);
+    expect(page.editing()).toEqual([managed]);
     page.savePermissions(['users:read']);
     expect(api.updatePermissions).toHaveBeenCalledOnce();
     page.closePermissions();
-    expect(page.editing()).toEqual([delegated]);
-    inflight.next({changed:true,account:{...delegated,permissions:['content:read'],permissionsVersion:1}});
+    expect(page.editing()).toEqual([managed]);
+    inflight.next({changed:true,account:{...managed,permissions:['content:read'],permissionsVersion:3}});
     expect(page.editing()).toHaveLength(1);
     page.closePermissions();
     expect(page.editing()).toEqual([]);

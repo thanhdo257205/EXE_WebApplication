@@ -1,31 +1,37 @@
 import { Component, input, OnInit, output, signal } from '@angular/core';
 import { type AdminAccount } from '../../../core/admin/admin-users.service';
 import {
-  ALL_PERMISSION_KEYS, DEFAULT_DELEGATED_PERMISSIONS, OWNER_ONLY_PERMISSIONS, PERMISSION_GROUPS, permissionLabel,
+  ALL_PERMISSION_KEYS, DEFAULT_DELEGATED_PERMISSIONS, impliedPermissions, OWNER_ONLY_PERMISSIONS, PERMISSION_GROUPS,
+  permissionLabel,
 } from '../../../core/admin/permission-catalog';
 
 /**
- * Presentational grid of grantable permissions. The parent page owns the PUT call,
- * so this component never deals with CSRF, error mapping or list reloading.
+ * Presentational grid of grantable permissions, in edit or read-only mode. The parent page owns the
+ * PUT call, so this component never deals with CSRF, error mapping or list reloading.
  * The parent recreates the element per target account, so the draft is seeded once in ngOnInit.
  */
 @Component({
   selector: 'app-admin-permission-editor',
   template: `
-    <section class="editor" role="group" [attr.aria-label]="'Phân quyền cho ' + account().email">
+    <section class="editor" role="group" [attr.aria-label]="(readOnly() ? 'Quyền của ' : 'Phân quyền cho ') + account().email">
       <div class="heading">
-        <h2>Phân quyền chi tiết</h2>
+        <h2>{{ readOnly() ? 'Quyền đang cấp' : 'Phân quyền chi tiết' }}</h2>
         <p class="muted">
           {{ account().displayName }} · {{ account().email }} ·
           {{ account().customPermissions ? 'bộ tùy chỉnh' : 'bộ mặc định' }} (phiên bản {{ account().permissionsVersion ?? 0 }})
         </p>
+        @if (readOnly()) {
+          <p class="muted">Bạn chỉ xem được bộ quyền này. {{ granterNote() }}</p>
+        }
       </div>
 
-      <div class="toolbar">
-        <span class="counter">{{ selected().length }}/{{ allKeys.length }} quyền đã chọn</span>
-        <button type="button" (click)="useDefault()" [disabled]="saving()">Dùng bộ mặc định</button>
-        <button type="button" (click)="clearAll()" [disabled]="saving()">Bỏ hết</button>
-      </div>
+      @if (!readOnly()) {
+        <div class="toolbar">
+          <span class="counter">{{ selected().length }}/{{ allKeys.length }} quyền đã chọn</span>
+          <button type="button" (click)="useDefault()" [disabled]="saving()">Dùng bộ mặc định</button>
+          <button type="button" (click)="clearAll()" [disabled]="saving()">Bỏ hết</button>
+        </div>
+      }
 
       @for (group of groups; track group.id) {
         <fieldset class="group">
@@ -35,11 +41,11 @@ import {
             @for (item of group.items; track item.key) {
               <li>
                 <label>
-                  <input #box type="checkbox" [checked]="isChecked(item.key)" [disabled]="saving()"
+                  <input #box type="checkbox" [checked]="isChecked(item.key)" [disabled]="saving() || readOnly()"
                     (change)="toggle(item.key, box.checked)" />
                   <span>{{ item.label }}</span>
                 </label>
-                @if (item.hint) { <small>{{ item.hint }}</small> }
+                @if (item.hint && !readOnly()) { <small>{{ item.hint }}</small> }
               </li>
             }
           </ul>
@@ -51,15 +57,17 @@ import {
         @for (item of ownerOnly; track item.key) { <span class="lock">{{ item.label }}</span> }
       </p>
 
-      @if (implied().length) {
+      @if (!readOnly() && implied().length) {
         <p class="implied" role="status">Máy chủ sẽ tự thêm khi lưu: {{ impliedLabels() }}</p>
       }
 
       <div class="actions">
         <button type="button" (click)="cancelled.emit()" [disabled]="saving()">Đóng</button>
-        <button type="button" class="primary" (click)="save()" [disabled]="saving() || !dirty()">
-          {{ saving() ? 'Đang lưu…' : 'Lưu phân quyền' }}
-        </button>
+        @if (!readOnly()) {
+          <button type="button" class="primary" (click)="save()" [disabled]="saving() || !dirty()">
+            {{ saving() ? 'Đang lưu…' : 'Lưu phân quyền' }}
+          </button>
+        }
       </div>
     </section>
   `,
@@ -92,6 +100,8 @@ import {
 export class AdminPermissionEditorComponent implements OnInit {
   readonly account = input.required<AdminAccount>();
   readonly saving = input(false);
+  /** A viewer without the manage right gets the same grid with every control locked. */
+  readonly readOnly = input(false);
   readonly saved = output<string[]>();
   readonly cancelled = output<void>();
 
@@ -108,21 +118,16 @@ export class AdminPermissionEditorComponent implements OnInit {
     this.setDraft(this.baseline);
   }
 
+  /** Names the author of the set, so a viewer knows who to ask without implying that only that person may write. */
+  granterNote(): string {
+    const granter = this.account().permissionsGrantedBy;
+    return `${granter ? `Bộ này do ${granter} cấp. ` : ''}Chỉ admin chính hoặc người có quyền phân quyền mới sửa được.`;
+  }
+
   /** Keys the server adds automatically, shown so the owner is never surprised by the stored set. */
   implied(): string[] {
     const picked = this.selected();
-    const granted = new Set<string>(picked);
-    for (const key of picked) {
-      if (/^(releases|cards|card-sets|characters|wiki|media):/.test(key)) granted.add('content:read');
-      if (key.startsWith('assistant:')) granted.add('assistant:read');
-      if (/^assistant:keys:(create|reveal|test|revoke|manage)$/.test(key)) granted.add('assistant:keys:read');
-      if (key === 'assistant:keys:manage') {
-        granted.add('assistant:keys:reveal');
-        granted.add('assistant:keys:test');
-        granted.add('assistant:keys:revoke');
-      }
-    }
-    return [...granted].filter(key => !picked.includes(key));
+    return [...impliedPermissions(picked)].filter(key => !picked.includes(key));
   }
 
   impliedLabels(): string { return this.implied().map(permissionLabel).join(', '); }
@@ -141,14 +146,15 @@ export class AdminPermissionEditorComponent implements OnInit {
   }
 
   toggle(key: string, value: boolean): void {
+    if (this.readOnly()) return;
     this.checked.update(state => ({ ...state, [key]: value }));
   }
 
-  useDefault(): void { this.setDraft(DEFAULT_DELEGATED_PERMISSIONS); }
+  useDefault(): void { if (!this.readOnly()) this.setDraft(DEFAULT_DELEGATED_PERMISSIONS); }
 
-  clearAll(): void { this.setDraft([]); }
+  clearAll(): void { if (!this.readOnly()) this.setDraft([]); }
 
-  save(): void { this.saved.emit(this.selected()); }
+  save(): void { if (!this.readOnly()) this.saved.emit(this.selected()); }
 
   private knownKeys(keys: readonly string[]): string[] {
     return ALL_PERMISSION_KEYS.filter(key => keys.includes(key));

@@ -9,7 +9,7 @@ describe('admin permission catalog', () => {
     const grouped = PERMISSION_GROUPS.flatMap(group => group.items.map(item => item.key));
     expect(grouped).toEqual(ALL_PERMISSION_KEYS);
     expect(new Set(ALL_PERMISSION_KEYS).size).toBe(ALL_PERMISSION_KEYS.length);
-    expect(ALL_PERMISSION_KEYS).toHaveLength(35);
+    expect(ALL_PERMISSION_KEYS).toHaveLength(36);
   });
 
   it('gives every permission a Vietnamese label of its own', () => {
@@ -20,17 +20,19 @@ describe('admin permission catalog', () => {
 
   it('keeps owner-only rights out of the grantable catalog', () => {
     for (const item of OWNER_ONLY_PERMISSIONS) expect(ALL_PERMISSION_KEYS).not.toContain(item.key);
-    expect(OWNER_ONLY_PERMISSIONS.map(item => item.key))
-      .toEqual(['users:manage-roles', 'permissions:manage']);
+    expect(OWNER_ONLY_PERMISSIONS.map(item => item.key)).toEqual(['users:manage-roles']);
+    expect(ALL_PERMISSION_KEYS).toContain('permissions:manage');
   });
 
-  it('defaults co-admins to everything except the two rights that skip a review step', () => {
+  it('defaults co-admins to everything except the three rights that skip a review step', () => {
     expect(DEFAULT_DELEGATED_PERMISSIONS).toEqual(
-      ALL_PERMISSION_KEYS.filter(key => key !== 'assistant:keys:manage' && key !== 'assistant:prompt:update'),
+      ALL_PERMISSION_KEYS.filter(key => key !== 'assistant:keys:manage'
+        && key !== 'assistant:prompt:update' && key !== 'permissions:manage'),
     );
     expect(DEFAULT_DELEGATED_PERMISSIONS).not.toContain('assistant:keys:manage');
     expect(DEFAULT_DELEGATED_PERMISSIONS).toContain('assistant:prompt:request');
     expect(DEFAULT_DELEGATED_PERMISSIONS).not.toContain('assistant:prompt:update');
+    expect(DEFAULT_DELEGATED_PERMISSIONS).not.toContain('permissions:manage');
   });
 
   it('mirrors the server read dependencies', () => {
@@ -38,6 +40,7 @@ describe('admin permission catalog', () => {
     expect(impliedPermissions(['media:upload'])).toEqual(new Set(['media:upload', 'content:read']));
     expect(impliedPermissions(['assistant:budgets:update'])).toEqual(new Set(['assistant:budgets:update', 'assistant:read']));
     expect(impliedPermissions(['assistant:keys:create'])).toEqual(new Set(['assistant:keys:create', 'assistant:keys:read', 'assistant:read']));
+    expect(impliedPermissions(['permissions:manage'])).toEqual(new Set(['permissions:manage', 'users:read']));
   });
 
   it('treats keys:manage as the supervisor of every key action', () => {
@@ -51,6 +54,6 @@ describe('admin permission catalog', () => {
     expect(impliedPermissions(['content:read'])).toEqual(new Set(['content:read']));
     expect(impliedPermissions(['cards:update'])).not.toContain('media:upload');
     expect(impliedPermissions(['users:read'])).toEqual(new Set(['users:read']));
-    expect(impliedPermissions(['users:manage-roles', 'permissions:manage', 'legacy:whatever', ''])).toEqual(new Set());
+    expect(impliedPermissions(['users:manage-roles', 'legacy:whatever', ''])).toEqual(new Set());
   });
 });
