@@ -2,7 +2,7 @@
 
 Cập nhật: 2026-10-29 (Asia/Saigon).
 
-## System prompt trong DB, sửa có duyệt — 2026-10-29 (local, code đã commit `6511fef`; kiểm chứng + 1 fix hồi quy chưa commit)
+## System prompt trong DB, sửa có duyệt — 2026-10-29 (đã deploy production `1f2d58c`)
 
 - [x] ASSISTANT-PROMPT-01 — Bảng `assistant_prompt` một dòng `slot=1` (template, version, updated_by, updated_at) + `assistant_prompt_requests`; initializer idempotent cho DB cũ (V16). Không có dòng nào thì dùng `DEFAULT_PROMPT_TEMPLATE` trong code, đúng nội dung đã ship nên deploy đầu tiên không đổi hành vi.
 - [x] ASSISTANT-PROMPT-02 — Bốn route trong [assistant-prompt.ts](backend/server/src/assistant-prompt.ts): đọc, lưu trực tiếp, gửi yêu cầu, duyệt/từ chối. **Không có route xoá**; "Điền mẫu mặc định" chỉ chép lại template ship trong code. Validate: `{TAI_LIEU}` bắt buộc (`PROMPT_MISSING_DOCUMENTS`), sai hoa/thường hoặc dùng dấu cách (`PROMPT_TOKEN_CASE`), tối đa 6000 ký tự; `expectedVersion` chống ghi đè (`VERSION_CONFLICT`, `REQUEST_NOT_PENDING`).
@@ -12,9 +12,10 @@ Cập nhật: 2026-10-29 (Asia/Saigon).
 - [x] ASSISTANT-PROMPT-06 — Nghiệm thu browser local (sqlite throwaway + `fetch` giả, không gọi provider thật): owner lưu trực tiếp → v1 → chat gửi đúng template 1663 ký tự; co-admin 33 quyền chỉ thấy "Gửi yêu cầu sửa", gọi thẳng `PUT` bị `403 PERMISSION_REQUIRED`, gửi yêu cầu xong **DB vẫn v1**; owner thấy badge "1 chờ duyệt", duyệt → DB v2 đúng bản đề xuất, request `APPROVED`, audit ghi nhận; chat sau đó gửi bản v2 (provider log 1593 ký tự, `{TAI_LIEU}` đã thay, không còn token sót).
 - [x] ASSISTANT-PROMPT-07 — Sửa lỗi UX do nghiệm thu: sau khi duyệt, ô soạn vẫn giữ draft cũ nên bấm "Lưu trực tiếp" sẽ ghi đè bản vừa duyệt → đổi sang nạp lại bản mới ([admin-assistant.page.ts](frontend/src/app/features/admin/assistant/admin-assistant.page.ts)); test hồi quy đỏ khi bỏ fix, xanh khi giữ.
 - [x] ASSISTANT-PROMPT-08 — Kiểm thử/typecheck: backend `tsc --noEmit` sạch + `npm test` **143 / 142 pass / 1 skip / 0 fail** (gồm test của agent khác đang làm `permissions:manage`); frontend hai `tsc --noEmit` sạch, `admin-assistant.page.spec.ts` **49/49**; build production exit 0, **0 cảnh báo budget**, `admin-assistant.prompt.css` **3.020 B** sau minify.
-- [ ] ASSISTANT-PROMPT-09 — Push/PR/deploy và nghiệm thu production.
+- [x] ASSISTANT-PROMPT-09 — PR **#42** merge `main` tại **`1f2d58c`** (2026-10-29T10:27:55Z): CI push `40857432461` + pull_request `40857460999` xanh 4/4 trên `de5b227`, CI main `40857774665` xanh 4/4, CD `40857922834` xanh 2/2 (Pages deployment `117227f9` source `1f2d58c`, Render nhận đúng commit, smoke pass). Production sau deploy (baseline `cabb2f4`): `/api/v1/info` trả `1f2d58c…` (`storage: turso`), `/actuator/health` 200, `/admin/assistant` 200, `GET /api/v1/admin/assistant/prompt` không phiên trả `401 AUTH_REQUIRED`; chunk Pages `chunk-DLoe1Aw2.js` chứa đủ nhãn "Lưu trực tiếp"/"Gửi yêu cầu sửa"/"Hàng chờ duyệt"/"Duyệt và lưu".
+- [ ] ASSISTANT-PROMPT-10 — Thử lưu trực tiếp + gửi/duyệt yêu cầu bằng **phiên admin thật** trên production (Turnstile chặn đăng nhập tự động nên đợt deploy chỉ xác minh route + UI có mặt).
 
-## Trợ lý AI dạng popup toàn trang — 2026-10-29 (local, đã commit `6511fef`, chưa push/deploy)
+## Trợ lý AI dạng popup toàn trang — 2026-10-29 (đã deploy production `1f2d58c`)
 
 - [x] ASSISTANT-DOCK-01 — Mount `app-assistant-dock` một lần trong shell công khai bằng `@defer (on idle)` sau `<main>` ([app.html:95-98](frontend/src/app/app.html#L95)); panel nổi góc phải dưới 404px, toàn màn hình ≤560px, `z-index: 70`, dialog không modal (`aria-modal="false"`), Escape đóng và trả focus về launcher. Ẩn ở `/admin/*` và `/tro-ly`; link "Trang đầy đủ" mở `/tro-ly`.
 - [x] ASSISTANT-DOCK-02 — Gợi ý theo trang qua `assistantSuggestionSet(url)` ([assistant-suggestions.ts](frontend/src/app/shared/assistant-suggestions.ts)): 16 bộ cho trang chủ + 15 nhóm route công khai, fallback cho route lạ; chuẩn hoá query/fragment/slash cuối; nhãn trang hiện ở header và khối "Gợi ý cho …"; chip gửi `history: []`, câu tự gõ gửi 4 lượt gần nhất (≤500 ký tự/lượt).
@@ -28,8 +29,9 @@ Cập nhật: 2026-10-29 (Asia/Saigon).
 - [x] ASSISTANT-DOCK-10 — Nghiệm thu browser local: gợi ý đổi theo trang, giữ hội thoại + draft khi chuyển SPA và F5, login gate cho khách, trace 4 bước đúng số đo (nạp message có `meta` vì local không có key provider), nhánh lỗi 503 + "Thử lại", Escape đóng. Chi tiết ở `docs/ASSISTANT_DOCK.md`.
 - [x] ASSISTANT-DOCK-11 — Sửa 2 lỗi UI do nghiệm thu browser: header cắt nhãn trang còn "V" → `.identity-page`/`.sep` `flex: none`, `.release-label` có ellipsis (đo lại 48 px / 79 trên 240 px, không tràn); login gate trên `/dang-nhap` trỏ về chính nó → thêm `onAuthPage` và ghi chú "Đăng nhập bằng form trên trang này…". Kèm test hồi quy và build lại.
 - [ ] ASSISTANT-DOCK-12 — Đo panel toàn màn hình ở 390–420 px trên browser thật (công cụ hiện tại không đổi được viewport; mới kiểm rule `@media (max-width: 560px)`).
-- [ ] ASSISTANT-DOCK-13 — Commit/push/deploy + nghiệm thu production (CI/CD, Pages có lazy chunk dock, gọi thật một câu qua dock thấy `meta`). Chưa thực hiện.
+- [x] ASSISTANT-DOCK-13 — Commit/push/deploy: code lên production qua PR **#42** (`1f2d58c`); Pages phục vụ chunk dock `chunk-CWOOszhj.js` **34.071 B** khớp build local, chứa "Trang đầy đủ"/"Quá trình trả lời"/"Gợi ý cho"/"Thử lại". Phần gọi thật qua dock chuyển sang ASSISTANT-DOCK-15.
 - [x] ASSISTANT-DOCK-14 — Chốt cây sau khi agent khác hoàn tất prompt/motapis (commit code `6511fef`): backend `npm run check` sạch + `npm test` **139 / 138 pass / 1 skip**; frontend **59 file / 460 pass**; production build exit 0, 0 cảnh báo budget, initial 498,81 kB / 130,76 kB, dock chunk 34,07 / 9,59 kB.
+- [ ] ASSISTANT-DOCK-15 — Gọi thật một câu qua dock trên production để thấy `meta` (cần phiên đăng nhập thật; Turnstile chặn đăng nhập tự động).
 
 ## Xuất bản bản phát hành (publish) — 2026-10-28 (đã deploy production `a674b4e`)
 

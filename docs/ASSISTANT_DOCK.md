@@ -1,6 +1,6 @@
 # Trợ lý AI dạng popup toàn trang
 
-Cập nhật 2026-10-29 (Asia/Saigon), local; đã commit `6511fef`, chưa push/deploy.
+Cập nhật 2026-10-29 (Asia/Saigon); đã deploy production `1f2d58c` (PR #42).
 
 ## Mục tiêu
 
@@ -163,7 +163,7 @@ Hai lỗi phát hiện và đã sửa:
 1. **Nhãn trang bị cắt còn "V"** khi dòng header 154 px phải chứa cả nhãn trang và nhãn bản phát hành. Sửa CSS: `.identity-page` và `.sep` thành `flex: none`, `.release-label` co lại và `text-overflow: ellipsis` ([assistant-dock.component.css:52-54](frontend/src/app/shared/components/assistant-dock/assistant-dock.component.css#L52)). Đo lại trong browser với nhãn bản dài: nhãn trang giữ đủ 48 px, nhãn bản 79/240 px và hiện dấu ba chấm, dòng không tràn.
 2. **Login gate trên `/dang-nhap` trỏ về chính nó** (`/dang-nhap?returnUrl=%2Fdang-nhap%3FreturnUrl%3D%252Fwiki`). Thêm computed `onAuthPage` ([assistant-dock.component.ts:120-123](frontend/src/app/shared/components/assistant-dock/assistant-dock.component.ts#L120)) và nhánh ghi chú trong template ([assistant-dock.component.html:152-153](frontend/src/app/shared/components/assistant-dock/assistant-dock.component.html#L152)); kiểm live: chỉ còn ghi chú, không còn `.login-gate`/`.login-cta`, nhãn trang "Đăng nhập".
 
-Chưa đo được bằng browser: panel toàn màn hình ở 390–420 px (công cụ không đổi được viewport; chỉ đọc rule `@media (max-width: 560px)` trong CSS) và câu trả lời thật từ provider trên local (thiếu key). Chưa deploy; chưa đo live production.
+Chưa đo được bằng browser: panel toàn màn hình ở 390–420 px (công cụ không đổi được viewport; chỉ đọc rule `@media (max-width: 560px)` trong CSS) và câu trả lời thật từ provider trên local (thiếu key). Code đã lên production `1f2d58c`: Pages phục vụ chunk dock `chunk-CWOOszhj.js` **34.071 B** khớp build local, nhưng **chưa đo live production** và chưa gọi thật một câu qua dock.
 
 ## Giới hạn và việc còn mở
 
