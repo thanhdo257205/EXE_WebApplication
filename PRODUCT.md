@@ -4,7 +4,7 @@
 
 ## Platform
 
-web
+web.
 
 ## Product Purpose
 
