@@ -21,11 +21,12 @@ import {
 import { DanmakuOverlayComponent } from './danmaku-overlay.component';
 import { AuthService } from '../../core/auth/auth.service';
 import { RiseHeadingDirective } from '../../shared/motion/rise-heading.directive';
+import { PremiereCountdownComponent } from './premiere-countdown.component';
 
 @Component({
   selector: 'app-watch-room',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, DanmakuOverlayComponent, RiseHeadingDirective],
+  imports: [CommonModule, FormsModule, RouterModule, DanmakuOverlayComponent, RiseHeadingDirective, PremiereCountdownComponent],
   template: `
     <div class="wr" [class.wr-chat-hidden]="chatCollapsed()">
       <div class="wr-grid">
@@ -47,7 +48,8 @@ import { RiseHeadingDirective } from '../../shared/motion/rise-heading.directive
 
           <!-- Player frame -->
           <div class="wr-player" #playerContainer [class.wr-paused]="!isPlaying()" [class.wr-covered]="!hasUserEntered() || isLobby() || playbackStatus() === 'ENDED'">
-            <video #videoPlayer class="wr-video" [src]="streamUrl()" playsinline preload="auto"
+            <video #videoPlayer class="wr-video" [class.wr-hidden]="isLobby()" [src]="streamUrl()" playsinline preload="metadata"
+              (loadedmetadata)="syncAfterMetadata()"
               (click)="onVideoClick()" (waiting)="isBuffering.set(true)"
               (playing)="isBuffering.set(false); isPlaying.set(true)" (pause)="isPlaying.set(false)"
               (volumechange)="onVolumeChange()"></video>
@@ -72,14 +74,10 @@ import { RiseHeadingDirective } from '../../shared/motion/rise-heading.directive
                 </form>
               </div>
             } @else if (isLobby() && isScheduled()) {
-              <div class="wr-layer">
-                <p class="wr-layer-kicker">Đếm ngược công chiếu</p>
-                <div class="wr-countdown" aria-live="polite">
-                  @for (part of countdownParts(); track part.label) {
-                    <span class="wr-cd-cell"><b>{{ part.value }}</b><small>{{ part.label }}</small></span>
-                  }
-                </div>
-                <p class="wr-layer-text">{{ viewerCount() }} người đang chờ cùng bạn. Phim sẽ tự chạy khi đến giờ.</p>
+              <!-- Lobby video (canvas countdown) sits under the danmaku layer so chat stays visible. -->
+              <div class="wr-lobby">
+                <app-premiere-countdown [seconds]="snapshot()?.countdownSeconds || 0" />
+                <p class="wr-lobby-caption">Đếm ngược công chiếu · {{ viewerCount() }} người đang chờ · bạn có thể chat và gửi danmaku ngay</p>
               </div>
             } @else if (isLobby()) {
               <div class="wr-layer">
@@ -167,13 +165,18 @@ import { RiseHeadingDirective } from '../../shared/motion/rise-heading.directive
             </div>
           </div>
 
+          @if (watchError()) { <p class="wr-alert" role="alert">{{ watchError() }}</p> }
+
           @if (isHost()) {
             <div class="wr-host">
               <span class="wr-host-label">Bảng điều khiển chủ phòng · <b>{{ premiereLabel() }}</b></span>
               <span class="wr-spacer"></span>
               <button type="button" (click)="hostSeekRelative(-10)">−10 giây</button>
               <button type="button" (click)="hostSeekRelative(10)">+10 giây</button>
-              @if (isLobby()) { <button type="button" class="wr-host-main" (click)="hostTriggerStart()">Bắt đầu công chiếu</button> }
+              @if (isLobby()) {
+                @if (!isScheduled()) { <button type="button" class="wr-host-main" (click)="hostTriggerStart()">Bắt đầu công chiếu</button> }
+                @else { <span class="wr-host-label">Tự chạy lúc {{ scheduledLabel() }}</span> }
+              }
               @else { <button type="button" class="wr-host-main" (click)="hostTogglePlay()">{{ isPlaying() ? 'Tạm dừng cả phòng' : 'Tiếp tục phát' }}</button> }
             </div>
           }
@@ -231,7 +234,7 @@ import { RiseHeadingDirective } from '../../shared/motion/rise-heading.directive
               <div class="wr-list-body" #chatScrollArea>
                 @for (msg of chatMessages(); track msg.id) {
                   <div class="wr-row">
-                    <span class="wr-row-time">{{ formatTime(msg.timeOffset) }}</span>
+                    <span class="wr-row-time">{{ msg.phase === 'LOBBY' ? 'Phòng chờ' : formatTime(msg.timeOffset) }}</span>
                     <span class="wr-row-text" [title]="msg.nickname + ': ' + msg.text"><b>{{ msg.nickname }}:</b><span [style.color]="msg.color || null">{{ msg.text }}</span></span>
                     <span class="wr-row-sent">{{ clockTime(msg.createdAt) }}</span>
                     @if (isHost()) { <button type="button" class="wr-row-del" (click)="deleteMessage(msg.id)" aria-label="Xoá bình luận này">Xoá</button> }
@@ -278,7 +281,9 @@ export class WatchRoomPage implements OnInit, OnDestroy {
   private readonly auth = inject(AuthService);
 
   readonly room = this.watchRoomService.currentRoom;
-  readonly snapshot = this.watchRoomService.playbackSnapshot;
+  private readonly clock = signal(Date.now());
+  readonly snapshot = computed(() => this.watchRoomService.getLivePlaybackSnapshot(this.clock()));
+  readonly watchError = this.watchRoomService.lastError;
   readonly viewerCount = this.watchRoomService.viewerCount;
   readonly isHost = this.watchRoomService.isHost;
   readonly viewers = this.watchRoomService.viewers;
@@ -323,6 +328,7 @@ export class WatchRoomPage implements OnInit, OnDestroy {
   ];
 
   private syncInterval: any = null;
+  private refreshInterval?: ReturnType<typeof setInterval>;
   private subs = new Subscription();
   private roomId = '';
   private hostToken: string | undefined;
@@ -405,30 +411,32 @@ export class WatchRoomPage implements OnInit, OnDestroy {
     this.hostToken = hostToken;
 
     // Load initial room data
-    this.watchRoomService.getRoom(this.roomId, hostToken).subscribe({
+    this.subs.add(this.watchRoomService.getRoom(this.roomId, hostToken).subscribe({
       next: (room) => {
         if (room.videoDuration) {
           this.videoDuration.set(room.videoDuration);
         }
+        // Admin hosts get their token from GET; keep it for the socket opened on enter.
+        this.hostToken = room.hostToken || hostToken;
         // The WebSocket (and the viewer list entry) starts only after the viewer enters with a name.
       },
       error: (err) => {
         console.error('Failed to load watch room', err);
       },
-    });
+    }));
 
     // Load historical Danmaku
-    this.watchRoomService.getDanmakuHistory(this.roomId).subscribe({
+    this.subs.add(this.watchRoomService.getDanmakuHistory(this.roomId).subscribe({
       next: (history) => {
-        this.chatMessages.set(history);
+        this.chatMessages.update(current => [...new Map([...history, ...current].map(item => [item.id, item])).values()].slice(-1000));
       },
-    });
+    }));
 
     // Subscribe to new Danmaku from WebSocket
     this.subs.add(
       this.watchRoomService.newDanmaku$.subscribe((item) => {
-        this.chatMessages.update((list) => [...list, item]);
-        this.danmakuOverlay?.emitBullet(item);
+        this.chatMessages.update((list) => [...list, item].slice(-1000));
+        if (this.hasUserEntered()) this.danmakuOverlay?.emitBullet(item);
         this.scrollChatToBottom();
       })
     );
@@ -443,7 +451,7 @@ export class WatchRoomPage implements OnInit, OnDestroy {
     // Subscribe to playback sync actions
     this.subs.add(
       this.watchRoomService.playbackSync$.subscribe(({ action, snapshot }) => {
-        this.performVideoSync(snapshot, true);
+        this.performVideoSync(this.snapshot(), action !== 'TICK');
       })
     );
 
@@ -451,10 +459,15 @@ export class WatchRoomPage implements OnInit, OnDestroy {
     this.syncInterval = setInterval(() => {
       this.onSyncTick();
     }, 250);
+    // Refresh short-lived video URLs even when a premiere is scheduled hours ahead.
+    this.refreshInterval = setInterval(() => {
+      this.subs.add(this.watchRoomService.getRoom(this.roomId, this.watchRoomService.getStoredHostToken(this.roomId) || undefined).subscribe({ error: () => {} }));
+    }, 30 * 60 * 1000);
   }
 
   ngOnDestroy() {
     if (this.syncInterval) clearInterval(this.syncInterval);
+    if (this.refreshInterval) clearInterval(this.refreshInterval);
     this.subs.unsubscribe();
     this.watchRoomService.disconnect(true);
   }
@@ -475,16 +488,20 @@ export class WatchRoomPage implements OnInit, OnDestroy {
   }
 
   private onSyncTick() {
+    this.clock.set(Date.now());
     const video = this.videoPlayerRef?.nativeElement;
     if (!video || !this.hasUserEntered()) return;
 
     this.currentVideoTime.set(video.currentTime);
     if (video.duration && Number.isFinite(video.duration)) {
       this.videoDuration.set(video.duration);
+      if (this.room() && !this.room()!.videoDuration) {
+        this.room.update(room => room ? { ...room, videoDuration: video.duration } : room);
+      }
     }
 
     // Check history danmaku trigger as video progresses
-    if (this.danmakuOverlay) {
+    if (this.danmakuOverlay && this.playbackStatus() === 'PLAYING') {
       this.danmakuOverlay.checkHistoryTrigger(this.chatMessages(), video.currentTime);
     }
 
@@ -499,7 +516,10 @@ export class WatchRoomPage implements OnInit, OnDestroy {
     const video = this.videoPlayerRef?.nativeElement;
     if (!video || !snap || !this.hasUserEntered()) return;
 
-    const targetPos = this.watchRoomService.getSynchronizedTargetPosition();
+    const targetPos = this.watchRoomService.getSynchronizedTargetPosition(snap);
+    // Preserve the original audio timing; time-stretching can audibly distort voices.
+    video.playbackRate = 1;
+    video.preservesPitch = true;
 
     if (snap.status === 'PLAYING') {
       const delta = video.currentTime - targetPos;
@@ -507,11 +527,6 @@ export class WatchRoomPage implements OnInit, OnDestroy {
       // Hard seek if drift exceeds ~1.5 seconds or forceSeek
       if (forceSeek || Math.abs(delta) > 1.5) {
         video.currentTime = targetPos;
-        video.playbackRate = 1.0;
-      } else if (Math.abs(delta) > 0.3) {
-        // Minor drift compensation: adjust playbackRate smoothly (0.97 - 1.03)
-        video.playbackRate = delta > 0 ? 0.97 : 1.03;
-      } else {
         video.playbackRate = 1.0;
       }
 
@@ -523,7 +538,7 @@ export class WatchRoomPage implements OnInit, OnDestroy {
           video.play().catch(() => {});
         });
       }
-    } else if (snap.status === 'PAUSED' || snap.status === 'LOBBY') {
+    } else {
       if (!video.paused) {
         video.pause();
       }
@@ -532,6 +547,15 @@ export class WatchRoomPage implements OnInit, OnDestroy {
       }
       video.playbackRate = 1.0;
     }
+  }
+
+  syncAfterMetadata() {
+    const duration = this.videoPlayerRef?.nativeElement.duration;
+    if (duration && Number.isFinite(duration)) {
+      this.videoDuration.set(duration);
+      this.room.update(room => room ? { ...room, videoDuration: duration } : room);
+    }
+    this.performVideoSync(this.snapshot(), true);
   }
 
   unmuteVideo() {
@@ -556,7 +580,7 @@ export class WatchRoomPage implements OnInit, OnDestroy {
   }
 
   onProgressClick(event: MouseEvent) {
-    if (!this.isHost()) return;
+    if (!this.isHost() || this.isLobby()) return;
     const bar = event.currentTarget as HTMLElement;
     const rect = bar.getBoundingClientRect();
     const percent = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
@@ -565,6 +589,10 @@ export class WatchRoomPage implements OnInit, OnDestroy {
   }
 
   hostTogglePlay() {
+    if (this.isLobby()) {
+      if (!this.isScheduled()) this.hostTriggerStart();
+      return;
+    }
     if (this.isPlaying()) {
       this.watchRoomService.sendHostControl('PAUSE');
     } else {
@@ -577,6 +605,7 @@ export class WatchRoomPage implements OnInit, OnDestroy {
   }
 
   hostSeekRelative(deltaSec: number) {
+    if (!this.isHost() || this.isLobby()) return;
     const target = Math.max(0, this.currentVideoTime() + deltaSec);
     this.watchRoomService.sendHostControl('SEEK', target);
   }
@@ -613,8 +642,7 @@ export class WatchRoomPage implements OnInit, OnDestroy {
     if (!text || !this.hasUserEntered()) return;
 
     const timeOffset = this.currentVideoTime();
-    this.watchRoomService.sendDanmaku(text, timeOffset, this.selectedColor());
-    this.inputText = '';
+    if (this.watchRoomService.sendDanmaku(text, timeOffset, this.selectedColor()) !== false) this.inputText = '';
   }
 
   saveNickname() {

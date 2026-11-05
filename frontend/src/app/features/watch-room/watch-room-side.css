@@ -47,7 +47,7 @@
 .wr-list-body { max-height: min(52vh, 520px); overflow-y: auto; overscroll-behavior: contain; }
 .wr-row { position: relative; align-items: center; min-height: 32px; font-size: 12px; }
 .wr-row:hover { background: #ffffff08; }
-.wr-row-time, .wr-row-sent { color: var(--ed-muted); font-variant-numeric: tabular-nums; }
+.wr-row-time, .wr-row-sent { color: var(--ed-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .wr-row-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wr-row-text b { margin-right: .35em; color: #a6aaa3; font-weight: 600; }
 .wr-row-del { position: absolute; right: 8px; padding: 2px 8px; border-radius: 4px; border: 1px solid #ff9b8a55; background: #1a1210; color: #ff9b8a; font-size: 11px; cursor: pointer; opacity: 0; }

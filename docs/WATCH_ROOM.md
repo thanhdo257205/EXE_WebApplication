@@ -2,6 +2,33 @@
 
 Tài liệu thiết kế, hướng dẫn vận hành, cấu hình Azure Blob Storage và kiểm thử tính năng **Phòng chiếu phim chung** (`/room/:id`).
 
+## Công chiếu và phòng chờ — đã deploy e13569f ngày 2026-11-05
+
+- Tạo phòng với `mode=SCHEDULED` phải có `scheduledAt` ISO UTC hợp lệ ở tương lai. Form nhập ngày giờ theo múi giờ trình duyệt rồi đổi UTC. API trả 400 nếu thiếu, sai hoặc đã qua giờ hẹn.
+- Người xem bấm **Vào xem ngay** để mở khoá phát phim có tiếng. Trong thời gian chờ, video đếm ngược HH:MM:SS được tạo trực tiếp trong trình duyệt bằng canvas → captureStream → video muted; không cần lưu một clip dài bằng thời gian chờ. Trình duyệt không có captureStream hoặc không phát được stream sẽ dùng đồng hồ HTML. Khi component bị huỷ, dừng timer và mọi media track.
+- Client cập nhật số đếm mỗi 250 ms theo giờ server (đã bù clock skew). Tới giờ, chuyển sang phim chính tại vị trí tương ứng; người vào muộn không xem lại từ đầu. Hub phát `sync` với `action=TICK` mỗi giây, chỉ đọc các phòng đang có người xem, chia batch 100 phòng. Không có người mới join vẫn tự bắt đầu. TICK không ép seek liên tục.
+- Snapshot.position là vị trí **tại snapshot.serverTime**. Client chỉ cộng khoảng thời gian từ mốc này tới hiện tại, không cộng lại từ startedAt. Phòng SCHEDULED có thể còn status LOBBY trong DB khi đã đến giờ; API/hub dùng computePlaybackState để trả trạng thái hiệu lực từ scheduled_at, tới khi host ghi một lệnh chuyển trạng thái.
+- REST và WebSocket dùng chung chuyển trạng thái PAUSE/RESUME/SEEK, gồm trường hợp phòng hẹn giờ đã tự bắt đầu. Client gửi qua WebSocket khi mở; REST chỉ dùng khi socket không mở, tránh thực thi một lệnh hai lần.
+- Chat hoạt động trước và trong phim. Danmaku có lớp hiển thị phía trên video/màn hình chờ. Migration idempotent thêm `room_danmaku.phase TEXT NOT NULL DEFAULT 'VIDEO'`; dữ liệu cũ giữ nguyên và được xem là VIDEO. Tin mới có phase LOBBY hoặc VIDEO và timeOffset do server tính. API lịch sử và `danmaku:new` trả thêm phase; frontend không phát lại tin LOBBY ở giây đầu của phim.
+- Giới hạn gửi riêng từng kết nối 1 tin/1,5 giây, không dùng biệt danh để làm khoá giới hạn; người chung mạng có thể chat độc lập. UI giữ draft khi socket chưa mở, hiển thị lỗi giới hạn gửi và chỉ giữ tối đa 1000 tin trong danh sách.
+- WebSocket chỉ nhận đúng `/ws/room` hoặc `/api/v1/watch-rooms/ws`; kiểm proxy secret ở production/public origin không phải localhost và từ chối origin lạ. Reset quyền host và membership khi join phòng khác; message xử lý tuần tự. Frame tối đa 4096 byte; lỗi frame đóng client, không làm chết process. Hub.close dừng ticker và các socket.
+- Pages phải triển khai cả worker lẫn `_routes.json` có `/ws` và `/ws/*`; gateway giữ response 101 nguyên vẹn. Sửa riêng backend/gateway không đủ để WebSocket đi qua hostname Pages.
+- URL video được làm mới mỗi 30 phút để phòng chờ dài không dùng SAS hết hạn. Cần kiểm tra cấu hình account/key ký SAS thực tế trước nghiệm thu production.
+- Đã deploy commit `e13569f` qua CI 42048775073 và CD 42048974427. Production `/api/v1/info` trả đúng commit, `/room` 200; WebSocket qua domain Pages upgrade và trả pong. Nghiệm thu đầy đủ video chờ/chat/danmaku/tự chuyển phim/người vào muộn trước đó dùng SQLite memory và bản H.264 của video 1105; chưa tạo phòng và nghiệm thu Azure/SAS với nhiều người xem thật trên production. Xem PROGRESS/CHECKLIST cho việc còn mở.
+
+### Âm thanh giữ nguyên bản gốc
+
+- Luôn phát ở tốc độ 1× với preservesPitch bật. Không còn kéo giãn âm bằng tốc độ 0,97–1,03; chỉ seek khi lệch >1,5 giây hoặc có lệnh host. Khi nghe thử, chỉ mở một tab có tiếng để tránh chồng âm.
+- Track AAC của `1105(1).mp4` được copy trực tiếp khi chuyển HEVC → H.264. Hash payload AAC SHA-256 của hai file giống nhau: `d560f7f2636eb8e42b1e57257d5920907419567aa2e6821f5b7346f6c975b66f`, stereo 44100 Hz. Người dùng xác nhận âm thanh giống bản gốc sau khi đóng tab trùng và giữ 1×.
+
+## Video đã tải lên ngày 2026-11-05
+
+- Account: `stexecardimages257`; container `videos` riêng tư; blob `1105-20261105-h264.mp4`.
+- Video Source khi backend có cấu hình account/key ký SAS tương ứng: `videos/1105-20261105-h264.mp4`. URL blob không kèm SAS không cho đọc ẩn danh.
+- Bản trình duyệt từ `1105(1).mp4`: H.264/yuv420p, AAC, 2560×1440, MP4 faststart, 241,371905 giây, 91.806.580 byte. File gốc HEVC giữ nguyên trên máy.
+- Đã kiểm tra checksum MD5 khớp local, Content-Type `video/mp4`, đọc bằng SAS tạm thời với Range 0–1023 trả 206 và 1024 byte; CORS chấp nhận `https://exe-webapp.pages.dev`. Không lưu SAS vào tài liệu.
+- Chưa tạo phòng hoặc xác minh cấu hình ký SAS trên backend production; kiểm tra Blob không thay thế nghiệm thu phát/tua qua phòng thật.
+
 ---
 
 ## 1. Kiến trúc & Cơ chế hoạt động
@@ -36,8 +63,7 @@ HTML5 <video> ──────────── GET (Range requests) ──�
 - Client đo độ lệch đồng hồ với server thông qua ping/pong (`rtt / 2`).
 - Chống lệch dần:
   - Nếu `|delta| > 1.5s`: hard seek `video.currentTime = targetPosition`.
-  - Nếu `0.3s < |delta| <= 1.5s`: điều chỉnh nhẹ tốc độ `playbackRate` (0.97 - 1.03) để bắt kịp mượt mà.
-  - Khi trong ngưỡng an toàn: đưa về `playbackRate = 1.0`.
+  - Nếu `|delta| <= 1.5s`: giữ tốc độ gốc `playbackRate = 1.0`, tránh méo tiếng do time stretching.
 - Chính sách Autoplay: Nút "Vào xem" (yêu cầu một lần chạm đầu tiên) để kích hoạt AudioContext, nếu trình duyệt chặn tiếng sẽ tự động chuyển sang chế độ mute kèm banner thông báo mở tiếng.
 
 ### Danmaku (Bình luận chạy ngang kiểu Bilibili):

@@ -254,6 +254,13 @@ test('Watch Room REST lifecycle: create, get, host control, and danmaku', async 
   };
 
   // 1. Create Watch Room (POST /api/v1/admin/watch-rooms)
+  for (const scheduledAt of [undefined, null, 'invalid', new Date(Date.now() - 60000).toISOString()]) {
+    const rejected = await app.request('/api/v1/admin/watch-rooms', {
+      method: 'POST', headers: adminHeaders,
+      body: JSON.stringify({ title: 'Invalid premiere', videoSource: 'test.mp4', mode: 'SCHEDULED', scheduledAt }),
+    });
+    assert.equal(rejected.status, 400);
+  }
   const createRes = await app.request('/api/v1/admin/watch-rooms', {
     method: 'POST',
     headers: adminHeaders,
@@ -430,7 +437,8 @@ test('Watch Room WebSocket: join, ping/pong, danmaku broadcasting and host contr
   assert.equal(newDanmakuMsg.type, 'danmaku:new');
   assert.equal(newDanmakuMsg.danmaku.nickname, 'TestViewer');
   assert.equal(newDanmakuMsg.danmaku.text, 'Bilibili style test danmaku! 23333');
-  assert.equal(newDanmakuMsg.danmaku.timeOffset, 12.5);
+  assert.equal(newDanmakuMsg.danmaku.timeOffset, 0);
+  assert.equal(newDanmakuMsg.danmaku.phase, 'LOBBY');
   assert.equal(newDanmakuMsg.danmaku.color, '#00e5ff');
 
   // 4. Host control via WS -> expect sync broadcast
@@ -522,7 +530,8 @@ test('Watch Room WebSocket: name required, live viewer list and rename', async (
   host.ws.send(JSON.stringify({ type: 'join', roomId, nickname: 'Đỏ', hostToken }));
   const hostSnap = await host.next(m => m.type === 'room_snapshot');
   assert.equal(hostSnap.nickname, 'Đỏ');
-  assert.match(hostSnap.viewerId, /^[0-9a-f]{12}$/);
+  assert.equal(typeof hostSnap.viewerId, 'string');
+  assert.ok(hostSnap.viewerId.length > 0);
 
   const viewer = await open(); sockets.push(viewer);
   viewer.ws.send(JSON.stringify({ type: 'join', roomId, nickname: '  Xanh  ' }));

@@ -35,3 +35,5 @@
 .wr-people-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wr-people-tag { flex: none; padding: 1px 7px; border-radius: 4px; background: #7fdcff26; color: #7fdcff; font-size: 11px; font-weight: 700; }
 .wr-people-tag.wr-you { background: #ff7aa826; color: #ff7aa8; }
+
+.wr-alert { margin: 0; padding: 8px 14px; border-radius: 8px; border: 1px solid #ffd27a55; background: #ffd27a14; color: #ffd27a; font-size: 13px; }

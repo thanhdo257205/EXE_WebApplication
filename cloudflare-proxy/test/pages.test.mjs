@@ -57,3 +57,13 @@ test('Pages serves static requests from assets and fails closed when gateway is 
   const failed = await pages.fetch(new Request('https://exe-webapp.pages.dev/api/v1/auth/login'), {});
   assert.equal(failed.status, 503);
 });
+
+test('Pages routes WebSocket handshakes to the gateway and preserves the upgrade response', async () => {
+  const request = new Request('https://exe-webapp.pages.dev/ws/room', { headers: { Upgrade: 'websocket', Origin: 'https://exe-webapp.pages.dev' } });
+  const upgrade = { status: 101, webSocket: {} };
+  const response = await pages.fetch(request, { GATEWAY: { fetch: async req => { assert.equal(req, request); return upgrade; } } });
+  assert.equal(response, upgrade);
+  assert.equal((await pages.fetch(request, {})).status, 503);
+  const prepare = readFileSync(new URL('../../.github/scripts/prepare-pages.mjs', import.meta.url), 'utf8');
+  assert.ok(prepare.includes("'/ws/*'"));
+});

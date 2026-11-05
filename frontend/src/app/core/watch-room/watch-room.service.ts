@@ -32,6 +32,7 @@ export interface DanmakuItem {
   nickname: string;
   text: string;
   timeOffset: number;
+  phase?: 'LOBBY' | 'VIDEO';
   color: string;
   createdAt: string;
 }
@@ -66,6 +67,7 @@ export class WatchRoomService {
   readonly isHost = signal<boolean>(false);
   readonly connectionStatus = signal<'CONNECTING' | 'CONNECTED' | 'DISCONNECTED' | 'RECONNECTING'>('DISCONNECTED');
   readonly serverClockOffsetMs = signal<number>(0);
+  readonly lastError = signal<string>('');
 
   readonly newDanmaku$ = new Subject<DanmakuItem>();
   readonly deletedDanmaku$ = new Subject<string>();
@@ -108,6 +110,7 @@ export class WatchRoomService {
       tap(room => {
         this.currentRoom.set(room);
         this.playbackSnapshot.set(room.snapshot);
+        this.serverClockOffsetMs.set(room.snapshot.serverTime - Date.now());
         this.viewerCount.set(room.viewerCount || 1);
         this.isHost.set(Boolean(room.isHost));
         if (room.hostToken) {
@@ -196,6 +199,12 @@ export class WatchRoomService {
   }
 
   private handleIncomingWsMessage(msg: any) {
+    if (msg.type === 'error') {
+      this.lastError.set(msg.code === 'RATE_LIMITED' ? 'Vui lòng chờ 1,5 giây giữa các bình luận.'
+        : msg.code === 'NICKNAME_REQUIRED' ? 'Vui lòng nhập tên trước khi vào phòng.'
+        : 'Không thể thực hiện thao tác. Vui lòng thử lại.');
+      return;
+    }
     if (msg.type === 'pong') {
       const t1 = Date.now();
       const t0 = msg.t0;
@@ -212,6 +221,7 @@ export class WatchRoomService {
     }
 
     if (msg.type === 'room_snapshot') {
+      this.lastError.set('');
       this.playbackSnapshot.set(msg.snapshot);
       if (typeof msg.viewerCount === 'number') {
         this.viewerCount.set(msg.viewerCount);
@@ -245,6 +255,7 @@ export class WatchRoomService {
     }
 
     if (msg.type === 'sync') {
+      if (this.playbackSnapshot() && msg.snapshot.serverTime < this.playbackSnapshot()!.serverTime) return;
       this.playbackSnapshot.set(msg.snapshot);
       this.playbackSync$.next({ action: msg.action, snapshot: msg.snapshot });
       return;
@@ -286,24 +297,28 @@ export class WatchRoomService {
   }
 
   sendDanmaku(text: string, timeOffset: number, color = '#ffffff') {
+    if (this.ws?.readyState !== WebSocket.OPEN) {
+      this.lastError.set('Đang kết nối lại. Vui lòng chờ trước khi gửi bình luận.');
+      return false;
+    }
+    this.lastError.set('');
     this.sendWsMessage({
       type: 'danmaku:send',
       text,
       timeOffset,
       color,
     });
+    return true;
   }
 
   sendHostControl(action: 'START' | 'PAUSE' | 'RESUME' | 'SEEK', position?: number) {
     const hostToken = this.currentHostToken || this.currentRoom()?.hostToken;
-    this.sendWsMessage({
-      type: 'host:control',
-      action,
-      position,
-      hostToken,
-    });
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.sendWsMessage({ type: 'host:control', action, position, hostToken });
+      return;
+    }
 
-    // Also fallback / trigger via REST
+    // REST is used only when the socket is unavailable, avoiding duplicate controls.
     if (this.currentRoomId) {
       let headers = new HttpHeaders({ 'Content-Type': 'application/json' });
       if (hostToken) headers = headers.set('X-Host-Token', hostToken);
@@ -318,18 +333,17 @@ export class WatchRoomService {
             this.playbackSnapshot.set(res.snapshot);
           }
         },
-        error: () => {}
+        error: () => this.lastError.set('Không thể điều khiển phòng. Vui lòng thử lại.')
       });
     }
   }
 
   deleteDanmaku(danmakuId: string) {
     const hostToken = this.currentHostToken || this.currentRoom()?.hostToken;
-    this.sendWsMessage({
-      type: 'host:delete_danmaku',
-      danmakuId,
-      hostToken,
-    });
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.sendWsMessage({ type: 'host:delete_danmaku', danmakuId, hostToken });
+      return;
+    }
 
     if (this.currentRoomId) {
       let headers = new HttpHeaders();
@@ -355,6 +369,8 @@ export class WatchRoomService {
       this.reconnectTimer = null;
     }
     if (this.ws) {
+      this.ws.onopen = null;
+      this.ws.onmessage = null;
       this.ws.onclose = null;
       this.ws.onerror = null;
       this.ws.close();
@@ -363,22 +379,41 @@ export class WatchRoomService {
     if (explicit) {
       this.viewers.set([]);
       this.myViewerId.set(null);
+      this.connectionStatus.set('DISCONNECTED');
+      this.currentRoom.set(null);
+      this.playbackSnapshot.set(null);
+      this.isHost.set(false);
+      this.lastError.set('');
     }
   }
 
   /**
    * Helper to calculate the target playback position right now given server snapshot
    */
-  getSynchronizedTargetPosition(): number {
+  getLivePlaybackSnapshot(nowMs = Date.now()): PlaybackSnapshot | null {
     const snap = this.playbackSnapshot();
+    if (!snap) return null;
+    const serverNow = nowMs + this.serverClockOffsetMs();
+    const room = this.currentRoom();
+    if (snap.status === 'LOBBY' && room?.mode === 'SCHEDULED' && room.scheduledAt) {
+      const scheduledMs = Date.parse(room.scheduledAt);
+      if (serverNow < scheduledMs) return { ...snap, countdownSeconds: Math.ceil((scheduledMs - serverNow) / 1000) };
+      const position = Math.max(0, (serverNow - scheduledMs) / 1000);
+      const duration = room.videoDuration > 0 ? room.videoDuration : Infinity;
+      return { status: position >= duration ? 'ENDED' : 'PLAYING', position: Math.min(position, duration),
+        serverTime: serverNow, countdownSeconds: null, startedAt: room.scheduledAt };
+    }
+    if (snap.status !== 'PLAYING') return snap;
+    const position = snap.position + Math.max(0, (serverNow - snap.serverTime) / 1000);
+    const duration = room && room.videoDuration > 0 ? room.videoDuration : Infinity;
+    return { ...snap, status: position >= duration ? 'ENDED' : 'PLAYING', position: Math.min(position, duration), serverTime: serverNow };
+  }
+
+  getSynchronizedTargetPosition(snap = this.getLivePlaybackSnapshot()): number {
     if (!snap) return 0;
     if (snap.status === 'LOBBY') return 0;
     if (snap.status === 'PAUSED' || snap.status === 'ENDED') return snap.position;
 
-    // Playing: position + (currentServerTime - startedAt)
-    const nowServer = Date.now() + this.serverClockOffsetMs();
-    const startedMs = snap.startedAt ? Date.parse(snap.startedAt) : snap.serverTime;
-    const elapsed = Math.max(0, (nowServer - startedMs) / 1000);
-    return snap.position + elapsed;
+    return snap.position;
   }
 }

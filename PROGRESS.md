@@ -4,6 +4,13 @@
 
 ## Cập nhật gần nhất
 
+### Gộp nhánh phòng chiếu với `main` (`e13569f` công chiếu hẹn giờ) — 2026-11-05
+
+- `main` có thêm `e13569f`/`5381f99` (công chiếu hẹn giờ, video chờ canvas, snapshot mỗi giây, `phase` danmaku, giữ âm thanh gốc, kiểm proxy secret khi upgrade WebSocket) sửa cùng các file với nhánh này. Merge `main` vào nhánh, gộp như sau:
+  - Backend hub: giữ `leaveRoom(roomId, ws)`, `viewerId = uuid()`, `clientIp` chỉ tin `x-forwarded-for` khi có proxy secret, hàng đợi message `pending` của `main`; thêm vào đó danh sách người xem, bắt buộc tên và `rename`. Hai test của `main` (`watch-room-premiere.test.ts`) gửi `join` không có tên nên bị quy tắc mới từ chối; chỉ thêm `nickname` vào các lệnh `join`, không đổi assertion.
+  - Service: `disconnect(true)` xóa cả danh sách người xem lẫn trạng thái mà `main` thêm; thêm thông báo cho mã `NICKNAME_REQUIRED`.
+  - Trang: giữ template công chiếu mới, đưa vào các thay đổi của `main`: ẩn phim khi đang ở phòng chờ, `preload="metadata"` + `syncAfterMetadata`, `<app-premiere-countdown>` làm video chờ nằm **dưới** lớp danmaku, thông báo `watchError`, nhãn "Chờ" cho bình luận phòng chờ, lấy host token từ GET. Thứ tự lớp: màn nhập tên 30 > danmaku 20 > lớp chờ/kết thúc 15 > video đếm ngược 10. WebSocket vẫn chỉ mở sau khi nhập tên.
+
 ### Sửa trang trống sau deploy (chunk cũ) + chẩn đoán video đen — 2026-11-05 (local, chưa deploy)
 
 - Báo lỗi của chủ dự án (kèm ảnh): trang chủ `exe-webapp.pages.dev` chỉ còn header, phần nội dung trống.
@@ -29,6 +36,27 @@
 - Kiểm thử: frontend `tsc` app + spec sạch, `ng test --watch=false` **61 file / 479 test pass** (thêm: app shell ẩn footer ở `/room/:id` nhưng không ở `/room`; global bar đổi logo; trang phòng: nhãn trạng thái, đếm ngược `01:02:05`, render bố cục). `ng build --configuration production` exit 0, không cảnh báo CSS; chunk `watch-room-page` 41,54 kB raw / 10,49 kB transfer. Cảnh báo initial bundle 515,90 kB > 500 kB **có sẵn từ trước** (build `main` chưa sửa đo 526,85 kB).
 - Chụp Playwright bản build production với API giả lập (PLAYING/PAUSED/SCHEDULED, 1440px và 390px): không tràn ngang, không lỗi console, không có footer, logo đúng.
 - Chưa kiểm: phát video thật từ Azure Blob (ảnh chụp production cho thấy video đen, 00:00 dù trạng thái PLAYING — nghi SAS/CORS hoặc `streamUrl`, cần mở DevTools tab Network để xem request video). Chưa deploy.
+
+### Hoàn thiện công chiếu hẹn giờ, phòng chờ và âm thanh gốc — 2026-11-05 (đã deploy production e13569f)
+
+- Thay thế trạng thái nghiệm thu của bản Watch Room đầu tiên bên dưới: đồng hồ client cập nhật mỗi 250 ms theo giờ server; hub phát snapshot mỗi giây cho các phòng có người xem, không cần một người mới join/GET để kích hoạt công chiếu. Trạng thái công chiếu được suy ra từ `scheduled_at` bền vững; PAUSE/RESUME/SEEK qua REST và WebSocket dùng chung hàm chuyển trạng thái.
+- Phòng chờ SCHEDULED phát video đếm ngược HH:MM:SS được tạo trực tiếp bằng canvas.captureStream → video muted, không tải clip bên ngoài; trình duyệt không hỗ trợ captureStream dùng đồng hồ HTML. Hết giờ tự bỏ video chờ và phát phim; ẩn hình phim trong lúc chờ. Chat và danmaku nằm trên lớp video chờ, không bị lớp nền che.
+- Migration cộng thêm `room_danmaku.phase` mặc định VIDEO cho dữ liệu cũ. Bình luận mới được server gắn phase LOBBY/VIDEO và vị trí thực, không tin timeOffset của client; bình luận chờ vẫn có trong chat nhưng không replay ở giây 0. Giới hạn chat hiển thị 1000 tin, rate limit riêng từng kết nối, giữ draft và báo lỗi khi mất kết nối.
+- Sửa cộng thời gian phát hai lần: chỉ cộng thời gian từ snapshot.serverTime. Gửi điều khiển một lần qua WebSocket, REST chỉ fallback khi socket không mở. Chặn chuyển quyền host giữa phòng, rời membership cũ, xử lý tuần tự các message; upgrade kiểm tra proxy secret/origin, giới hạn frame 4 KiB và xử lý lỗi socket. Pages worker + `_routes.json` đã chuyển `/ws` và `/ws/*` sang gateway.
+- Hẹn giờ bắt buộc ngày hợp lệ trong tương lai ở cả form và API. Làm mới URL video ngắn hạn mỗi 30 phút; nhận metadata để biết thời lượng/kết thúc phim.
+- Âm thanh: người dùng phản ánh méo tiếng khi nghiệm thu; đã đóng tab phát trùng và bỏ bù lệch bằng playbackRate 0,97–1,03, giữ 1×/preservesPitch, chỉ seek khi lệch quá 1,5 giây hoặc lệnh host. Hash SHA-256 của payload AAC bản gốc và bản H.264 tải lên cùng `d560f7f2636eb8e42b1e57257d5920907419567aa2e6821f5b7346f6c975b66f` (stereo 44,1 kHz, không encode lại). Người dùng đã xác nhận nghe giống bản gốc.
+- Nghiệm thu browser local với SQLite memory và video đã upload: video chờ readyState=4, 1280×720, đang phát; chat xuất hiện cả trong lịch sử và danmaku. Quan sát chuyển từ đếm ngược 13 giây sang phim đang phát (2560×1440, currentTime ~12,49 giây), người vào muộn nhảy tới ~43,91 giây; đã kiểm tra hai người xem. Sau sửa âm thanh, video đang phát ở playbackRate=1 và người dùng xác nhận chất lượng.
+- Kiểm thử: backend full **155 ca / 154 pass / 1 skip Turso remote**; frontend full trước bổ sung test âm thanh **62 file / 483 pass**, lần đầu 1 test giải nén Excel timeout khi chạy song song build, chạy riêng **19/19 pass** và chạy lại full sạch. Gateway **38/38 pass**. Kiểm tra cuối sau sửa âm thanh: backend typecheck + **12/12** ca Watch Room, frontend **18/18** ca liên quan (gồm tốc độ gốc 1×), production build exit 0/prerender 6 route. Build còn warning initial 526,34 kB vượt ngưỡng 500 kB và CommonJS qrcode/dijkstrajs; chưa xử lý trong phạm vi công chiếu.
+- Đã push `main` commit `e13569ff096c9c07d15872788e0a2b934c09d662`; [CI 42048775073](https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/42048775073) success cả 4 job; [CD 42048974427](https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/42048974427) success cả 2 job, đủ bước Worker → Render đúng commit → Pages artifact → production smoke. Trước đó giao diện Deployments vẫn hiện lần thành công trước vì CD đang chờ backend sẵn sàng.
+- Xác minh production sau deploy: GET `/api/v1/info` với Origin hợp lệ trả 200, commit đúng `e13569f`, stage production/storage turso; `/room` trả 200. WebSocket `wss://exe-webapp.pages.dev/ws/room` upgrade thành công và trả pong với t0 khớp, xác nhận đường Pages → gateway → backend hoạt động.
+- Chưa tạo phòng thật hoặc nghiệm thu video Azure/SAS và nhiều người xem trên production. Preview trước đó chỉ dùng SQLite memory. Bản ghi kết quả deploy là docs-only, phát hành riêng với `[skip ci]` để không chạy một đợt deploy runtime mới.
+
+### Tải video đầu tiên lên Azure — 2026-11-05
+
+- Theo yêu cầu người dùng, đã tải bản tương thích trình duyệt của `1105(1).mp4` lên account `stexecardimages257`, container riêng tư `videos`, blob `1105-20261105-h264.mp4`. Video Source dùng với cấu hình ký SAS tương ứng: `videos/1105-20261105-h264.mp4`.
+- Nguồn HEVC/AAC 319.767.661 byte được chuyển thành H.264/yuv420p + AAC (giữ audio), giữ 2560×1440, thời lượng 241,371905 giây; MP4 có faststart, dung lượng 91.806.580 byte. Bản gốc trên máy được giữ nguyên.
+- Xác minh thực tế: Content-Type `video/mp4`, MD5 Azure khớp file local; GET với SAS chỉ đọc tạm thời và Range `bytes=0-1023` trả 206, Content-Range `bytes 0-1023/91806580`, 1024 byte và Access-Control-Allow-Origin đúng `https://exe-webapp.pages.dev`. Giữ nguyên container riêng tư và cấu hình CORS hiện có.
+- Phạm vi: đã upload và kiểm tra Blob; chưa tạo phòng, chưa xác minh cấu hình ký SAS của backend production hoặc phát video qua phòng thật. Không đổi code runtime, không deploy; cập nhật tài liệu còn local, chưa commit/push.
 
 ### Tính năng Phòng chiếu phim chung (Watch Room) & Danmaku Bilibili Style — 2026-11-05 (Local hoàn thành)
 

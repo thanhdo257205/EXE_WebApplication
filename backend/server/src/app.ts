@@ -33,7 +33,7 @@ export function createApp(
   const app = new Hono<ApiEnv>();
   const cache = createCache();
   const usage = createUsageRecorder(db);
-  const hub = watchHub || createWatchRoomHub(db);
+  const hub = watchHub || createWatchRoomHub(db, config);
 
   // index.ts only accepts http for the two loopback hosts, so any other public origin is a real
   // deployment and must arrive through the gateway: the gate arms on the origin, not on NODE_ENV.

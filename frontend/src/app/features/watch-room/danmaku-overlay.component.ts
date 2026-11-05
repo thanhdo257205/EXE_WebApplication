@@ -135,6 +135,7 @@ export class DanmakuOverlayComponent implements OnInit, OnDestroy {
    */
   checkHistoryTrigger(history: DanmakuItem[], currentTime: number) {
     for (const item of history) {
+      if (item.phase === 'LOBBY') continue;
       if (Math.abs(item.timeOffset - currentTime) <= 0.45) {
         this.emitBullet(item);
       }

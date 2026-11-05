@@ -57,7 +57,7 @@ if (assistant.providers.length) console.log('AI provider slots configured', { sl
 else console.warn('No AI provider credentials in env: /api/v1/assistant/chat needs at least one active key');
 if (assistant.credentialKey) console.log('Admin-managed assistant keys enabled');
 else console.warn('ASSISTANT_KEY_SECRET is not set: admin key management is disabled, env keys still work');
-const watchRoomHub = createWatchRoomHub(db);
+const watchRoomHub = createWatchRoomHub(db, config);
 const { app, usage } = createApp(db, config, payosProvider(process.env), undefined, azure ? azureMediaStore(azure) : r2 ? r2Store(r2) : null, assistant, watchRoomHub, process.env);
 const usageTimer = setInterval(() => void usage.flush(), 60_000);
 usageTimer.unref();

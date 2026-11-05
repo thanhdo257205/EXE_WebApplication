@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter, ActivatedRoute } from '@angular/router';
 import { of, Subject } from 'rxjs';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { WatchRoomPage } from './watch-room.page';
 import { WatchRoomService, WatchRoomInfo, DanmakuItem, PlaybackSnapshot } from '../../core/watch-room/watch-room.service';
 import { AuthService } from '../../core/auth/auth.service';
@@ -45,6 +45,8 @@ describe('WatchRoomPage', () => {
   const mockWatchRoomService = {
     currentRoom: currentRoomSig,
     playbackSnapshot: snapshotSig,
+    getLivePlaybackSnapshot: () => snapshotSig(),
+    lastError: signal(''),
     viewerCount: viewerCountSig,
     isHost: isHostSig,
     viewers: viewersSig,
@@ -69,6 +71,9 @@ describe('WatchRoomPage', () => {
   };
 
   beforeEach(async () => {
+    vi.clearAllMocks();
+    currentRoomSig.set(mockRoom);
+    snapshotSig.set(mockRoom.snapshot);
     await TestBed.configureTestingModule({
       imports: [WatchRoomPage],
       providers: [
@@ -92,6 +97,7 @@ describe('WatchRoomPage', () => {
     component = fixture.componentInstance;
     fixture.detectChanges();
   });
+  afterEach(() => { fixture.destroy(); });
 
   it('creates the watch room component and sets up title and viewer count', () => {
     expect(component).toBeTruthy();
@@ -136,7 +142,43 @@ describe('WatchRoomPage', () => {
 
   it('triggers host play/pause control', () => {
     component.hostTogglePlay();
-    expect(mockWatchRoomService.sendHostControl).toHaveBeenCalledWith('RESUME');
+    expect(mockWatchRoomService.sendHostControl).toHaveBeenCalledWith('START');
+  });
+
+  it('keeps chat and live bullets available while the premiere countdown is visible', () => {
+    currentRoomSig.set({ ...mockRoom, mode: 'SCHEDULED', scheduledAt: new Date(Date.now() + 60000).toISOString() });
+    snapshotSig.set({ ...mockRoom.snapshot, countdownSeconds: 60 });
+    component.enterWatchRoom();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('app-premiere-countdown')).toBeTruthy();
+    const emit = vi.spyOn(component.danmakuOverlay, 'emitBullet');
+    const item = { id: 'lobby-1', nickname: 'Khách', text: 'Chờ phim!', phase: 'LOBBY', timeOffset: 0, color: '#ffffff', createdAt: new Date().toISOString() } as DanmakuItem;
+    newDanmaku$.next(item);
+    fixture.detectChanges();
+    expect(emit).toHaveBeenCalledWith(item);
+    expect(fixture.nativeElement.textContent).toContain('Chờ phim!');
+    expect(fixture.nativeElement.textContent).toContain('Phòng chờ');
+    snapshotSig.set({ ...mockRoom.snapshot, status: 'PLAYING' });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('app-premiere-countdown')).toBeNull();
+  });
+
+  it('retains the comment draft when disconnected', () => {
+    mockWatchRoomService.sendDanmaku.mockReturnValueOnce(false);
+    component.inputText = 'Đợi kết nối';
+    component.sendComment();
+    expect(component.inputText).toBe('Đợi kết nối');
+  });
+
+  it('keeps original audio speed when correcting moderate playback drift', () => {
+    const video = { currentTime: 10.8, playbackRate: 0.97, preservesPitch: false, paused: false };
+    component.hasUserEntered.set(true);
+    component.videoPlayerRef = { nativeElement: video } as any;
+    mockWatchRoomService.getSynchronizedTargetPosition.mockReturnValueOnce(10);
+    (component as any).performVideoSync({ ...mockRoom.snapshot, status: 'PLAYING', position: 10 });
+    expect(video.playbackRate).toBe(1);
+    expect(video.preservesPitch).toBe(true);
+    expect(video.currentTime).toBe(10.8);
   });
   it('labels premiere state and splits the countdown into h/m/s', () => {
     expect(component.premiereLabel()).toBe('Sắp công chiếu');
