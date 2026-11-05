@@ -1,5 +1,9 @@
 <header class="public-header">
-  <a routerLink="/" class="brand" aria-label="Nhà Này Hơi Báo! — Trang chủ"><span class="brand-logo" aria-hidden="true">N</span><span class="brand-text">NHÀ NÀY<br><b>HƠI BÁO!</b></span></a>
+  @if (isWatchRoom()) {
+    <a routerLink="/" class="brand" aria-label="5 anh em siêu nhân — Trang chủ"><span class="brand-logo" aria-hidden="true">5</span><span class="brand-text">5 ANH EM<br><b>SIÊU NHÂN</b></span></a>
+  } @else {
+    <a routerLink="/" class="brand" aria-label="Nhà Này Hơi Báo! — Trang chủ"><span class="brand-logo" aria-hidden="true">N</span><span class="brand-text">NHÀ NÀY<br><b>HƠI BÁO!</b></span></a>
+  }
   <div class="nav-cluster" (pointerenter)="cancelClose()" (pointerleave)="scheduleClose()" (focusout)="onNavFocusOut($event)">
     <nav class="desktop-nav" appLiquidGlass aria-label="Điều hướng chính">
       @for (item of navigation; track item.id) {

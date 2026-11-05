@@ -20,472 +20,227 @@ import {
 } from '../../core/watch-room/watch-room.service';
 import { DanmakuOverlayComponent } from './danmaku-overlay.component';
 import { AuthService } from '../../core/auth/auth.service';
+import { RiseHeadingDirective } from '../../shared/motion/rise-heading.directive';
 
 @Component({
   selector: 'app-watch-room',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, DanmakuOverlayComponent],
+  imports: [CommonModule, FormsModule, RouterModule, DanmakuOverlayComponent, RiseHeadingDirective],
   template: `
-    <div class="watch-room-root min-h-screen bg-[#0e0f14] text-slate-100 flex flex-col font-sans select-none">
-      <!-- Top Bar: Room Title & Live Badge -->
-      <header class="border-b border-white/10 bg-[#161820]/90 backdrop-blur-md px-4 py-3 sticky top-0 z-30 flex items-center justify-between gap-4">
-        <div class="flex items-center gap-3 min-w-0">
-          <a routerLink="/" class="text-xs uppercase tracking-wider text-pink-400 font-bold hover:text-pink-300 transition-colors flex items-center gap-1.5 shrink-0">
-            <span class="w-2 h-2 rounded-full bg-pink-500"></span>
-            Nhà Này Hơi Báo
-          </a>
-          <span class="text-white/20">/</span>
-          <h1 class="font-bold text-sm sm:text-base truncate text-white" [title]="room()?.title || 'Phòng chiếu phim'">
-            {{ room()?.title || 'Đang tải phòng chiếu...' }}
-          </h1>
+    <div class="wr" [class.wr-chat-hidden]="chatCollapsed()">
+      <div class="wr-grid">
+        <section class="wr-main" aria-label="Khu xem phim">
+          <!-- Title block (Bilibili premiere style: title, badge, meta row) -->
+          <header class="wr-head">
+            <h1 class="wr-title" [title]="room()?.title || 'Phòng chiếu'">{{ room()?.title || 'Đang tải phòng chiếu…' }}</h1>
+            <div class="wr-meta">
+              <span class="wr-badge" [attr.data-state]="premiereState()">
+                @if (premiereState() === 'live') { <span class="wr-dot" aria-hidden="true"></span> }
+                {{ premiereLabel() }}
+              </span>
+              <span class="wr-meta-item"><strong>{{ viewerCount() }}</strong> người đang xem</span>
+              <span class="wr-meta-item"><strong>{{ chatMessages().length }}</strong> bình luận đã nạp</span>
+              @if (scheduledLabel()) { <span class="wr-meta-item">Công chiếu lúc {{ scheduledLabel() }}</span> }
+              <button type="button" class="wr-share" (click)="copyRoomLink()">{{ copiedLink() ? 'Đã sao chép link' : 'Chia sẻ phòng' }}</button>
+            </div>
+          </header>
 
-          <!-- Live Badge -->
-          <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold tracking-wide bg-pink-500/20 text-pink-400 border border-pink-500/30 shrink-0">
-            <span class="w-2 h-2 rounded-full bg-pink-500 animate-pulse"></span>
-            LIVE
-          </span>
-        </div>
+          <!-- Player frame -->
+          <div class="wr-player" #playerContainer [class.wr-paused]="!isPlaying()" [class.wr-covered]="!hasUserEntered() || isLobby() || playbackStatus() === 'ENDED'">
+            <video #videoPlayer class="wr-video" [src]="streamUrl()" playsinline preload="auto"
+              (click)="onVideoClick()" (waiting)="isBuffering.set(true)"
+              (playing)="isBuffering.set(false); isPlaying.set(true)" (pause)="isPlaying.set(false)"
+              (volumechange)="onVolumeChange()"></video>
 
-        <div class="flex items-center gap-2.5 shrink-0">
-          <!-- Viewer Count -->
-          <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs text-slate-300" title="Số người đang xem">
-            <svg class="w-3.5 h-3.5 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-            </svg>
-            <span class="font-semibold text-white">{{ viewerCount() }}</span>
-            <span class="hidden sm:inline text-slate-400">người xem</span>
-          </div>
+            <app-danmaku-overlay #danmakuOverlay [laneCount]="8"></app-danmaku-overlay>
 
-          <!-- Nickname Chip -->
-          <button
-            (click)="showNicknamePrompt = true"
-            class="hidden sm:inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-xs text-slate-300 transition-colors"
-            title="Đổi biệt danh"
-          >
-            <span>👤</span>
-            <span class="font-medium text-cyan-300">{{ nickname() }}</span>
-          </button>
-
-          <!-- Copy Link -->
-          <button
-            (click)="copyRoomLink()"
-            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/30 text-cyan-300 text-xs font-semibold transition-all cursor-pointer active:scale-95"
-          >
-            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-            </svg>
-            <span>{{ copiedLink() ? 'Đã sao chép!' : 'Chia sẻ' }}</span>
-          </button>
-        </div>
-      </header>
-
-      <!-- Main Layout: Player on Left, Chat on Right -->
-      <main class="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
-        <!-- Video Player Section -->
-        <section class="flex-1 flex flex-col bg-black min-w-0 relative">
-          <!-- Video Container -->
-          <div class="relative w-full aspect-video bg-black flex items-center justify-center overflow-hidden group" #playerContainer>
-            <video
-              #videoPlayer
-              class="w-full h-full object-contain cursor-pointer"
-              [src]="streamUrl()"
-              playsinline
-              preload="auto"
-              (click)="onVideoClick()"
-              (waiting)="isBuffering.set(true)"
-              (playing)="isBuffering.set(false); isPlaying.set(true)"
-              (pause)="isPlaying.set(false)"
-              (volumechange)="onVolumeChange()"
-            ></video>
-
-            <!-- Danmaku Overlay -->
-            <app-danmaku-overlay
-              #danmakuOverlay
-              [laneCount]="8"
-            ></app-danmaku-overlay>
-
-            <!-- Autoplay / Enter Watch Room Barrier Overlay -->
-            @if (!hasUserEntered()) {
-              <div class="absolute inset-0 bg-black/85 backdrop-blur-sm z-30 flex flex-col items-center justify-center p-6 text-center">
-                <div class="w-16 h-16 rounded-full bg-pink-500/20 border-2 border-pink-500 flex items-center justify-center mb-4 text-pink-400 animate-pulse">
-                  <svg class="w-8 h-8 ml-1" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M8 5v14l11-7z" />
-                  </svg>
-                </div>
-                <h2 class="text-xl sm:text-2xl font-bold text-white mb-2">Chào mừng đến phòng chiếu!</h2>
-                <p class="text-slate-400 text-sm max-w-md mb-6">
-                  Bấm nút bên dưới để tham gia và đồng bộ âm thanh cùng mọi người.
-                </p>
-                <button
-                  (click)="enterWatchRoom()"
-                  class="px-8 py-3 rounded-full bg-gradient-to-r from-pink-500 to-rose-600 text-white font-bold text-base shadow-lg shadow-pink-500/30 hover:scale-105 active:scale-95 transition-all cursor-pointer"
-                >
-                  Vào xem ngay
-                </button>
-              </div>
-            }
-
-            <!-- Scheduled Countdown Overlay -->
-            @if (hasUserEntered() && isLobby() && isScheduled()) {
-              <div class="absolute inset-0 bg-black/80 z-20 flex flex-col items-center justify-center p-6 text-center">
-                <span class="px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-300 text-xs font-bold border border-cyan-500/30 mb-3">
-                  CÔNG CHIẾU HẸN GIỜ
-                </span>
-                <h3 class="text-lg sm:text-xl font-bold text-white mb-4">Phim sẽ tự động bắt đầu sau</h3>
-                <div class="font-mono text-4xl sm:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-pink-400 tracking-wider mb-4">
-                  {{ countdownDisplay() }}
-                </div>
-                <p class="text-slate-400 text-xs sm:text-sm">
-                  Đang có {{ viewerCount() }} người cùng chờ đón xem!
-                </p>
-              </div>
-            }
-
-            <!-- Lobby Overlay for Host Trigger mode -->
-            @if (hasUserEntered() && isLobby() && !isScheduled()) {
-              <div class="absolute inset-0 bg-black/80 z-20 flex flex-col items-center justify-center p-6 text-center">
-                <div class="w-12 h-12 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center mb-3">
-                  <svg class="w-6 h-6 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
-                  </svg>
-                </div>
-                <h3 class="text-lg sm:text-xl font-bold text-white mb-2">Phòng chờ công chiếu</h3>
-                <p class="text-slate-400 text-sm max-w-sm mb-5">
-                  Phim đang ở sảnh chờ. Khi chủ phòng ấn "Bắt đầu", tất cả mọi người sẽ cùng xem đồng loạt.
-                </p>
-                @if (isHost()) {
-                  <button
-                    (click)="hostTriggerStart()"
-                    class="px-6 py-2.5 rounded-full bg-pink-500 hover:bg-pink-600 text-white font-bold text-sm shadow-md transition-all cursor-pointer hover:scale-105 active:scale-95"
-                  >
-                    ▶ Bắt đầu phát sóng (Chủ phòng)
-                  </button>
-                }
-              </div>
-            }
-
-            <!-- Muted Warning Pill -->
-            @if (isMuted() && hasUserEntered()) {
-              <button
-                (click)="unmuteVideo()"
-                class="absolute top-4 left-4 z-20 px-3 py-1.5 rounded-full bg-black/80 hover:bg-black/90 border border-white/20 text-yellow-300 text-xs font-semibold flex items-center gap-2 cursor-pointer shadow-lg backdrop-blur-md transition-transform hover:scale-105"
-              >
-                <span>🔇</span>
-                <span>Trình duyệt đang tắt tiếng · Bấm để bật</span>
-              </button>
-            }
-
-            <!-- Buffering Spinner -->
-            @if (isBuffering()) {
-              <div class="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
-                <div class="w-12 h-12 border-4 border-pink-500/30 border-t-pink-500 rounded-full animate-spin"></div>
-              </div>
-            }
-          </div>
-
-          <!-- Player Controls & Bilibili-Style Danmaku Bar -->
-          <div class="bg-[#14161f] border-t border-white/10 p-3 sm:p-4 flex flex-col gap-3">
-            <!-- Progress / Scrub bar (Host has control, viewers see current sync) -->
-            <div class="flex items-center gap-3 text-xs text-slate-400 font-mono">
-              <span>{{ formatTime(currentVideoTime()) }}</span>
-              <div class="flex-1 relative flex items-center group cursor-pointer" (click)="onProgressClick($event)">
-                <div class="w-full h-1.5 bg-white/15 rounded-full overflow-hidden">
-                  <div class="h-full bg-gradient-to-r from-cyan-400 to-pink-500 rounded-full" [style.width.%]="progressPercent()"></div>
-                </div>
-              </div>
-              <span>{{ formatTime(videoDuration()) }}</span>
+            <div class="wr-corner" aria-hidden="true">
+              <span class="wr-corner-tag">Công chiếu</span>
+              <span>{{ viewerCount() }} đang xem</span>
             </div>
 
-            <!-- Main Control Bar -->
-            <div class="flex flex-wrap items-center justify-between gap-3">
-              <!-- Left: Play/Pause (for host), Danmaku Settings -->
-              <div class="flex items-center gap-2">
-                @if (isHost()) {
-                  <button
-                    (click)="hostTogglePlay()"
-                    class="p-2 rounded-lg bg-white/5 hover:bg-white/15 text-white transition-colors cursor-pointer"
-                    [title]="isPlaying() ? 'Tạm dừng (Chủ phòng)' : 'Phát (Chủ phòng)'"
-                  >
-                    @if (isPlaying()) {
-                      <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-                    } @else {
-                      <svg class="w-5 h-5 text-pink-400" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                    }
-                  </button>
-                }
-
-                <!-- Danmaku Toggle Switch -->
-                <button
-                  (click)="toggleDanmaku()"
-                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer"
-                  [ngClass]="danmakuEnabled() ? 'bg-pink-500/20 border-pink-500/40 text-pink-300' : 'bg-white/5 border-white/10 text-slate-400'"
-                >
-                  <span class="text-sm">💬</span>
-                  <span class="hidden sm:inline">Danmaku</span>
-                  <span class="text-[10px] uppercase font-bold">{{ danmakuEnabled() ? 'BẬT' : 'TẮT' }}</span>
-                </button>
-
-                <!-- Danmaku Settings Button -->
-                <div class="relative">
-                  <button
-                    (click)="showDanmakuSettings = !showDanmakuSettings"
-                    class="p-2 rounded-lg bg-white/5 hover:bg-white/15 text-slate-300 hover:text-white transition-colors cursor-pointer text-xs"
-                    title="Cài đặt bình luận chạy ngang"
-                  >
-                    ⚙
-                  </button>
-
-                  <!-- Danmaku Settings Popover -->
-                  @if (showDanmakuSettings) {
-                    <div class="absolute bottom-full left-0 mb-2 w-64 bg-[#1e202c] border border-white/15 rounded-xl p-4 shadow-2xl z-40 flex flex-col gap-3">
-                      <div class="flex items-center justify-between border-b border-white/10 pb-2">
-                        <span class="text-xs font-bold text-white">Cài đặt Danmaku</span>
-                        <button (click)="showDanmakuSettings = false" class="text-slate-400 hover:text-white text-xs">✕</button>
-                      </div>
-
-                      <!-- Opacity Slider -->
-                      <div>
-                        <div class="flex justify-between text-xs text-slate-300 mb-1">
-                          <span>Độ trong suốt</span>
-                          <span>{{ danmakuOpacity() * 100 }}%</span>
-                        </div>
-                        <input
-                          type="range"
-                          min="0.2"
-                          max="1.0"
-                          step="0.1"
-                          [value]="danmakuOpacity()"
-                          (input)="onOpacityChange($event)"
-                          class="w-full accent-pink-500 h-1.5 bg-white/20 rounded cursor-pointer"
-                        />
-                      </div>
-
-                      <!-- Font Size -->
-                      <div>
-                        <div class="text-xs text-slate-300 mb-1.5">Cỡ chữ</div>
-                        <div class="grid grid-cols-3 gap-1.5">
-                          @for (sz of fontSizes; track sz.label) {
-                            <button
-                              (click)="setFontSize(sz.px)"
-                              class="py-1 text-xs rounded border transition-colors cursor-pointer text-center"
-                              [ngClass]="danmakuFontSize() === sz.px ? 'border-pink-500 bg-pink-500/20 text-pink-300 font-bold' : 'border-white/10 bg-white/5 text-slate-400 hover:text-white'"
-                            >
-                              {{ sz.label }}
-                            </button>
-                          }
-                        </div>
-                      </div>
-                    </div>
+            @if (!hasUserEntered()) {
+              <div class="wr-layer wr-enter">
+                <p class="wr-layer-kicker">{{ premiereLabel() }}</p>
+                <h2 class="wr-layer-title">Cùng xem, cùng bình luận</h2>
+                <p class="wr-layer-text">Bấm để vào phòng. Video sẽ chạy đồng bộ với mọi người, kể cả âm thanh.</p>
+                <button type="button" class="wr-cta" (click)="enterWatchRoom()">Vào xem ngay</button>
+              </div>
+            } @else if (isLobby() && isScheduled()) {
+              <div class="wr-layer">
+                <p class="wr-layer-kicker">Đếm ngược công chiếu</p>
+                <div class="wr-countdown" aria-live="polite">
+                  @for (part of countdownParts(); track part.label) {
+                    <span class="wr-cd-cell"><b>{{ part.value }}</b><small>{{ part.label }}</small></span>
                   }
                 </div>
+                <p class="wr-layer-text">{{ viewerCount() }} người đang chờ cùng bạn. Phim sẽ tự chạy khi đến giờ.</p>
               </div>
+            } @else if (isLobby()) {
+              <div class="wr-layer">
+                <p class="wr-layer-kicker">Sắp công chiếu</p>
+                <h2 class="wr-layer-title">Đang chờ chủ phòng</h2>
+                <p class="wr-layer-text">Khi chủ phòng bấm bắt đầu, tất cả mọi người sẽ xem cùng một lúc.</p>
+                @if (isHost()) { <button type="button" class="wr-cta" (click)="hostTriggerStart()">Bắt đầu công chiếu</button> }
+              </div>
+            } @else if (playbackStatus() === 'ENDED') {
+              <div class="wr-layer">
+                <p class="wr-layer-kicker">Đã kết thúc</p>
+                <h2 class="wr-layer-title">Buổi công chiếu đã kết thúc</h2>
+                <p class="wr-layer-text">Cảm ơn bạn đã xem cùng mọi người. Bình luận vẫn còn ở danh sách bên cạnh.</p>
+              </div>
+            }
 
-              <!-- Center/Right: Danmaku Input Bar (Bilibili Style) -->
-              <div class="flex-1 max-w-xl flex items-center gap-2">
-                <!-- Color Picker Popover Button -->
-                <div class="relative">
-                  <button
-                    (click)="showColorPicker = !showColorPicker"
-                    class="w-8 h-8 rounded-lg border border-white/20 flex items-center justify-center cursor-pointer transition-transform hover:scale-105"
-                    [style.background-color]="selectedColor()"
-                    title="Chọn màu bình luận"
-                  ></button>
+            @if (isMuted() && hasUserEntered()) {
+              <button type="button" class="wr-muted" (click)="unmuteVideo()">Trình duyệt đang tắt tiếng · bấm để bật</button>
+            }
+            @if (isBuffering()) { <div class="wr-spinner" aria-label="Đang tải video"></div> }
 
-                  @if (showColorPicker) {
-                    <div class="absolute bottom-full left-0 mb-2 bg-[#1e202c] border border-white/15 rounded-xl p-3 shadow-2xl z-40 grid grid-cols-3 gap-2">
-                      @for (col of colorPalette; track col) {
-                        <button
-                          (click)="selectColor(col)"
-                          class="w-7 h-7 rounded-md border border-black/30 hover:scale-110 transition-transform cursor-pointer"
-                          [style.background-color]="col"
-                        ></button>
+            <!-- In-player controls -->
+            <div class="wr-controls">
+              <div class="wr-progress" [class.wr-locked]="!isHost()" (click)="onProgressClick($event)"
+                [attr.title]="isHost() ? 'Tua cho cả phòng' : 'Đang công chiếu: không tua được'">
+                <span class="wr-progress-fill" [style.width.%]="progressPercent()"></span>
+              </div>
+              <div class="wr-ctrl-row">
+                @if (isHost()) {
+                  <button type="button" class="wr-icon" (click)="hostTogglePlay()" [attr.aria-label]="isPlaying() ? 'Tạm dừng cả phòng' : 'Phát cho cả phòng'">
+                    @if (isPlaying()) { <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg> }
+                    @else { <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg> }
+                  </button>
+                }
+                <span class="wr-time">{{ formatTime(currentVideoTime()) }} / {{ formatTime(videoDuration()) }}</span>
+                @if (!isHost()) { <span class="wr-lock-note">Công chiếu · không tua</span> }
+                <span class="wr-spacer"></span>
+                <button type="button" class="wr-icon wr-icon-text" (click)="toggleDanmaku()" [attr.aria-pressed]="danmakuEnabled()">
+                  {{ danmakuEnabled() ? 'Danmaku bật' : 'Danmaku tắt' }}
+                </button>
+                <button type="button" class="wr-icon" (click)="toggleFullscreen()" aria-label="Toàn màn hình">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5v2H6v3H4zm10-5h6v5h-2V6h-4V4zM4 15h2v3h3v2H4v-5zm14 3v-3h2v5h-5v-2h3z"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Danmaku send bar under the player -->
+          <div class="wr-sendbar">
+            <div class="wr-send-info"><strong>{{ viewerCount() }}</strong> người đang xem · đã nạp <strong>{{ chatMessages().length }}</strong> bình luận</div>
+            <div class="wr-send-tools">
+              <button type="button" class="wr-tool" [class.wr-on]="danmakuEnabled()" (click)="toggleDanmaku()" [attr.aria-pressed]="danmakuEnabled()" title="Bật/tắt danmaku" aria-label="Bật/tắt danmaku"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H8l-4 4V5zm3 4v2h10V9H7zm0 3v2h6v-2H7z"/></svg></button>
+              <div class="wr-pop-wrap">
+                <button type="button" class="wr-tool" (click)="showDanmakuSettings = !showDanmakuSettings; showColorPicker = false" title="Cài đặt danmaku" aria-label="Cài đặt danmaku">⚙</button>
+                @if (showDanmakuSettings) {
+                  <div class="wr-pop">
+                    <p class="wr-pop-title">Cài đặt danmaku</p>
+                    <label class="wr-pop-label">Độ đậm {{ (danmakuOpacity() * 100).toFixed(0) }}%
+                      <input type="range" min="0.2" max="1" step="0.1" [value]="danmakuOpacity()" (input)="onOpacityChange($event)" />
+                    </label>
+                    <p class="wr-pop-label">Cỡ chữ</p>
+                    <div class="wr-seg">
+                      @for (sz of fontSizes; track sz.label) {
+                        <button type="button" [class.wr-on]="danmakuFontSize() === sz.px" (click)="setFontSize(sz.px)">{{ sz.label }}</button>
                       }
                     </div>
-                  }
-                </div>
-
-                <!-- Input Text Box -->
-                <div class="flex-1 relative flex items-center">
-                  <input
-                    type="text"
-                    [(ngModel)]="inputText"
-                    (keydown.enter)="sendComment()"
-                    maxlength="60"
-                    placeholder="Bình luận chạy ngang phim (tối đa 60 ký tự)..."
-                    class="w-full bg-white/10 border border-white/15 focus:border-pink-500/80 rounded-full py-1.5 pl-4 pr-12 text-xs sm:text-sm text-white placeholder-slate-400 focus:outline-none transition-colors"
-                  />
-                  <button
-                    (click)="sendComment()"
-                    [disabled]="!inputText.trim()"
-                    class="absolute right-1 px-3 py-1 rounded-full bg-gradient-to-r from-pink-500 to-rose-500 text-white text-xs font-bold disabled:opacity-30 disabled:cursor-not-allowed hover:opacity-90 active:scale-95 transition-all cursor-pointer"
-                  >
-                    Gửi
-                  </button>
-                </div>
-
-                <!-- Fullscreen Toggle Button -->
-                <button
-                  (click)="toggleFullscreen()"
-                  class="p-2 rounded-lg bg-white/5 hover:bg-white/15 text-slate-300 hover:text-white transition-colors cursor-pointer text-xs"
-                  title="Toàn màn hình"
-                >
-                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-                  </svg>
-                </button>
+                  </div>
+                }
               </div>
             </div>
-
-            <!-- Host Actions Bar (Visible to Host only) -->
-            @if (isHost()) {
-              <div class="pt-2 border-t border-white/5 flex flex-wrap items-center justify-between gap-2 text-xs">
-                <div class="flex items-center gap-2 text-slate-400">
-                  <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
-                  <span class="font-bold text-cyan-300">Bảng điều khiển chủ phòng</span>
-                  <span class="text-white/20">|</span>
-                  <span>Trạng thái: <strong class="text-white">{{ playbackStatus() }}</strong></span>
-                </div>
-
-                <div class="flex items-center gap-2">
-                  <button
-                    (click)="hostSeekRelative(-10)"
-                    class="px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 text-slate-300 transition-colors"
-                  >
-                    ⏪ -10s
-                  </button>
-                  <button
-                    (click)="hostSeekRelative(10)"
-                    class="px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 text-slate-300 transition-colors"
-                  >
-                    ⏩ +10s
-                  </button>
-                  <button
-                    (click)="hostTogglePlay()"
-                    class="px-3 py-1 rounded bg-pink-500/20 hover:bg-pink-500/30 text-pink-300 font-bold transition-colors"
-                  >
-                    {{ isPlaying() ? 'Tạm dừng tất cả' : 'Tiếp tục phát' }}
-                  </button>
-                </div>
+            <div class="wr-input">
+              <div class="wr-pop-wrap">
+                <button type="button" class="wr-swatch" [style.--ctrl-glass-bg-tint]="selectedColor()" [style.--ctrl-glass-bg-hover]="selectedColor()" (click)="showColorPicker = !showColorPicker; showDanmakuSettings = false" aria-label="Chọn màu bình luận"></button>
+                @if (showColorPicker) {
+                  <div class="wr-pop wr-colors">
+                    @for (col of colorPalette; track col) {
+                      <button type="button" class="wr-swatch" [style.--ctrl-glass-bg-tint]="col" [style.--ctrl-glass-bg-hover]="col" (click)="selectColor(col)" [attr.aria-label]="'Màu ' + col"></button>
+                    }
+                  </div>
+                }
               </div>
-            }
+              <input type="text" [(ngModel)]="inputText" (keydown.enter)="sendComment()" maxlength="60"
+                placeholder="Gửi một bình luận chạy ngang…" aria-label="Nội dung danmaku" />
+              <button type="button" class="wr-send" (click)="sendComment()" [disabled]="!inputText.trim()">Gửi</button>
+            </div>
           </div>
+
+          @if (isHost()) {
+            <div class="wr-host">
+              <span class="wr-host-label">Bảng điều khiển chủ phòng · <b>{{ premiereLabel() }}</b></span>
+              <span class="wr-spacer"></span>
+              <button type="button" (click)="hostSeekRelative(-10)">−10 giây</button>
+              <button type="button" (click)="hostSeekRelative(10)">+10 giây</button>
+              @if (isLobby()) { <button type="button" class="wr-host-main" (click)="hostTriggerStart()">Bắt đầu công chiếu</button> }
+              @else { <button type="button" class="wr-host-main" (click)="hostTogglePlay()">{{ isPlaying() ? 'Tạm dừng cả phòng' : 'Tiếp tục phát' }}</button> }
+            </div>
+          }
         </section>
 
-        <!-- Right Side: Live Chat & Danmaku History (Collapsible) -->
-        <aside
-          class="bg-[#12141c] border-l border-white/10 flex flex-col transition-all duration-300 z-10"
-          [ngClass]="chatCollapsed() ? 'w-0 lg:w-0 overflow-hidden border-none' : 'w-full lg:w-80 h-72 lg:h-auto'"
-        >
-          <!-- Chat Header -->
-          <div class="p-3 border-b border-white/10 flex items-center justify-between bg-white/[0.02]">
-            <div class="flex items-center gap-2">
-              <span class="font-bold text-xs text-white">Khung trò chuyện</span>
-              <span class="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-slate-400 font-mono">
-                {{ chatMessages().length }}
-              </span>
+        <!-- Right column: host card, premiere card, danmaku list -->
+        <aside class="wr-side" aria-label="Thông tin công chiếu và danh sách bình luận">
+          <div class="wr-card wr-up">
+            <span class="wr-avatar" aria-hidden="true">5</span>
+            <div class="wr-up-text">
+              <p class="wr-up-name">5 anh em siêu nhân</p>
+              <p class="wr-up-sub">Phòng chiếu chung · ai có link đều vào xem được</p>
             </div>
-            <button
-              (click)="chatCollapsed.set(true)"
-              class="text-slate-400 hover:text-white text-xs p-1 rounded hover:bg-white/5 cursor-pointer"
-              title="Thu gọn khung chat"
-            >
-              ✕
-            </button>
           </div>
 
-          <!-- Chat Messages Scroll Area -->
-          <div class="flex-1 p-3 overflow-y-auto flex flex-col gap-2.5 text-xs font-sans" #chatScrollArea>
-            @for (msg of chatMessages(); track msg.id) {
-              <div class="flex items-start justify-between group rounded p-1 hover:bg-white/[0.03] transition-colors">
-                <div class="flex-1 min-w-0 pr-2">
-                  <div class="flex items-baseline gap-1.5 mb-0.5">
-                    <span class="font-bold text-slate-300 truncate max-w-[120px]">{{ msg.nickname }}</span>
-                    <span class="text-[10px] text-slate-500 font-mono">{{ formatTime(msg.timeOffset) }}</span>
-                  </div>
-                  <p class="break-words font-medium" [style.color]="msg.color || '#ffffff'">
-                    {{ msg.text }}
-                  </p>
-                </div>
+          <div class="wr-card wr-info">
+            <p class="wr-info-state" [attr.data-state]="premiereState()">{{ premiereLabel() }}</p>
+            @if (isLobby() && isScheduled()) {
+              <p class="wr-info-big">{{ countdownDisplay() }}</p>
+              <p class="wr-info-sub">còn lại trước giờ công chiếu</p>
+            } @else {
+              <p class="wr-info-big">{{ formatTime(currentVideoTime()) }} <small>/ {{ formatTime(videoDuration()) }}</small></p>
+              <div class="wr-info-bar"><span [style.width.%]="progressPercent()"></span></div>
+            }
+          </div>
 
-                <!-- Host delete action -->
-                @if (isHost()) {
-                  <button
-                    (click)="deleteMessage(msg.id)"
-                    class="opacity-0 group-hover:opacity-100 text-[10px] text-red-400 hover:text-red-300 px-1 py-0.5 rounded bg-red-500/10 transition-opacity"
-                    title="Xoá bình luận này (Chủ phòng)"
-                  >
-                    Xoá
-                  </button>
+          <div class="wr-card wr-list">
+            <div class="wr-list-head">
+              <button type="button" class="wr-list-toggle" (click)="chatCollapsed.set(!chatCollapsed())" [attr.aria-expanded]="!chatCollapsed()">
+                Danh sách danmaku <span class="wr-count">{{ chatMessages().length }}</span>
+                <span aria-hidden="true">{{ chatCollapsed() ? '▾' : '▴' }}</span>
+              </button>
+            </div>
+            @if (!chatCollapsed()) {
+              <div class="wr-list-cols" aria-hidden="true"><span>Mốc phim</span><span>Nội dung</span><span>Gửi lúc</span></div>
+              <div class="wr-list-body" #chatScrollArea>
+                @for (msg of chatMessages(); track msg.id) {
+                  <div class="wr-row">
+                    <span class="wr-row-time">{{ formatTime(msg.timeOffset) }}</span>
+                    <span class="wr-row-text" [title]="msg.nickname + ': ' + msg.text"><b>{{ msg.nickname }}:</b><span [style.color]="msg.color || null">{{ msg.text }}</span></span>
+                    <span class="wr-row-sent">{{ clockTime(msg.createdAt) }}</span>
+                    @if (isHost()) { <button type="button" class="wr-row-del" (click)="deleteMessage(msg.id)" aria-label="Xoá bình luận này">Xoá</button> }
+                  </div>
+                } @empty {
+                  <p class="wr-empty">Chưa có bình luận nào. Gửi câu đầu tiên đi!</p>
                 }
               </div>
             }
-          </div>
-
-          <!-- Mobile Nickname Quick Bar inside Chat -->
-          <div class="p-2.5 border-t border-white/10 bg-white/[0.02] flex items-center justify-between text-xs text-slate-400">
-            <span>Bạn là: <strong class="text-cyan-300">{{ nickname() }}</strong></span>
-            <button (click)="showNicknamePrompt = true" class="text-pink-400 hover:underline">
-              Đổi tên
-            </button>
+            <div class="wr-me">
+              <span>Bạn là <b>{{ nickname() }}</b></span>
+              <button type="button" (click)="showNicknamePrompt = true">Đổi tên</button>
+            </div>
           </div>
         </aside>
+      </div>
 
-        <!-- Toggle Chat Expand Button when collapsed -->
-        @if (chatCollapsed()) {
-          <button
-            (click)="chatCollapsed.set(false)"
-            class="absolute top-4 right-4 z-20 px-3 py-1.5 rounded-lg bg-[#161820]/90 border border-white/15 text-xs font-semibold text-white shadow-xl hover:bg-white/10 cursor-pointer flex items-center gap-1.5 backdrop-blur-md"
-            title="Mở khung trò chuyện"
-          >
-            <span>💬</span>
-            <span>Khung chat</span>
-          </button>
-        }
-      </main>
-
-      <!-- Nickname Edit Modal -->
       @if (showNicknamePrompt) {
-        <div class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div class="bg-[#1e202c] border border-white/15 rounded-2xl p-6 w-full max-w-sm shadow-2xl flex flex-col gap-4">
-            <h3 class="font-bold text-base text-white">Chọn biệt danh trong phòng</h3>
-            <p class="text-slate-400 text-xs">
-              Tên này sẽ hiển thị cạnh bình luận của bạn trên video và khung chat.
-            </p>
-            <input
-              type="text"
-              [(ngModel)]="tempNickname"
-              (keydown.enter)="saveNickname()"
-              maxlength="32"
-              placeholder="Nhập biệt danh..."
-              class="w-full bg-white/10 border border-white/15 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-pink-500"
-            />
-            <div class="flex justify-end gap-2">
-              <button
-                (click)="showNicknamePrompt = false"
-                class="px-4 py-2 rounded-xl text-xs text-slate-400 hover:text-white"
-              >
-                Hủy
-              </button>
-              <button
-                (click)="saveNickname()"
-                class="px-5 py-2 rounded-xl bg-pink-500 text-white font-bold text-xs shadow-md hover:bg-pink-600 active:scale-95 transition-all"
-              >
-                Xác nhận
-              </button>
+        <div class="wr-modal" role="dialog" aria-modal="true" aria-labelledby="wr-nick-title">
+          <div class="wr-modal-card">
+            <h3 id="wr-nick-title">Chọn biệt danh trong phòng</h3>
+            <p>Tên này hiện cạnh bình luận của bạn trên video và trong danh sách.</p>
+            <input type="text" [(ngModel)]="tempNickname" (keydown.enter)="saveNickname()" maxlength="32" placeholder="Nhập biệt danh…" aria-label="Biệt danh" />
+            <div class="wr-modal-actions">
+              <button type="button" (click)="showNicknamePrompt = false">Hủy</button>
+              <button type="button" class="wr-send" (click)="saveNickname()">Xác nhận</button>
             </div>
           </div>
         </div>
       }
     </div>
   `,
-  styles: [
-    `
-      :host {
-        display: block;
-      }
-    `,
-  ],
+  styleUrls: ['./watch-room.page.css', './watch-room-side.css', './watch-room-extra.css'],
 })
 export class WatchRoomPage implements OnInit, OnDestroy {
   @ViewChild('videoPlayer') videoPlayerRef!: ElementRef<HTMLVideoElement>;
@@ -561,13 +316,41 @@ export class WatchRoomPage implements OnInit, OnDestroy {
     return this.room()?.mode === 'SCHEDULED';
   });
 
-  readonly countdownDisplay = computed(() => {
-    const snap = this.snapshot();
-    const sec = snap?.countdownSeconds || 0;
-    const m = Math.floor(sec / 60);
-    const s = sec % 60;
-    return `${m.toString().padStart(2, '0')} : ${s.toString().padStart(2, '0')}`;
+  /** Bilibili-style premiere state for badges: upcoming, live, paused or ended. */
+  readonly premiereState = computed<'upcoming' | 'live' | 'paused' | 'ended'>(() => {
+    const st = this.playbackStatus();
+    return st === 'PLAYING' ? 'live' : st === 'PAUSED' ? 'paused' : st === 'ENDED' ? 'ended' : 'upcoming';
   });
+
+  readonly premiereLabel = computed(() => {
+    switch (this.premiereState()) {
+      case 'live': return 'Đang công chiếu';
+      case 'paused': return 'Tạm dừng';
+      case 'ended': return 'Đã kết thúc';
+      default: return 'Sắp công chiếu';
+    }
+  });
+
+  readonly scheduledLabel = computed(() => {
+    const at = this.room()?.scheduledAt;
+    if (!at || !this.isScheduled()) return '';
+    const d = new Date(at);
+    if (Number.isNaN(d.getTime())) return '';
+    const p = (n: number) => n.toString().padStart(2, '0');
+    return `${p(d.getHours())}:${p(d.getMinutes())} ngày ${p(d.getDate())}/${p(d.getMonth() + 1)}`;
+  });
+
+  readonly countdownParts = computed(() => {
+    const sec = Math.max(0, Math.floor(this.snapshot()?.countdownSeconds || 0));
+    const p = (n: number) => n.toString().padStart(2, '0');
+    return [
+      { label: 'giờ', value: p(Math.floor(sec / 3600)) },
+      { label: 'phút', value: p(Math.floor((sec % 3600) / 60)) },
+      { label: 'giây', value: p(sec % 60) },
+    ];
+  });
+
+  readonly countdownDisplay = computed(() => this.countdownParts().map((x) => x.value).join(':'));
 
   readonly progressPercent = computed(() => {
     const dur = this.videoDuration();
@@ -834,6 +617,14 @@ export class WatchRoomPage implements OnInit, OnDestroy {
       const el = this.chatScrollArea?.nativeElement;
       if (el) el.scrollTop = el.scrollHeight;
     }, 50);
+  }
+
+  /** Wall-clock HH:mm a danmaku was sent, for the list's last column. */
+  clockTime(iso: string | null | undefined): string {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
   }
 
   formatTime(seconds: number): string {

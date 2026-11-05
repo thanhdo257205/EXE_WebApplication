@@ -31,6 +31,8 @@ export class App implements OnDestroy {
 
   readonly mobileMenuOpen = signal(false);
   readonly isAdminRoute = signal(false);
+  /** Watch-room player pages (`/room/:id`) are full-screen tools: no marketing footer. */
+  readonly isWatchRoomRoute = signal(false);
 
   private ghostEffect?: CursorGhost;
   private stopPerfMonitor?: () => void;
@@ -109,5 +111,6 @@ export class App implements OnDestroy {
   private updateAdminRoute(url: string | null | undefined) {
     const path = url || '';
     this.isAdminRoute.set(path.startsWith('/admin') || path.startsWith('admin'));
+    this.isWatchRoomRoute.set(/^\/?room\/[^/?#]+/.test(path));
   }
 }

@@ -4,6 +4,16 @@
 
 ## Cập nhật gần nhất
 
+### Phòng chiếu: giao diện công chiếu, ẩn footer, logo "5 anh em siêu nhân" — 2026-11-05 (local, chưa deploy)
+
+- Yêu cầu của chủ dự án (kèm ảnh chụp production `/room/room_…`): "xóa footer ở trang này", "chỉnh giao diện giống công chiếu của bilibili", "khi vô trang này thì đổi tên logo thành 5 anh em siêu nhân".
+- Footer: `App.isWatchRoomRoute` (regex `/room/:id`) ẩn `footer.public-footer` chỉ ở trang xem; `/room` (tạo phòng) giữ footer.
+- Logo: `GlobalBarComponent.isWatchRoom` (computed từ `currentPath`) đổi brand thành "5" + "5 ANH EM / SIÊU NHÂN" và aria-label tương ứng chỉ ở `/room/:id`.
+- Giao diện `watch-room.page.ts` viết lại theo bố cục trang công chiếu (chi tiết ở `docs/WATCH_ROOM.md` mục "Giao diện trang xem"): bỏ thanh sticky riêng từng bị header site che (lỗi thấy trong ảnh chụp), bỏ `<main>` lồng trong `main#main`, khung phát 16:9 cố định thay cho khung bị co, khóa tua cho khán giả, đếm ngược giờ/phút/giây, bảng danh sách danmaku 3 cột. Logic đồng bộ/WebSocket không đổi.
+- Kiểm thử: frontend `tsc` app + spec sạch, `ng test --watch=false` **61 file / 479 test pass** (thêm: app shell ẩn footer ở `/room/:id` nhưng không ở `/room`; global bar đổi logo; trang phòng: nhãn trạng thái, đếm ngược `01:02:05`, render bố cục). `ng build --configuration production` exit 0, không cảnh báo CSS; chunk `watch-room-page` 41,54 kB raw / 10,49 kB transfer. Cảnh báo initial bundle 515,90 kB > 500 kB **có sẵn từ trước** (build `main` chưa sửa đo 526,85 kB).
+- Chụp Playwright bản build production với API giả lập (PLAYING/PAUSED/SCHEDULED, 1440px và 390px): không tràn ngang, không lỗi console, không có footer, logo đúng.
+- Chưa kiểm: phát video thật từ Azure Blob (ảnh chụp production cho thấy video đen, 00:00 dù trạng thái PLAYING — nghi SAS/CORS hoặc `streamUrl`, cần mở DevTools tab Network để xem request video). Chưa deploy.
+
 ### Tính năng Phòng chiếu phim chung (Watch Room) & Danmaku Bilibili Style — 2026-11-05 (Local hoàn thành)
 
 - **Trạng thái phát hành (kiểm tra lại 2026-11-05, sau khi `b82c277` được push thẳng lên `main`):**

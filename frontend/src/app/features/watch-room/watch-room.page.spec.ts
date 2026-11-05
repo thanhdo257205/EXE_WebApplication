@@ -132,4 +132,22 @@ describe('WatchRoomPage', () => {
     component.hostTogglePlay();
     expect(mockWatchRoomService.sendHostControl).toHaveBeenCalledWith('RESUME');
   });
+  it('labels premiere state and splits the countdown into h/m/s', () => {
+    expect(component.premiereLabel()).toBe('Sắp công chiếu');
+    snapshotSig.set({ ...mockRoom.snapshot, status: 'LOBBY', countdownSeconds: 3725 });
+    expect(component.countdownDisplay()).toBe('01:02:05');
+    snapshotSig.set({ ...mockRoom.snapshot, status: 'PLAYING' });
+    expect(component.premiereLabel()).toBe('Đang công chiếu');
+    snapshotSig.set({ ...mockRoom.snapshot, status: 'ENDED' });
+    expect(component.premiereState()).toBe('ended');
+    snapshotSig.set(mockRoom.snapshot);
+  });
+
+  it('renders the premiere layout with the host brand card and danmaku list', () => {
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('.wr-title')?.textContent).toContain('Phim Hoạt Hình Test');
+    expect(el.querySelector('.wr-up-name')?.textContent).toContain('5 anh em siêu nhân');
+    expect(el.querySelector('.wr-empty')).toBeTruthy();
+    expect(el.querySelector('.wr-enter .wr-cta')?.textContent).toContain('Vào xem ngay');
+  });
 });

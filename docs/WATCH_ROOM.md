@@ -49,6 +49,13 @@ HTML5 <video> ──────────── GET (Range requests) ──�
 
 ---
 
+### Giao diện trang xem `/room/:id` (bố cục công chiếu, cập nhật 2026-11-05):
+
+- Bố cục kiểu trang công chiếu: cột trái gồm tiêu đề Anton + dòng meta (huy hiệu trạng thái `Sắp công chiếu` / `Đang công chiếu` / `Tạm dừng` / `Đã kết thúc`, số người xem, số bình luận đã nạp, giờ công chiếu nếu hẹn giờ, nút chia sẻ), khung phát 16:9 có nhãn "Công chiếu" ở góc, thanh điều khiển nằm trong khung (hiện khi hover/focus/tạm dừng, luôn hiện trên cảm ứng), thanh gửi danmaku dưới khung và dải điều khiển chủ phòng. Cột phải (sticky, xuống dưới khi ≤1100px): thẻ chủ phòng, thẻ trạng thái/đếm ngược, bảng "Danh sách danmaku" 3 cột (mốc phim · nội dung · giờ gửi) thu gọn được.
+- Khán giả không tua được (thanh tiến trình khóa, ghi "Công chiếu · không tua"); chỉ chủ phòng tua/phát/dừng. Đếm ngược hẹn giờ hiển thị giờ/phút/giây. Lớp phủ (vào phòng, chờ, đếm ngược, đã kết thúc) che luôn thanh điều khiển.
+- Trên trang `/room/:id`: footer công khai bị ẩn (`App.isWatchRoomRoute`) và logo header đổi thành **"5 anh em siêu nhân"** (`GlobalBarComponent.isWatchRoom`); trang tạo phòng `/room` giữ footer và logo gốc.
+- CSS tách 3 file (`watch-room.page.css`, `watch-room-side.css`, `watch-room-extra.css`) để dưới ngân sách 6 kB/component; màu nút hồng/xanh đặt qua token `--ctrl-glass-*` vì vật liệu kính toàn cục ghi đè nền nút bằng `!important`.
+
 ## 2. Cấu hình CORS trên Azure Blob Storage (Lệnh az cli)
 
 Để thẻ `<video>` trên trình duyệt có thể phát và tua video (Range request) từ domain ứng dụng, chạy lệnh sau trong Azure CLI:

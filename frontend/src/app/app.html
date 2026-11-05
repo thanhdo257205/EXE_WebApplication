@@ -92,7 +92,7 @@
     <router-outlet />
   </main>
 
-  @if (!isAdminRoute()) {
+  @if (!isAdminRoute() && !isWatchRoomRoute()) {
     <footer class="public-footer">
       <div class="footer-cta">
         <div><p class="eyebrow">Cùng nhà, cùng chơi</p><p class="footer-cta-title display">Rủ hội bạn<br>về nhà chơi.</p></div>
