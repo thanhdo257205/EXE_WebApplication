@@ -14,7 +14,7 @@ Phần thiết kế PostgreSQL/Spring bên dưới là lịch sử. Phân hệ W
 - `room_danmaku`: id, room_id, user_nickname, user_id, text, time_offset, color, created_at, deleted_at và `phase TEXT NOT NULL DEFAULT 'VIDEO'`. Migration thêm phase bằng kiểm tra PRAGMA table_info rồi ALTER TABLE nếu thiếu, không xoá dữ liệu cũ. VIDEO là bình luận theo mốc phim, LOBBY là chat phòng chờ; server tự gắn phase/vị trí. Frontend giữ LOBBY trong chat nhưng không replay ở giây 0. Index `(room_id, time_offset)` phục vụ lịch sử.
 - `room_bans`: room_id/identifier là khoá ghép, banned_at; bảng hiện có chưa được nối vào luồng xử lý chat.
 
-Chưa deploy thay đổi phase lên production. Chi tiết giao thức, công chiếu và kiểm thử tại [WATCH_ROOM.md](WATCH_ROOM.md).
+Backend chứa migration phase đã deploy production tại `e13569f` ngày 2026-11-05; initializer chạy trong startup trước khi API sẵn sàng. Đã xác nhận API production trả đúng commit, chưa đọc trực tiếp bảng production trong đợt nghiệm thu này. Chi tiết giao thức, công chiếu và kiểm thử tại [WATCH_ROOM.md](WATCH_ROOM.md).
 
 - Giữ `app_users` và Spring Session hiện có: email/mật khẩu BCrypt, Google subject, ADMIN/CUSTOMER. Tách thông tin hồ sơ và sổ địa chỉ khỏi credentials.
 - Lưu nội dung game theo bản phát hành: nhân vật, 11 bộ thẻ, thẻ, wiki/FAQ/hướng dẫn/devlog. Chưa seed số lượng/giá từ prototype vì đó là dữ liệu minh họa; 148 thẻ có thể là số bản in, cần xác nhận số định danh thẻ khác nhau.

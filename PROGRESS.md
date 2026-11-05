@@ -4,7 +4,7 @@
 
 ## Cập nhật gần nhất
 
-### Hoàn thiện công chiếu hẹn giờ, phòng chờ và âm thanh gốc — 2026-11-05 (phát hành main, chờ CI/CD)
+### Hoàn thiện công chiếu hẹn giờ, phòng chờ và âm thanh gốc — 2026-11-05 (đã deploy production e13569f)
 
 - Thay thế trạng thái nghiệm thu của bản Watch Room đầu tiên bên dưới: đồng hồ client cập nhật mỗi 250 ms theo giờ server; hub phát snapshot mỗi giây cho các phòng có người xem, không cần một người mới join/GET để kích hoạt công chiếu. Trạng thái công chiếu được suy ra từ `scheduled_at` bền vững; PAUSE/RESUME/SEEK qua REST và WebSocket dùng chung hàm chuyển trạng thái.
 - Phòng chờ SCHEDULED phát video đếm ngược HH:MM:SS được tạo trực tiếp bằng canvas.captureStream → video muted, không tải clip bên ngoài; trình duyệt không hỗ trợ captureStream dùng đồng hồ HTML. Hết giờ tự bỏ video chờ và phát phim; ẩn hình phim trong lúc chờ. Chat và danmaku nằm trên lớp video chờ, không bị lớp nền che.
@@ -14,7 +14,9 @@
 - Âm thanh: người dùng phản ánh méo tiếng khi nghiệm thu; đã đóng tab phát trùng và bỏ bù lệch bằng playbackRate 0,97–1,03, giữ 1×/preservesPitch, chỉ seek khi lệch quá 1,5 giây hoặc lệnh host. Hash SHA-256 của payload AAC bản gốc và bản H.264 tải lên cùng `d560f7f2636eb8e42b1e57257d5920907419567aa2e6821f5b7346f6c975b66f` (stereo 44,1 kHz, không encode lại). Người dùng đã xác nhận nghe giống bản gốc.
 - Nghiệm thu browser local với SQLite memory và video đã upload: video chờ readyState=4, 1280×720, đang phát; chat xuất hiện cả trong lịch sử và danmaku. Quan sát chuyển từ đếm ngược 13 giây sang phim đang phát (2560×1440, currentTime ~12,49 giây), người vào muộn nhảy tới ~43,91 giây; đã kiểm tra hai người xem. Sau sửa âm thanh, video đang phát ở playbackRate=1 và người dùng xác nhận chất lượng.
 - Kiểm thử: backend full **155 ca / 154 pass / 1 skip Turso remote**; frontend full trước bổ sung test âm thanh **62 file / 483 pass**, lần đầu 1 test giải nén Excel timeout khi chạy song song build, chạy riêng **19/19 pass** và chạy lại full sạch. Gateway **38/38 pass**. Kiểm tra cuối sau sửa âm thanh: backend typecheck + **12/12** ca Watch Room, frontend **18/18** ca liên quan (gồm tốc độ gốc 1×), production build exit 0/prerender 6 route. Build còn warning initial 526,34 kB vượt ngưỡng 500 kB và CommonJS qrcode/dijkstrajs; chưa xử lý trong phạm vi công chiếu.
-- Code và tài liệu được phát hành lên `main` trong đợt này theo yêu cầu người dùng. CI/CD và nghiệm thu production chưa được xác nhận; chưa tạo phòng thật. Các mục production ở checklist vẫn mở. Preview chỉ dùng dữ liệu local tạm thời.
+- Đã push `main` commit `e13569ff096c9c07d15872788e0a2b934c09d662`; [CI 42048775073](https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/42048775073) success cả 4 job; [CD 42048974427](https://github.com/thanhdo257205/EXE_WebApplication/actions/runs/42048974427) success cả 2 job, đủ bước Worker → Render đúng commit → Pages artifact → production smoke. Trước đó giao diện Deployments vẫn hiện lần thành công trước vì CD đang chờ backend sẵn sàng.
+- Xác minh production sau deploy: GET `/api/v1/info` với Origin hợp lệ trả 200, commit đúng `e13569f`, stage production/storage turso; `/room` trả 200. WebSocket `wss://exe-webapp.pages.dev/ws/room` upgrade thành công và trả pong với t0 khớp, xác nhận đường Pages → gateway → backend hoạt động.
+- Chưa tạo phòng thật hoặc nghiệm thu video Azure/SAS và nhiều người xem trên production. Preview trước đó chỉ dùng SQLite memory. Bản ghi kết quả deploy là docs-only, phát hành riêng với `[skip ci]` để không chạy một đợt deploy runtime mới.
 
 ### Tải video đầu tiên lên Azure — 2026-11-05
 

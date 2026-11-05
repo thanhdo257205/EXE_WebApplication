@@ -2,7 +2,7 @@
 
 Tài liệu thiết kế, hướng dẫn vận hành, cấu hình Azure Blob Storage và kiểm thử tính năng **Phòng chiếu phim chung** (`/room/:id`).
 
-## Công chiếu và phòng chờ — cập nhật local 2026-11-05
+## Công chiếu và phòng chờ — đã deploy e13569f ngày 2026-11-05
 
 - Tạo phòng với `mode=SCHEDULED` phải có `scheduledAt` ISO UTC hợp lệ ở tương lai. Form nhập ngày giờ theo múi giờ trình duyệt rồi đổi UTC. API trả 400 nếu thiếu, sai hoặc đã qua giờ hẹn.
 - Người xem bấm **Vào xem ngay** để mở khoá phát phim có tiếng. Trong thời gian chờ, video đếm ngược HH:MM:SS được tạo trực tiếp trong trình duyệt bằng canvas → captureStream → video muted; không cần lưu một clip dài bằng thời gian chờ. Trình duyệt không có captureStream hoặc không phát được stream sẽ dùng đồng hồ HTML. Khi component bị huỷ, dừng timer và mọi media track.
@@ -14,7 +14,7 @@ Tài liệu thiết kế, hướng dẫn vận hành, cấu hình Azure Blob Sto
 - WebSocket chỉ nhận đúng `/ws/room` hoặc `/api/v1/watch-rooms/ws`; kiểm proxy secret ở production/public origin không phải localhost và từ chối origin lạ. Reset quyền host và membership khi join phòng khác; message xử lý tuần tự. Frame tối đa 4096 byte; lỗi frame đóng client, không làm chết process. Hub.close dừng ticker và các socket.
 - Pages phải triển khai cả worker lẫn `_routes.json` có `/ws` và `/ws/*`; gateway giữ response 101 nguyên vẹn. Sửa riêng backend/gateway không đủ để WebSocket đi qua hostname Pages.
 - URL video được làm mới mỗi 30 phút để phòng chờ dài không dùng SAS hết hạn. Cần kiểm tra cấu hình account/key ký SAS thực tế trước nghiệm thu production.
-- Các thay đổi này mới được kiểm tra local, chưa deploy. Nghiệm thu dùng SQLite memory và bản H.264 của video 1105; đã thấy video chờ đang phát, chat/danmaku, tự chuyển phim và người vào muộn bắt đúng mốc. Xem PROGRESS/CHECKLIST cho kết quả kiểm thử và việc production còn mở.
+- Đã deploy commit `e13569f` qua CI 42048775073 và CD 42048974427. Production `/api/v1/info` trả đúng commit, `/room` 200; WebSocket qua domain Pages upgrade và trả pong. Nghiệm thu đầy đủ video chờ/chat/danmaku/tự chuyển phim/người vào muộn trước đó dùng SQLite memory và bản H.264 của video 1105; chưa tạo phòng và nghiệm thu Azure/SAS với nhiều người xem thật trên production. Xem PROGRESS/CHECKLIST cho việc còn mở.
 
 ### Âm thanh giữ nguyên bản gốc
 

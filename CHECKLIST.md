@@ -2,7 +2,7 @@
 
 Cập nhật: 2026-11-05 (Asia/Saigon).
 
-## Hoàn thiện công chiếu và âm thanh — 2026-11-05 (local)
+## Hoàn thiện công chiếu và âm thanh — 2026-11-05 (đã deploy e13569f)
 
 - [x] PREMIERE-01 — Đếm ngược liên tục theo giờ server; tự phát cho người đang ở phòng, hub TICK mỗi giây và client cập nhật 250 ms.
 - [x] PREMIERE-02 — Video đếm ngược live HH:MM:SS bằng canvas.captureStream, muted; fallback HTML nếu không hỗ trợ; không lộ phim trước giờ chiếu.
@@ -13,7 +13,8 @@ Cập nhật: 2026-11-05 (Asia/Saigon).
 - [x] PREMIERE-07 — Kiểm ngày hẹn tương lai ở frontend/API; refresh stream URL 30 phút, giữ draft khi mất kết nối.
 - [x] PREMIERE-08 — Nghiệm thu browser local: video chờ phát, chat/chữ chạy, đến giờ tự phát video 1105, người vào muộn bắt đúng mốc phim.
 - [x] PREMIERE-09 — Giữ âm thanh ở 1×, payload AAC khớp SHA-256 bản gốc; đóng tab thử phát trùng; người dùng xác nhận âm thanh giống bản gốc.
-- [ ] PREMIERE-10 — Commit/push/deploy và nghiệm thu production với cấu hình SAS, WebSocket qua Pages → gateway → Render.
+- [x] PREMIERE-10 — Commit/push main `e13569f`; CI 42048775073 xanh 4/4, CD 42048974427 xanh 2/2; production info đúng commit, `/room` 200, WebSocket qua Pages → gateway → Render trả pong.
+- [ ] PREMIERE-11 — Tạo phòng thật và nghiệm thu video Azure/SAS, công chiếu, chat/danmaku và nhiều người xem trên production.
 
 ## Upload video người dùng — 2026-11-05
 
