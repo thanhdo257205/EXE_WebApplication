@@ -9,6 +9,7 @@ import {
   resolveStreamUrl,
   initializeWatchRooms,
   createWatchRoomHub,
+  cleanNickname,
 } from '../src/watch-rooms.ts';
 import { database, initializeLocal, execute, uuid } from '../src/db.ts';
 import { createApp } from '../src/app.ts';
@@ -456,4 +457,101 @@ test('Watch Room WebSocket: join, ping/pong, danmaku broadcasting and host contr
   hub.close();
   server.close();
   db.close();
+});
+
+test('cleanNickname trims, strips control characters and rejects empty names', () => {
+  assert.equal(cleanNickname('  Đỏ   Siêu\tNhân  '), 'Đỏ Siêu Nhân');
+  assert.equal(cleanNickname('A\u0000B\u200bC'), 'ABC');
+  assert.equal(cleanNickname('   '), null);
+  assert.equal(cleanNickname(''), null);
+  assert.equal(cleanNickname(42), null);
+  assert.equal(cleanNickname('x'.repeat(50))?.length, 32);
+});
+
+test('Watch Room WebSocket: name required, live viewer list and rename', async () => {
+  const { createServer } = await import('node:http');
+  const { WebSocket } = await import('ws');
+  const db = database('file::memory:');
+  await initializeLocal(db);
+  await initializeWatchRooms(db);
+  const hub = createWatchRoomHub(db);
+  const roomId = 'room_viewers123';
+  const hostToken = 'host_token_viewers';
+  await execute(
+    db,
+    `INSERT INTO watch_rooms (id, title, video_source, video_duration, mode, status, host_token, current_position, created_at, updated_at)
+     VALUES (?, 'Viewer Room', 'https://example.com/v.mp4', 600, 'HOST_TRIGGER', 'LOBBY', ?, 0, datetime('now'), datetime('now'))`,
+    [roomId, hostToken]
+  );
+  const server = createServer();
+  hub.attachHttpServer(server);
+  await new Promise<void>(resolve => server.listen(0, resolve));
+  const address = server.address();
+  const port = typeof address === 'object' && address ? address.port : 0;
+
+  type Msg = Record<string, any>;
+  const open = async () => {
+    const ws = new WebSocket(`ws://127.0.0.1:${port}/ws/room`);
+    const inbox: Msg[] = [];
+    ws.on('message', (d: Buffer | string) => inbox.push(JSON.parse(d.toString())));
+    await new Promise<void>((resolve, reject) => { ws.once('open', resolve); ws.once('error', reject); });
+    const next = (pred: (m: Msg) => boolean) => new Promise<Msg>((resolve, reject) => {
+      const deadline = Date.now() + 3000;
+      const tick = () => {
+        const i = inbox.findIndex(pred);
+        if (i >= 0) return resolve(inbox.splice(i, 1)[0]!);
+        if (Date.now() > deadline) return reject(new Error('timeout waiting for message'));
+        setTimeout(tick, 10);
+      };
+      tick();
+    });
+    return { ws, next, clear: () => { inbox.length = 0; } };
+  };
+  const sockets: Array<{ ws: InstanceType<typeof WebSocket> }> = [];
+  try {
+
+  // A blank name is refused and the socket is not counted.
+  const anon = await open(); sockets.push(anon);
+  anon.ws.send(JSON.stringify({ type: 'join', roomId, nickname: '   ' }));
+  const refused = await anon.next(m => m.type === 'error');
+  assert.equal(refused.code, 'NICKNAME_REQUIRED');
+  assert.equal(hub.getViewerCount(roomId), 0);
+
+  // Host joins, then a viewer: both see the list with the host first.
+  const host = await open(); sockets.push(host);
+  host.ws.send(JSON.stringify({ type: 'join', roomId, nickname: 'Đỏ', hostToken }));
+  const hostSnap = await host.next(m => m.type === 'room_snapshot');
+  assert.equal(hostSnap.nickname, 'Đỏ');
+  assert.match(hostSnap.viewerId, /^[0-9a-f]{12}$/);
+
+  const viewer = await open(); sockets.push(viewer);
+  viewer.ws.send(JSON.stringify({ type: 'join', roomId, nickname: '  Xanh  ' }));
+  await viewer.next(m => m.type === 'room_snapshot');
+  const list = await host.next(m => m.type === 'viewer_count' && m.count === 2);
+  assert.deepEqual(list.viewers.map((v: Msg) => [v.nickname, v.isHost]), [['Đỏ', true], ['Xanh', false]]);
+  assert.equal(Object.keys(list.viewers[0]).sort().join(','), 'id,isHost,nickname');
+
+  // Rename updates the list and later danmaku authorship.
+  viewer.ws.send(JSON.stringify({ type: 'rename', nickname: 'Xanh Lá' }));
+  assert.equal((await viewer.next(m => m.type === 'renamed')).nickname, 'Xanh Lá');
+  const renamed = await host.next(m => m.type === 'viewer_count' && m.viewers.some((v: Msg) => v.nickname === 'Xanh Lá'));
+  assert.equal(renamed.count, 2);
+  viewer.ws.send(JSON.stringify({ type: 'danmaku:send', text: 'chào cả nhà', timeOffset: 1 }));
+  assert.equal((await host.next(m => m.type === 'danmaku:new')).danmaku.nickname, 'Xanh Lá');
+  viewer.ws.send(JSON.stringify({ type: 'rename', nickname: ' ' }));
+  assert.equal((await viewer.next(m => m.type === 'error')).code, 'NICKNAME_REQUIRED');
+
+  // Leaving removes the viewer from everyone's list.
+  host.clear();
+  viewer.ws.close();
+  const after = await host.next(m => m.type === 'viewer_count' && m.count === 1);
+  assert.deepEqual(after.viewers.map((v: Msg) => v.nickname), ['Đỏ']);
+  assert.deepEqual(hub.getViewers(roomId).map(v => v.nickname), ['Đỏ']);
+
+  } finally {
+    for (const s of sockets) s.ws.terminate();
+    hub.close();
+    server.close();
+    db.close();
+  }
 });

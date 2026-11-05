@@ -63,8 +63,13 @@ import { RiseHeadingDirective } from '../../shared/motion/rise-heading.directive
               <div class="wr-layer wr-enter">
                 <p class="wr-layer-kicker">{{ premiereLabel() }}</p>
                 <h2 class="wr-layer-title">Cùng xem, cùng bình luận</h2>
-                <p class="wr-layer-text">Bấm để vào phòng. Video sẽ chạy đồng bộ với mọi người, kể cả âm thanh.</p>
-                <button type="button" class="wr-cta" (click)="enterWatchRoom()">Vào xem ngay</button>
+                <p class="wr-layer-text">Nhập tên để vào phòng. Mọi người sẽ thấy tên bạn trong danh sách đang xem và cạnh bình luận.</p>
+                <form class="wr-join" (ngSubmit)="enterWatchRoom()">
+                  <label class="wr-join-label" for="wr-join-name">Tên của bạn</label>
+                  <input id="wr-join-name" name="joinName" type="text" [(ngModel)]="tempNickname" maxlength="32" required
+                    autocomplete="nickname" placeholder="Ví dụ: Siêu nhân đỏ" />
+                  <button type="submit" class="wr-cta" [disabled]="!tempNickname.trim()">Vào xem ngay</button>
+                </form>
               </div>
             } @else if (isLobby() && isScheduled()) {
               <div class="wr-layer">
@@ -157,8 +162,8 @@ import { RiseHeadingDirective } from '../../shared/motion/rise-heading.directive
                 }
               </div>
               <input type="text" [(ngModel)]="inputText" (keydown.enter)="sendComment()" maxlength="60"
-                placeholder="Gửi một bình luận chạy ngang…" aria-label="Nội dung danmaku" />
-              <button type="button" class="wr-send" (click)="sendComment()" [disabled]="!inputText.trim()">Gửi</button>
+                [placeholder]="hasUserEntered() ? 'Gửi một bình luận chạy ngang…' : 'Nhập tên và vào phòng để bình luận'" aria-label="Nội dung danmaku" [disabled]="!hasUserEntered()" />
+              <button type="button" class="wr-send" (click)="sendComment()" [disabled]="!hasUserEntered() || !inputText.trim()">Gửi</button>
             </div>
           </div>
 
@@ -195,6 +200,25 @@ import { RiseHeadingDirective } from '../../shared/motion/rise-heading.directive
             }
           </div>
 
+          <div class="wr-card wr-people">
+            <p class="wr-people-head">Đang trong phòng <span class="wr-count">{{ viewerCount() }}</span></p>
+            @if (viewers().length) {
+              <ul class="wr-people-list">
+                @for (v of viewers(); track v.id) {
+                  <li [class.wr-me-row]="v.id === myViewerId()">
+                    <span class="wr-people-avatar" aria-hidden="true">{{ initial(v.nickname) }}</span>
+                    <span class="wr-people-name">{{ v.nickname }}</span>
+                    @if (v.isHost) { <span class="wr-people-tag">Chủ phòng</span> }
+                    @if (v.id === myViewerId()) { <span class="wr-people-tag wr-you">Bạn</span> }
+                  </li>
+                }
+              </ul>
+              @if (viewerCount() > viewers().length) { <p class="wr-empty">và {{ viewerCount() - viewers().length }} người khác</p> }
+            } @else {
+              <p class="wr-empty">{{ hasUserEntered() ? 'Đang kết nối…' : 'Nhập tên và vào phòng để xem ai đang xem cùng.' }}</p>
+            }
+          </div>
+
           <div class="wr-card wr-list">
             <div class="wr-list-head">
               <button type="button" class="wr-list-toggle" (click)="chatCollapsed.set(!chatCollapsed())" [attr.aria-expanded]="!chatCollapsed()">
@@ -218,8 +242,8 @@ import { RiseHeadingDirective } from '../../shared/motion/rise-heading.directive
               </div>
             }
             <div class="wr-me">
-              <span>Bạn là <b>{{ nickname() }}</b></span>
-              <button type="button" (click)="showNicknamePrompt = true">Đổi tên</button>
+              <span>Bạn là <b>{{ nickname() || "chưa đặt tên" }}</b></span>
+              <button type="button" (click)="tempNickname = nickname(); showNicknamePrompt = true">Đổi tên</button>
             </div>
           </div>
         </aside>
@@ -257,6 +281,8 @@ export class WatchRoomPage implements OnInit, OnDestroy {
   readonly snapshot = this.watchRoomService.playbackSnapshot;
   readonly viewerCount = this.watchRoomService.viewerCount;
   readonly isHost = this.watchRoomService.isHost;
+  readonly viewers = this.watchRoomService.viewers;
+  readonly myViewerId = this.watchRoomService.myViewerId;
 
   readonly hasUserEntered = signal<boolean>(false);
   readonly isPlaying = signal<boolean>(false);
@@ -299,6 +325,7 @@ export class WatchRoomPage implements OnInit, OnDestroy {
   private syncInterval: any = null;
   private subs = new Subscription();
   private roomId = '';
+  private hostToken: string | undefined;
 
   readonly streamUrl = computed(() => {
     return this.room()?.streamUrl || '';
@@ -366,13 +393,16 @@ export class WatchRoomPage implements OnInit, OnDestroy {
     }
 
     // Initialize nickname from localStorage or currentUser
-    const savedName = typeof window !== 'undefined' ? localStorage.getItem('watch_room_nickname') : null;
+    let savedName: string | null = null;
+    try { savedName = localStorage.getItem('watch_room_nickname'); } catch {}
     const user = this.auth.currentUser();
-    const initialName = user?.displayName || savedName || `CưDân_${Math.floor(1000 + Math.random() * 9000)}`;
+    // Prefill only a real name (account or last used); otherwise the viewer must type one.
+    const initialName = (user?.displayName || savedName || '').trim().slice(0, 32);
     this.nickname.set(initialName);
     this.tempNickname = initialName;
 
     const hostToken = this.watchRoomService.getStoredHostToken(this.roomId) || undefined;
+    this.hostToken = hostToken;
 
     // Load initial room data
     this.watchRoomService.getRoom(this.roomId, hostToken).subscribe({
@@ -380,8 +410,7 @@ export class WatchRoomPage implements OnInit, OnDestroy {
         if (room.videoDuration) {
           this.videoDuration.set(room.videoDuration);
         }
-        // Connect WebSocket
-        this.watchRoomService.connectWebSocket(this.roomId, this.nickname(), hostToken);
+        // The WebSocket (and the viewer list entry) starts only after the viewer enters with a name.
       },
       error: (err) => {
         console.error('Failed to load watch room', err);
@@ -431,6 +460,11 @@ export class WatchRoomPage implements OnInit, OnDestroy {
   }
 
   enterWatchRoom() {
+    const name = this.tempNickname.trim().slice(0, 32);
+    if (!name || this.hasUserEntered()) return;
+    this.nickname.set(name);
+    try { localStorage.setItem('watch_room_nickname', name); } catch {}
+    this.watchRoomService.connectWebSocket(this.roomId, name, this.hostToken);
     this.hasUserEntered.set(true);
     const video = this.videoPlayerRef?.nativeElement;
     if (video) {
@@ -576,7 +610,7 @@ export class WatchRoomPage implements OnInit, OnDestroy {
 
   sendComment() {
     const text = this.inputText.trim();
-    if (!text) return;
+    if (!text || !this.hasUserEntered()) return;
 
     const timeOffset = this.currentVideoTime();
     this.watchRoomService.sendDanmaku(text, timeOffset, this.selectedColor());
@@ -584,13 +618,17 @@ export class WatchRoomPage implements OnInit, OnDestroy {
   }
 
   saveNickname() {
-    const name = this.tempNickname.trim();
+    const name = this.tempNickname.trim().slice(0, 32);
     if (!name) return;
     this.nickname.set(name);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('watch_room_nickname', name);
-    }
+    try { localStorage.setItem('watch_room_nickname', name); } catch {}
+    if (this.hasUserEntered()) this.watchRoomService.rename(name);
     this.showNicknamePrompt = false;
+  }
+
+  /** First letter for the viewer avatar (handles Vietnamese/emoji graphemes). */
+  initial(name: string): string {
+    return (Array.from(name.trim())[0] || '?').toUpperCase();
   }
 
   toggleFullscreen() {

@@ -17,3 +17,21 @@
 /* Coloured buttons: the global glass material reads these tokens (styles via !important). */
 .wr-cta, .wr-send { --ctrl-glass-bg-tint: #ff7aa8; --ctrl-glass-bg-hover: #ff96bb; --ctrl-glass-text: #3d0c20; --ctrl-glass-text-hover: #3d0c20; --ctrl-glass-border: #ff7aa8; --ctrl-glass-border-hover: #ffc2d7; }
 .wr-host .wr-host-main { --ctrl-glass-bg-tint: #7fdcff; --ctrl-glass-bg-hover: #a8e8ff; --ctrl-glass-text: #06303f; --ctrl-glass-text-hover: #06303f; }
+
+/* Name gate on the enter overlay. */
+.wr-join { display: flex; flex-direction: column; align-items: center; gap: 8px; width: min(100%, 340px); }
+.wr-join-label { font-size: 12px; color: var(--ed-muted); }
+.wr-join input { width: 100%; height: 48px; padding: 0 16px; border-radius: 10px; border: 1px solid #f3f1ea2e; background: #0b0c0d; color: var(--ed-ink); font-size: 15px; text-align: center; caret-color: #ff7aa8; }
+.wr-join input:focus { outline: none; border-color: #ff7aa8; box-shadow: 0 0 0 3px #ff7aa826; }
+.wr-join .wr-cta:disabled { opacity: .5; cursor: not-allowed; }
+
+/* Who is in the room. */
+.wr-people { padding: 12px 14px; }
+.wr-people-head { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-size: 14px; font-weight: 700; }
+.wr-people-list { list-style: none; margin: 0; padding: 0; max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.wr-people-list li { display: flex; align-items: center; gap: 8px; min-height: 34px; padding: 0 6px; border-radius: 6px; font-size: 13px; }
+.wr-people-list li.wr-me-row { background: #ff7aa814; }
+.wr-people-avatar { flex: none; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: #1f2224; color: #c9c7bf; font-size: 12px; font-weight: 700; }
+.wr-people-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wr-people-tag { flex: none; padding: 1px 7px; border-radius: 4px; background: #7fdcff26; color: #7fdcff; font-size: 11px; font-weight: 700; }
+.wr-people-tag.wr-you { background: #ff7aa826; color: #ff7aa8; }

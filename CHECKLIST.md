@@ -21,6 +21,9 @@ Cập nhật: 2026-11-05 (Asia/Saigon).
 - [x] WATCH-ROOM-15 — Logo header đổi thành "5 anh em siêu nhân" ở `/room/:id`, có test global bar.
 - [x] WATCH-ROOM-16 — Giao diện trang xem theo bố cục công chiếu (huy hiệu trạng thái, khung 16:9, khóa tua khán giả, đếm ngược h/m/s, danh sách danmaku 3 cột), test + build + chụp 1440/390 local.
 - [ ] WATCH-ROOM-17 — Deploy các thay đổi giao diện trên và kiểm tra trên production; xác định vì sao video Azure không phát (đen, 00:00) trên production.
+- [x] WATCH-ROOM-18 — Bắt buộc nhập tên trước khi vào phòng (UI + server `NICKNAME_REQUIRED`), có test frontend/backend.
+- [x] WATCH-ROOM-19 — Danh sách người đang xem real-time (`viewer_count.viewers`, thẻ "Đang trong phòng"), đổi tên qua `rename`, có test.
+- [ ] WATCH-ROOM-20 — Kiểm tra danh sách người xem với nhiều thiết bị thật trên production sau deploy (Render + Worker WebSocket).
 
 Cập nhật: 2026-10-29 (Asia/Saigon).
 

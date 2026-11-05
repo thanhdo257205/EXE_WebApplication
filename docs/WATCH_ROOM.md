@@ -49,6 +49,15 @@ HTML5 <video> ──────────── GET (Range requests) ──�
 
 ---
 
+### Tên bắt buộc & danh sách người đang xem (cập nhật 2026-11-05):
+
+- Màn "Vào xem ngay" có ô **Tên của bạn**; nút vào phòng khóa khi tên trống. Ô chỉ điền sẵn tên tài khoản hoặc tên đã dùng lần trước (localStorage `watch_room_nickname`), không còn tên ngẫu nhiên `CưDân_xxxx`. WebSocket chỉ mở **sau** khi vào phòng với tên, nên chỉ người đã nhập tên mới xuất hiện trong danh sách; ô gửi danmaku khóa tới lúc đó.
+- Server cũng bắt buộc: `join` với tên trống/chỉ khoảng trắng trả `{type:'error', code:'NICKNAME_REQUIRED'}` và không tính vào phòng. `cleanNickname()` đổi khoảng trắng (tab, xuống dòng) thành dấu cách, bỏ ký tự điều khiển/định dạng vô hình, gộp khoảng trắng, cắt 32 ký tự.
+- Hub giữ `{id, nickname, isHost, joinedAt}` cho mỗi kết nối (`id` ngẫu nhiên 12 hex, không phải IP). Tin `viewer_count` giờ kèm `viewers: [{id, nickname, isHost}]` (chủ phòng trước, rồi theo giờ vào; tối đa 200 mục, `count` luôn đúng) mỗi khi có người vào/ra/đổi tên; client cũ chỉ đọc `count` vẫn chạy. `room_snapshot` thêm `viewerId` và `nickname` để client đánh dấu "Bạn".
+- Message mới `{type:'rename', nickname}`: đổi tên trong danh sách và cho các danmaku gửi **sau đó** (trước đây "Đổi tên" chỉ đổi trên máy người dùng, server vẫn ghi tên cũ); trả `renamed`, tên trống trả `NICKNAME_REQUIRED`.
+- Cột phải có thẻ **Đang trong phòng (N)**: avatar chữ cái đầu, tên, nhãn "Chủ phòng" và "Bạn".
+- Giới hạn: tên không duy nhất (hai người có thể trùng tên); danh sách là trạng thái bộ nhớ của một instance backend (Render chạy 1 instance), mất khi restart và mọi người tự vào lại khi WebSocket kết nối lại.
+
 ### Giao diện trang xem `/room/:id` (bố cục công chiếu, cập nhật 2026-11-05):
 
 - Bố cục kiểu trang công chiếu: cột trái gồm tiêu đề Anton + dòng meta (huy hiệu trạng thái `Sắp công chiếu` / `Đang công chiếu` / `Tạm dừng` / `Đã kết thúc`, số người xem, số bình luận đã nạp, giờ công chiếu nếu hẹn giờ, nút chia sẻ), khung phát 16:9 có nhãn "Công chiếu" ở góc, thanh điều khiển nằm trong khung (hiện khi hover/focus/tạm dừng, luôn hiện trên cảm ứng), thanh gửi danmaku dưới khung và dải điều khiển chủ phòng. Cột phải (sticky, xuống dưới khi ≤1100px): thẻ chủ phòng, thẻ trạng thái/đếm ngược, bảng "Danh sách danmaku" 3 cột (mốc phim · nội dung · giờ gửi) thu gọn được.

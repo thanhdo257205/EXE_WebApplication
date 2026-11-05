@@ -39,12 +39,17 @@ describe('WatchRoomPage', () => {
   const snapshotSig = signal<PlaybackSnapshot | null>(mockRoom.snapshot);
   const viewerCountSig = signal<number>(5);
   const isHostSig = signal<boolean>(true);
+  const viewersSig = signal<{ id: string; nickname: string; isHost: boolean }[]>([]);
+  const myViewerIdSig = signal<string | null>(null);
 
   const mockWatchRoomService = {
     currentRoom: currentRoomSig,
     playbackSnapshot: snapshotSig,
     viewerCount: viewerCountSig,
     isHost: isHostSig,
+    viewers: viewersSig,
+    myViewerId: myViewerIdSig,
+    rename: vi.fn(),
     newDanmaku$,
     deletedDanmaku$,
     playbackSync$,
@@ -117,6 +122,7 @@ describe('WatchRoomPage', () => {
   });
 
   it('dispatches new danmaku when host or viewer sends comment', () => {
+    component.enterWatchRoom();
     component.inputText = 'Tuyệt vời quá! 2333';
     component.sendComment();
 
@@ -149,5 +155,52 @@ describe('WatchRoomPage', () => {
     expect(el.querySelector('.wr-up-name')?.textContent).toContain('5 anh em siêu nhân');
     expect(el.querySelector('.wr-empty')).toBeTruthy();
     expect(el.querySelector('.wr-enter .wr-cta')?.textContent).toContain('Vào xem ngay');
+  });
+  it('requires a typed name before entering and only then joins the live room', () => {
+    mockWatchRoomService.connectWebSocket.mockClear();
+    expect(mockWatchRoomService.connectWebSocket).not.toHaveBeenCalled();
+    component.tempNickname = '   ';
+    component.enterWatchRoom();
+    expect(component.hasUserEntered()).toBe(false);
+    expect(mockWatchRoomService.connectWebSocket).not.toHaveBeenCalled();
+    fixture.detectChanges();
+    const submit = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.wr-join .wr-cta');
+    expect(submit?.disabled).toBe(true);
+
+    component.tempNickname = '  Siêu nhân đỏ ';
+    component.enterWatchRoom();
+    expect(component.hasUserEntered()).toBe(true);
+    expect(component.nickname()).toBe('Siêu nhân đỏ');
+    expect(mockWatchRoomService.connectWebSocket).toHaveBeenCalledWith('room_test123', 'Siêu nhân đỏ', 'host_secret_123');
+  });
+
+  it('shows who is in the room, marking the host and the current viewer', () => {
+    viewersSig.set([
+      { id: 'a1', nickname: 'Đỏ', isHost: true },
+      { id: 'b2', nickname: 'Xanh', isHost: false },
+    ]);
+    myViewerIdSig.set('b2');
+    viewerCountSig.set(2);
+    fixture.detectChanges();
+    const rows = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.wr-people-list li'));
+    expect(rows.map((r) => r.querySelector('.wr-people-name')?.textContent?.trim())).toEqual(['Đỏ', 'Xanh']);
+    expect(rows[0].textContent).toContain('Chủ phòng');
+    expect(rows[1].classList.contains('wr-me-row')).toBe(true);
+    expect(rows[1].textContent).toContain('Bạn');
+    viewersSig.set([]);
+    myViewerIdSig.set(null);
+    viewerCountSig.set(5);
+  });
+
+  it('renames on the server only after entering the room', () => {
+    mockWatchRoomService.rename.mockClear();
+    component.tempNickname = 'Vàng';
+    component.saveNickname();
+    expect(mockWatchRoomService.rename).not.toHaveBeenCalled();
+    component.enterWatchRoom();
+    component.tempNickname = 'Hồng';
+    component.saveNickname();
+    expect(mockWatchRoomService.rename).toHaveBeenCalledWith('Hồng');
+    expect(component.nickname()).toBe('Hồng');
   });
 });

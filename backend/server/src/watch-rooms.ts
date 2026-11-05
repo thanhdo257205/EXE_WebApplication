@@ -392,10 +392,36 @@ const sendDanmakuSchema = z.object({
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional().default('#ffffff'),
 });
 
+/** Longest nickname shown in danmaku and the viewer list. */
+export const NICKNAME_MAX_LENGTH = 32;
+/** Viewer list entries sent per broadcast; the count is always exact. */
+export const VIEWER_LIST_LIMIT = 200;
+
+/**
+ * Normalises a viewer nickname: drops control characters, collapses whitespace,
+ * trims and caps the length. Returns null when nothing usable is left, so a
+ * viewer has to type a real name before joining a room.
+ */
+export function cleanNickname(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  // Whitespace (tabs, newlines) becomes a space first so words stay apart; other control/format chars are dropped.
+  const text = raw.replace(/\s+/g, ' ').replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u2028-\u202e\u2060-\u2064\ufeff]/g, '').replace(/ {2,}/g, ' ').trim();
+  if (!text) return null;
+  return Array.from(text).slice(0, NICKNAME_MAX_LENGTH).join('').trim() || null;
+}
+
+export interface RoomViewer {
+  id: string;
+  nickname: string;
+  isHost: boolean;
+  joinedAt: number;
+}
+
 export interface WatchRoomWebSocketHub {
   attachHttpServer(server: HttpServer): void;
   broadcastRoom(roomId: string, message: Record<string, unknown>): void;
   getViewerCount(roomId: string): number;
+  getViewers(roomId: string): Array<Pick<RoomViewer, 'id' | 'nickname' | 'isHost'>>;
   close(): void;
 }
 
@@ -405,23 +431,41 @@ export interface WatchRoomWebSocketHub {
  */
 export function createWatchRoomHub(db: Client): WatchRoomWebSocketHub {
   let wss: WebSocketServer | null = null;
-  const rooms = new Map<string, Set<WebSocket>>();
+  const rooms = new Map<string, Map<WebSocket, RoomViewer>>();
   const rateLimiter = new DanmakuRateLimiter(1500);
 
-  function getRoomSockets(roomId: string): Set<WebSocket> {
+  function getRoomSockets(roomId: string): Map<WebSocket, RoomViewer> {
     let set = rooms.get(roomId);
     if (!set) {
-      set = new Set();
+      set = new Map();
       rooms.set(roomId, set);
     }
     return set;
+  }
+
+  /** Host first, then by join time; only public fields leave the server. */
+  function listViewers(roomId: string) {
+    const sockets = rooms.get(roomId);
+    if (!sockets) return [];
+    return [...sockets.values()]
+      .sort((a, b) => Number(b.isHost) - Number(a.isHost) || a.joinedAt - b.joinedAt)
+      .slice(0, VIEWER_LIST_LIMIT)
+      .map(({ id, nickname, isHost }) => ({ id, nickname, isHost }));
+  }
+
+  function leaveRoom(ws: WebSocket, roomId: string) {
+    const set = rooms.get(roomId);
+    if (!set) return;
+    set.delete(ws);
+    if (set.size === 0) rooms.delete(roomId);
+    else broadcastViewerCount(roomId);
   }
 
   function broadcast(roomId: string, message: Record<string, unknown>) {
     const json = JSON.stringify(message);
     const sockets = rooms.get(roomId);
     if (!sockets) return;
-    for (const ws of sockets) {
+    for (const ws of sockets.keys()) {
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(json);
       }
@@ -431,12 +475,14 @@ export function createWatchRoomHub(db: Client): WatchRoomWebSocketHub {
   function broadcastViewerCount(roomId: string) {
     const sockets = rooms.get(roomId);
     const count = sockets ? sockets.size : 0;
-    broadcast(roomId, { type: 'viewer_count', count });
+    // `viewers` was added after `count`; older clients simply ignore it.
+    broadcast(roomId, { type: 'viewer_count', count, viewers: listViewers(roomId) });
   }
 
   return {
     broadcastRoom: broadcast,
     getViewerCount: (roomId: string) => rooms.get(roomId)?.size || 0,
+    getViewers: listViewers,
     close: () => {
       wss?.close();
     },
@@ -456,6 +502,7 @@ export function createWatchRoomHub(db: Client): WatchRoomWebSocketHub {
         let currentRoomId: string | null = null;
         let clientNickname = 'Khách';
         let isHost = false;
+        const viewerId = randomBytes(6).toString('hex');
         const clientIp = request.headers['x-forwarded-for'] || request.socket.remoteAddress || '127.0.0.1';
 
         ws.on('message', async (data: Buffer | string) => {
@@ -476,6 +523,11 @@ export function createWatchRoomHub(db: Client): WatchRoomWebSocketHub {
             if (msg.type === 'join') {
               const { roomId, nickname, hostToken } = msg;
               if (typeof roomId !== 'string') return;
+              const joinName = cleanNickname(nickname);
+              if (!joinName) {
+                ws.send(JSON.stringify({ type: 'error', code: 'NICKNAME_REQUIRED', message: 'Nhập tên trước khi vào phòng' }));
+                return;
+              }
 
               const rows = await all(db, 'SELECT * FROM watch_rooms WHERE id = ?', [roomId]);
               const room = rows[0] as RoomRow | undefined;
@@ -489,10 +541,11 @@ export function createWatchRoomHub(db: Client): WatchRoomWebSocketHub {
                 isHost = true;
               }
 
+              if (currentRoomId && currentRoomId !== roomId) leaveRoom(ws, currentRoomId);
               currentRoomId = roomId;
-              clientNickname = typeof nickname === 'string' && nickname.trim() ? nickname.trim().slice(0, 32) : 'Khách';
+              clientNickname = joinName;
 
-              getRoomSockets(roomId).add(ws);
+              getRoomSockets(roomId).set(ws, { id: viewerId, nickname: clientNickname, isHost, joinedAt: Date.now() });
 
               // Auto-start scheduled room if due
               const snapshot = computePlaybackState(room);
@@ -516,6 +569,8 @@ export function createWatchRoomHub(db: Client): WatchRoomWebSocketHub {
                 snapshot,
                 isHost,
                 viewerCount: getRoomSockets(roomId).size,
+                viewerId,
+                nickname: clientNickname,
               }));
 
               broadcastViewerCount(roomId);
@@ -524,6 +579,21 @@ export function createWatchRoomHub(db: Client): WatchRoomWebSocketHub {
 
             // All subsequent actions require being joined in a room
             if (!currentRoomId) return;
+
+            // Rename: later danmaku and the viewer list use the new name.
+            if (msg.type === 'rename') {
+              const nextName = cleanNickname(msg.nickname);
+              if (!nextName) {
+                ws.send(JSON.stringify({ type: 'error', code: 'NICKNAME_REQUIRED', message: 'Tên không được để trống' }));
+                return;
+              }
+              clientNickname = nextName;
+              const self = rooms.get(currentRoomId)?.get(ws);
+              if (self) self.nickname = nextName;
+              ws.send(JSON.stringify({ type: 'renamed', nickname: nextName }));
+              broadcastViewerCount(currentRoomId);
+              return;
+            }
 
             // 3. Danmaku send
             if (msg.type === 'danmaku:send') {
@@ -664,17 +734,7 @@ export function createWatchRoomHub(db: Client): WatchRoomWebSocketHub {
         });
 
         ws.on('close', () => {
-          if (currentRoomId) {
-            const set = rooms.get(currentRoomId);
-            if (set) {
-              set.delete(ws);
-              if (set.size === 0) {
-                rooms.delete(currentRoomId);
-              } else {
-                broadcastViewerCount(currentRoomId);
-              }
-            }
-          }
+          if (currentRoomId) leaveRoom(ws, currentRoomId);
         });
       });
     },

@@ -4,6 +4,14 @@
 
 ## Cập nhật gần nhất
 
+### Phòng chiếu: bắt buộc nhập tên + danh sách người đang xem — 2026-11-05 (local, chưa deploy)
+
+- Yêu cầu của chủ dự án: "tôi muốn mọi người xem được ai trong phòng live nữa, và trước khi vô phòng thì phải nhập tên".
+- Backend (`watch-rooms.ts`): hub lưu biệt danh từng kết nối; `viewer_count` kèm `viewers` (chủ phòng trước, tối đa 200); `join` thiếu tên → `NICKNAME_REQUIRED`; message `rename` mới (sửa luôn lỗi cũ: đổi tên trên UI không đổi tên tác giả danmaku ở server). `cleanNickname()` export để test. Chi tiết giao thức: `docs/WATCH_ROOM.md`.
+- Frontend: màn vào phòng có ô tên bắt buộc (nút khóa khi trống, bỏ tên ngẫu nhiên), WebSocket chỉ mở sau khi vào; thẻ "Đang trong phòng (N)" có nhãn Chủ phòng/Bạn; "Đổi tên" gửi `rename` khi đã vào; ô danmaku khóa khi chưa vào.
+- Kiểm thử: backend `tsc --noEmit` sạch, `npm test` **153 test / 152 pass / 1 skip (Turso) / 0 fail** (thêm `cleanNickname` và ca WebSocket 3 client: tên trống bị từ chối và không được đếm, danh sách 2 người đúng thứ tự + chỉ có `id/isHost/nickname`, đổi tên cập nhật danh sách và tác giả danmaku, rời phòng thì biến mất). Test `cleanNickname` bắt được 1 lỗi thật lúc viết (tab bị xóa trước khi gộp khoảng trắng → "SiêuNhân"), đã sửa thứ tự. Frontend `tsc` app + spec sạch, `ng test` **61 file / 483 test pass**; production build exit 0, không cảnh báo CSS, chunk `watch-room-page` 46,51 kB raw / 11,42 kB transfer.
+- Chụp Playwright bản build (API + WebSocket giả lập): màn nhập tên khóa nút khi trống; sau khi vào thấy 4 người, người hiện tại có nhãn Chủ phòng + Bạn; không tràn ngang ở 1440/390, không lỗi console.
+
 ### Phòng chiếu: giao diện công chiếu, ẩn footer, logo "5 anh em siêu nhân" — 2026-11-05 (local, chưa deploy)
 
 - Yêu cầu của chủ dự án (kèm ảnh chụp production `/room/room_…`): "xóa footer ở trang này", "chỉnh giao diện giống công chiếu của bilibili", "khi vô trang này thì đổi tên logo thành 5 anh em siêu nhân".
