@@ -4,7 +4,8 @@
 
 ## Cập nhật gần nhất
 
-### Phòng chiếu: link chia sẻ hiện tên phim (Zalo/Facebook) — 2026-11-05 (local, chưa deploy)
+### Phòng chiếu: link chia sẻ hiện tên phim (Zalo/Facebook) — 2026-11-05 (đã deploy `af186d6`, PR #52)
+- Phát hành: PR #52 merge tại `af186d6` sau 4/4 check xanh. CI `42061946062` xanh; CD `42062102641` chạy đủ các bước Worker, Render, Pages và smoke, tất cả success. Kiểm production bằng `curl` với User-Agent của Zalo và `facebookexternalhit`: `GET /room/room_lwqyjjyo5hs` trả 200, `<title>` và `og:title` là "Nên Chờ Hay Nên Quên — 5 anh em siêu nhân", mô tả "Công chiếu lúc 23:57 ngày 05/11 (giờ Việt Nam)…", `og:image` `/assets/images/room-share.jpg` tải được (200 `image/jpeg`). Còn chờ chủ dự án xác nhận trên ứng dụng Zalo (WATCH-ROOM-30).
 
 - Yêu cầu của chủ dự án (kèm ảnh bản xem trước trên Zalo và ảnh phòng "Nên chờ hay nên quên"): "khi tôi share link thì như này, có cách nào để zalo hiện tiêu đề khác không", "đây nhé, tên phim".
 - Pages worker chèn `<title>`/`description`/`og:*`/`twitter:*` theo phòng cho `/room/room_<id>`; `_routes.json` thêm `/room/*`; ảnh chia sẻ mới `frontend/public/assets/images/room-share.jpg` (1200×630, 46,7 kB, dựng từ HTML bằng font Anton/Be Vietnam Pro tự host). Tab trình duyệt cũng đặt theo tên phim. Chi tiết ở `docs/WATCH_ROOM.md` và `docs/DEPLOYMENT.md`.
