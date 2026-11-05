@@ -11,6 +11,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { COMPOSITION_BUFFER_MODE, FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
+import { Title } from '@angular/platform-browser';
 import { Subscription } from 'rxjs';
 import {
   WatchRoomService,
@@ -322,6 +323,7 @@ export class WatchRoomPage implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly watchRoomService = inject(WatchRoomService);
   private readonly auth = inject(AuthService);
+  private readonly titleService = inject(Title);
 
   readonly room = this.watchRoomService.currentRoom;
   readonly canChangeVideo = computed(() => this.auth.currentUser()?.role === 'ADMIN');
@@ -468,6 +470,8 @@ export class WatchRoomPage implements OnInit, OnDestroy {
     // Load initial room data
     this.subs.add(this.watchRoomService.getRoom(this.roomId, hostToken).subscribe({
       next: (room) => {
+        // Same title as the link preview built by the Pages worker.
+        if (room.title) this.titleService.setTitle(`${room.title} — 5 anh em siêu nhân`);
         if (room.videoDuration) {
           this.videoDuration.set(room.videoDuration);
         }

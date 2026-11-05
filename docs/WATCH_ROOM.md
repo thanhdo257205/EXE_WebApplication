@@ -84,6 +84,18 @@ HTML5 <video> ──────────── GET (Range requests) ──�
 
 ---
 
+### Xem trước link khi chia sẻ (Zalo/Facebook/Messenger) (2026-11-05):
+
+- Crawler của Zalo/Facebook/Messenger đọc `<title>` và `og:*` trong HTML **mà không chạy JavaScript**. Trước đây `/room/:id` trả `index.html` chung nên xem trước luôn là "Nhà Này Hơi Báo! — Board Game Wiki".
+- Pages worker (`cloudflare-pages/worker.js`) giờ chặn `GET`/`HEAD` `/room/room_<id>`:
+  - Lấy `index.html` từ assets, đọc thông tin công khai của phòng qua service binding (`GET /api/v1/watch-rooms/:id`, header `Origin` cùng site, giữ `CF-Connecting-IP` của người gọi để rate limit đúng, **không** chuyển cookie, chờ tối đa 2,5 giây).
+  - Thay `<title>` và `description`, thêm `og:*` (type `video.other`, ảnh `/assets/images/room-share.jpg` 1200×630) và `twitter:*`. Mọi giá trị đều được escape.
+  - Tiêu đề: `<tên phim> — 5 anh em siêu nhân`. Mô tả: "Công chiếu lúc HH:mm ngày dd/MM (giờ Việt Nam)" / "Đang công chiếu · N người đang xem" / "Đang tạm dừng" / "Buổi công chiếu đã kết thúc" / "Sắp công chiếu", kèm lời mời vào phòng. `streamUrl` không bao giờ được đưa vào HTML.
+  - Phòng không tồn tại hoặc API lỗi: dùng tiêu đề chung "Phòng chiếu chung — 5 anh em siêu nhân", trang vẫn trả 200. Trả `Cache-Control: no-cache` và bỏ `ETag`, vì giờ chiếu có thể đổi.
+- `_routes.json` (do `.github/scripts/prepare-pages.mjs` tạo) thêm `/room/*`. `/room` (trang tạo phòng) và các route khác giữ nguyên tài liệu tĩnh.
+- Tab trình duyệt của trang phòng cũng đặt tiêu đề `<tên phim> — 5 anh em siêu nhân`.
+- Zalo/Facebook tự lưu cache bản xem trước theo URL. Link đã chia sẻ trước khi deploy có thể vẫn hiện bản cũ một thời gian; link mới hoặc phòng mới sẽ hiện đúng ngay. Facebook có thể làm mới bằng Sharing Debugger.
+
 ### Enter với bộ gõ tiếng Việt (sửa 2026-11-05):
 
 - Lỗi: khi gõ bằng Telex/VNI (Unikey, EVKey, bộ gõ của hệ điều hành), chữ cuối còn đang được soạn. Nhấn Enter lúc đó không gửi bình luận hay vào phòng; phải nhấn cách trước. Có hai nguyên nhân: Angular mặc định chỉ cập nhật `ngModel` sau khi bộ gõ chốt chữ (`COMPOSITION_BUFFER_MODE`), nên nút bị khóa và Enter không gửi được form; còn Enter trong lúc soạn chữ đến với `key = "Process"` / `keyCode 229`, nên `(keydown.enter)` không bắt được.

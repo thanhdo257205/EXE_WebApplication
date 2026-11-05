@@ -64,6 +64,8 @@ Cập nhật: 2026-11-05 (Asia/Saigon).
 - [ ] WATCH-ROOM-26 — Sau deploy, chủ dự án thử đổi giờ trên production với phòng hẹn giờ thật.
 - [x] WATCH-ROOM-27 — Enter gửi được ngay khi gõ bằng bộ gõ tiếng Việt (ô tên, danmaku, đổi tên, tiêu đề tạo phòng): `appImeEnter`, có test + kiểm Chromium có đối chứng (local).
 - [ ] WATCH-ROOM-28 — Sau deploy, chủ dự án xác nhận trên máy thật (Unikey/EVKey) chỉ cần một lần Enter.
+- [x] WATCH-ROOM-29 — Link `/room/:id` có bản xem trước theo tên phim + giờ công chiếu (Pages worker chèn meta, ảnh chia sẻ 1200×630), có test gateway (local).
+- [ ] WATCH-ROOM-30 — Sau deploy, chia sẻ một link phòng mới trên Zalo và xác nhận hiện tên phim.
 
 Cập nhật: 2026-10-29 (Asia/Saigon).
 
