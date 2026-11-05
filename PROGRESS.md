@@ -4,7 +4,8 @@
 
 ## Cập nhật gần nhất
 
-### Phòng chiếu: Enter không chạy khi gõ tiếng Việt (phải nhấn cách trước) — 2026-11-05 (local, chưa deploy)
+### Phòng chiếu: Enter không chạy khi gõ tiếng Việt (phải nhấn cách trước) — 2026-11-05 (đã deploy `4870a23`, PR #51)
+- Phát hành: PR #51 merge tại `4870a23` (người bấm merge: `thanhdo257205`, lúc 15:48Z). CI `42058685688` xanh; CD `42058886024` chạy đủ các bước Worker, Render, Pages và smoke production, tất cả success. Còn chờ chủ dự án thử lại bằng Unikey/EVKey trên máy thật (WATCH-ROOM-28).
 
 - Phát hành trước: PR #50 merge tại `49569af` sau khi CI xanh 8/8. CI `42057265281` xanh; CD `42057514666` chạy đủ các bước Worker, Render, Pages và smoke production, tất cả success.
 - Báo lỗi của chủ dự án: "khi gửi tin nhắn hay nhập tên thì phải nhấn cách thì mới enter được".
