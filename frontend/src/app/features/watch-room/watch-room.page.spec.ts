@@ -274,4 +274,61 @@ describe('WatchRoomPage', () => {
     expect(mockWatchRoomService.rename).toHaveBeenCalledWith('Hồng');
     expect(component.nickname()).toBe('Hồng');
   });
+  it('seeks ±10s from the synced room position, clamps to the film and is disabled while waiting', () => {
+    mockWatchRoomService.sendHostControl.mockClear();
+    snapshotSig.set({ ...mockRoom.snapshot, status: 'PLAYING' });
+    mockWatchRoomService.getSynchronizedTargetPosition.mockReturnValueOnce(30);
+    component.hostSeekRelative(10);
+    expect(mockWatchRoomService.sendHostControl).toHaveBeenLastCalledWith('SEEK', 40);
+    expect(component.seekNotice()).toBe('Đã tua tới 00:40');
+
+    mockWatchRoomService.getSynchronizedTargetPosition.mockReturnValueOnce(595);
+    component.hostSeekRelative(10);
+    expect(mockWatchRoomService.sendHostControl).toHaveBeenLastCalledWith('SEEK', 600);
+    mockWatchRoomService.getSynchronizedTargetPosition.mockReturnValueOnce(4);
+    component.hostSeekRelative(-10);
+    expect(mockWatchRoomService.sendHostControl).toHaveBeenLastCalledWith('SEEK', 0);
+
+    snapshotSig.set(mockRoom.snapshot); // LOBBY
+    mockWatchRoomService.sendHostControl.mockClear();
+    component.hostSeekRelative(10);
+    expect(mockWatchRoomService.sendHostControl).not.toHaveBeenCalled();
+    fixture.detectChanges();
+    // While waiting, the strip offers premiere-time controls instead of ±10 s.
+    const labels = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.wr-host button')).map((b) => b.textContent?.trim());
+    expect(labels).not.toContain('+10 giây');
+    expect(labels).toEqual(expect.arrayContaining(['−5 phút', '+5 phút', 'Đặt giờ', 'Chiếu ngay']));
+  });
+
+  it('lets the host move a scheduled premiere like seeking: ±5 min, a picked time, or start now', () => {
+    const svc = mockWatchRoomService as any;
+    svc.reschedule = vi.fn();
+    const start = Date.now() + 3600_000;
+    currentRoomSig.set({ ...mockRoom, mode: 'SCHEDULED', scheduledAt: new Date(start).toISOString() });
+    snapshotSig.set({ ...mockRoom.snapshot, status: 'LOBBY', countdownSeconds: 3600 });
+
+    component.hostShiftSchedule(5);
+    expect(svc.reschedule.mock.calls[0][0].getTime()).toBe(start + 5 * 60_000);
+    component.hostShiftSchedule(-5);
+    expect(svc.reschedule.mock.calls[1][0].getTime()).toBe(start - 5 * 60_000);
+    expect(component.canMoveEarlier()).toBe(true);
+
+    component.scheduleDraft = '2030-01-02T20:30';
+    component.hostSetSchedule();
+    expect(svc.reschedule.mock.calls[2][0].getTime()).toBe(new Date('2030-01-02T20:30').getTime());
+
+    component.hostStartNow();
+    expect(Math.abs(svc.reschedule.mock.calls[3][0].getTime() - Date.now())).toBeLessThan(1000);
+
+    // Under 5 minutes left: "earlier" is disabled (would start in the past).
+    currentRoomSig.set({ ...mockRoom, mode: 'SCHEDULED', scheduledAt: new Date(Date.now() + 120_000).toISOString() });
+    expect(component.canMoveEarlier()).toBe(false);
+
+    // Host-trigger room: "Chiếu ngay" keeps the START command.
+    currentRoomSig.set(mockRoom);
+    mockWatchRoomService.sendHostControl.mockClear();
+    component.hostStartNow();
+    expect(mockWatchRoomService.sendHostControl).toHaveBeenCalledWith('START');
+    snapshotSig.set(mockRoom.snapshot);
+  });
 });

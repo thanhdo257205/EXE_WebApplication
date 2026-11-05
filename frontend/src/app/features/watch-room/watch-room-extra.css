@@ -37,6 +37,11 @@
 .wr-people-tag.wr-you { background: #ff7aa826; color: #ff7aa8; }
 
 .wr-alert { margin: 0; padding: 8px 14px; border-radius: 8px; border: 1px solid #ffd27a55; background: #ffd27a14; color: #ffd27a; font-size: 13px; }
+.wr-host button:disabled { opacity: .45; cursor: not-allowed; }
+.wr-seek-notice { color: #7fdcff; font-variant-numeric: tabular-nums; }
+.wr-sched-pick input { height: 34px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--ed-line-strong); background: #0b0c0d; color: var(--ed-ink); font-size: 13px; color-scheme: dark; }
+.wr-sched-pick input:focus { outline: none; border-color: #7fdcff; }
+.wr-visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .wr-video-error { z-index: 25; }
 .wr-video-form { display: grid; gap: 10px; padding: 16px; border: 1px solid var(--ed-line-strong); border-radius: 8px; background: var(--wr-surface); }
 .wr-video-form label, .wr-video-form p { font-size: 13px; }

@@ -221,6 +221,8 @@ export class WatchRoomService {
     if (msg.type === 'error') {
       this.lastError.set(msg.code === 'RATE_LIMITED' ? 'Vui lòng chờ 1,5 giây giữa các bình luận.'
         : msg.code === 'NICKNAME_REQUIRED' ? 'Vui lòng nhập tên trước khi vào phòng.'
+        : msg.code === 'ALREADY_STARTED' ? 'Phim đã bắt đầu chiếu, không đổi giờ công chiếu được nữa.'
+        : msg.code === 'INVALID_SCHEDULE' ? 'Giờ công chiếu không hợp lệ (từ bây giờ tới 30 ngày tới).'
         : 'Không thể thực hiện thao tác. Vui lòng thử lại.');
       return;
     }
@@ -258,6 +260,11 @@ export class WatchRoomService {
     if (msg.type === 'viewer_count') {
       this.viewerCount.set(msg.count);
       if (Array.isArray(msg.viewers)) this.viewers.set(msg.viewers);
+      return;
+    }
+
+    if (msg.type === 'schedule') {
+      this.applySchedule(msg.room, msg.snapshot);
       return;
     }
 
@@ -357,6 +364,37 @@ export class WatchRoomService {
         },
         error: () => this.lastError.set('Không thể điều khiển phòng. Vui lòng thử lại.')
       });
+    }
+  }
+
+  /** Host moves the premiere start (lobby only). WebSocket first, REST when the socket is not open. */
+  reschedule(scheduledAt: Date) {
+    const iso = scheduledAt.toISOString();
+    const hostToken = this.currentHostToken || this.currentRoom()?.hostToken;
+    this.lastError.set('');
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.sendWsMessage({ type: 'host:reschedule', scheduledAt: iso, hostToken });
+      return;
+    }
+    if (!this.currentRoomId) return;
+    let headers = new HttpHeaders({ 'Content-Type': 'application/json' });
+    if (hostToken) headers = headers.set('X-Host-Token', hostToken);
+    this.http.post<{ ok: boolean; room: { mode: 'SCHEDULED'; scheduledAt: string }; snapshot: PlaybackSnapshot }>(
+      `${this.base}/watch-rooms/${this.currentRoomId}/schedule`, { scheduledAt: iso, hostToken }, { headers, withCredentials: true }
+    ).subscribe({
+      next: (res) => this.applySchedule(res.room, res.snapshot),
+      error: (err) => {
+        const code = err?.error?.code;
+        this.handleIncomingWsMessage({ type: 'error', code: typeof code === 'string' ? code : 'INVALID_REQUEST' });
+      },
+    });
+  }
+
+  private applySchedule(room: { mode?: 'SCHEDULED' | 'HOST_TRIGGER'; scheduledAt?: string } | undefined, snapshot: PlaybackSnapshot | undefined) {
+    if (room) this.currentRoom.update((r) => (r ? { ...r, mode: room.mode ?? r.mode, scheduledAt: room.scheduledAt ?? r.scheduledAt } : r));
+    if (snapshot) {
+      this.playbackSnapshot.set(snapshot);
+      this.playbackSync$.next({ action: 'SCHEDULE', snapshot });
     }
   }
 

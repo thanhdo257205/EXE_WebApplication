@@ -4,6 +4,24 @@
 
 ## Cập nhật gần nhất
 
+### Phòng chiếu: chủ phòng đổi giờ công chiếu như tua video — 2026-11-05 (local, chưa deploy)
+
+- Yêu cầu của chủ dự án (kèm ảnh dải điều khiển): "thêm một nút nữa để chủ phòng điều chỉnh giờ công chiếu giống tua video".
+- Backend: `applyReschedule` + WebSocket `host:reschedule` + REST `POST /api/v1/watch-rooms/:id/schedule`, phát `schedule` cho cả phòng. Chỉ dùng được khi phim chưa chiếu; giới hạn từ bây giờ tới 30 ngày; chiếu ngay khi giờ mới là hiện tại. Giao thức chi tiết ở `docs/WATCH_ROOM.md`.
+- Frontend: khi phim chưa chiếu, dải chủ phòng có −5 phút / +5 phút / chọn ngày giờ + Đặt giờ / Chiếu ngay, hiện dòng xác nhận ("Dời giờ công chiếu tới 16:32"); service áp `schedule` vào phòng + snapshot và có thông báo cho `ALREADY_STARTED` / `INVALID_SCHEDULE`.
+- Kiểm thử: backend `tsc` sạch, `npm test` **161 test / 160 pass / 1 skip (Turso) / 0 fail**. File mới `watch-room-schedule.test.ts` có 4 ca: dời sớm/muộn và đổi HOST_TRIGGER thành phòng hẹn giờ; chiếu ngay từ giây 0; từ chối khi đã chiếu, giờ đã qua, quá 30 ngày, ngày sai; WebSocket chỉ chủ phòng dùng được và phát cho người xem. Frontend `ng test` **64 file / 503 test pass**, build production exit 0, gateway 38/38.
+- E2E thật ở local với 2 trình duyệt (backend SQLite tạm + `ng serve` + video thử): người xem thấy đếm ngược 00:59:36 → +5 phút → 01:04:35 → −5 phút → 00:59:34; "Chiếu ngay" thì người xem chạy phim từ giây 0 (`currentTime` 2,4 giây sau 2,5 giây) và dải chủ phòng tự đổi về ±10 giây. Ảnh chụp 1440/390 không tràn ngang.
+
+### Phòng chiếu: sửa nút ±10 giây, chữ chạy quá nhanh và khựng — 2026-11-05 (local, chưa deploy)
+
+- Phát hành trước đó: PR #49 merge tại `3c57f71` (`thanhdo257205` bấm merge); CI `42051935262` xanh, CD `42052153153` success lúc 15:11Z. Kiểm production bằng Chromium headless: giao diện mới (màn nhập tên) đã lên, WebSocket `wss://exe-webapp.pages.dev/ws/room` kết nối được, nhận `room_snapshot` và `viewer_count.viewers`.
+- Báo lỗi của chủ dự án: "tôi không ấn trừ hay tăng 10s được", "chữ chạy hơi nhanh và khựng".
+- Chẩn đoán bằng e2e thật ở local (backend SQLite tạm + `ng serve` có proxy `/api`/`/ws` + video thử 60 giây có đồng hồ trên hình, server tĩnh hỗ trợ Range): khi phòng đang chiếu (HOST_TRIGGER, hẹn giờ đã tới giờ, tạm dừng), SEEK đi qua WebSocket và video nhảy đúng ±10 giây. Lỗi tái hiện được ở phòng **đang chờ** (nút hiện nhưng `hostSeekRelative` thoát im lặng). Trên production còn thêm nguyên nhân: video của phòng `room_tvy13pzj398` không tải được nên màn hình đen, không thấy hiệu ứng của lệnh tua.
+- Sửa nút tua: lấy mốc từ vị trí đồng bộ, giới hạn trong thời lượng, khóa nút khi đang chờ (có tooltip), hiện "Đã tua tới mm:ss", đồng hồ dùng vị trí đồng bộ khi video lỗi. (Thông báo video lỗi: khi gộp với `39e0549` của `main` đã dùng bản của `main` — có nút admin "Đổi video" — và bỏ bản trùng của nhánh.)
+- Sửa danmaku: thời lượng cố định 9 giây theo chiều rộng khung phát (trước là 6 giây tới `-150vw`); chọn làn theo phương trình chuyển động; đo chiều rộng chữ thật; `contain: strict`; gỡ chữ bằng `animationend`.
+- Kiểm thử: frontend `tsc` app + spec sạch, `ng test` **64 file / 501 test pass**. Thêm `danmaku-overlay.component.spec.ts` gồm 4 ca, trong đó có mô phỏng 400 chữ ngẫu nhiên kiểm tra không cặp nào cùng làn chồng nhau. Trang thêm 2 ca: tua theo vị trí đồng bộ và giới hạn mốc, khóa khi chờ; thông báo video lỗi. Production build exit 0, không cảnh báo CSS.
+- Đo e2e sau sửa: khung 945px, chữ chạy **115 px/giây** (trước khoảng 360), 120 khung hình trong 2 giây, không khung nào giật ngược, hai chữ cùng làn không chồng; nút tua hiện "Đã tua tới …"; phòng đang chờ có nút bị khóa. Headless dùng GPU phần mềm nên độ mượt thật cần xác nhận trên máy người dùng.
+
 ### Đổi video ngay trong phòng, chỉ admin — 2026-11-05 (đang phát hành)
 
 - Chẩn đoán phòng `room_kkcmg2ratwc` trên production: nguồn vẫn là video mẫu Google BigBuckBunny, HTTP Range trả 403 và thời lượng lưu bằng 0. Không phải video Azure bị mất. Đã thử ký URL video `videos/1105-20261105-h264.mp4` bằng cấu hình Azure hiện có của backend: trả 206, video/mp4, đúng 91.806.580 byte; không cần upload lại hay đổi secret.

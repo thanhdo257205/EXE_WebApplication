@@ -127,4 +127,15 @@ describe('WatchRoomService synchronized position calculations', () => {
     expect(service.viewers()).toEqual([]);
     expect(service.myViewerId()).toBeNull();
   });
+  it('applies a rescheduled premiere broadcast to the room and snapshot, and explains refusals', () => {
+    const handle = (msg: unknown) => (service as any).handleIncomingWsMessage(msg);
+    service.currentRoom.set({ id: 'r', title: 'T', mode: 'HOST_TRIGGER', scheduledAt: null, videoDuration: 60, status: 'LOBBY', streamUrl: '', snapshot: null as any, viewerCount: 1, isHost: true });
+    const snapshot = { status: 'LOBBY', position: 0, serverTime: 1, countdownSeconds: 300, startedAt: null };
+    handle({ type: 'schedule', room: { mode: 'SCHEDULED', scheduledAt: '2030-01-01T00:00:00.000Z' }, snapshot });
+    expect(service.currentRoom()?.mode).toBe('SCHEDULED');
+    expect(service.currentRoom()?.scheduledAt).toBe('2030-01-01T00:00:00.000Z');
+    expect(service.playbackSnapshot()?.countdownSeconds).toBe(300);
+    handle({ type: 'error', code: 'ALREADY_STARTED' });
+    expect(service.lastError()).toContain('đã bắt đầu');
+  });
 });

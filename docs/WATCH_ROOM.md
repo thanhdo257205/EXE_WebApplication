@@ -84,6 +84,17 @@ HTML5 <video> ──────────── GET (Range requests) ──�
 
 ---
 
+### Chủ phòng đổi giờ công chiếu (2026-11-05):
+
+- Khi phim **chưa chiếu** (`LOBBY`), dải điều khiển của chủ phòng thay ±10 giây bằng bộ chỉnh giờ: **−5 phút** (khóa khi còn dưới 5 phút), **+5 phút**, ô chọn ngày giờ + **Đặt giờ**, **Chiếu ngay**. Khi phim đang chiếu, dải lại hiện ±10 giây / tạm dừng như cũ.
+- WebSocket: `{type:'host:reschedule', scheduledAt: ISO, hostToken?}`, chỉ chủ phòng được dùng (`HOST_REQUIRED`). Server phát cho cả phòng `{type:'schedule', room:{mode:'SCHEDULED', scheduledAt}, snapshot}`, nên mọi người thấy đồng hồ đếm ngược đổi ngay. REST dự phòng khi socket không mở: `POST /api/v1/watch-rooms/:id/schedule` `{scheduledAt}` (header `X-Host-Token` hoặc phiên ADMIN), trả `{ok, room, snapshot}`.
+- Quy tắc (`applyReschedule`): chỉ khi trạng thái tính được là `LOBBY`; phòng hẹn giờ đã tới giờ (đang chiếu dù DB còn ghi `LOBBY`) trả `409 ALREADY_STARTED`. Giờ mới phải trong khoảng [bây giờ − 10 giây, bây giờ + 30 ngày], sai thì trả `400 INVALID_SCHEDULE`; giờ ở đúng hoặc ngay trước hiện tại nghĩa là chiếu ngay từ giây 0. Phòng HOST_TRIGGER đang chờ được dời giờ thì trở thành phòng hẹn giờ; nút "Chiếu ngay" của phòng HOST_TRIGGER vẫn dùng lệnh `START`.
+
+### Tua ±10 giây và tốc độ danmaku (sửa 2026-11-05):
+
+- Nút ±10 giây của chủ phòng tính mốc tua từ **vị trí đồng bộ của phòng** (`getSynchronizedTargetPosition(snapshot)`), không từ `currentTime` của `<video>` (vốn sai hoặc đứng yên khi video lỗi/đang tải), và giới hạn trong `[0, thời lượng]`. Khi phòng đang chờ (`LOBBY`, kể cả hẹn giờ) hai nút bị khóa, có tooltip giải thích; trước đây nút vẫn hiện nhưng bấm không làm gì. Sau khi bấm có dòng "Đã tua tới mm:ss". Khi video không tải được, đồng hồ hiển thị theo vị trí đồng bộ; thông báo lỗi kèm nút admin "Đổi video" là phần của `39e0549`.
+- Danmaku: mỗi chữ băng qua khung phát trong **9 giây** (thời lượng cố định), quãng đường = chiều rộng khung (đo bằng ResizeObserver) + chiều rộng chữ (đo bằng canvas `measureText`). Trước đây chữ đi tới `-150vw` trong 6 giây, nên nhanh khoảng gấp 3 lần trên khung khoảng 940px. Chọn làn theo phương trình chuyển động (`laneReadyAt`/`pickDanmakuLane`): chữ mới chỉ vào làn khi đuôi chữ trước đã vào hẳn khung cộng 24px, và không đuổi kịp chữ trước trước khi chữ đó rời khung. Làn nào cũng bận thì chữ chỉ hiện trong danh sách, không vẽ chồng lên nhau. Chữ được gỡ khỏi DOM khi `animationend`.
+
 ### Tên bắt buộc & danh sách người đang xem (cập nhật 2026-11-05):
 
 - Màn "Vào xem ngay" có ô **Tên của bạn**; nút vào phòng khóa khi tên trống. Ô chỉ điền sẵn tên tài khoản hoặc tên đã dùng lần trước (localStorage `watch_room_nickname`), không còn tên ngẫu nhiên `CưDân_xxxx`. WebSocket chỉ mở **sau** khi vào phòng với tên, nên chỉ người đã nhập tên mới xuất hiện trong danh sách; ô gửi danmaku khóa tới lúc đó.
