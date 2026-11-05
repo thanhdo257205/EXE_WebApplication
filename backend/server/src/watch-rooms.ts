@@ -751,7 +751,7 @@ export function watchRoomRoutes(
 
   // 3. Get Public Room details (No auth needed, anyone with link can enter)
   app.get('/api/v1/watch-rooms/:id', async (c: Context<ApiEnv>) => {
-    const id = c.req.param('id');
+    const id = z.string().min(1).parse(c.req.param('id'));
     const rows = await all(db, 'SELECT * FROM watch_rooms WHERE id = ?', [id]);
     const room = rows[0] as RoomRow | undefined;
     if (!room) return fail(404, 'ROOM_NOT_FOUND');
@@ -793,7 +793,7 @@ export function watchRoomRoutes(
 
   // 4. Get Danmaku history for room
   app.get('/api/v1/watch-rooms/:id/danmaku', async (c: Context<ApiEnv>) => {
-    const id = c.req.param('id');
+    const id = z.string().min(1).parse(c.req.param('id'));
     const rows = await all(
       db,
       'SELECT id, user_nickname, text, time_offset, color, created_at FROM room_danmaku WHERE room_id = ? AND deleted_at IS NULL ORDER BY time_offset ASC LIMIT 1000',
@@ -812,7 +812,7 @@ export function watchRoomRoutes(
 
   // 5. Host control via REST (fallback or direct)
   app.post('/api/v1/watch-rooms/:id/control', async (c: Context<ApiEnv>) => {
-    const id = c.req.param('id');
+    const id = z.string().min(1).parse(c.req.param('id'));
     const rows = await all(db, 'SELECT * FROM watch_rooms WHERE id = ?', [id]);
     const room = rows[0] as RoomRow | undefined;
     if (!room) return fail(404, 'ROOM_NOT_FOUND');
@@ -890,8 +890,8 @@ export function watchRoomRoutes(
 
   // 6. Delete danmaku (Host only)
   app.delete('/api/v1/watch-rooms/:id/danmaku/:danmakuId', async (c: Context<ApiEnv>) => {
-    const id = c.req.param('id');
-    const danmakuId = c.req.param('danmakuId');
+    const id = z.string().min(1).parse(c.req.param('id'));
+    const danmakuId = z.string().min(1).parse(c.req.param('danmakuId'));
     const rows = await all(db, 'SELECT * FROM watch_rooms WHERE id = ?', [id]);
     const room = rows[0] as RoomRow | undefined;
     if (!room) return fail(404, 'ROOM_NOT_FOUND');
