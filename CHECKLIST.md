@@ -14,6 +14,9 @@ Cập nhật: 2026-11-05 (Asia/Saigon).
 - [x] WATCH-ROOM-08 — Giao diện dark Bilibili style: badge LIVE, viewer count, thanh danmaku bar (bật/tắt, cỡ chữ, độ mờ, chọn màu), khung chat thu gọn, overlay "Vào xem" mở khoá autoplay audio.
 - [x] WATCH-ROOM-09 — Trang tạo phòng `/room` và trang xem `/room/:id`.
 - [x] WATCH-ROOM-10 — Kiểm thử: 8/8 backend unit tests pass (`test/watch-rooms.test.ts`), 6/6 frontend unit tests pass (`watch-room.page.spec.ts`), production build thành công (`npm run build`).
+- [x] WATCH-ROOM-11 — Sửa lỗi typecheck backend làm CI `main` đỏ trên `b82c277` (`tsc --noEmit` sạch, `npm test` 150 pass / 1 skip / 0 fail local).
+- [ ] WATCH-ROOM-12 — Merge fix vào `main`, CI xanh 4/4, CD chạy đủ bước "Deploy tested commit" (Worker + Pages + smoke) đúng commit.
+- [ ] WATCH-ROOM-13 — Nghiệm thu production: `/api/v1/info` đúng commit, `GET /api/v1/watch-rooms/<id-không-tồn-tại>` trả 404 `ROOM_NOT_FOUND`, WebSocket `/ws/room` qua Worker kết nối được, tạo phòng thật + phát video Azure Blob + danmaku trên trình duyệt.
 
 Cập nhật: 2026-10-29 (Asia/Saigon).
 
