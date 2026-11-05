@@ -4,6 +4,14 @@
 
 ## Cập nhật gần nhất
 
+### Sửa trang trống sau deploy (chunk cũ) + chẩn đoán video đen — 2026-11-05 (local, chưa deploy)
+
+- Báo lỗi của chủ dự án (kèm ảnh): trang chủ `exe-webapp.pages.dev` chỉ còn header, phần nội dung trống.
+- Chẩn đoán trên production bằng Chromium headless: tải thẳng `/` hiển thị bình thường, kể cả khi bật WebGPU (SwiftShader) và khi đi từ `/room/:id` về bằng logo. Nguyên nhân là tab mở từ trước lần deploy `2352461` lúc 14:17Z: Pages trả `index.html` (200, `text/html`) cho chunk không còn tồn tại (đã kiểm `curl /chunk-DOESNOTEXIST.js` → `200 text/html`), `import()` lỗi `Failed to load module script … MIME type "text/html"` (đã tái hiện trên production), và app không xử lý lỗi điều hướng.
+- Sửa: `withNavigationErrorHandler(reloadOnStaleChunk)`. Gặp lỗi tải chunk thì tải lại hẳn URL đích, mỗi URL tối đa một lần trong 60 giây (chi tiết `docs/DEPLOYMENT.md`).
+- Kiểm thử: `stale-chunk.spec.ts` 3 ca (nhận dạng thông báo lỗi Chromium/Firefox/Safari, reload một lần rồi dừng, bỏ qua lỗi khác). Frontend `ng test` **62 file / 486 test pass**; build production exit 0. Kiểm đầu-cuối trên bản build, giả lập deploy để mọi `/chunk-*.js` trả về `index.html`, rồi bấm logo từ `/room/:id`: **có** handler → trang tự reload (2 lần load) và hiện trang chủ; **không có** handler (build đối chứng) → điều hướng thất bại im lặng, kẹt ở trang phòng.
+- Video đen ở `/room/room_tvy13pzj398`: nguồn của phòng là URL mẫu Google `BigBuckBunny.mp4`, bị chặn `ERR_BLOCKED_BY_ORB`, `<video>` báo `error.code=4`. Không phải lỗi SAS/CORS; cần tạo phòng với video trong Azure Blob (`docs/WATCH_ROOM.md`).
+
 ### Phòng chiếu: bắt buộc nhập tên + danh sách người đang xem — 2026-11-05 (local, chưa deploy)
 
 - Yêu cầu của chủ dự án: "tôi muốn mọi người xem được ai trong phòng live nữa, và trước khi vô phòng thì phải nhập tên".

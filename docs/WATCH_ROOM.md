@@ -65,6 +65,10 @@ HTML5 <video> ──────────── GET (Range requests) ──�
 - Trên trang `/room/:id`: footer công khai bị ẩn (`App.isWatchRoomRoute`) và logo header đổi thành **"5 anh em siêu nhân"** (`GlobalBarComponent.isWatchRoom`); trang tạo phòng `/room` giữ footer và logo gốc.
 - CSS tách 3 file (`watch-room.page.css`, `watch-room-side.css`, `watch-room-extra.css`) để dưới ngân sách 6 kB/component; màu nút hồng/xanh đặt qua token `--ctrl-glass-*` vì vật liệu kính toàn cục ghi đè nền nút bằng `!important`.
 
+### Ghi chú vận hành: video đen trên production (2026-11-05)
+
+- Phòng `room_tvy13pzj398` trên production có nguồn video là `https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4`. URL mẫu này không còn phát được: Chromium chặn bằng `ERR_BLOCKED_BY_ORB` và thẻ `<video>` báo `MEDIA_ERR_SRC_NOT_SUPPORTED` (`error.code = 4`). Vì vậy màn hình đen và thời lượng là 00:00, dù trạng thái phòng là PLAYING. Lỗi không nằm ở SAS hay CORS của Azure. Cách xử lý: tạo phòng mới với video MP4 (H.264/AAC) nằm trong Azure Blob container đã cấu hình (mục 2–3).
+
 ## 2. Cấu hình CORS trên Azure Blob Storage (Lệnh az cli)
 
 Để thẻ `<video>` trên trình duyệt có thể phát và tua video (Range request) từ domain ứng dụng, chạy lệnh sau trong Azure CLI:

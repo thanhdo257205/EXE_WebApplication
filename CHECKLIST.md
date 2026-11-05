@@ -24,6 +24,9 @@ Cập nhật: 2026-11-05 (Asia/Saigon).
 - [x] WATCH-ROOM-18 — Bắt buộc nhập tên trước khi vào phòng (UI + server `NICKNAME_REQUIRED`), có test frontend/backend.
 - [x] WATCH-ROOM-19 — Danh sách người đang xem real-time (`viewer_count.viewers`, thẻ "Đang trong phòng"), đổi tên qua `rename`, có test.
 - [ ] WATCH-ROOM-20 — Kiểm tra danh sách người xem với nhiều thiết bị thật trên production sau deploy (Render + Worker WebSocket).
+- [x] OPS-STALE-01 — Tab mở xuyên qua deploy không còn để trống trang: `reloadOnStaleChunk` + test đơn vị + kiểm đầu-cuối có đối chứng (local).
+- [ ] OPS-STALE-02 — Sau khi deploy bản sửa, xác nhận trên production rằng tab cũ chuyển trang thì tự tải lại thay vì để trống.
+- [ ] WATCH-ROOM-21 — Tạo lại phòng production với video trong Azure Blob (URL mẫu BigBuckBunny hiện tại bị ORB chặn).
 
 Cập nhật: 2026-10-29 (Asia/Saigon).
 

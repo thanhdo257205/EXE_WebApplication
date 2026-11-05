@@ -47,6 +47,12 @@ Worker secrets: `ORIGIN_PROXY_SECRET`, `TURNSTILE_SECRET_KEY`. Render có cùng 
 
 Không lưu token, deploy hook, mật khẩu hoặc CA private key trong repo. Aiven API mặc định che secret thành `<redacted>`; khi cấu hình credentials phải dùng GET `include_secrets=true` bằng quyền phù hợp và không in response ra log. Xem [Aiven secret redaction](https://aiven.io/docs/tools/api/secret-redaction).
 
+## Tab mở xuyên qua lần deploy (chunk cũ) — 2026-11-05
+
+- Pages phục vụ mỗi deploy như một bản nguyên khối: chunk lazy của bản build trước không còn, và đường dẫn `/chunk-*.js` không tồn tại trả về SPA fallback (`index.html`, 200, `text/html`). Tab mở từ trước khi deploy, khi chuyển trang, sẽ gặp lỗi `Failed to load module script … MIME type "text/html"`: header vẫn hiện nhưng nội dung trống. Đây đúng là lỗi chủ dự án gặp sau deploy `2352461`.
+- Xử lý trong app: `withNavigationErrorHandler` gọi `reloadOnStaleChunk` (`frontend/src/app/shared/utils/stale-chunk.ts`). Khi lỗi điều hướng là lỗi tải chunk, app tải lại hẳn URL đích để lấy bản build mới. Có chặn lặp: cùng một URL chỉ reload một lần trong 60 giây (lưu ở `sessionStorage` key `exe.stale-chunk-reload`); lỗi lặp lại trong khoảng đó được xem là sự cố thật và không reload nữa. Lỗi điều hướng khác thì bỏ qua.
+- Tab đang mở bản cũ (trước khi bản sửa này được deploy) vẫn cần người dùng tự tải lại trang (Ctrl+F5) một lần.
+
 ## Chạy lại và rollback
 
 - Khi lỗi tạm thời: xem CI/CD logs và Render logs, sau đó chạy workflow **CD → Run workflow**. Vẫn bắt buộc có push CI thành công cho SHA hiện tại của main, artifact chưa hết hạn (7 ngày).
