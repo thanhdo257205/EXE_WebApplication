@@ -811,6 +811,27 @@ export function watchRoomRoutes(
   hub: WatchRoomWebSocketHub,
   env: Record<string, string | undefined>
 ) {
+  // A host token controls playback only. Changing the media requires a live ADMIN session + CSRF.
+  app.put('/api/v1/admin/watch-rooms/:id/video', async c => {
+    requireActor(c, true);
+    const id = z.string().min(1).parse(c.req.param('id'));
+    const body = z.object({
+      videoSource: z.string().trim().min(1).max(1024).refine(value => {
+        if (/^[a-zA-Z0-9_/-]+\.mp4$/i.test(value)) return true;
+        try { const url = new URL(value); return ['https:', 'http:'].includes(url.protocol) && !url.username && !url.password; }
+        catch { return false; }
+      }, 'Use an MP4 URL or blob path'),
+      videoDuration: z.number().min(0).max(86400).default(0),
+    }).parse(await c.req.json());
+    const room = (await all(db, 'SELECT * FROM watch_rooms WHERE id = ?', [id]))[0] as RoomRow | undefined;
+    if (!room) return fail(404, 'ROOM_NOT_FOUND');
+    const keepSchedule = room.mode === 'SCHEDULED' && room.scheduled_at && Date.parse(room.scheduled_at) > Date.now();
+    await execute(db, `UPDATE watch_rooms SET video_source = ?, video_duration = ?, current_position = 0,
+      started_at = NULL, status = 'LOBBY', mode = ?, scheduled_at = ?, updated_at = ? WHERE id = ?`,
+      [body.videoSource, body.videoDuration, keepSchedule ? 'SCHEDULED' : 'HOST_TRIGGER', keepSchedule ? room.scheduled_at : null, now(), id]);
+    hub.broadcastRoom(id, { type: 'video:changed' });
+    return c.json({ ok: true });
+  });
   // 1. Create Room (Host only: requires ADMIN or authenticated user)
   app.post('/api/v1/admin/watch-rooms', async (c: Context<ApiEnv>) => {
     const actor = requireActor(c, true);
@@ -896,6 +917,7 @@ export function watchRoomRoutes(
       videoDuration: room.video_duration,
       status: snapshot.status,
       streamUrl,
+      videoSource: actor?.role === 'ADMIN' ? room.video_source : undefined,
       snapshot,
       viewerCount: hub.getViewerCount(room.id),
       isHost,

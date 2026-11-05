@@ -156,7 +156,7 @@ export class WatchRoomCreatePage {
   private readonly watchRoomService = inject(WatchRoomService);
 
   title = '';
-  videoSource = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
+  videoSource = 'videos/1105-20261105-h264.mp4';
   mode: 'SCHEDULED' | 'HOST_TRIGGER' = 'HOST_TRIGGER';
   scheduledTimeLocal = '';
   readonly isSubmitting = signal<boolean>(false);

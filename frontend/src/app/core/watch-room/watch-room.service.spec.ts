@@ -22,6 +22,18 @@ describe('WatchRoomService synchronized position calculations', () => {
   });
   afterEach(() => { TestBed.inject(HttpTestingController).verify(); vi.restoreAllMocks(); });
 
+  it('refreshes the stream and notifies the player when an admin changes the room video', () => {
+    (service as any).currentRoomId = 'room-test';
+    let changes = 0;
+    service.videoChanged$.subscribe(() => changes++);
+    (service as any).handleIncomingWsMessage({ type: 'video:changed' });
+    const request = TestBed.inject(HttpTestingController).expectOne('/api/v1/watch-rooms/room-test');
+    request.flush({ id: 'room-test', streamUrl: 'https://example.com/new.mp4', videoDuration: 241, isHost: false,
+      snapshot: { status: 'LOBBY', position: 0, serverTime: Date.now(), countdownSeconds: null, startedAt: null } });
+    expect(service.currentRoom()?.streamUrl).toBe('https://example.com/new.mp4');
+    expect(changes).toBe(1);
+  });
+
   it('calculates position 0 for LOBBY status', () => {
     (service as any).playbackSnapshot.set({
       status: 'LOBBY',

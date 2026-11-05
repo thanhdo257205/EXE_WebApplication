@@ -319,6 +319,39 @@ test('Watch Room REST lifecycle: create, get, host control, and danmaku', async 
   const pauseBody = await pauseRes.json();
   assert.equal(pauseBody.snapshot.status, 'PAUSED');
 
+  const videoPath = `/api/v1/admin/watch-rooms/${roomData.id}/video`;
+  const replacement = { videoSource: 'videos/replacement.mp4', videoDuration: 241.372 };
+  const hostOnly = await app.request(videoPath, { method: 'PUT', headers: {
+    'X-Host-Token': roomData.hostToken, 'Content-Type': 'application/json',
+    Cookie: `XSRF-TOKEN=${xsrfToken}`, 'X-XSRF-TOKEN': xsrfToken,
+  }, body: JSON.stringify(replacement) });
+  assert.equal(hostOnly.status, 401);
+  const noCsrf = await app.request(videoPath, { method: 'PUT', headers: {
+    Cookie: `AUTH_TOKEN=${jwt}`, 'Content-Type': 'application/json',
+  }, body: JSON.stringify(replacement) });
+  assert.equal(noCsrf.status, 403);
+  const customerId = uuid();
+  await execute(db, "INSERT INTO app_users(id,email,display_name,role) VALUES(?,'viewer@example.com','Viewer','CUSTOMER')", [customerId]);
+  const customerJwt = await new SignJWT({ ver: 0 }).setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
+    .setSubject(customerId).setIssuer('exe-web-api').setAudience('exe-web').setJti(uuid()).setIssuedAt().setExpirationTime('30m')
+    .sign(Buffer.from(jwtSecret, 'base64'));
+  const customerChange = await app.request(videoPath, { method: 'PUT', headers: {
+    ...adminHeaders, Cookie: `AUTH_TOKEN=${customerJwt}; XSRF-TOKEN=${xsrfToken}`, 'X-Host-Token': roomData.hostToken,
+  }, body: JSON.stringify(replacement) });
+  assert.equal(customerChange.status, 403);
+  const changed = await app.request(videoPath, { method: 'PUT', headers: adminHeaders, body: JSON.stringify(replacement) });
+  assert.equal(changed.status, 200);
+  const changedRoom = await (await app.request(`/api/v1/watch-rooms/${roomData.id}`)).json();
+  assert.equal(changedRoom.status, 'LOBBY');
+  assert.equal(changedRoom.snapshot.position, 0);
+  assert.equal(changedRoom.videoDuration, 241.372);
+  assert.equal(changedRoom.videoSource, undefined);
+  const adminRoom = await (await app.request(`/api/v1/watch-rooms/${roomData.id}`, { headers: adminHeaders })).json();
+  assert.equal(adminRoom.videoSource, replacement.videoSource);
+  const invalidVideo = await app.request(videoPath, { method: 'PUT', headers: adminHeaders,
+    body: JSON.stringify({ videoSource: 'javascript:alert(1)' }) });
+  assert.equal(invalidVideo.status, 400);
+
   // 5. Host Control: Unauthorized rejected with 403
   const badControlRes = await app.request(`/api/v1/watch-rooms/${roomData.id}/control`, {
     method: 'POST',
