@@ -51,6 +51,8 @@ Cập nhật: 2026-11-05 (Asia/Saigon).
 - [x] WATCH-ROOM-22 — Nút ±10 giây: mốc từ vị trí đồng bộ, khóa khi đang chờ, phản hồi "Đã tua tới", thông báo video lỗi (test + e2e local).
 - [x] WATCH-ROOM-23 — Danmaku chậm lại theo chiều rộng khung (9 giây/lượt) và chọn làn không chồng chữ (test mô phỏng + đo e2e 115 px/giây).
 - [ ] WATCH-ROOM-24 — Sau deploy, chủ dự án xác nhận trên máy thật: tua ±10 giây khi phòng đang chiếu, chữ chạy mượt.
+- [x] WATCH-ROOM-25 — Chủ phòng đổi giờ công chiếu khi chưa chiếu (−5/+5 phút, chọn giờ, chiếu ngay); server kiểm tra quyền, trạng thái, khoảng thời gian; test backend/frontend + e2e 2 trình duyệt (local).
+- [ ] WATCH-ROOM-26 — Sau deploy, chủ dự án thử đổi giờ trên production với phòng hẹn giờ thật.
 
 Cập nhật: 2026-10-29 (Asia/Saigon).
 

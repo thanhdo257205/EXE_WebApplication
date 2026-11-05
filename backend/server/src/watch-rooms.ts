@@ -392,6 +392,38 @@ const controlSchema = z.object({
 });
 
 /** REST and WebSocket share the same server-authoritative state transitions. */
+/** How far ahead a premiere can be (re)scheduled. */
+export const MAX_SCHEDULE_AHEAD_MS = 30 * 24 * 3600 * 1000;
+/** A new start a few seconds in the past is "start now" (clock skew), anything older is rejected. */
+const SCHEDULE_PAST_TOLERANCE_MS = 10_000;
+
+const rescheduleSchema = z.object({
+  scheduledAt: z.string().datetime({ offset: true }),
+  hostToken: z.string().optional(),
+});
+
+export type RescheduleResult =
+  | { ok: true; snapshot: PlaybackSnapshot; room: { mode: 'SCHEDULED'; scheduledAt: string } }
+  | { ok: false; status: 400 | 409; code: 'INVALID_SCHEDULE' | 'ALREADY_STARTED' };
+
+/**
+ * Host moves the premiere start (like seeking, but for the countdown). Only while nobody has started
+ * watching yet: the room must still be in its lobby. A HOST_TRIGGER lobby becomes a scheduled premiere.
+ * A time at (or a few seconds before) now starts the film immediately.
+ */
+export async function applyReschedule(db: Client, room: RoomRow, scheduledAtIso: string, nowMs = Date.now()): Promise<RescheduleResult> {
+  const target = Date.parse(scheduledAtIso);
+  if (!Number.isFinite(target) || target < nowMs - SCHEDULE_PAST_TOLERANCE_MS || target > nowMs + MAX_SCHEDULE_AHEAD_MS) {
+    return { ok: false, status: 400, code: 'INVALID_SCHEDULE' };
+  }
+  if (computePlaybackState(room, nowMs).status !== 'LOBBY') return { ok: false, status: 409, code: 'ALREADY_STARTED' };
+  const scheduledAt = new Date(Math.max(target, nowMs)).toISOString();
+  await execute(db, `UPDATE watch_rooms SET mode = 'SCHEDULED', status = 'LOBBY', scheduled_at = ?, started_at = NULL, current_position = 0, updated_at = ? WHERE id = ?`,
+    [scheduledAt, new Date(nowMs).toISOString(), room.id]);
+  const updated = { ...room, mode: 'SCHEDULED', status: 'LOBBY', scheduled_at: scheduledAt, started_at: null, current_position: 0 };
+  return { ok: true, snapshot: computePlaybackState(updated, nowMs), room: { mode: 'SCHEDULED', scheduledAt } };
+}
+
 async function applyPlaybackControl(db: Client, room: RoomRow, control: z.infer<typeof controlSchema>): Promise<PlaybackSnapshot> {
   const nowMs = Date.now();
   const snapshot = computePlaybackState(room, nowMs);
@@ -715,6 +747,25 @@ export function createWatchRoomHub(db: Client, config: Pick<Config, 'production'
               return;
             }
 
+            // 4b. Host moves the premiere start time (lobby only)
+            if (msg.type === 'host:reschedule') {
+              const room = (await all(db, 'SELECT * FROM watch_rooms WHERE id = ?', [currentRoomId]))[0] as RoomRow | undefined;
+              if (!room) return;
+              const token = typeof msg.hostToken === 'string' ? msg.hostToken : (isHost ? room.host_token : '');
+              if (!same(token, room.host_token)) {
+                ws.send(JSON.stringify({ type: 'error', code: 'HOST_REQUIRED' }));
+                return;
+              }
+              const body = rescheduleSchema.parse(msg);
+              const result = await applyReschedule(db, room, body.scheduledAt);
+              if (!result.ok) {
+                ws.send(JSON.stringify({ type: 'error', code: result.code }));
+                return;
+              }
+              broadcast(currentRoomId, { type: 'schedule', room: result.room, snapshot: result.snapshot });
+              return;
+            }
+
             // 5. Host delete danmaku
             if (msg.type === 'host:delete_danmaku') {
               const rows = await all(db, 'SELECT * FROM watch_rooms WHERE id = ?', [currentRoomId]);
@@ -898,6 +949,21 @@ export function watchRoomRoutes(
     });
 
     return c.json({ ok: true, snapshot: newSnapshot });
+  });
+
+  // 5b. Host moves the premiere start time via REST (fallback when the socket is down)
+  app.post('/api/v1/watch-rooms/:id/schedule', async (c: Context<ApiEnv>) => {
+    const id = z.string().min(1).parse(c.req.param('id'));
+    const room = (await all(db, 'SELECT * FROM watch_rooms WHERE id = ?', [id]))[0] as RoomRow | undefined;
+    if (!room) return fail(404, 'ROOM_NOT_FOUND');
+    const body = rescheduleSchema.parse(await c.req.json());
+    const token = body.hostToken || c.req.header('X-Host-Token');
+    const actor = c.get('actor');
+    if (!((token && same(token, room.host_token)) || (actor && actor.role === 'ADMIN'))) return fail(403, 'HOST_REQUIRED');
+    const result = await applyReschedule(db, room, body.scheduledAt);
+    if (!result.ok) return fail(result.status, result.code);
+    hub.broadcastRoom(id, { type: 'schedule', room: result.room, snapshot: result.snapshot });
+    return c.json({ ok: true, room: result.room, snapshot: result.snapshot });
   });
 
   // 6. Delete danmaku (Host only)

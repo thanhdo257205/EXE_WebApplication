@@ -179,15 +179,23 @@ import { PremiereCountdownComponent } from './premiere-countdown.component';
               <span class="wr-host-label">Bảng điều khiển chủ phòng · <b>{{ premiereLabel() }}</b></span>
               <span class="wr-spacer"></span>
               @if (seekNotice()) { <span class="wr-host-label wr-seek-notice" aria-live="polite">{{ seekNotice() }}</span> }
-              <button type="button" (click)="hostSeekRelative(-10)" [disabled]="isLobby()"
-                [attr.title]="isLobby() ? 'Chưa bắt đầu chiếu nên chưa tua được' : 'Tua lùi 10 giây cho cả phòng'">−10 giây</button>
-              <button type="button" (click)="hostSeekRelative(10)" [disabled]="isLobby()"
-                [attr.title]="isLobby() ? 'Chưa bắt đầu chiếu nên chưa tua được' : 'Tua tới 10 giây cho cả phòng'">+10 giây</button>
               @if (isLobby()) {
-                @if (!isScheduled()) { <button type="button" class="wr-host-main" (click)="hostTriggerStart()">Bắt đầu công chiếu</button> }
-                @else { <span class="wr-host-label">Tự chạy lúc {{ scheduledLabel() }}</span> }
+                <!-- Before the film starts the host moves the premiere time, like seeking. -->
+                <span class="wr-host-label">{{ isScheduled() && scheduledLabel() ? 'Công chiếu lúc ' + scheduledLabel() : 'Chưa hẹn giờ' }}</span>
+                <button type="button" (click)="hostShiftSchedule(-5)" [disabled]="!canMoveEarlier()"
+                  [attr.title]="canMoveEarlier() ? 'Công chiếu sớm hơn 5 phút' : 'Còn dưới 5 phút, dùng Chiếu ngay'">−5 phút</button>
+                <button type="button" (click)="hostShiftSchedule(5)" title="Công chiếu muộn hơn 5 phút">+5 phút</button>
+                <label class="wr-sched-pick">
+                  <span class="wr-visually-hidden">Giờ công chiếu mới</span>
+                  <input type="datetime-local" [(ngModel)]="scheduleDraft" [min]="scheduleMin()" />
+                </label>
+                <button type="button" (click)="hostSetSchedule()" [disabled]="!scheduleDraft">Đặt giờ</button>
+                <button type="button" class="wr-host-main" (click)="hostStartNow()">Chiếu ngay</button>
+              } @else {
+                <button type="button" (click)="hostSeekRelative(-10)" title="Tua lùi 10 giây cho cả phòng">−10 giây</button>
+                <button type="button" (click)="hostSeekRelative(10)" title="Tua tới 10 giây cho cả phòng">+10 giây</button>
+                <button type="button" class="wr-host-main" (click)="hostTogglePlay()">{{ isPlaying() ? 'Tạm dừng cả phòng' : 'Tiếp tục phát' }}</button>
               }
-              @else { <button type="button" class="wr-host-main" (click)="hostTogglePlay()">{{ isPlaying() ? 'Tạm dừng cả phòng' : 'Tiếp tục phát' }}</button> }
             </div>
           }
         </section>
@@ -309,6 +317,8 @@ export class WatchRoomPage implements OnInit, OnDestroy {
   /** Short confirmation after a host seek, e.g. "Đã tua tới 01:23". */
   readonly seekNotice = signal<string>('');
   private seekNoticeTimer?: ReturnType<typeof setTimeout>;
+  /** Value of the host's datetime-local picker ("YYYY-MM-DDTHH:mm", local time). */
+  scheduleDraft = '';
   readonly videoDuration = signal<number>(0);
   readonly copiedLink = signal<boolean>(false);
   readonly chatCollapsed = signal<boolean>(false);
@@ -622,6 +632,51 @@ export class WatchRoomPage implements OnInit, OnDestroy {
     this.watchRoomService.sendHostControl('START');
   }
 
+  /** Moving the premiere 5 minutes earlier must leave a future start; below that, "Chiếu ngay". */
+  readonly canMoveEarlier = computed(() => {
+    const at = this.room()?.scheduledAt;
+    if (!this.isScheduled() || !at) return false;
+    return Date.parse(at) - 5 * 60_000 > Date.now();
+  });
+
+  /** Earliest value for the picker: now, as local "YYYY-MM-DDTHH:mm". */
+  readonly scheduleMin = computed(() => this.toLocalInput(new Date(this.clock())));
+
+  hostShiftSchedule(deltaMin: number) {
+    if (!this.isHost() || !this.isLobby()) return;
+    const at = this.room()?.scheduledAt;
+    const base = this.isScheduled() && at ? Date.parse(at) : Date.now();
+    const target = new Date(Math.max(Date.now(), base + deltaMin * 60_000));
+    this.watchRoomService.reschedule(target);
+    this.flashNotice(`Dời giờ công chiếu tới ${this.clockTime(target.toISOString())}`);
+  }
+
+  hostSetSchedule() {
+    if (!this.isHost() || !this.isLobby() || !this.scheduleDraft) return;
+    const target = new Date(this.scheduleDraft); // datetime-local is interpreted in local time
+    if (Number.isNaN(target.getTime())) return;
+    this.watchRoomService.reschedule(target);
+    this.flashNotice(`Đặt giờ công chiếu lúc ${this.clockTime(target.toISOString())}`);
+  }
+
+  hostStartNow() {
+    if (!this.isHost() || !this.isLobby()) return;
+    if (!this.isScheduled()) this.hostTriggerStart();
+    else this.watchRoomService.reschedule(new Date());
+    this.flashNotice('Bắt đầu chiếu ngay');
+  }
+
+  private flashNotice(text: string) {
+    this.seekNotice.set(text);
+    clearTimeout(this.seekNoticeTimer);
+    this.seekNoticeTimer = setTimeout(() => this.seekNotice.set(''), 2500);
+  }
+
+  private toLocalInput(d: Date): string {
+    const p = (n: number) => n.toString().padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+  }
+
   hostSeekRelative(deltaSec: number) {
     if (!this.isHost() || this.isLobby()) return;
     // Seek from the room's synced position, not the local <video> (it may lag, buffer or have failed).
@@ -629,9 +684,7 @@ export class WatchRoomPage implements OnInit, OnDestroy {
     const duration = this.videoDuration();
     const target = Math.max(0, Math.min(base + deltaSec, duration > 0 ? duration : Number.POSITIVE_INFINITY));
     this.watchRoomService.sendHostControl('SEEK', target);
-    this.seekNotice.set(`Đã tua tới ${this.formatTime(target)}`);
-    clearTimeout(this.seekNoticeTimer);
-    this.seekNoticeTimer = setTimeout(() => this.seekNotice.set(''), 2000);
+    this.flashNotice(`Đã tua tới ${this.formatTime(target)}`);
   }
 
 
