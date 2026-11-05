@@ -11,6 +11,8 @@
   - Vì CI đỏ, CD run `42042393211` báo success nhưng job **"Deploy tested commit" bị skipped** → Cloudflare Worker (route `/ws/room`) và Pages **chưa** nhận bản mới; `/room` trên Pages trả 200 chỉ là SPA fallback của bản cũ. Render backend được deploy riêng ngoài CD (deploy thủ công/auto của Render, chủ dự án báo `live`), nên production đang lệch phiên bản giữa backend và frontend/Worker.
   - Ghi chú trước đó "143 backend tests pass" không chứng minh được typecheck: lượt chạy đó không chạy `npm run check`.
   - Sửa: commit `2352461` trên `main` parse `c.req.param('id')`/`danmakuId` bằng `z.string().min(1)` để thu hẹp kiểu. Một bản sửa thay thế (bỏ annotation `Context<ApiEnv>`, commit `1f2d197`) được bỏ khi merge `main` để không trùng. Kiểm lại local trên code của `2352461`: `npx tsc --noEmit` sạch, `npm test` **151 test / 150 pass / 1 skip (Turso) / 0 fail**.
+  - Sau fix: CI `main` run `42043151227` trên `2352461` xanh; CD run `42043436025` chạy **đủ** job "Deploy tested commit" (deploy Worker, Render đúng commit, publish Pages artifact, smoke production) — tất cả success lúc 2026-11-05T14:17:46Z. PR #48 (chỉ tài liệu) merge tại `848f257` sau 8/8 check xanh.
+  - Còn mở: nghiệm thu production bằng trình duyệt (WATCH-ROOM-13); từ môi trường agent không gọi được API production (Cloudflare trả 403 "Browser request required").
 
 - Mục tiêu: Phòng chiếu video đồng bộ thời gian thực cho 5-30 người cùng xem MP4 (H.264/AAC) từ Azure Blob Storage với bình luận chạy ngang trên màn hình (Danmaku phong cách Bilibili), phát trực tiếp từ Blob qua thẻ `<video>` không proxy qua server app nhằm bảo toàn Range requests và tiết kiệm băng thông.
 - Backend:
