@@ -84,6 +84,11 @@ HTML5 <video> ──────────── GET (Range requests) ──�
 
 ---
 
+### Enter với bộ gõ tiếng Việt (sửa 2026-11-05):
+
+- Lỗi: khi gõ bằng Telex/VNI (Unikey, EVKey, bộ gõ của hệ điều hành), chữ cuối còn đang được soạn. Nhấn Enter lúc đó không gửi bình luận hay vào phòng; phải nhấn cách trước. Có hai nguyên nhân: Angular mặc định chỉ cập nhật `ngModel` sau khi bộ gõ chốt chữ (`COMPOSITION_BUFFER_MODE`), nên nút bị khóa và Enter không gửi được form; còn Enter trong lúc soạn chữ đến với `key = "Process"` / `keyCode 229`, nên `(keydown.enter)` không bắt được.
+- Sửa: directive dùng chung `appImeEnter` (`frontend/src/app/shared/forms/ime-enter.directive.ts`). Enter bình thường thì gửi ngay; Enter trong lúc soạn chữ thì được ghi nhận và gửi sau `compositionend`, kèm cả chữ vừa chốt, nên chỉ cần một lần Enter. Shift+Enter bỏ qua. Trang phòng và trang tạo phòng đặt `COMPOSITION_BUFFER_MODE = false`. Đang dùng cho ô tên lúc vào phòng, ô danmaku, ô đổi tên và ô tiêu đề lúc tạo phòng.
+
 ### Chủ phòng đổi giờ công chiếu (2026-11-05):
 
 - Khi phim **chưa chiếu** (`LOBBY`), dải điều khiển của chủ phòng thay ±10 giây bằng bộ chỉnh giờ: **−5 phút** (khóa khi còn dưới 5 phút), **+5 phút**, ô chọn ngày giờ + **Đặt giờ**, **Chiếu ngay**. Khi phim đang chiếu, dải lại hiện ±10 giây / tạm dừng như cũ.

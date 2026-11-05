@@ -62,6 +62,8 @@ Cập nhật: 2026-11-05 (Asia/Saigon).
 - [ ] WATCH-ROOM-24 — Sau deploy, chủ dự án xác nhận trên máy thật: tua ±10 giây khi phòng đang chiếu, chữ chạy mượt.
 - [x] WATCH-ROOM-25 — Chủ phòng đổi giờ công chiếu khi chưa chiếu (−5/+5 phút, chọn giờ, chiếu ngay); server kiểm tra quyền, trạng thái, khoảng thời gian; test backend/frontend + e2e 2 trình duyệt (local).
 - [ ] WATCH-ROOM-26 — Sau deploy, chủ dự án thử đổi giờ trên production với phòng hẹn giờ thật.
+- [x] WATCH-ROOM-27 — Enter gửi được ngay khi gõ bằng bộ gõ tiếng Việt (ô tên, danmaku, đổi tên, tiêu đề tạo phòng): `appImeEnter`, có test + kiểm Chromium có đối chứng (local).
+- [ ] WATCH-ROOM-28 — Sau deploy, chủ dự án xác nhận trên máy thật (Unikey/EVKey) chỉ cần một lần Enter.
 
 Cập nhật: 2026-10-29 (Asia/Saigon).
 
