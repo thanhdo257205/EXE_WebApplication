@@ -2,6 +2,15 @@
 
 Tài liệu thiết kế, hướng dẫn vận hành, cấu hình Azure Blob Storage và kiểm thử tính năng **Phòng chiếu phim chung** (`/room/:id`).
 
+## Đổi video sau khi đã tạo phòng — 2026-11-05
+
+- Admin đang đăng nhập mở **Quản lý video → Đổi video**, nhập URL/đường dẫn blob và thời lượng, hoặc chọn **video 1105 đã tải lên**, rồi **Lưu video cho cả phòng**. Người xem và người chỉ giữ host token không được đổi nguồn.
+- `PUT /api/v1/admin/watch-rooms/:id/video` nhận `{ videoSource, videoDuration }` (thời lượng mặc định 0); bắt buộc session ADMIN và CSRF. Không có thao tác đổi nguồn qua WebSocket. GET phòng chỉ trả `videoSource` cho ADMIN, tránh phát tán cấu hình nguồn cho người giữ host token.
+- Đổi video đưa cả phòng về LOBBY ở giây 0. Lịch hẹn chưa tới được giữ nguyên; phòng đã phát/qua giờ hẹn trở về HOST_TRIGGER để chủ phòng bấm bắt đầu. Không tự phát một video mới bất ngờ cho cả phòng.
+- Server phát `video:changed`, client GET lại phòng để nhận URL ký mới, reset thời lượng/vị trí và lỗi player. Join/reconnect cũng tải lại nguồn phòng. Chat hiện có được giữ nguyên.
+- Khi video lỗi, UI thông báo **Không tải được video** và dừng lặp gọi play. Admin có nút Đổi video ngay trên lỗi; người xem được hướng dẫn báo admin. Nguồn Google mẫu của phòng báo lỗi trả 403; nguồn Azure video 1105 đã xác minh trả 206 bằng cấu hình backend production hiện có.
+- Quyền mới dùng role ADMIN như API tạo phòng; không bổ sung quyền RBAC hoặc thay schema database. Chi tiết trạng thái deploy/nghiệm thu nằm trong PROGRESS và CHECKLIST.
+
 ## Công chiếu và phòng chờ — đã deploy e13569f ngày 2026-11-05
 
 - Tạo phòng với `mode=SCHEDULED` phải có `scheduledAt` ISO UTC hợp lệ ở tương lai. Form nhập ngày giờ theo múi giờ trình duyệt rồi đổi UTC. API trả 400 nếu thiếu, sai hoặc đã qua giờ hẹn.

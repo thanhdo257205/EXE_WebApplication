@@ -54,6 +54,8 @@ describe('WatchRoomPage', () => {
     rename: vi.fn(),
     newDanmaku$,
     deletedDanmaku$,
+    videoChanged$: new Subject<void>(),
+    changeVideo: vi.fn().mockReturnValue(of(mockRoom)),
     playbackSync$,
     getRoom: vi.fn().mockReturnValue(of(mockRoom)),
     getDanmakuHistory: vi.fn().mockReturnValue(of([])),
@@ -74,6 +76,7 @@ describe('WatchRoomPage', () => {
     vi.clearAllMocks();
     currentRoomSig.set(mockRoom);
     snapshotSig.set(mockRoom.snapshot);
+    mockAuthService.currentUser.set({ id: 'u1', displayName: 'AdminTester', role: 'ADMIN' });
     await TestBed.configureTestingModule({
       imports: [WatchRoomPage],
       providers: [
@@ -98,6 +101,32 @@ describe('WatchRoomPage', () => {
     fixture.detectChanges();
   });
   afterEach(() => { fixture.destroy(); });
+
+  it('allows an admin to change video inside the room', () => {
+    component.openVideoEditor();
+    component.useUploadedVideo();
+    component.saveVideo();
+    expect(mockWatchRoomService.changeVideo).toHaveBeenCalledWith('room_test123', 'videos/1105-20261105-h264.mp4', 241.371905);
+    expect(component.showVideoEditor).toBe(false);
+  });
+
+  it('does not let a non-admin host change video', () => {
+    mockAuthService.currentUser.set({ id: 'u1', displayName: 'Host', role: 'CUSTOMER' });
+    component.videoSourceDraft = 'https://example.com/new.mp4';
+    component.openVideoEditor();
+    component.saveVideo();
+    fixture.detectChanges();
+    expect(component.showVideoEditor).toBe(false);
+    expect(mockWatchRoomService.changeVideo).not.toHaveBeenCalled();
+    expect(fixture.nativeElement.textContent).not.toContain('Quản lý video · Admin');
+  });
+
+  it('shows a clear load error', () => {
+    component.onVideoError();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Không tải được video');
+    expect(component.isBuffering()).toBe(false);
+  });
 
   it('creates the watch room component and sets up title and viewer count', () => {
     expect(component).toBeTruthy();

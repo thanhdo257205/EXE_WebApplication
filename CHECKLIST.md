@@ -2,6 +2,15 @@
 
 Cập nhật: 2026-11-05 (Asia/Saigon).
 
+## Đổi video trong phòng — 2026-11-05
+
+- [x] ROOM-VIDEO-01 — Chẩn đoán nguồn Google của phòng hiện tại trả 403; xác minh video Azure trả 206 bằng cấu hình backend hiện có.
+- [x] ROOM-VIDEO-02 — API đổi nguồn chỉ ADMIN + CSRF; host token không cấp quyền đổi; reset về LOBBY/0, giữ lịch hẹn tương lai.
+- [x] ROOM-VIDEO-03 — Form đổi video ngay trong phòng, preset video đã upload, người xem nhận nguồn mới qua WebSocket/reconnect.
+- [x] ROOM-VIDEO-04 — Báo lỗi video thay cho màn hình đen im lặng; dừng retry play khi nguồn lỗi; nguồn mặc định tạo phòng là video Azure.
+- [x] ROOM-VIDEO-05 — Kiểm thử backend 156 pass/1 skip và frontend 498 pass, có kiểm quyền admin/customer/host token/CSRF.
+- [ ] ROOM-VIDEO-06 — Deploy và gắn video Azure vào phòng thật; xác minh playback trên trình duyệt production.
+
 ## Hoàn thiện công chiếu và âm thanh — 2026-11-05 (đã deploy e13569f)
 
 - [x] PREMIERE-01 — Đếm ngược liên tục theo giờ server; tự phát cho người đang ở phòng, hub TICK mỗi giây và client cập nhật 250 ms.

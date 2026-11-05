@@ -4,6 +4,14 @@
 
 ## Cập nhật gần nhất
 
+### Đổi video ngay trong phòng, chỉ admin — 2026-11-05 (đang phát hành)
+
+- Chẩn đoán phòng `room_kkcmg2ratwc` trên production: nguồn vẫn là video mẫu Google BigBuckBunny, HTTP Range trả 403 và thời lượng lưu bằng 0. Không phải video Azure bị mất. Đã thử ký URL video `videos/1105-20261105-h264.mp4` bằng cấu hình Azure hiện có của backend: trả 206, video/mp4, đúng 91.806.580 byte; không cần upload lại hay đổi secret.
+- Thêm `PUT /api/v1/admin/watch-rooms/:id/video`: bắt buộc phiên ADMIN hợp lệ và CSRF; không nhận host token thay phiên. Kiểm nguồn URL HTTP(S) không chứa credentials hoặc đường dẫn blob MP4, thời lượng 0–86400 giây. Đổi nguồn đưa phòng về LOBBY/vị trí 0; giữ lịch hẹn còn tương lai, nếu đã qua thì về chế độ host bấm bắt đầu.
+- UI trong phòng có khu Quản lý video chỉ admin thấy, nút Đổi video, nhập nguồn/thời lượng và chọn video 1105 đã upload. Bỏ Google làm nguồn mặc định của form tạo phòng. Broadcast `video:changed` để người đang xem lấy nguồn mới; người vào/reconnect cũng refresh nguồn khi join. Chỉ admin nhận videoSource thô để sửa; người xem nhận streamUrl để phát.
+- Thêm thông báo Không tải được video, dừng retry play khi nguồn lỗi và hướng dẫn liên hệ admin; admin có nút đổi ngay trên thông báo. Sau lưu giữ cả phòng ở trạng thái chờ để chủ phòng chủ động bắt đầu.
+- Kiểm thử local: backend typecheck qua; full 157 ca / 156 pass / 1 skip Turso; frontend full 63 file / 498 pass, gồm admin đổi, host CUSTOMER bị chặn và thông báo lỗi. API tests chốt host token không đủ (401), CUSTOMER kèm host token vẫn 403, admin thiếu CSRF 403, admin hợp lệ đổi được và reset vị trí. Build/kết quả deploy và gắn nguồn phòng thật được ghi bổ sung sau xác minh.
+
 ### Gộp nhánh phòng chiếu với `main` (`e13569f` công chiếu hẹn giờ) — 2026-11-05
 
 - `main` có thêm `e13569f`/`5381f99` (công chiếu hẹn giờ, video chờ canvas, snapshot mỗi giây, `phase` danmaku, giữ âm thanh gốc, kiểm proxy secret khi upgrade WebSocket) sửa cùng các file với nhánh này. Merge `main` vào nhánh, gộp như sau:

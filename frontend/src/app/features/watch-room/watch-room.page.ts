@@ -50,11 +50,20 @@ import { PremiereCountdownComponent } from './premiere-countdown.component';
           <div class="wr-player" #playerContainer [class.wr-paused]="!isPlaying()" [class.wr-covered]="!hasUserEntered() || isLobby() || playbackStatus() === 'ENDED'">
             <video #videoPlayer class="wr-video" [class.wr-hidden]="isLobby()" [src]="streamUrl()" playsinline preload="metadata"
               (loadedmetadata)="syncAfterMetadata()"
+              (error)="onVideoError()" (loadstart)="videoError.set('')"
               (click)="onVideoClick()" (waiting)="isBuffering.set(true)"
               (playing)="isBuffering.set(false); isPlaying.set(true)" (pause)="isPlaying.set(false)"
               (volumechange)="onVolumeChange()"></video>
 
             <app-danmaku-overlay #danmakuOverlay [laneCount]="8"></app-danmaku-overlay>
+            @if (videoError()) {
+              <div class="wr-layer wr-video-error" role="alert">
+                <h2 class="wr-layer-title">Không tải được video</h2>
+                <p class="wr-layer-text">{{ videoError() }}</p>
+                @if (canChangeVideo()) { <button type="button" class="wr-cta" (click)="openVideoEditor()">Đổi video</button> }
+                @else { <p class="wr-layer-text">Vui lòng báo admin kiểm tra nguồn video.</p> }
+              </div>
+            }
 
             <div class="wr-corner" aria-hidden="true">
               <span class="wr-corner-tag">Công chiếu</span>
@@ -167,6 +176,24 @@ import { PremiereCountdownComponent } from './premiere-countdown.component';
 
           @if (watchError()) { <p class="wr-alert" role="alert">{{ watchError() }}</p> }
 
+          @if (canChangeVideo()) {
+            <div class="wr-host"><b>Quản lý video · Admin</b><span class="wr-spacer"></span>
+              <button type="button" (click)="openVideoEditor()">Đổi video</button>
+            </div>
+            @if (showVideoEditor) {
+              <form class="wr-video-form" (ngSubmit)="saveVideo()">
+                <label for="wr-video-source">Nguồn video (đường dẫn Azure hoặc URL MP4)</label>
+                <input id="wr-video-source" name="videoSource" [(ngModel)]="videoSourceDraft" maxlength="1024" required />
+                <button type="button" (click)="useUploadedVideo()">Chọn video 1105 đã tải lên</button>
+                <label for="wr-video-duration">Thời lượng (giây, có thể để 0 nếu chưa biết)</label>
+                <input id="wr-video-duration" type="number" name="duration" [(ngModel)]="videoDurationDraft" min="0" max="86400" />
+                <p>Đổi video sẽ đưa cả phòng về đầu phim và chờ bắt đầu; lịch hẹn còn ở tương lai được giữ nguyên.</p>
+                @if (videoSaveError()) { <p role="alert">{{ videoSaveError() }}</p> }
+                <div><button type="submit" [disabled]="savingVideo() || !videoSourceDraft.trim()">{{ savingVideo() ? 'Đang lưu…' : 'Lưu video cho cả phòng' }}</button>
+                  <button type="button" (click)="showVideoEditor = false" [disabled]="savingVideo()">Huỷ</button></div>
+              </form>
+            }
+          }
           @if (isHost()) {
             <div class="wr-host">
               <span class="wr-host-label">Bảng điều khiển chủ phòng · <b>{{ premiereLabel() }}</b></span>
@@ -281,6 +308,13 @@ export class WatchRoomPage implements OnInit, OnDestroy {
   private readonly auth = inject(AuthService);
 
   readonly room = this.watchRoomService.currentRoom;
+  readonly canChangeVideo = computed(() => this.auth.currentUser()?.role === 'ADMIN');
+  readonly videoError = signal('');
+  readonly videoSaveError = signal('');
+  readonly savingVideo = signal(false);
+  showVideoEditor = false;
+  videoSourceDraft = '';
+  videoDurationDraft = 0;
   private readonly clock = signal(Date.now());
   readonly snapshot = computed(() => this.watchRoomService.getLivePlaybackSnapshot(this.clock()));
   readonly watchError = this.watchRoomService.lastError;
@@ -433,6 +467,13 @@ export class WatchRoomPage implements OnInit, OnDestroy {
     }));
 
     // Subscribe to new Danmaku from WebSocket
+    this.subs.add(this.watchRoomService.videoChanged$.subscribe(() => {
+      this.videoError.set('');
+      this.isBuffering.set(false);
+      this.currentVideoTime.set(0);
+      this.videoDuration.set(this.room()?.videoDuration || 0);
+      this.isPlaying.set(false);
+    }));
     this.subs.add(
       this.watchRoomService.newDanmaku$.subscribe((item) => {
         this.chatMessages.update((list) => [...list, item].slice(-1000));
@@ -514,7 +555,7 @@ export class WatchRoomPage implements OnInit, OnDestroy {
 
   private performVideoSync(snap: PlaybackSnapshot | null, forceSeek = false) {
     const video = this.videoPlayerRef?.nativeElement;
-    if (!video || !snap || !this.hasUserEntered()) return;
+    if (!video || !snap || !this.hasUserEntered() || this.videoError()) return;
 
     const targetPos = this.watchRoomService.getSynchronizedTargetPosition(snap);
     // Preserve the original audio timing; time-stretching can audibly distort voices.
@@ -550,12 +591,43 @@ export class WatchRoomPage implements OnInit, OnDestroy {
   }
 
   syncAfterMetadata() {
+    this.videoError.set('');
     const duration = this.videoPlayerRef?.nativeElement.duration;
     if (duration && Number.isFinite(duration)) {
       this.videoDuration.set(duration);
       this.room.update(room => room ? { ...room, videoDuration: duration } : room);
     }
     this.performVideoSync(this.snapshot(), true);
+  }
+
+  onVideoError() {
+    this.isBuffering.set(false);
+    this.isPlaying.set(false);
+    this.videoError.set('Nguồn video không truy cập được, đã hết hạn hoặc trình duyệt không hỗ trợ. Admin có thể đổi nguồn ngay trong phòng.');
+  }
+
+  openVideoEditor() {
+    if (!this.canChangeVideo()) return;
+    this.videoSourceDraft = this.room()?.videoSource || '';
+    this.videoDurationDraft = this.room()?.videoDuration || 0;
+    this.videoSaveError.set('');
+    this.showVideoEditor = true;
+  }
+
+  useUploadedVideo() {
+    this.videoSourceDraft = 'videos/1105-20261105-h264.mp4';
+    this.videoDurationDraft = 241.371905;
+  }
+
+  saveVideo() {
+    if (!this.canChangeVideo() || this.savingVideo() || !this.videoSourceDraft.trim()) return;
+    this.savingVideo.set(true);
+    this.videoSaveError.set('');
+    this.subs.add(this.watchRoomService.changeVideo(this.roomId, this.videoSourceDraft.trim(), this.videoDurationDraft).subscribe({
+      next: () => { this.savingVideo.set(false); this.showVideoEditor = false; },
+      error: err => { this.savingVideo.set(false); this.videoSaveError.set(err.status === 401 || err.status === 403
+        ? 'Chỉ tài khoản admin đang đăng nhập mới được đổi video.' : 'Không thể lưu video. Kiểm tra nguồn và thử lại.'); },
+    }));
   }
 
   unmuteVideo() {

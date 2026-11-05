@@ -12,6 +12,7 @@ export interface WatchRoomInfo {
   videoDuration: number;
   status: 'LOBBY' | 'PLAYING' | 'PAUSED' | 'ENDED';
   streamUrl: string;
+  videoSource?: string;
   snapshot: PlaybackSnapshot;
   viewerCount: number;
   isHost: boolean;
@@ -71,6 +72,7 @@ export class WatchRoomService {
 
   readonly newDanmaku$ = new Subject<DanmakuItem>();
   readonly deletedDanmaku$ = new Subject<string>();
+  readonly videoChanged$ = new Subject<void>();
   readonly playbackSync$ = new Subject<{ action: string; snapshot: PlaybackSnapshot }>();
 
   private ws: WebSocket | null = null;
@@ -117,6 +119,16 @@ export class WatchRoomService {
           this.setStoredHostToken(room.id, room.hostToken);
         }
       })
+    );
+  }
+
+  changeVideo(id: string, videoSource: string, videoDuration = 0): Observable<WatchRoomInfo> {
+    return this.auth.getCsrf().pipe(
+      switchMap(csrf => this.http.put(`${this.base}/admin/watch-rooms/${id}/video`, { videoSource, videoDuration }, {
+        withCredentials: true, headers: new HttpHeaders({ [csrf.headerName]: csrf.token }),
+      })),
+      switchMap(() => this.getRoom(id, this.currentHostToken || undefined)),
+      tap(() => this.videoChanged$.next()),
     );
   }
 
@@ -199,6 +211,13 @@ export class WatchRoomService {
   }
 
   private handleIncomingWsMessage(msg: any) {
+    if (msg.type === 'video:changed' && this.currentRoomId) {
+      this.getRoom(this.currentRoomId, this.currentHostToken || undefined).subscribe({
+        next: () => this.videoChanged$.next(),
+        error: () => this.lastError.set('Video đã thay đổi. Vui lòng tải lại phòng.'),
+      });
+      return;
+    }
     if (msg.type === 'error') {
       this.lastError.set(msg.code === 'RATE_LIMITED' ? 'Vui lòng chờ 1,5 giây giữa các bình luận.'
         : msg.code === 'NICKNAME_REQUIRED' ? 'Vui lòng nhập tên trước khi vào phòng.'
@@ -230,6 +249,9 @@ export class WatchRoomService {
         this.isHost.set(Boolean(msg.isHost));
       }
       if (typeof msg.viewerId === 'string') this.myViewerId.set(msg.viewerId);
+      if (this.currentRoomId) this.getRoom(this.currentRoomId, this.currentHostToken || undefined).subscribe({
+        next: () => this.videoChanged$.next(), error: () => {},
+      });
       return;
     }
 
