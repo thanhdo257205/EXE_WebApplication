@@ -144,7 +144,7 @@ export async function handle(request: Request, env: Env, fetcher: typeof fetch =
     if (url.origin !== publicUrl.origin) return problem(403, 'Unexpected host');
     if (backend.origin === publicUrl.origin) return problem(503, 'Invalid gateway configuration');
     const pathname = canonicalPath(url.pathname);
-    const api = pathname === '/api' || pathname.startsWith('/api/');
+    const api = pathname === '/api' || pathname.startsWith('/api/') || pathname === '/ws' || pathname.startsWith('/ws/');
     if (pathname.startsWith('/api/v1/internal')) return problem(404, 'Not found');
     if (!api) {
       if (!['GET', 'HEAD'].includes(request.method)) return problem(405, 'Method not allowed');
@@ -168,6 +168,7 @@ export async function handle(request: Request, env: Env, fetcher: typeof fetch =
     const mode = request.headers.get('Sec-Fetch-Mode');
     const oauthNavigation = request.method === 'GET' && [OAUTH_START, OAUTH_CALLBACK].includes(pathname);
     const notificationStream = request.method === 'GET' && pathname === '/api/v1/admin/notifications/stream';
+    const isWebSocket = request.headers.get('Upgrade')?.toLowerCase() === 'websocket';
     const paymentNavigation = request.method === 'GET' && /^\/api\/v1\/payments\/return\/[a-f0-9-]{36}$/.test(pathname);
     const webhook = request.method === 'POST' && pathname === PAYOS_WEBHOOK;
     const assistant = request.method === 'POST' && pathname === ASSISTANT;
@@ -235,7 +236,8 @@ export async function handle(request: Request, env: Env, fetcher: typeof fetch =
       if (!result.success || result.hostname !== publicUrl.hostname || result.action !== 'login') return problem(403, 'Challenge rejected');
     }
     const headers = new Headers();
-    for (const name of ['Accept', 'Content-Type', 'Cookie', 'X-XSRF-TOKEN']) {
+    const wsHeaders = isWebSocket ? ['Upgrade', 'Connection', 'Sec-WebSocket-Key', 'Sec-WebSocket-Version', 'Sec-WebSocket-Extensions', 'Sec-WebSocket-Protocol'] : [];
+    for (const name of ['Accept', 'Content-Type', 'Cookie', 'X-XSRF-TOKEN', 'X-Host-Token', ...wsHeaders]) {
       if (webhook && ['Cookie', 'X-XSRF-TOKEN'].includes(name)) continue;
       const value = request.headers.get(name); if (value) headers.set(name, value);
     }
@@ -244,13 +246,14 @@ export async function handle(request: Request, env: Env, fetcher: typeof fetch =
     headers.set('X-Forwarded-Host', publicUrl.host);
     headers.set('X-Forwarded-Port', publicUrl.port || (publicUrl.protocol === 'https:' ? '443' : '80'));
     const target = new URL(backend.origin); target.pathname = url.pathname; target.search = url.search;
-    const upstreamTimeout = AbortSignal.timeout(oauthNavigation || notificationStream ? 180000 : 60000);
+    const upstreamTimeout = AbortSignal.timeout(oauthNavigation || notificationStream || isWebSocket ? 180000 : 60000);
     const upstream = await fetcher(target, {
       // OAuth browser navigation can arrive at a sleeping origin (~147s observed).
       // Wait for the original exchange; never replay a state/code-bearing request.
       method: request.method, headers, body, redirect: 'manual',
       signal: notificationStream ? AbortSignal.any([request.signal, upstreamTimeout]) : upstreamTimeout,
     });
+    if (upstream.status === 101) return upstream;
     const response = new Response(upstream.body, upstream);
     response.headers.set('Cache-Control', notificationStream ? 'no-store, no-transform' : 'no-store');
     response.headers.set('X-Content-Type-Options', 'nosniff');

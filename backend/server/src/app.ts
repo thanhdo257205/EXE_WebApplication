@@ -18,11 +18,23 @@ import { assistantPromptAdminRoutes } from './assistant-prompt.ts';
 import { assistantCredentialRoutes } from './assistant-credentials.ts';
 import { createUsageRecorder } from './assistant-usage.ts';
 import type { AssistantOptions } from './assistant-providers.ts';
+import { watchRoomRoutes, createWatchRoomHub, type WatchRoomWebSocketHub } from './watch-rooms.ts';
 
-export function createApp(db: Client, config: Config, provider: Provider | null = null, sendMail?: (email: string, url: string) => Promise<void>, media: MediaStore | null = null, assistant: AssistantOptions | null = null) {
+export function createApp(
+  db: Client,
+  config: Config,
+  provider: Provider | null = null,
+  sendMail?: (email: string, url: string) => Promise<void>,
+  media: MediaStore | null = null,
+  assistant: AssistantOptions | null = null,
+  watchHub?: WatchRoomWebSocketHub,
+  env: Record<string, string | undefined> = process.env
+) {
   const app = new Hono<ApiEnv>();
   const cache = createCache();
   const usage = createUsageRecorder(db);
+  const hub = watchHub || createWatchRoomHub(db);
+
   // index.ts only accepts http for the two loopback hosts, so any other public origin is a real
   // deployment and must arrive through the gateway: the gate arms on the origin, not on NODE_ENV.
   // A missing secret then fails closed, because an unverified X-Origin-Verify proves nothing.
@@ -64,9 +76,16 @@ export function createApp(db: Client, config: Config, provider: Provider | null 
   // Public reads never use the actor, so skip the per-request user lookup (one Turso round trip) for them.
   // The assistant is not public: it spends a shared AI quota, so it authenticates every request.
   const publicRead = (method: string, path: string) => method === 'GET' && (path.startsWith('/api/v1/content/')
+    || path.startsWith('/api/v1/watch-rooms/')
     || ['/api/v1/shop/products', '/api/v1/payments/config', '/api/v1/auth/config', '/api/v1/auth/csrf'].includes(path));
   app.use('/api/*', async (c, next) => {
-    c.set('actor', publicRead(c.req.method, c.req.path) ? null : await authenticate(db, config, getCookie(c, 'AUTH_TOKEN')));
+    const isPublic = publicRead(c.req.method, c.req.path);
+    const token = getCookie(c, 'AUTH_TOKEN');
+    if (isPublic && !token) {
+      c.set('actor', null);
+    } else {
+      c.set('actor', await authenticate(db, config, token));
+    }
     await next();
   });
   // Any successful admin write may change published/current content: drop cached public responses.
@@ -84,7 +103,8 @@ export function createApp(db: Client, config: Config, provider: Provider | null 
   assistantAdminRoutes(app, db, cache, assistant);
   assistantPromptAdminRoutes(app, db);
   assistantCredentialRoutes(app, db, assistant);
+  watchRoomRoutes(app, db, hub, env);
   const payments = new Payments(db, provider, config.publicOrigin); paymentRoutes(app, db, payments, cache);
   app.notFound(c => c.json({ type: 'about:blank', title: 'Not Found', status: 404 }, 404));
-  return { app, payments, cache, usage };
+  return { app, payments, cache, usage, hub };
 }

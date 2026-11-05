@@ -1,5 +1,20 @@
 # EXE_WebApplication — Checklist triển khai
 
+Cập nhật: 2026-11-05 (Asia/Saigon).
+
+## Phòng chiếu phim chung & Danmaku Bilibili Style — 2026-11-05 (Local hoàn thành)
+
+- [x] WATCH-ROOM-01 — Bảng `watch_rooms`, `room_danmaku`, `room_bans` tự động khởi tạo idempotent (`initializeWatchRooms` trong `backend/server/src/watch-rooms.ts`).
+- [x] WATCH-ROOM-02 — API tạo phòng `POST /api/v1/admin/watch-rooms` yêu cầu quyền Admin, sinh ID `room_*` khó đoán và mã `hostToken` quản trị riêng.
+- [x] WATCH-ROOM-03 — API công khai `GET /api/v1/watch-rooms/:id` và `GET /api/v1/watch-rooms/:id/danmaku` cho phép bất kỳ ai có link vào xem, không bắt buộc đăng nhập, chỉ cần biệt danh.
+- [x] WATCH-ROOM-04 — Thuật toán đồng bộ chuẩn server `computePlaybackState()`: tự động xử lý trạng thái LOBBY, PLAYING, PAUSED, ENDED, và đếm ngược tự động phát khi đến giờ hẹn (SCHEDULED).
+- [x] WATCH-ROOM-05 — Cơ chế SAS Token cho video Azure Blob Storage: ký HMAC-SHA256 chỉ đọc có thời hạn ngắn, phát trực tiếp qua thẻ `<video>` Range requests, kèm hướng dẫn lệnh `az storage cors add`.
+- [x] WATCH-ROOM-06 — WebSocket Hub tại `/ws/room`: đo RTT & clock skew ping/pong, phát broadcast bình luận danmaku real-time, viewer count, và tín hiệu điều khiển của host (START, PAUSE, RESUME, SEEK).
+- [x] WATCH-ROOM-07 — Danmaku rate limit (1 tin / 1.5s), escape HTML chống XSS, thuật toán chia 8 làn `DanmakuLaneAllocator` chống đè chữ, render mượt mà 60fps bằng GPU CSS transforms `translate3d`.
+- [x] WATCH-ROOM-08 — Giao diện dark Bilibili style: badge LIVE, viewer count, thanh danmaku bar (bật/tắt, cỡ chữ, độ mờ, chọn màu), khung chat thu gọn, overlay "Vào xem" mở khoá autoplay audio.
+- [x] WATCH-ROOM-09 — Trang tạo phòng `/room` và trang xem `/room/:id`.
+- [x] WATCH-ROOM-10 — Kiểm thử: 8/8 backend unit tests pass (`test/watch-rooms.test.ts`), 6/6 frontend unit tests pass (`watch-room.page.spec.ts`), production build thành công (`npm run build`).
+
 Cập nhật: 2026-10-29 (Asia/Saigon).
 
 ## System prompt trong DB, sửa có duyệt — 2026-10-29 (đã deploy production `1f2d58c`)

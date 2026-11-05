@@ -25,7 +25,8 @@ export class GlobalBarComponent implements OnInit {
   private focusTimer?: ReturnType<typeof setTimeout>;
   private returnFocus?: HTMLElement;
   readonly navigation = [
-    { id: 'discover', label: 'Khám phá', path: '/', activePaths: ['/', '/cau-chuyen', '/cu-dan', '/chinh-sach-quyen-rieng-tu', '/dieu-khoan-su-dung'], children: [
+    { id: 'discover', label: 'Khám phá', path: '/', activePaths: ['/', '/cau-chuyen', '/cu-dan', '/chinh-sach-quyen-rieng-tu', '/dieu-khoan-su-dung', '/room'], children: [
+      { label: 'Phòng chiếu chung', path: '/room', description: 'Xem video trực tiếp đồng bộ cùng mọi người.' },
       { label: 'Câu chuyện căn nhà', path: '/cau-chuyen', description: 'Chuyện những người trẻ lần đầu sống chung.' },
       { label: 'Hồ sơ cư dân', path: '/cu-dan', description: 'Gặp gỡ những người trong nhà.' },
       { label: 'Quyền riêng tư', path: '/chinh-sach-quyen-rieng-tu', description: 'Cách thông tin của bạn được bảo vệ.' },

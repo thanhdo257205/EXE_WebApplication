@@ -77,7 +77,7 @@ export function authRoutes(app: Api, db: Client, cfg: Config, sendMail?: (email:
   });
   // Enforce CSRF before every mutation except signature/credential-protected provider endpoints.
   app.use('/api/*', async (c, next) => {
-    const exempt = ['/api/v1/payments/payos/webhook', '/api/v1/internal/payments/reconcile'].includes(c.req.path);
+    const exempt = ['/api/v1/payments/payos/webhook', '/api/v1/internal/payments/reconcile'].includes(c.req.path) || (c.req.path.startsWith('/api/v1/watch-rooms/') && Boolean(c.req.header('X-Host-Token')));
     if (!['GET', 'HEAD', 'OPTIONS'].includes(c.req.method) && !exempt) {
       const token = getCookie(c, 'XSRF-TOKEN'); const supplied = c.req.header('X-XSRF-TOKEN');
       if (!token || !supplied || !same(token, supplied)) return fail(403, 'CSRF_REQUIRED');

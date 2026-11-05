@@ -1,5 +1,6 @@
 import { serve } from '@hono/node-server';
 import { randomBytes } from 'node:crypto';
+import type { Server as HttpServer } from 'node:http';
 import { database, initializeLocal, scalar, all, execute, uuid } from './db.ts';
 import { azureMediaConfig, azureMediaStore, r2Config, r2Store } from './media.ts';
 import { createApp } from './app.ts';
@@ -14,6 +15,7 @@ import { initializeAssistantPrompt } from './assistant-prompt.ts';
 import { initializeAssistantCredentials } from './assistant-credentials.ts';
 import { initializeAssistantUsage } from './assistant-usage.ts';
 import { initializeContentAuthorship } from './content.ts';
+import { initializeWatchRooms, createWatchRoomHub } from './watch-rooms.ts';
 
 const production = process.env.NODE_ENV === 'production';
 const config: Config = {
@@ -47,6 +49,7 @@ await initializeAssistantSettings(db);
 await initializeAssistantPrompt(db);
 await initializeAssistantCredentials(db);
 await initializeAssistantUsage(db);
+await initializeWatchRooms(db);
 const r2 = r2Config(process.env);
 const azure = azureMediaConfig(process.env);
 const assistant = assistantFromEnv(process.env);
@@ -54,12 +57,15 @@ if (assistant.providers.length) console.log('AI provider slots configured', { sl
 else console.warn('No AI provider credentials in env: /api/v1/assistant/chat needs at least one active key');
 if (assistant.credentialKey) console.log('Admin-managed assistant keys enabled');
 else console.warn('ASSISTANT_KEY_SECRET is not set: admin key management is disabled, env keys still work');
-const { app, usage } = createApp(db, config, payosProvider(process.env), undefined, azure ? azureMediaStore(azure) : r2 ? r2Store(r2) : null, assistant);
+const watchRoomHub = createWatchRoomHub(db);
+const { app, usage } = createApp(db, config, payosProvider(process.env), undefined, azure ? azureMediaStore(azure) : r2 ? r2Store(r2) : null, assistant, watchRoomHub, process.env);
 const usageTimer = setInterval(() => void usage.flush(), 60_000);
 usageTimer.unref();
 const server = serve({ fetch: app.fetch, port: Number(process.env.PORT || 8080), hostname: '0.0.0.0' }, () => console.log('API listening'));
+watchRoomHub.attachHttpServer(server as unknown as HttpServer);
 for (const signal of ['SIGTERM', 'SIGINT'] as const) process.once(signal, () => {
   clearInterval(usageTimer);
+  watchRoomHub.close();
   server.close(async () => { await usage.flush(); db.close(); process.exit(0); });
   setTimeout(() => { if ('closeAllConnections' in server) server.closeAllConnections(); db.close(); process.exit(0); }, 50_000).unref();
 });

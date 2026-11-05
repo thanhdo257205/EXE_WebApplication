@@ -60,6 +60,16 @@ export const routes: Routes = [
     loadComponent: () => import('./features/public-content/public-content.page').then(m => m.PublicContentPage),
   },
   {
+    path: 'room/:id',
+    title: 'Phòng chiếu phim chung — Nhà Này Hơi Báo!',
+    loadComponent: () => import('./features/watch-room/watch-room.page').then(m => m.WatchRoomPage),
+  },
+  {
+    path: 'room',
+    title: 'Tạo phòng chiếu phim — Nhà Này Hơi Báo!',
+    loadComponent: () => import('./features/watch-room/watch-room-create.page').then(m => m.WatchRoomCreatePage),
+  },
+  {
     path: 'san-dau',
     title: 'Sân đấu mô phỏng — Nhà Này Hơi Báo!',
     loadComponent: () => import('./features/arena/arena.page').then(m => m.ArenaPage),

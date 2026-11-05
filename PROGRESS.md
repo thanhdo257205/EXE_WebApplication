@@ -4,6 +4,28 @@
 
 ## Cập nhật gần nhất
 
+### Tính năng Phòng chiếu phim chung (Watch Room) & Danmaku Bilibili Style — 2026-11-05 (Local hoàn thành)
+
+- Mục tiêu: Phòng chiếu video đồng bộ thời gian thực cho 5-30 người cùng xem MP4 (H.264/AAC) từ Azure Blob Storage với bình luận chạy ngang trên màn hình (Danmaku phong cách Bilibili), phát trực tiếp từ Blob qua thẻ `<video>` không proxy qua server app nhằm bảo toàn Range requests và tiết kiệm băng thông.
+- Backend:
+  - Bảng mới: `watch_rooms`, `room_danmaku`, `room_bans` khởi tạo tự động an toàn (`initializeWatchRooms` trong `backend/server/src/watch-rooms.ts`).
+  - REST Endpoints: `POST /api/v1/admin/watch-rooms` (tạo phòng, sinh id `room_*` khó đoán và `hostToken`), `GET /api/v1/watch-rooms/:id` (thông tin phòng công khai, streamUrl kèm SAS token đọc ngắn hạn, không cần đăng nhập), `GET /api/v1/watch-rooms/:id/danmaku` (lịch sử danmaku), `POST /api/v1/watch-rooms/:id/control` (host điều khiển START, PAUSE, RESUME, SEEK), `DELETE /api/v1/watch-rooms/:id/danmaku/:danmakuId` (host xoá bình luận).
+  - Thuật toán đồng bộ thời gian chuẩn: `computePlaybackState()` tự động tính vị trí phát và trạng thái phòng (LOBBY, PLAYING, PAUSED, ENDED, đếm ngược công chiếu SCHEDULED).
+  - SAS generator: Ký Azure Blob Read SAS HMAC-SHA256 chuẩn bảo mật, thời hạn ngắn, hỗ trợ cấu hình CORS trên Storage account.
+  - WebSocket Hub: Gắn trên Node HTTP server tại `/ws/room`, xử lý ping/pong đo RTT & clock skew, join/leave, broadcast viewer count, broadcast danmaku real-time, broadcast lệnh host sync.
+  - Danmaku Rate Limiter (1 msg / 1.5s mỗi người) & Sanitizer chống XSS.
+- Frontend:
+  - Route `/room` (Tạo phòng chiếu) và `/room/:id` (Phòng chiếu chung).
+  - Giao diện dark cinema Bilibili style: badge LIVE, viewer count, custom controls, nút chia sẻ link phòng 1 chạm.
+  - Lớp Danmaku Overlay: thuật toán chia làn `DanmakuLaneAllocator` (8 làn) chống đè chữ, chuyển động mượt mà 60fps bằng GPU CSS transforms `translate3d`, hỗ trợ xoay ngang toàn màn hình trên điện thoại.
+  - Thanh Danmaku Bar: bật/tắt danmaku, chọn cỡ chữ, chỉnh độ trong suốt, bảng màu nhanh (trắng, cyan, hồng, vàng, cam, xanh neon).
+  - Khung chat bên cạnh có thể thu gọn/mở rộng, hiển thị lịch sử bình luận, hỗ trợ chủ phòng xoá tin nhắn.
+  - Bộ bù lệch đồng hồ (Drift Compensation): hard seek nếu lệch > 1.5s, tự tinh chỉnh nhẹ `playbackRate` (0.97 - 1.03) nếu lệch nhỏ; overlay "Vào xem" mở khoá autoplay audio chính sách trình duyệt.
+- Kiểm thử:
+  - Backend tests: 8/8 pass trong `test/watch-rooms.test.ts`. Toàn bộ 143 backend tests pass.
+  - Frontend tests: 6/6 pass trong `src/app/features/watch-room/watch-room.page.spec.ts`.
+  - Frontend production build: exit code 0 (`npm run build`).
+
 ### Ủy nhiệm quyền phân quyền: đồng quản trị xem được bộ quyền của nhau, người được cấp thì sửa được cấp dưới — 2026-10-29 (đã deploy `e3a8237`, PR #43)
 
 - Yêu cầu của chủ dự án: "Tôi muốn các đồng admin khác có thể xem được ai có quyền được cấp cụ thể nào nhé, nhưng không được chỉnh sửa, chỉ admin chính hoặc ai được cấp quyền đó mới được cấp quyền sửa quyền của người khác trừ người cấp quyền cho họ".
