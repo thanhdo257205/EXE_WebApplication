@@ -36,6 +36,16 @@ describe('Public navigation disclosures', () => {
       for (const child of group.children) expect(routes.some(route => '/' + route.path === child.path)).toBe(true);
     }
   });
+  it('shows the "5 anh em siêu nhân" brand only on watch-room player pages', () => {
+    const brand = () => element().querySelector('.brand')!;
+    expect(brand().textContent).toContain('HƠI BÁO!');
+    fixture.componentInstance.currentPath.set('/room/room_abc123'); fixture.detectChanges();
+    expect(brand().textContent).toContain('5 ANH EM');
+    expect(brand().textContent).toContain('SIÊU NHÂN');
+    expect(brand().getAttribute('aria-label')).toContain('5 anh em siêu nhân');
+    fixture.componentInstance.currentPath.set('/room'); fixture.detectChanges();
+    expect(brand().textContent).toContain('HƠI BÁO!');
+  });
   it('supports disclosure click, Escape with focus restoration and outside dismissal', () => {
     toggle().click(); fixture.detectChanges();
     element().querySelector<HTMLAnchorElement>('.nav-dropdown a')!.focus();

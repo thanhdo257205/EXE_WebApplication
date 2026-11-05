@@ -75,6 +75,26 @@ HTML5 <video> ──────────── GET (Range requests) ──�
 
 ---
 
+### Tên bắt buộc & danh sách người đang xem (cập nhật 2026-11-05):
+
+- Màn "Vào xem ngay" có ô **Tên của bạn**; nút vào phòng khóa khi tên trống. Ô chỉ điền sẵn tên tài khoản hoặc tên đã dùng lần trước (localStorage `watch_room_nickname`), không còn tên ngẫu nhiên `CưDân_xxxx`. WebSocket chỉ mở **sau** khi vào phòng với tên, nên chỉ người đã nhập tên mới xuất hiện trong danh sách; ô gửi danmaku khóa tới lúc đó.
+- Server cũng bắt buộc: `join` với tên trống/chỉ khoảng trắng trả `{type:'error', code:'NICKNAME_REQUIRED'}` và không tính vào phòng. `cleanNickname()` đổi khoảng trắng (tab, xuống dòng) thành dấu cách, bỏ ký tự điều khiển/định dạng vô hình, gộp khoảng trắng, cắt 32 ký tự.
+- Hub giữ `{id, nickname, isHost, joinedAt}` cho mỗi kết nối (`id` ngẫu nhiên 12 hex, không phải IP). Tin `viewer_count` giờ kèm `viewers: [{id, nickname, isHost}]` (chủ phòng trước, rồi theo giờ vào; tối đa 200 mục, `count` luôn đúng) mỗi khi có người vào/ra/đổi tên; client cũ chỉ đọc `count` vẫn chạy. `room_snapshot` thêm `viewerId` và `nickname` để client đánh dấu "Bạn".
+- Message mới `{type:'rename', nickname}`: đổi tên trong danh sách và cho các danmaku gửi **sau đó** (trước đây "Đổi tên" chỉ đổi trên máy người dùng, server vẫn ghi tên cũ); trả `renamed`, tên trống trả `NICKNAME_REQUIRED`.
+- Cột phải có thẻ **Đang trong phòng (N)**: avatar chữ cái đầu, tên, nhãn "Chủ phòng" và "Bạn".
+- Giới hạn: tên không duy nhất (hai người có thể trùng tên); danh sách là trạng thái bộ nhớ của một instance backend (Render chạy 1 instance), mất khi restart và mọi người tự vào lại khi WebSocket kết nối lại.
+
+### Giao diện trang xem `/room/:id` (bố cục công chiếu, cập nhật 2026-11-05):
+
+- Bố cục kiểu trang công chiếu: cột trái gồm tiêu đề Anton + dòng meta (huy hiệu trạng thái `Sắp công chiếu` / `Đang công chiếu` / `Tạm dừng` / `Đã kết thúc`, số người xem, số bình luận đã nạp, giờ công chiếu nếu hẹn giờ, nút chia sẻ), khung phát 16:9 có nhãn "Công chiếu" ở góc, thanh điều khiển nằm trong khung (hiện khi hover/focus/tạm dừng, luôn hiện trên cảm ứng), thanh gửi danmaku dưới khung và dải điều khiển chủ phòng. Cột phải (sticky, xuống dưới khi ≤1100px): thẻ chủ phòng, thẻ trạng thái/đếm ngược, bảng "Danh sách danmaku" 3 cột (mốc phim · nội dung · giờ gửi) thu gọn được.
+- Khán giả không tua được (thanh tiến trình khóa, ghi "Công chiếu · không tua"); chỉ chủ phòng tua/phát/dừng. Đếm ngược hẹn giờ hiển thị giờ/phút/giây. Lớp phủ (vào phòng, chờ, đếm ngược, đã kết thúc) che luôn thanh điều khiển.
+- Trên trang `/room/:id`: footer công khai bị ẩn (`App.isWatchRoomRoute`) và logo header đổi thành **"5 anh em siêu nhân"** (`GlobalBarComponent.isWatchRoom`); trang tạo phòng `/room` giữ footer và logo gốc.
+- CSS tách 3 file (`watch-room.page.css`, `watch-room-side.css`, `watch-room-extra.css`) để dưới ngân sách 6 kB/component; màu nút hồng/xanh đặt qua token `--ctrl-glass-*` vì vật liệu kính toàn cục ghi đè nền nút bằng `!important`.
+
+### Ghi chú vận hành: video đen trên production (2026-11-05)
+
+- Phòng `room_tvy13pzj398` trên production có nguồn video là `https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4`. URL mẫu này không còn phát được: Chromium chặn bằng `ERR_BLOCKED_BY_ORB` và thẻ `<video>` báo `MEDIA_ERR_SRC_NOT_SUPPORTED` (`error.code = 4`). Vì vậy màn hình đen và thời lượng là 00:00, dù trạng thái phòng là PLAYING. Lỗi không nằm ở SAS hay CORS của Azure. Cách xử lý: tạo phòng mới với video MP4 (H.264/AAC) nằm trong Azure Blob container đã cấu hình (mục 2–3).
+
 ## 2. Cấu hình CORS trên Azure Blob Storage (Lệnh az cli)
 
 Để thẻ `<video>` trên trình duyệt có thể phát và tua video (Range request) từ domain ứng dụng, chạy lệnh sau trong Azure CLI:

@@ -101,4 +101,18 @@ describe('WatchRoomService synchronized position calculations', () => {
     request.flush({ ok: true, snapshot: { status: 'PAUSED', position: 50, serverTime: Date.now() } });
     expect(service.playbackSnapshot()?.position).toBe(50);
   });
+  it('stores the live viewer list and own viewer id from server messages', () => {
+    const handle = (msg: unknown) => (service as any).handleIncomingWsMessage(msg);
+    handle({ type: 'room_snapshot', snapshot: { status: 'LOBBY', position: 0, serverTime: 1, countdownSeconds: null, startedAt: null }, viewerCount: 1, isHost: false, viewerId: 'abc123' });
+    expect(service.myViewerId()).toBe('abc123');
+    handle({ type: 'viewer_count', count: 2, viewers: [{ id: 'h1', nickname: 'Đỏ', isHost: true }, { id: 'abc123', nickname: 'Xanh', isHost: false }] });
+    expect(service.viewerCount()).toBe(2);
+    expect(service.viewers().map((v) => v.nickname)).toEqual(['Đỏ', 'Xanh']);
+    handle({ type: 'viewer_count', count: 3 });
+    expect(service.viewerCount()).toBe(3);
+    expect(service.viewers().length).toBe(2);
+    service.disconnect(true);
+    expect(service.viewers()).toEqual([]);
+    expect(service.myViewerId()).toBeNull();
+  });
 });

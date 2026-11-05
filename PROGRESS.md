@@ -4,6 +4,39 @@
 
 ## Cập nhật gần nhất
 
+### Gộp nhánh phòng chiếu với `main` (`e13569f` công chiếu hẹn giờ) — 2026-11-05
+
+- `main` có thêm `e13569f`/`5381f99` (công chiếu hẹn giờ, video chờ canvas, snapshot mỗi giây, `phase` danmaku, giữ âm thanh gốc, kiểm proxy secret khi upgrade WebSocket) sửa cùng các file với nhánh này. Merge `main` vào nhánh, gộp như sau:
+  - Backend hub: giữ `leaveRoom(roomId, ws)`, `viewerId = uuid()`, `clientIp` chỉ tin `x-forwarded-for` khi có proxy secret, hàng đợi message `pending` của `main`; thêm vào đó danh sách người xem, bắt buộc tên và `rename`. Hai test của `main` (`watch-room-premiere.test.ts`) gửi `join` không có tên nên bị quy tắc mới từ chối; chỉ thêm `nickname` vào các lệnh `join`, không đổi assertion.
+  - Service: `disconnect(true)` xóa cả danh sách người xem lẫn trạng thái mà `main` thêm; thêm thông báo cho mã `NICKNAME_REQUIRED`.
+  - Trang: giữ template công chiếu mới, đưa vào các thay đổi của `main`: ẩn phim khi đang ở phòng chờ, `preload="metadata"` + `syncAfterMetadata`, `<app-premiere-countdown>` làm video chờ nằm **dưới** lớp danmaku, thông báo `watchError`, nhãn "Chờ" cho bình luận phòng chờ, lấy host token từ GET. Thứ tự lớp: màn nhập tên 30 > danmaku 20 > lớp chờ/kết thúc 15 > video đếm ngược 10. WebSocket vẫn chỉ mở sau khi nhập tên.
+
+### Sửa trang trống sau deploy (chunk cũ) + chẩn đoán video đen — 2026-11-05 (local, chưa deploy)
+
+- Báo lỗi của chủ dự án (kèm ảnh): trang chủ `exe-webapp.pages.dev` chỉ còn header, phần nội dung trống.
+- Chẩn đoán trên production bằng Chromium headless: tải thẳng `/` hiển thị bình thường, kể cả khi bật WebGPU (SwiftShader) và khi đi từ `/room/:id` về bằng logo. Nguyên nhân là tab mở từ trước lần deploy `2352461` lúc 14:17Z: Pages trả `index.html` (200, `text/html`) cho chunk không còn tồn tại (đã kiểm `curl /chunk-DOESNOTEXIST.js` → `200 text/html`), `import()` lỗi `Failed to load module script … MIME type "text/html"` (đã tái hiện trên production), và app không xử lý lỗi điều hướng.
+- Sửa: `withNavigationErrorHandler(reloadOnStaleChunk)`. Gặp lỗi tải chunk thì tải lại hẳn URL đích, mỗi URL tối đa một lần trong 60 giây (chi tiết `docs/DEPLOYMENT.md`).
+- Kiểm thử: `stale-chunk.spec.ts` 3 ca (nhận dạng thông báo lỗi Chromium/Firefox/Safari, reload một lần rồi dừng, bỏ qua lỗi khác). Frontend `ng test` **62 file / 486 test pass**; build production exit 0. Kiểm đầu-cuối trên bản build, giả lập deploy để mọi `/chunk-*.js` trả về `index.html`, rồi bấm logo từ `/room/:id`: **có** handler → trang tự reload (2 lần load) và hiện trang chủ; **không có** handler (build đối chứng) → điều hướng thất bại im lặng, kẹt ở trang phòng.
+- Video đen ở `/room/room_tvy13pzj398`: nguồn của phòng là URL mẫu Google `BigBuckBunny.mp4`, bị chặn `ERR_BLOCKED_BY_ORB`, `<video>` báo `error.code=4`. Không phải lỗi SAS/CORS; cần tạo phòng với video trong Azure Blob (`docs/WATCH_ROOM.md`).
+
+### Phòng chiếu: bắt buộc nhập tên + danh sách người đang xem — 2026-11-05 (local, chưa deploy)
+
+- Yêu cầu của chủ dự án: "tôi muốn mọi người xem được ai trong phòng live nữa, và trước khi vô phòng thì phải nhập tên".
+- Backend (`watch-rooms.ts`): hub lưu biệt danh từng kết nối; `viewer_count` kèm `viewers` (chủ phòng trước, tối đa 200); `join` thiếu tên → `NICKNAME_REQUIRED`; message `rename` mới (sửa luôn lỗi cũ: đổi tên trên UI không đổi tên tác giả danmaku ở server). `cleanNickname()` export để test. Chi tiết giao thức: `docs/WATCH_ROOM.md`.
+- Frontend: màn vào phòng có ô tên bắt buộc (nút khóa khi trống, bỏ tên ngẫu nhiên), WebSocket chỉ mở sau khi vào; thẻ "Đang trong phòng (N)" có nhãn Chủ phòng/Bạn; "Đổi tên" gửi `rename` khi đã vào; ô danmaku khóa khi chưa vào.
+- Kiểm thử: backend `tsc --noEmit` sạch, `npm test` **153 test / 152 pass / 1 skip (Turso) / 0 fail** (thêm `cleanNickname` và ca WebSocket 3 client: tên trống bị từ chối và không được đếm, danh sách 2 người đúng thứ tự + chỉ có `id/isHost/nickname`, đổi tên cập nhật danh sách và tác giả danmaku, rời phòng thì biến mất). Test `cleanNickname` bắt được 1 lỗi thật lúc viết (tab bị xóa trước khi gộp khoảng trắng → "SiêuNhân"), đã sửa thứ tự. Frontend `tsc` app + spec sạch, `ng test` **61 file / 483 test pass**; production build exit 0, không cảnh báo CSS, chunk `watch-room-page` 46,51 kB raw / 11,42 kB transfer.
+- Chụp Playwright bản build (API + WebSocket giả lập): màn nhập tên khóa nút khi trống; sau khi vào thấy 4 người, người hiện tại có nhãn Chủ phòng + Bạn; không tràn ngang ở 1440/390, không lỗi console.
+
+### Phòng chiếu: giao diện công chiếu, ẩn footer, logo "5 anh em siêu nhân" — 2026-11-05 (local, chưa deploy)
+
+- Yêu cầu của chủ dự án (kèm ảnh chụp production `/room/room_…`): "xóa footer ở trang này", "chỉnh giao diện giống công chiếu của bilibili", "khi vô trang này thì đổi tên logo thành 5 anh em siêu nhân".
+- Footer: `App.isWatchRoomRoute` (regex `/room/:id`) ẩn `footer.public-footer` chỉ ở trang xem; `/room` (tạo phòng) giữ footer.
+- Logo: `GlobalBarComponent.isWatchRoom` (computed từ `currentPath`) đổi brand thành "5" + "5 ANH EM / SIÊU NHÂN" và aria-label tương ứng chỉ ở `/room/:id`.
+- Giao diện `watch-room.page.ts` viết lại theo bố cục trang công chiếu (chi tiết ở `docs/WATCH_ROOM.md` mục "Giao diện trang xem"): bỏ thanh sticky riêng từng bị header site che (lỗi thấy trong ảnh chụp), bỏ `<main>` lồng trong `main#main`, khung phát 16:9 cố định thay cho khung bị co, khóa tua cho khán giả, đếm ngược giờ/phút/giây, bảng danh sách danmaku 3 cột. Logic đồng bộ/WebSocket không đổi.
+- Kiểm thử: frontend `tsc` app + spec sạch, `ng test --watch=false` **61 file / 479 test pass** (thêm: app shell ẩn footer ở `/room/:id` nhưng không ở `/room`; global bar đổi logo; trang phòng: nhãn trạng thái, đếm ngược `01:02:05`, render bố cục). `ng build --configuration production` exit 0, không cảnh báo CSS; chunk `watch-room-page` 41,54 kB raw / 10,49 kB transfer. Cảnh báo initial bundle 515,90 kB > 500 kB **có sẵn từ trước** (build `main` chưa sửa đo 526,85 kB).
+- Chụp Playwright bản build production với API giả lập (PLAYING/PAUSED/SCHEDULED, 1440px và 390px): không tràn ngang, không lỗi console, không có footer, logo đúng.
+- Chưa kiểm: phát video thật từ Azure Blob (ảnh chụp production cho thấy video đen, 00:00 dù trạng thái PLAYING — nghi SAS/CORS hoặc `streamUrl`, cần mở DevTools tab Network để xem request video). Chưa deploy.
+
 ### Hoàn thiện công chiếu hẹn giờ, phòng chờ và âm thanh gốc — 2026-11-05 (đã deploy production e13569f)
 
 - Thay thế trạng thái nghiệm thu của bản Watch Room đầu tiên bên dưới: đồng hồ client cập nhật mỗi 250 ms theo giờ server; hub phát snapshot mỗi giây cho các phòng có người xem, không cần một người mới join/GET để kích hoạt công chiếu. Trạng thái công chiếu được suy ra từ `scheduled_at` bền vững; PAUSE/RESUME/SEEK qua REST và WebSocket dùng chung hàm chuyển trạng thái.
@@ -32,6 +65,8 @@
   - Vì CI đỏ, CD run `42042393211` báo success nhưng job **"Deploy tested commit" bị skipped** → Cloudflare Worker (route `/ws/room`) và Pages **chưa** nhận bản mới; `/room` trên Pages trả 200 chỉ là SPA fallback của bản cũ. Render backend được deploy riêng ngoài CD (deploy thủ công/auto của Render, chủ dự án báo `live`), nên production đang lệch phiên bản giữa backend và frontend/Worker.
   - Ghi chú trước đó "143 backend tests pass" không chứng minh được typecheck: lượt chạy đó không chạy `npm run check`.
   - Sửa: commit `2352461` trên `main` parse `c.req.param('id')`/`danmakuId` bằng `z.string().min(1)` để thu hẹp kiểu. Một bản sửa thay thế (bỏ annotation `Context<ApiEnv>`, commit `1f2d197`) được bỏ khi merge `main` để không trùng. Kiểm lại local trên code của `2352461`: `npx tsc --noEmit` sạch, `npm test` **151 test / 150 pass / 1 skip (Turso) / 0 fail**.
+  - Sau fix: CI `main` run `42043151227` trên `2352461` xanh; CD run `42043436025` chạy **đủ** job "Deploy tested commit" (deploy Worker, Render đúng commit, publish Pages artifact, smoke production) — tất cả success lúc 2026-11-05T14:17:46Z. PR #48 (chỉ tài liệu) merge tại `848f257` sau 8/8 check xanh.
+  - Còn mở: nghiệm thu production bằng trình duyệt (WATCH-ROOM-13); từ môi trường agent không gọi được API production (Cloudflare trả 403 "Browser request required").
 
 - Mục tiêu: Phòng chiếu video đồng bộ thời gian thực cho 5-30 người cùng xem MP4 (H.264/AAC) từ Azure Blob Storage với bình luận chạy ngang trên màn hình (Danmaku phong cách Bilibili), phát trực tiếp từ Blob qua thẻ `<video>` không proxy qua server app nhằm bảo toàn Range requests và tiết kiệm băng thông.
 - Backend:

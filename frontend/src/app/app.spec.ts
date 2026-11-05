@@ -51,6 +51,35 @@ describe('App shell', () => {
     expect(element.querySelector('main#main')?.classList.contains('admin-main')).toBe(true);
   });
 
+  it('hides the public footer on watch-room player pages only', async () => {
+    await TestBed.configureTestingModule({
+      imports: [App],
+      providers: [
+        provideRouter([
+          { path: 'room/:id', component: AdminMockComponent },
+          { path: 'room', component: AdminMockComponent },
+        ]),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+      ],
+    }).compileComponents();
+    const router = TestBed.inject(Router);
+    const fixture = TestBed.createComponent(App);
+    const element = fixture.nativeElement as HTMLElement;
+    fixture.detectChanges();
+
+    await router.navigateByUrl('/room/room_abc123');
+    fixture.detectChanges();
+    expect(fixture.componentInstance.isWatchRoomRoute()).toBe(true);
+    expect(element.querySelector('footer.public-footer')).toBeNull();
+    expect(element.querySelector('main#main')).toBeTruthy();
+
+    await router.navigateByUrl('/room');
+    fixture.detectChanges();
+    expect(fixture.componentInstance.isWatchRoomRoute()).toBe(false);
+    expect(element.querySelector('footer.public-footer')).toBeTruthy();
+  });
+
   it('stops active smooth scroll instance on route navigation before re-evaluating smooth scroll', async () => {
     await TestBed.configureTestingModule({
       imports: [App],

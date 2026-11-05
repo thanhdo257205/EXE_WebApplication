@@ -36,8 +36,18 @@ Cập nhật: 2026-11-05 (Asia/Saigon).
 - [x] WATCH-ROOM-09 — Trang tạo phòng `/room` và trang xem `/room/:id`.
 - [x] WATCH-ROOM-10 — Kiểm thử: 8/8 backend unit tests pass (`test/watch-rooms.test.ts`), 6/6 frontend unit tests pass (`watch-room.page.spec.ts`), production build thành công (`npm run build`).
 - [x] WATCH-ROOM-11 — Sửa lỗi typecheck backend làm CI `main` đỏ trên `b82c277` (fix `2352461` bằng zod; `tsc --noEmit` sạch, `npm test` 150 pass / 1 skip / 0 fail local).
-- [ ] WATCH-ROOM-12 — Merge fix vào `main`, CI xanh 4/4, CD chạy đủ bước "Deploy tested commit" (Worker + Pages + smoke) đúng commit.
+- [x] WATCH-ROOM-12 — Fix `2352461` trên `main`: CI xanh 4/4 (run `42043151227`), CD run `42043436025` chạy đủ "Deploy tested commit" (Worker + Render + Pages + smoke) success.
 - [ ] WATCH-ROOM-13 — Nghiệm thu production: `/api/v1/info` đúng commit, `GET /api/v1/watch-rooms/<id-không-tồn-tại>` trả 404 `ROOM_NOT_FOUND`, WebSocket `/ws/room` qua Worker kết nối được, tạo phòng thật + phát video Azure Blob + danmaku trên trình duyệt.
+- [x] WATCH-ROOM-14 — Ẩn footer công khai ở `/room/:id` (giữ ở `/room`), có test app shell.
+- [x] WATCH-ROOM-15 — Logo header đổi thành "5 anh em siêu nhân" ở `/room/:id`, có test global bar.
+- [x] WATCH-ROOM-16 — Giao diện trang xem theo bố cục công chiếu (huy hiệu trạng thái, khung 16:9, khóa tua khán giả, đếm ngược h/m/s, danh sách danmaku 3 cột), test + build + chụp 1440/390 local.
+- [ ] WATCH-ROOM-17 — Deploy các thay đổi giao diện trên và kiểm tra trên production; xác định vì sao video Azure không phát (đen, 00:00) trên production.
+- [x] WATCH-ROOM-18 — Bắt buộc nhập tên trước khi vào phòng (UI + server `NICKNAME_REQUIRED`), có test frontend/backend.
+- [x] WATCH-ROOM-19 — Danh sách người đang xem real-time (`viewer_count.viewers`, thẻ "Đang trong phòng"), đổi tên qua `rename`, có test.
+- [ ] WATCH-ROOM-20 — Kiểm tra danh sách người xem với nhiều thiết bị thật trên production sau deploy (Render + Worker WebSocket).
+- [x] OPS-STALE-01 — Tab mở xuyên qua deploy không còn để trống trang: `reloadOnStaleChunk` + test đơn vị + kiểm đầu-cuối có đối chứng (local).
+- [ ] OPS-STALE-02 — Sau khi deploy bản sửa, xác nhận trên production rằng tab cũ chuyển trang thì tự tải lại thay vì để trống.
+- [ ] WATCH-ROOM-21 — Tạo lại phòng production với video trong Azure Blob (URL mẫu BigBuckBunny hiện tại bị ORB chặn).
 
 Cập nhật: 2026-10-29 (Asia/Saigon).
 

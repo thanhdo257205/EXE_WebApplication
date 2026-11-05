@@ -48,7 +48,7 @@ test('waiting viewers chat and receive scheduled PLAYING without a new join or G
   const f = await fixture(t);
   await f.room('premiere', new Date(Date.now() + 1800).toISOString());
   const host = await f.connect(), viewer = await f.connect();
-  assert.equal((await exchange(host, { type: 'join', roomId: 'premiere', hostToken: 'secret-premiere' }, 'room_snapshot')).snapshot.status, 'LOBBY');
+  assert.equal((await exchange(host, { type: 'join', roomId: 'premiere', nickname: 'Chủ phòng', hostToken: 'secret-premiere' }, 'room_snapshot')).snapshot.status, 'LOBBY');
   await exchange(viewer, { type: 'join', roomId: 'premiere', nickname: 'Người xem' }, 'room_snapshot');
   const received = next(viewer, m => m.type === 'danmaku:new');
   const sent = await exchange(host, { type: 'danmaku:send', text: 'Chờ công chiếu', timeOffset: 99999 }, 'danmaku:new');
@@ -68,8 +68,8 @@ test('waiting viewers chat and receive scheduled PLAYING without a new join or G
 test('room switching clears host privilege and old membership, including queued joins', async t => {
   const f = await fixture(t); await f.room('A'); await f.room('B');
   const ws = await f.connect();
-  assert.equal((await exchange(ws, { type: 'join', roomId: 'A', hostToken: 'secret-A' }, 'room_snapshot')).isHost, true);
-  assert.equal((await exchange(ws, { type: 'join', roomId: 'B' }, 'room_snapshot')).isHost, false);
+  assert.equal((await exchange(ws, { type: 'join', roomId: 'A', nickname: 'Khách A', hostToken: 'secret-A' }, 'room_snapshot')).isHost, true);
+  assert.equal((await exchange(ws, { type: 'join', roomId: 'B', nickname: 'Khách A' }, 'room_snapshot')).isHost, false);
   assert.equal(f.hub.getViewerCount('A'), 0);
   assert.equal(f.hub.getViewerCount('B'), 1);
   assert.equal((await exchange(ws, { type: 'host:control', action: 'START' }, 'error')).code, 'HOST_REQUIRED');

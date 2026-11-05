@@ -1,4 +1,4 @@
-import { Component, DestroyRef, ElementRef, inject, input, OnInit, output, signal } from '@angular/core';
+import { Component, DestroyRef, ElementRef, inject, input, OnInit, output, signal, computed } from '@angular/core';
 import { NavigationEnd, Router, RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -19,6 +19,8 @@ export class GlobalBarComponent implements OnInit {
   private readonly element = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
   private readonly destroyRef = inject(DestroyRef);
   readonly currentPath = signal(this.router.url.split('?')[0]);
+  /** Watch-room player pages (`/room/:id`) show the "5 anh em siêu nhân" brand instead of the site name. */
+  readonly isWatchRoom = computed(() => /^\/room\/[^/?#]+/.test(this.currentPath()));
   readonly openGroup = signal<string | null>(null);
   readonly accountOpen = signal(false);
   private closeTimer?: ReturnType<typeof setTimeout>;

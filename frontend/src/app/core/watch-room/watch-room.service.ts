@@ -37,6 +37,13 @@ export interface DanmakuItem {
   createdAt: string;
 }
 
+/** Someone currently connected to the room (public fields only). */
+export interface RoomViewer {
+  id: string;
+  nickname: string;
+  isHost: boolean;
+}
+
 export interface CreateRoomDto {
   title: string;
   videoSource: string;
@@ -53,6 +60,10 @@ export class WatchRoomService {
   readonly currentRoom = signal<WatchRoomInfo | null>(null);
   readonly playbackSnapshot = signal<PlaybackSnapshot | null>(null);
   readonly viewerCount = signal<number>(1);
+  /** Live list of people in the room (host first), pushed by the server on join/leave/rename. */
+  readonly viewers = signal<RoomViewer[]>([]);
+  /** This connection's id in `viewers`, to mark "bạn". */
+  readonly myViewerId = signal<string | null>(null);
   readonly isHost = signal<boolean>(false);
   readonly connectionStatus = signal<'CONNECTING' | 'CONNECTED' | 'DISCONNECTED' | 'RECONNECTING'>('DISCONNECTED');
   readonly serverClockOffsetMs = signal<number>(0);
@@ -189,7 +200,9 @@ export class WatchRoomService {
 
   private handleIncomingWsMessage(msg: any) {
     if (msg.type === 'error') {
-      this.lastError.set(msg.code === 'RATE_LIMITED' ? 'Vui lòng chờ 1,5 giây giữa các bình luận.' : 'Không thể thực hiện thao tác. Vui lòng thử lại.');
+      this.lastError.set(msg.code === 'RATE_LIMITED' ? 'Vui lòng chờ 1,5 giây giữa các bình luận.'
+        : msg.code === 'NICKNAME_REQUIRED' ? 'Vui lòng nhập tên trước khi vào phòng.'
+        : 'Không thể thực hiện thao tác. Vui lòng thử lại.');
       return;
     }
     if (msg.type === 'pong') {
@@ -216,11 +229,18 @@ export class WatchRoomService {
       if (msg.isHost !== undefined) {
         this.isHost.set(Boolean(msg.isHost));
       }
+      if (typeof msg.viewerId === 'string') this.myViewerId.set(msg.viewerId);
       return;
     }
 
     if (msg.type === 'viewer_count') {
       this.viewerCount.set(msg.count);
+      if (Array.isArray(msg.viewers)) this.viewers.set(msg.viewers);
+      return;
+    }
+
+    if (msg.type === 'renamed' && typeof msg.nickname === 'string') {
+      this.currentNickname = msg.nickname;
       return;
     }
 
@@ -266,6 +286,14 @@ export class WatchRoomService {
         this.connectWebSocket(this.currentRoomId, this.currentNickname, this.currentHostToken || undefined);
       }
     }, 2500);
+  }
+
+  /** Change this viewer's name for the list and for later danmaku (also kept for reconnects). */
+  rename(nickname: string) {
+    const name = nickname.trim();
+    if (!name) return;
+    this.currentNickname = name;
+    this.sendWsMessage({ type: 'rename', nickname: name });
   }
 
   sendDanmaku(text: string, timeOffset: number, color = '#ffffff') {
@@ -349,6 +377,8 @@ export class WatchRoomService {
       this.ws = null;
     }
     if (explicit) {
+      this.viewers.set([]);
+      this.myViewerId.set(null);
       this.connectionStatus.set('DISCONNECTED');
       this.currentRoom.set(null);
       this.playbackSnapshot.set(null);
