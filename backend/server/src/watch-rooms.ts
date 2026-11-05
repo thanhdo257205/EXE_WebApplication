@@ -66,7 +66,7 @@ export class DanmakuRateLimiter {
 
   checkAndRecord(key: string, nowMs = Date.now()): boolean {
     const last = this.lastSent.get(key);
-    if (last && nowMs - last < this.minIntervalMs) {
+    if (last !== undefined && nowMs - last < this.minIntervalMs) {
       return false;
     }
     this.lastSent.set(key, nowMs);
@@ -368,6 +368,10 @@ export async function initializeWatchRooms(db: Client): Promise<void> {
   `);
 
   await db.execute(`CREATE INDEX IF NOT EXISTS ix_room_danmaku_offset ON room_danmaku(room_id, time_offset)`);
+  const columns = await all(db, 'PRAGMA table_info(room_danmaku)');
+  if (!columns.some(column => column.name === 'phase')) {
+    await db.execute("ALTER TABLE room_danmaku ADD COLUMN phase TEXT NOT NULL DEFAULT 'VIDEO'");
+  }
 }
 
 /** Validation schemas */
@@ -377,6 +381,8 @@ const createRoomSchema = z.object({
   videoDuration: z.number().min(0).max(86400).optional().default(0),
   mode: z.enum(['SCHEDULED', 'HOST_TRIGGER']).default('HOST_TRIGGER'),
   scheduledAt: z.string().datetime().nullable().optional(),
+}).refine(body => body.mode !== 'SCHEDULED' || (body.scheduledAt && Date.parse(body.scheduledAt) > Date.now()), {
+  message: 'Scheduled premieres require a future date', path: ['scheduledAt'],
 });
 
 const controlSchema = z.object({
@@ -385,12 +391,25 @@ const controlSchema = z.object({
   hostToken: z.string().optional(),
 });
 
-const sendDanmakuSchema = z.object({
-  nickname: z.string().trim().min(1).max(32),
-  text: z.string().trim().min(1).max(60),
-  timeOffset: z.number().min(0),
-  color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional().default('#ffffff'),
-});
+/** REST and WebSocket share the same server-authoritative state transitions. */
+async function applyPlaybackControl(db: Client, room: RoomRow, control: z.infer<typeof controlSchema>): Promise<PlaybackSnapshot> {
+  const nowMs = Date.now();
+  const snapshot = computePlaybackState(room, nowMs);
+  let status = snapshot.status;
+  let position = snapshot.position;
+  if (control.action === 'START') { status = 'PLAYING'; position = 0; }
+  if (control.action === 'PAUSE' && status === 'PLAYING') status = 'PAUSED';
+  if (control.action === 'RESUME' && status !== 'PLAYING') status = 'PLAYING';
+  if (control.action === 'SEEK') {
+    position = Math.min(control.position ?? 0, room.video_duration > 0 ? room.video_duration : Infinity);
+    if (status === 'ENDED') status = 'PAUSED';
+  }
+  // Re-anchor the already-computed position once, including scheduled auto-starts.
+  const startedAt = status === 'PLAYING' ? new Date(nowMs).toISOString() : null;
+  await execute(db, 'UPDATE watch_rooms SET status = ?, current_position = ?, started_at = ?, updated_at = ? WHERE id = ?',
+    [status, position, startedAt, new Date(nowMs).toISOString(), room.id]);
+  return computePlaybackState({ ...room, status, current_position: position, started_at: startedAt }, nowMs);
+}
 
 export interface WatchRoomWebSocketHub {
   attachHttpServer(server: HttpServer): void;
@@ -403,10 +422,42 @@ export interface WatchRoomWebSocketHub {
  * Creates the Watch Room WebSocket Hub for real-time synchronization,
  * danmaku broadcasting, and participant count tracking.
  */
-export function createWatchRoomHub(db: Client): WatchRoomWebSocketHub {
+export function createWatchRoomHub(db: Client, config: Pick<Config, 'production' | 'publicOrigin' | 'proxySecret'> = {
+  production: false, publicOrigin: 'http://localhost:4200', proxySecret: '',
+}): WatchRoomWebSocketHub {
   let wss: WebSocketServer | null = null;
   const rooms = new Map<string, Set<WebSocket>>();
   const rateLimiter = new DanmakuRateLimiter(1500);
+  let syncTimer: ReturnType<typeof setInterval> | undefined;
+  let syncing = false;
+  let closed = false;
+
+  // Only active rooms are read, once per second, independently of viewers joining.
+  async function syncActiveRooms() {
+    if (syncing || closed || rooms.size === 0) return;
+    syncing = true;
+    try {
+      const ids = [...rooms.keys()];
+      for (let offset = 0; offset < ids.length; offset += 100) {
+        const batch = ids.slice(offset, offset + 100);
+        const observedAt = Date.now();
+        const rows = await all(db, `SELECT * FROM watch_rooms WHERE id IN (${batch.map(() => '?').join(',')})`, batch);
+        if (closed) return;
+        for (const row of rows) broadcast(row.id as string, {
+          type: 'sync', action: 'TICK', snapshot: computePlaybackState(row as RoomRow, observedAt),
+        });
+      }
+    } catch {
+      if (!closed) console.warn('Watch room synchronization unavailable');
+    } finally { syncing = false; }
+  }
+
+  function leaveRoom(roomId: string, ws: WebSocket) {
+    const set = rooms.get(roomId);
+    set?.delete(ws);
+    if (set?.size === 0) rooms.delete(roomId);
+    else broadcastViewerCount(roomId);
+  }
 
   function getRoomSockets(roomId: string): Set<WebSocket> {
     let set = rooms.get(roomId);
@@ -438,29 +489,50 @@ export function createWatchRoomHub(db: Client): WatchRoomWebSocketHub {
     broadcastRoom: broadcast,
     getViewerCount: (roomId: string) => rooms.get(roomId)?.size || 0,
     close: () => {
+      closed = true;
+      if (syncTimer) clearInterval(syncTimer);
+      for (const ws of wss?.clients || []) ws.terminate();
+      rooms.clear();
       wss?.close();
     },
     attachHttpServer: (server: HttpServer) => {
-      wss = new WebSocketServer({ noServer: true });
+      wss = new WebSocketServer({ noServer: true, maxPayload: 4096 });
+      syncTimer = setInterval(() => void syncActiveRooms(), 1000);
+      syncTimer.unref();
 
       server.on('upgrade', (request: IncomingMessage, socket: Duplex, head: Buffer) => {
-        const url = new URL(request.url || '', `http://${request.headers.host || 'localhost'}`);
-        if (url.pathname === '/ws/room' || url.pathname.startsWith('/api/v1/watch-rooms/ws')) {
+        const reject = (status: number) => { socket.end(`HTTP/1.1 ${status} Rejected\r\nConnection: close\r\n\r\n`); };
+        let url: URL;
+        try { url = new URL(request.url || '', 'http://localhost'); } catch { reject(400); return; }
+        const edgeGate = config.production || !/^http:\/\/(?:localhost|127\.0\.0\.1)(?::\d{1,5})?$/.test(config.publicOrigin);
+        if (edgeGate && (!config.proxySecret || typeof request.headers['x-origin-verify'] !== 'string'
+          || !same(request.headers['x-origin-verify'], config.proxySecret))) { reject(403); return; }
+        if (request.headers.origin && request.headers.origin !== config.publicOrigin) { reject(403); return; }
+        if (url.pathname === '/ws/room' || url.pathname === '/api/v1/watch-rooms/ws') {
           wss?.handleUpgrade(request, socket, head, ws => {
             wss?.emit('connection', ws, request);
           });
-        }
+        } else reject(404);
       });
 
       wss.on('connection', (ws: WebSocket, request: IncomingMessage) => {
+        ws.on('error', () => {}); // Invalid/oversized frames close this client, not the server.
+        const viewerId = uuid();
         let currentRoomId: string | null = null;
         let clientNickname = 'Khách';
         let isHost = false;
-        const clientIp = request.headers['x-forwarded-for'] || request.socket.remoteAddress || '127.0.0.1';
+        const clientIp = config.proxySecret && request.headers['x-origin-verify'] === config.proxySecret
+          ? request.headers['x-forwarded-for'] || request.socket.remoteAddress
+          : request.socket.remoteAddress;
+        // Serialize messages so simultaneous joins cannot retain privileges or memberships.
+        let pending = Promise.resolve();
 
-        ws.on('message', async (data: Buffer | string) => {
+        ws.on('message', (data: Buffer | string) => {
+          pending = pending.then(async () => {
           try {
+            if (closed || ws.readyState !== WebSocket.OPEN) return;
             const msg = JSON.parse(data.toString());
+            if (!msg || typeof msg !== 'object') return;
 
             // 1. Ping / Pong clock skew measurement
             if (msg.type === 'ping') {
@@ -485,24 +557,16 @@ export function createWatchRoomHub(db: Client): WatchRoomWebSocketHub {
               }
 
               // Check if client is host
-              if (hostToken && same(hostToken, room.host_token)) {
-                isHost = true;
-              }
+              if (ws.readyState !== WebSocket.OPEN) return;
+              isHost = typeof hostToken === 'string' && same(hostToken, room.host_token);
+              if (currentRoomId && currentRoomId !== roomId) leaveRoom(currentRoomId, ws);
 
               currentRoomId = roomId;
               clientNickname = typeof nickname === 'string' && nickname.trim() ? nickname.trim().slice(0, 32) : 'Khách';
 
               getRoomSockets(roomId).add(ws);
 
-              // Auto-start scheduled room if due
               const snapshot = computePlaybackState(room);
-              if (room.mode === 'SCHEDULED' && room.status === 'LOBBY' && snapshot.status === 'PLAYING') {
-                await execute(db, `UPDATE watch_rooms SET status = 'PLAYING', started_at = ?, updated_at = ? WHERE id = ?`, [
-                  room.scheduled_at,
-                  now(),
-                  roomId,
-                ]);
-              }
 
               ws.send(JSON.stringify({
                 type: 'room_snapshot',
@@ -528,7 +592,7 @@ export function createWatchRoomHub(db: Client): WatchRoomWebSocketHub {
             // 3. Danmaku send
             if (msg.type === 'danmaku:send') {
               // Rate limit check by IP / socket
-              const rateKey = `${currentRoomId}:${clientIp}:${clientNickname}`;
+              const rateKey = `${currentRoomId}:${clientIp}:${viewerId}`;
               if (!rateLimiter.checkAndRecord(rateKey)) {
                 ws.send(JSON.stringify({ type: 'error', code: 'RATE_LIMITED', message: 'Vui lòng chờ 1.5 giây giữa các bình luận' }));
                 return;
@@ -537,7 +601,11 @@ export function createWatchRoomHub(db: Client): WatchRoomWebSocketHub {
               const cleanText = sanitizeDanmakuText(String(msg.text || ''));
               if (!cleanText) return;
 
-              const timeOffset = Number(msg.timeOffset) || 0;
+              const room = (await all(db, 'SELECT * FROM watch_rooms WHERE id = ?', [currentRoomId]))[0] as RoomRow | undefined;
+              if (!room) return;
+              const playback = computePlaybackState(room);
+              const phase = playback.status === 'LOBBY' ? 'LOBBY' : 'VIDEO';
+              const timeOffset = playback.position;
               const color = typeof msg.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(msg.color) ? msg.color : '#ffffff';
 
               const danmakuId = uuid();
@@ -545,9 +613,9 @@ export function createWatchRoomHub(db: Client): WatchRoomWebSocketHub {
 
               await execute(
                 db,
-                `INSERT INTO room_danmaku (id, room_id, user_nickname, text, time_offset, color, created_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-                [danmakuId, currentRoomId, clientNickname, cleanText, timeOffset, color, createdAt]
+                `INSERT INTO room_danmaku (id, room_id, user_nickname, text, time_offset, color, created_at, phase)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                [danmakuId, currentRoomId, clientNickname, cleanText, timeOffset, color, createdAt, phase]
               );
 
               broadcast(currentRoomId, {
@@ -558,6 +626,7 @@ export function createWatchRoomHub(db: Client): WatchRoomWebSocketHub {
                   nickname: clientNickname,
                   text: cleanText,
                   timeOffset,
+                  phase,
                   color,
                   createdAt,
                 },
@@ -571,66 +640,17 @@ export function createWatchRoomHub(db: Client): WatchRoomWebSocketHub {
               const room = rows[0] as RoomRow | undefined;
               if (!room) return;
 
-              const token = msg.hostToken || (isHost ? room.host_token : '');
+              const token = typeof msg.hostToken === 'string' ? msg.hostToken : (isHost ? room.host_token : '');
               if (!same(token, room.host_token)) {
                 ws.send(JSON.stringify({ type: 'error', code: 'HOST_REQUIRED' }));
                 return;
               }
 
-              const action = msg.action;
-              const targetPos = typeof msg.position === 'number' ? Math.max(0, msg.position) : 0;
-              const nowTime = now();
-
-              if (action === 'START') {
-                await execute(
-                  db,
-                  `UPDATE watch_rooms SET status = 'PLAYING', started_at = ?, current_position = 0, updated_at = ? WHERE id = ?`,
-                  [nowTime, nowTime, currentRoomId]
-                );
-                room.status = 'PLAYING';
-                room.started_at = nowTime;
-                room.current_position = 0;
-              } else if (action === 'PAUSE') {
-                const currentSnapshot = computePlaybackState(room);
-                await execute(
-                  db,
-                  `UPDATE watch_rooms SET status = 'PAUSED', current_position = ?, started_at = NULL, updated_at = ? WHERE id = ?`,
-                  [currentSnapshot.position, nowTime, currentRoomId]
-                );
-                room.status = 'PAUSED';
-                room.current_position = currentSnapshot.position;
-                room.started_at = null;
-              } else if (action === 'RESUME') {
-                await execute(
-                  db,
-                  `UPDATE watch_rooms SET status = 'PLAYING', started_at = ?, updated_at = ? WHERE id = ?`,
-                  [nowTime, nowTime, currentRoomId]
-                );
-                room.status = 'PLAYING';
-                room.started_at = nowTime;
-              } else if (action === 'SEEK') {
-                if (room.status === 'PLAYING') {
-                  await execute(
-                    db,
-                    `UPDATE watch_rooms SET current_position = ?, started_at = ?, updated_at = ? WHERE id = ?`,
-                    [targetPos, nowTime, nowTime, currentRoomId]
-                  );
-                  room.current_position = targetPos;
-                  room.started_at = nowTime;
-                } else {
-                  await execute(
-                    db,
-                    `UPDATE watch_rooms SET current_position = ?, updated_at = ? WHERE id = ?`,
-                    [targetPos, nowTime, currentRoomId]
-                  );
-                  room.current_position = targetPos;
-                }
-              }
-
-              const newSnapshot = computePlaybackState(room);
+              const control = controlSchema.parse(msg);
+              const newSnapshot = await applyPlaybackControl(db, room, control);
               broadcast(currentRoomId, {
                 type: 'sync',
-                action,
+                action: control.action,
                 snapshot: newSnapshot,
               });
               return;
@@ -642,7 +662,7 @@ export function createWatchRoomHub(db: Client): WatchRoomWebSocketHub {
               const room = rows[0] as RoomRow | undefined;
               if (!room) return;
 
-              const token = msg.hostToken || (isHost ? room.host_token : '');
+              const token = typeof msg.hostToken === 'string' ? msg.hostToken : (isHost ? room.host_token : '');
               if (!same(token, room.host_token)) {
                 ws.send(JSON.stringify({ type: 'error', code: 'HOST_REQUIRED' }));
                 return;
@@ -659,21 +679,14 @@ export function createWatchRoomHub(db: Client): WatchRoomWebSocketHub {
               return;
             }
           } catch (err) {
-            console.error('Watch room WS error', err);
+            if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'error', code: 'INVALID_REQUEST' }));
           }
+          });
         });
 
         ws.on('close', () => {
           if (currentRoomId) {
-            const set = rooms.get(currentRoomId);
-            if (set) {
-              set.delete(ws);
-              if (set.size === 0) {
-                rooms.delete(currentRoomId);
-              } else {
-                broadcastViewerCount(currentRoomId);
-              }
-            }
+            leaveRoom(currentRoomId, ws);
           }
         });
       });
@@ -740,7 +753,7 @@ export function watchRoomRoutes(
         videoDuration: row.video_duration,
         mode: row.mode,
         scheduledAt: row.scheduled_at,
-        status: row.status,
+        status: computePlaybackState(row).status,
         hostToken: row.host_token,
         currentPosition: row.current_position,
         viewerCount: hub.getViewerCount(row.id),
@@ -758,15 +771,6 @@ export function watchRoomRoutes(
 
     const streamUrl = resolveStreamUrl(room.video_source, env);
     const snapshot = computePlaybackState(room);
-
-    // If scheduled premiere arrived, update DB status
-    if (room.mode === 'SCHEDULED' && room.status === 'LOBBY' && snapshot.status === 'PLAYING') {
-      await execute(db, `UPDATE watch_rooms SET status = 'PLAYING', started_at = ?, updated_at = ? WHERE id = ?`, [
-        room.scheduled_at,
-        now(),
-        room.id,
-      ]);
-    }
 
     // Check if the caller is the host (via header or query hostToken or admin session)
     const hostTokenParam = c.req.header('X-Host-Token') || c.req.query('hostToken');
@@ -796,7 +800,7 @@ export function watchRoomRoutes(
     const id = z.string().min(1).parse(c.req.param('id'));
     const rows = await all(
       db,
-      'SELECT id, user_nickname, text, time_offset, color, created_at FROM room_danmaku WHERE room_id = ? AND deleted_at IS NULL ORDER BY time_offset ASC LIMIT 1000',
+      'SELECT id, user_nickname, text, time_offset, color, created_at, phase FROM room_danmaku WHERE room_id = ? AND deleted_at IS NULL ORDER BY time_offset ASC LIMIT 1000',
       [id]
     );
 
@@ -805,6 +809,7 @@ export function watchRoomRoutes(
       nickname: r.user_nickname,
       text: r.text,
       timeOffset: r.time_offset,
+      phase: r.phase,
       color: r.color,
       createdAt: r.created_at,
     })));
@@ -828,60 +833,10 @@ export function watchRoomRoutes(
 
     if (!isAuthorized) return fail(403, 'HOST_REQUIRED');
 
-    const action = body.action;
-    const targetPos = typeof body.position === 'number' ? Math.max(0, body.position) : 0;
-    const nowTime = now();
-
-    if (action === 'START') {
-      await execute(
-        db,
-        `UPDATE watch_rooms SET status = 'PLAYING', started_at = ?, current_position = 0, updated_at = ? WHERE id = ?`,
-        [nowTime, nowTime, id]
-      );
-      room.status = 'PLAYING';
-      room.started_at = nowTime;
-      room.current_position = 0;
-    } else if (action === 'PAUSE') {
-      const currentSnapshot = computePlaybackState(room);
-      await execute(
-        db,
-        `UPDATE watch_rooms SET status = 'PAUSED', current_position = ?, started_at = NULL, updated_at = ? WHERE id = ?`,
-        [currentSnapshot.position, nowTime, id]
-      );
-      room.status = 'PAUSED';
-      room.current_position = currentSnapshot.position;
-      room.started_at = null;
-    } else if (action === 'RESUME') {
-      await execute(
-        db,
-        `UPDATE watch_rooms SET status = 'PLAYING', started_at = ?, updated_at = ? WHERE id = ?`,
-        [nowTime, nowTime, id]
-      );
-      room.status = 'PLAYING';
-      room.started_at = nowTime;
-    } else if (action === 'SEEK') {
-      if (room.status === 'PLAYING') {
-        await execute(
-          db,
-          `UPDATE watch_rooms SET current_position = ?, started_at = ?, updated_at = ? WHERE id = ?`,
-          [targetPos, nowTime, nowTime, id]
-        );
-        room.current_position = targetPos;
-        room.started_at = nowTime;
-      } else {
-        await execute(
-          db,
-          `UPDATE watch_rooms SET current_position = ?, updated_at = ? WHERE id = ?`,
-          [targetPos, nowTime, id]
-        );
-        room.current_position = targetPos;
-      }
-    }
-
-    const newSnapshot = computePlaybackState(room);
+    const newSnapshot = await applyPlaybackControl(db, room, body);
     hub.broadcastRoom(id, {
       type: 'sync',
-      action,
+      action: body.action,
       snapshot: newSnapshot,
     });
 

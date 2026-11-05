@@ -6,6 +6,16 @@ V10 bổ sung `admin_notifications` (BIGINT identity, feedback_id unique/FK, cre
 
 ## Phạm vi và quyết định
 
+### Watch Room — runtime Node.js/SQLite/Turso, cập nhật local 2026-11-05
+
+Phần thiết kế PostgreSQL/Spring bên dưới là lịch sử. Phân hệ Watch Room hiện được khởi tạo bởi `backend/server/src/watch-rooms.ts:initializeWatchRooms` trên SQLite/Turso:
+
+- `watch_rooms`: id, title, video_source, video_duration, mode (SCHEDULED/HOST_TRIGGER), scheduled_at, status, host_user_id, host_token, started_at, current_position và timestamps. Trạng thái công chiếu hiệu lực được suy ra từ scheduled_at khi status còn LOBBY; không dùng raw status thay cho playback snapshot.
+- `room_danmaku`: id, room_id, user_nickname, user_id, text, time_offset, color, created_at, deleted_at và `phase TEXT NOT NULL DEFAULT 'VIDEO'`. Migration thêm phase bằng kiểm tra PRAGMA table_info rồi ALTER TABLE nếu thiếu, không xoá dữ liệu cũ. VIDEO là bình luận theo mốc phim, LOBBY là chat phòng chờ; server tự gắn phase/vị trí. Frontend giữ LOBBY trong chat nhưng không replay ở giây 0. Index `(room_id, time_offset)` phục vụ lịch sử.
+- `room_bans`: room_id/identifier là khoá ghép, banned_at; bảng hiện có chưa được nối vào luồng xử lý chat.
+
+Chưa deploy thay đổi phase lên production. Chi tiết giao thức, công chiếu và kiểm thử tại [WATCH_ROOM.md](WATCH_ROOM.md).
+
 - Giữ `app_users` và Spring Session hiện có: email/mật khẩu BCrypt, Google subject, ADMIN/CUSTOMER. Tách thông tin hồ sơ và sổ địa chỉ khỏi credentials.
 - Lưu nội dung game theo bản phát hành: nhân vật, 11 bộ thẻ, thẻ, wiki/FAQ/hướng dẫn/devlog. Chưa seed số lượng/giá từ prototype vì đó là dữ liệu minh họa; 148 thẻ có thể là số bản in, cần xác nhận số định danh thẻ khác nhau.
 - Shop bán board game, bản mở rộng, phụ kiện qua product → SKU. Mỗi SKU có giá và tồn kho riêng; sản phẩm có thể gắn với phiên bản luật.

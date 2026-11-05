@@ -186,7 +186,12 @@ export class WatchRoomCreatePage {
         this.errorMessage.set('Vui lòng chọn thời gian công chiếu.');
         return;
       }
-      scheduledAt = new Date(this.scheduledTimeLocal).toISOString();
+      const scheduledMs = Date.parse(this.scheduledTimeLocal);
+      if (!Number.isFinite(scheduledMs) || scheduledMs <= Date.now()) {
+        this.errorMessage.set('Vui lòng chọn thời điểm công chiếu trong tương lai.');
+        return;
+      }
+      scheduledAt = new Date(scheduledMs).toISOString();
     }
 
     this.isSubmitting.set(true);

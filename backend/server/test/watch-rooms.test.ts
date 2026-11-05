@@ -253,6 +253,13 @@ test('Watch Room REST lifecycle: create, get, host control, and danmaku', async 
   };
 
   // 1. Create Watch Room (POST /api/v1/admin/watch-rooms)
+  for (const scheduledAt of [undefined, null, 'invalid', new Date(Date.now() - 60000).toISOString()]) {
+    const rejected = await app.request('/api/v1/admin/watch-rooms', {
+      method: 'POST', headers: adminHeaders,
+      body: JSON.stringify({ title: 'Invalid premiere', videoSource: 'test.mp4', mode: 'SCHEDULED', scheduledAt }),
+    });
+    assert.equal(rejected.status, 400);
+  }
   const createRes = await app.request('/api/v1/admin/watch-rooms', {
     method: 'POST',
     headers: adminHeaders,
@@ -429,7 +436,8 @@ test('Watch Room WebSocket: join, ping/pong, danmaku broadcasting and host contr
   assert.equal(newDanmakuMsg.type, 'danmaku:new');
   assert.equal(newDanmakuMsg.danmaku.nickname, 'TestViewer');
   assert.equal(newDanmakuMsg.danmaku.text, 'Bilibili style test danmaku! 23333');
-  assert.equal(newDanmakuMsg.danmaku.timeOffset, 12.5);
+  assert.equal(newDanmakuMsg.danmaku.timeOffset, 0);
+  assert.equal(newDanmakuMsg.danmaku.phase, 'LOBBY');
   assert.equal(newDanmakuMsg.danmaku.color, '#00e5ff');
 
   // 4. Host control via WS -> expect sync broadcast

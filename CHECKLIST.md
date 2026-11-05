@@ -2,6 +2,26 @@
 
 Cập nhật: 2026-11-05 (Asia/Saigon).
 
+## Hoàn thiện công chiếu và âm thanh — 2026-11-05 (local)
+
+- [x] PREMIERE-01 — Đếm ngược liên tục theo giờ server; tự phát cho người đang ở phòng, hub TICK mỗi giây và client cập nhật 250 ms.
+- [x] PREMIERE-02 — Video đếm ngược live HH:MM:SS bằng canvas.captureStream, muted; fallback HTML nếu không hỗ trợ; không lộ phim trước giờ chiếu.
+- [x] PREMIERE-03 — Chat/danmaku trong phòng chờ không bị nền che; phase LOBBY không replay khi phim bắt đầu, vị trí bình luận do server gắn.
+- [x] PREMIERE-04 — Sửa cộng thời gian hai lần, gửi điều khiển trùng, trạng thái kết thúc; REST/WebSocket dùng cùng chuyển trạng thái.
+- [x] PREMIERE-05 — Chặn giữ quyền host khi đổi phòng; dọn membership cũ; kiểm proxy/origin trước upgrade; frame 4 KiB và socket error handler.
+- [x] PREMIERE-06 — Pages worker và cấu hình routes chuyển `/ws/*` qua gateway; test giữ nguyên response upgrade.
+- [x] PREMIERE-07 — Kiểm ngày hẹn tương lai ở frontend/API; refresh stream URL 30 phút, giữ draft khi mất kết nối.
+- [x] PREMIERE-08 — Nghiệm thu browser local: video chờ phát, chat/chữ chạy, đến giờ tự phát video 1105, người vào muộn bắt đúng mốc phim.
+- [x] PREMIERE-09 — Giữ âm thanh ở 1×, payload AAC khớp SHA-256 bản gốc; đóng tab thử phát trùng; người dùng xác nhận âm thanh giống bản gốc.
+- [ ] PREMIERE-10 — Commit/push/deploy và nghiệm thu production với cấu hình SAS, WebSocket qua Pages → gateway → Render.
+
+## Upload video người dùng — 2026-11-05
+
+- [x] VIDEO-UPLOAD-01 — Chuyển `1105(1).mp4` từ HEVC sang H.264/yuv420p + AAC, MP4 faststart; giữ 2560×1440 và thời lượng khoảng 241,372 giây.
+- [x] VIDEO-UPLOAD-02 — Upload `videos/1105-20261105-h264.mp4` lên `stexecardimages257`, 91.806.580 byte; container riêng tư, MD5 khớp local, Content-Type `video/mp4`.
+- [x] VIDEO-UPLOAD-03 — SAS đọc tạm thời + Range 0–1023 trả 206/1024 byte và CORS đúng origin production.
+- [ ] VIDEO-UPLOAD-04 — Xác minh backend production ký SAS cho video, tạo phòng và nghiệm thu phát/tua qua giao diện phòng thật.
+
 ## Phòng chiếu phim chung & Danmaku Bilibili Style — 2026-11-05 (Local hoàn thành)
 
 - [x] WATCH-ROOM-01 — Bảng `watch_rooms`, `room_danmaku`, `room_bans` tự động khởi tạo idempotent (`initializeWatchRooms` trong `backend/server/src/watch-rooms.ts`).
