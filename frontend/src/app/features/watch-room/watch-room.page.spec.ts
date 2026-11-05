@@ -331,4 +331,7 @@ describe('WatchRoomPage', () => {
     expect(mockWatchRoomService.sendHostControl).toHaveBeenCalledWith('START');
     snapshotSig.set(mockRoom.snapshot);
   });
+  it('names the browser tab after the film, like the shared link preview', () => {
+    expect(document.title).toBe('Phim Hoạt Hình Test — 5 anh em siêu nhân');
+  });
 });

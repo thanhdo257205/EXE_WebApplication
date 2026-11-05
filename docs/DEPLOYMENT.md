@@ -47,6 +47,10 @@ Worker secrets: `ORIGIN_PROXY_SECRET`, `TURNSTILE_SECRET_KEY`. Render có cùng 
 
 Không lưu token, deploy hook, mật khẩu hoặc CA private key trong repo. Aiven API mặc định che secret thành `<redacted>`; khi cấu hình credentials phải dùng GET `include_secrets=true` bằng quyền phù hợp và không in response ra log. Xem [Aiven secret redaction](https://aiven.io/docs/tools/api/secret-redaction).
 
+## Pages worker phục vụ `/room/*` (xem trước link) — 2026-11-05
+
+- `_routes.json` thêm `/room/*`: Pages chạy `_worker.js` cho trang phòng chiếu để chèn `<title>`/`og:*` theo tên phim (chi tiết `docs/WATCH_ROOM.md`). Mỗi lần mở `/room/:id` sẽ có một lần gọi nội bộ `GET /api/v1/watch-rooms/:id` qua service binding, tính vào rate limit API theo IP người gọi như request từ trình duyệt. API lỗi thì trang vẫn trả bình thường với tiêu đề chung.
+
 ## Tab mở xuyên qua lần deploy (chunk cũ) — 2026-11-05
 
 - Pages phục vụ mỗi deploy như một bản nguyên khối: chunk lazy của bản build trước không còn, và đường dẫn `/chunk-*.js` không tồn tại trả về SPA fallback (`index.html`, 200, `text/html`). Tab mở từ trước khi deploy, khi chuyển trang, sẽ gặp lỗi `Failed to load module script … MIME type "text/html"`: header vẫn hiện nhưng nội dung trống. Đây đúng là lỗi chủ dự án gặp sau deploy `2352461`.

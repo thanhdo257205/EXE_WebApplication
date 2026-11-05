@@ -4,6 +4,13 @@
 
 ## Cập nhật gần nhất
 
+### Phòng chiếu: link chia sẻ hiện tên phim (Zalo/Facebook) — 2026-11-05 (local, chưa deploy)
+
+- Yêu cầu của chủ dự án (kèm ảnh bản xem trước trên Zalo và ảnh phòng "Nên chờ hay nên quên"): "khi tôi share link thì như này, có cách nào để zalo hiện tiêu đề khác không", "đây nhé, tên phim".
+- Pages worker chèn `<title>`/`description`/`og:*`/`twitter:*` theo phòng cho `/room/room_<id>`; `_routes.json` thêm `/room/*`; ảnh chia sẻ mới `frontend/public/assets/images/room-share.jpg` (1200×630, 46,7 kB, dựng từ HTML bằng font Anton/Be Vietnam Pro tự host). Tab trình duyệt cũng đặt theo tên phim. Chi tiết ở `docs/WATCH_ROOM.md` và `docs/DEPLOYMENT.md`.
+- Kiểm thử: gateway `npm test` **42/42 pass** (thêm 4 ca: tên phim + giờ công chiếu theo giờ Việt Nam + `og:image`/`og:url` + không lộ `streamUrl` + header nội bộ đúng và không chuyển cookie; escape tên chứa `"`/`<script>` + mô tả đang chiếu/kết thúc/sắp chiếu; phòng không tồn tại hoặc API lỗi vẫn trả 200 với tiêu đề chung; `/room`, `/wiki`… không bị đổi và `prepare-pages` có `/room/*`), `npm run check` sạch. Bước `wrangler` build không chạy được ở local vì chưa cài, CI sẽ chạy. Frontend `ng test` **65 file / 510 test pass**, build production exit 0. Chạy `injectRoomMeta` trên `index.html` thật của bản build: 1 `<title>`, 1 `description`, 9 thẻ `og:` trong `<head>`.
+- Hạn chế: Zalo/Facebook lưu cache bản xem trước theo URL, nên link đã chia sẻ trước đó có thể vẫn hiện bản cũ một thời gian.
+
 ### Phòng chiếu: Enter không chạy khi gõ tiếng Việt (phải nhấn cách trước) — 2026-11-05 (đã deploy `4870a23`, PR #51)
 - Phát hành: PR #51 merge tại `4870a23` (người bấm merge: `thanhdo257205`, lúc 15:48Z). CI `42058685688` xanh; CD `42058886024` chạy đủ các bước Worker, Render, Pages và smoke production, tất cả success. Còn chờ chủ dự án thử lại bằng Unikey/EVKey trên máy thật (WATCH-ROOM-28).
 
