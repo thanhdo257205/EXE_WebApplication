@@ -37,3 +37,6 @@
 .wr-people-tag.wr-you { background: #ff7aa826; color: #ff7aa8; }
 
 .wr-alert { margin: 0; padding: 8px 14px; border-radius: 8px; border: 1px solid #ffd27a55; background: #ffd27a14; color: #ffd27a; font-size: 13px; }
+.wr-host button:disabled { opacity: .45; cursor: not-allowed; }
+.wr-seek-notice { color: #7fdcff; font-variant-numeric: tabular-nums; }
+.wr-video-error { background: #050506e6; }

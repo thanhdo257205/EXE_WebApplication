@@ -48,6 +48,9 @@ Cập nhật: 2026-11-05 (Asia/Saigon).
 - [x] OPS-STALE-01 — Tab mở xuyên qua deploy không còn để trống trang: `reloadOnStaleChunk` + test đơn vị + kiểm đầu-cuối có đối chứng (local).
 - [ ] OPS-STALE-02 — Sau khi deploy bản sửa, xác nhận trên production rằng tab cũ chuyển trang thì tự tải lại thay vì để trống.
 - [ ] WATCH-ROOM-21 — Tạo lại phòng production với video trong Azure Blob (URL mẫu BigBuckBunny hiện tại bị ORB chặn).
+- [x] WATCH-ROOM-22 — Nút ±10 giây: mốc từ vị trí đồng bộ, khóa khi đang chờ, phản hồi "Đã tua tới", thông báo video lỗi (test + e2e local).
+- [x] WATCH-ROOM-23 — Danmaku chậm lại theo chiều rộng khung (9 giây/lượt) và chọn làn không chồng chữ (test mô phỏng + đo e2e 115 px/giây).
+- [ ] WATCH-ROOM-24 — Sau deploy, chủ dự án xác nhận trên máy thật: tua ±10 giây khi phòng đang chiếu, chữ chạy mượt.
 
 Cập nhật: 2026-10-29 (Asia/Saigon).
 

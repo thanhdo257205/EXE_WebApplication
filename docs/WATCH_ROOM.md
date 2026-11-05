@@ -75,6 +75,11 @@ HTML5 <video> ──────────── GET (Range requests) ──�
 
 ---
 
+### Tua ±10 giây và tốc độ danmaku (sửa 2026-11-05):
+
+- Nút ±10 giây của chủ phòng tính mốc tua từ **vị trí đồng bộ của phòng** (`getSynchronizedTargetPosition(snapshot)`), không từ `currentTime` của `<video>` (vốn sai hoặc đứng yên khi video lỗi/đang tải), và giới hạn trong `[0, thời lượng]`. Khi phòng đang chờ (`LOBBY`, kể cả hẹn giờ) hai nút bị khóa, có tooltip giải thích; trước đây nút vẫn hiện nhưng bấm không làm gì. Sau khi bấm có dòng "Đã tua tới mm:ss". Video không tải được thì khung phát hiện thông báo "Không tải được video" thay vì màn hình đen, và đồng hồ hiển thị theo vị trí đồng bộ.
+- Danmaku: mỗi chữ băng qua khung phát trong **9 giây** (thời lượng cố định), quãng đường = chiều rộng khung (đo bằng ResizeObserver) + chiều rộng chữ (đo bằng canvas `measureText`). Trước đây chữ đi tới `-150vw` trong 6 giây, nên nhanh khoảng gấp 3 lần trên khung khoảng 940px. Chọn làn theo phương trình chuyển động (`laneReadyAt`/`pickDanmakuLane`): chữ mới chỉ vào làn khi đuôi chữ trước đã vào hẳn khung cộng 24px, và không đuổi kịp chữ trước trước khi chữ đó rời khung. Làn nào cũng bận thì chữ chỉ hiện trong danh sách, không vẽ chồng lên nhau. Chữ được gỡ khỏi DOM khi `animationend`.
+
 ### Tên bắt buộc & danh sách người đang xem (cập nhật 2026-11-05):
 
 - Màn "Vào xem ngay" có ô **Tên của bạn**; nút vào phòng khóa khi tên trống. Ô chỉ điền sẵn tên tài khoản hoặc tên đã dùng lần trước (localStorage `watch_room_nickname`), không còn tên ngẫu nhiên `CưDân_xxxx`. WebSocket chỉ mở **sau** khi vào phòng với tên, nên chỉ người đã nhập tên mới xuất hiện trong danh sách; ô gửi danmaku khóa tới lúc đó.

@@ -245,4 +245,39 @@ describe('WatchRoomPage', () => {
     expect(mockWatchRoomService.rename).toHaveBeenCalledWith('Hồng');
     expect(component.nickname()).toBe('Hồng');
   });
+  it('seeks ±10s from the synced room position, clamps to the film and is disabled while waiting', () => {
+    mockWatchRoomService.sendHostControl.mockClear();
+    snapshotSig.set({ ...mockRoom.snapshot, status: 'PLAYING' });
+    mockWatchRoomService.getSynchronizedTargetPosition.mockReturnValueOnce(30);
+    component.hostSeekRelative(10);
+    expect(mockWatchRoomService.sendHostControl).toHaveBeenLastCalledWith('SEEK', 40);
+    expect(component.seekNotice()).toBe('Đã tua tới 00:40');
+
+    mockWatchRoomService.getSynchronizedTargetPosition.mockReturnValueOnce(595);
+    component.hostSeekRelative(10);
+    expect(mockWatchRoomService.sendHostControl).toHaveBeenLastCalledWith('SEEK', 600);
+    mockWatchRoomService.getSynchronizedTargetPosition.mockReturnValueOnce(4);
+    component.hostSeekRelative(-10);
+    expect(mockWatchRoomService.sendHostControl).toHaveBeenLastCalledWith('SEEK', 0);
+
+    snapshotSig.set(mockRoom.snapshot); // LOBBY
+    mockWatchRoomService.sendHostControl.mockClear();
+    component.hostSeekRelative(10);
+    expect(mockWatchRoomService.sendHostControl).not.toHaveBeenCalled();
+    fixture.detectChanges();
+    const buttons = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.wr-host button'))
+      .filter((b) => /10 giây/.test(b.textContent || ''));
+    expect(buttons.length).toBe(2);
+    expect(buttons.every((b) => b.disabled)).toBe(true);
+  });
+
+  it('explains a video that failed to load instead of leaving a black screen', () => {
+    snapshotSig.set({ ...mockRoom.snapshot, status: 'PLAYING' });
+    component.hasUserEntered.set(true);
+    component.videoError.set(true);
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).querySelector('.wr-video-error')?.textContent).toContain('Không tải được video');
+    component.videoError.set(false);
+    snapshotSig.set(mockRoom.snapshot);
+  });
 });

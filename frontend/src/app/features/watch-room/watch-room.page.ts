@@ -52,7 +52,7 @@ import { PremiereCountdownComponent } from './premiere-countdown.component';
               (loadedmetadata)="syncAfterMetadata()"
               (click)="onVideoClick()" (waiting)="isBuffering.set(true)"
               (playing)="isBuffering.set(false); isPlaying.set(true)" (pause)="isPlaying.set(false)"
-              (volumechange)="onVolumeChange()"></video>
+              (volumechange)="onVolumeChange()" (error)="videoError.set(true)" (loadeddata)="videoError.set(false)"></video>
 
             <app-danmaku-overlay #danmakuOverlay [laneCount]="8"></app-danmaku-overlay>
 
@@ -91,6 +91,13 @@ import { PremiereCountdownComponent } from './premiere-countdown.component';
                 <p class="wr-layer-kicker">Đã kết thúc</p>
                 <h2 class="wr-layer-title">Buổi công chiếu đã kết thúc</h2>
                 <p class="wr-layer-text">Cảm ơn bạn đã xem cùng mọi người. Bình luận vẫn còn ở danh sách bên cạnh.</p>
+              </div>
+            }
+
+            @if (videoError() && hasUserEntered() && !isLobby()) {
+              <div class="wr-layer wr-video-error" role="alert">
+                <p class="wr-layer-kicker">Không tải được video</p>
+                <p class="wr-layer-text">Nguồn video của phòng này không phát được trên trình duyệt. Phòng vẫn đồng bộ thời gian và bình luận; chủ phòng cần tạo phòng với video MP4 trong kho Azure.</p>
               </div>
             }
 
@@ -171,8 +178,11 @@ import { PremiereCountdownComponent } from './premiere-countdown.component';
             <div class="wr-host">
               <span class="wr-host-label">Bảng điều khiển chủ phòng · <b>{{ premiereLabel() }}</b></span>
               <span class="wr-spacer"></span>
-              <button type="button" (click)="hostSeekRelative(-10)">−10 giây</button>
-              <button type="button" (click)="hostSeekRelative(10)">+10 giây</button>
+              @if (seekNotice()) { <span class="wr-host-label wr-seek-notice" aria-live="polite">{{ seekNotice() }}</span> }
+              <button type="button" (click)="hostSeekRelative(-10)" [disabled]="isLobby()"
+                [attr.title]="isLobby() ? 'Chưa bắt đầu chiếu nên chưa tua được' : 'Tua lùi 10 giây cho cả phòng'">−10 giây</button>
+              <button type="button" (click)="hostSeekRelative(10)" [disabled]="isLobby()"
+                [attr.title]="isLobby() ? 'Chưa bắt đầu chiếu nên chưa tua được' : 'Tua tới 10 giây cho cả phòng'">+10 giây</button>
               @if (isLobby()) {
                 @if (!isScheduled()) { <button type="button" class="wr-host-main" (click)="hostTriggerStart()">Bắt đầu công chiếu</button> }
                 @else { <span class="wr-host-label">Tự chạy lúc {{ scheduledLabel() }}</span> }
@@ -294,6 +304,11 @@ export class WatchRoomPage implements OnInit, OnDestroy {
   readonly isBuffering = signal<boolean>(false);
   readonly isMuted = signal<boolean>(false);
   readonly currentVideoTime = signal<number>(0);
+  /** The <video> failed to load its source (black screen); shown as a notice instead. */
+  readonly videoError = signal<boolean>(false);
+  /** Short confirmation after a host seek, e.g. "Đã tua tới 01:23". */
+  readonly seekNotice = signal<string>('');
+  private seekNoticeTimer?: ReturnType<typeof setTimeout>;
   readonly videoDuration = signal<number>(0);
   readonly copiedLink = signal<boolean>(false);
   readonly chatCollapsed = signal<boolean>(false);
@@ -468,6 +483,7 @@ export class WatchRoomPage implements OnInit, OnDestroy {
   ngOnDestroy() {
     if (this.syncInterval) clearInterval(this.syncInterval);
     if (this.refreshInterval) clearInterval(this.refreshInterval);
+    clearTimeout(this.seekNoticeTimer);
     this.subs.unsubscribe();
     this.watchRoomService.disconnect(true);
   }
@@ -492,7 +508,9 @@ export class WatchRoomPage implements OnInit, OnDestroy {
     const video = this.videoPlayerRef?.nativeElement;
     if (!video || !this.hasUserEntered()) return;
 
-    this.currentVideoTime.set(video.currentTime);
+    // A broken or not-yet-loaded video has no meaningful currentTime: show the room's synced position.
+    const videoUsable = !video.error && video.readyState >= 1;
+    this.currentVideoTime.set(videoUsable ? video.currentTime : this.watchRoomService.getSynchronizedTargetPosition(this.snapshot()));
     if (video.duration && Number.isFinite(video.duration)) {
       this.videoDuration.set(video.duration);
       if (this.room() && !this.room()!.videoDuration) {
@@ -606,9 +624,16 @@ export class WatchRoomPage implements OnInit, OnDestroy {
 
   hostSeekRelative(deltaSec: number) {
     if (!this.isHost() || this.isLobby()) return;
-    const target = Math.max(0, this.currentVideoTime() + deltaSec);
+    // Seek from the room's synced position, not the local <video> (it may lag, buffer or have failed).
+    const base = this.watchRoomService.getSynchronizedTargetPosition(this.snapshot());
+    const duration = this.videoDuration();
+    const target = Math.max(0, Math.min(base + deltaSec, duration > 0 ? duration : Number.POSITIVE_INFINITY));
     this.watchRoomService.sendHostControl('SEEK', target);
+    this.seekNotice.set(`Đã tua tới ${this.formatTime(target)}`);
+    clearTimeout(this.seekNoticeTimer);
+    this.seekNoticeTimer = setTimeout(() => this.seekNotice.set(''), 2000);
   }
+
 
   deleteMessage(danmakuId: string) {
     this.watchRoomService.deleteDanmaku(danmakuId);
