@@ -9,7 +9,7 @@ import {
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { COMPOSITION_BUFFER_MODE, FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { Subscription } from 'rxjs';
 import {
@@ -22,11 +22,14 @@ import { DanmakuOverlayComponent } from './danmaku-overlay.component';
 import { AuthService } from '../../core/auth/auth.service';
 import { RiseHeadingDirective } from '../../shared/motion/rise-heading.directive';
 import { PremiereCountdownComponent } from './premiere-countdown.component';
+import { ImeEnterDirective } from '../../shared/forms/ime-enter.directive';
 
 @Component({
   selector: 'app-watch-room',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, DanmakuOverlayComponent, RiseHeadingDirective, PremiereCountdownComponent],
+  imports: [CommonModule, FormsModule, RouterModule, DanmakuOverlayComponent, RiseHeadingDirective, PremiereCountdownComponent, ImeEnterDirective],
+  // Vietnamese IMEs: let ngModel follow the word being composed (see ImeEnterDirective).
+  providers: [{ provide: COMPOSITION_BUFFER_MODE, useValue: false }],
   template: `
     <div class="wr" [class.wr-chat-hidden]="chatCollapsed()">
       <div class="wr-grid">
@@ -78,6 +81,7 @@ import { PremiereCountdownComponent } from './premiere-countdown.component';
                 <form class="wr-join" (ngSubmit)="enterWatchRoom()">
                   <label class="wr-join-label" for="wr-join-name">Tên của bạn</label>
                   <input id="wr-join-name" name="joinName" type="text" [(ngModel)]="tempNickname" maxlength="32" required
+                    appImeEnter (imeEnter)="enterWatchRoom()"
                     autocomplete="nickname" placeholder="Ví dụ: Siêu nhân đỏ" />
                   <button type="submit" class="wr-cta" [disabled]="!tempNickname.trim()">Vào xem ngay</button>
                 </form>
@@ -169,7 +173,7 @@ import { PremiereCountdownComponent } from './premiere-countdown.component';
                   </div>
                 }
               </div>
-              <input type="text" [(ngModel)]="inputText" (keydown.enter)="sendComment()" maxlength="60"
+              <input type="text" [(ngModel)]="inputText" appImeEnter (imeEnter)="sendComment()" maxlength="60"
                 [placeholder]="hasUserEntered() ? 'Gửi một bình luận chạy ngang…' : 'Nhập tên và vào phòng để bình luận'" aria-label="Nội dung danmaku" [disabled]="!hasUserEntered()" />
               <button type="button" class="wr-send" (click)="sendComment()" [disabled]="!hasUserEntered() || !inputText.trim()">Gửi</button>
             </div>
@@ -296,7 +300,7 @@ import { PremiereCountdownComponent } from './premiere-countdown.component';
           <div class="wr-modal-card">
             <h3 id="wr-nick-title">Chọn biệt danh trong phòng</h3>
             <p>Tên này hiện cạnh bình luận của bạn trên video và trong danh sách.</p>
-            <input type="text" [(ngModel)]="tempNickname" (keydown.enter)="saveNickname()" maxlength="32" placeholder="Nhập biệt danh…" aria-label="Biệt danh" />
+            <input type="text" [(ngModel)]="tempNickname" appImeEnter (imeEnter)="saveNickname()" maxlength="32" placeholder="Nhập biệt danh…" aria-label="Biệt danh" />
             <div class="wr-modal-actions">
               <button type="button" (click)="showNicknamePrompt = false">Hủy</button>
               <button type="button" class="wr-send" (click)="saveNickname()">Xác nhận</button>

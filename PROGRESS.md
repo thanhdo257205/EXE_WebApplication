@@ -4,6 +4,14 @@
 
 ## Cập nhật gần nhất
 
+### Phòng chiếu: Enter không chạy khi gõ tiếng Việt (phải nhấn cách trước) — 2026-11-05 (local, chưa deploy)
+
+- Phát hành trước: PR #50 merge tại `49569af` sau khi CI xanh 8/8. CI `42057265281` xanh; CD `42057514666` chạy đủ các bước Worker, Render, Pages và smoke production, tất cả success.
+- Báo lỗi của chủ dự án: "khi gửi tin nhắn hay nhập tên thì phải nhấn cách thì mới enter được".
+- Nguyên nhân là bộ gõ tiếng Việt (IME composition), chi tiết ở `docs/WATCH_ROOM.md` mục "Enter với bộ gõ tiếng Việt". Sửa bằng directive `appImeEnter` + `COMPOSITION_BUFFER_MODE = false` cho trang phòng và trang tạo phòng.
+- Kiểm thử: frontend `tsc` app + spec sạch, `ng test` **65 file / 509 test pass**. Thêm `ime-enter.directive.spec.ts` gồm 3 ca: Enter thường gửi ngay và chặn form gửi trùng; Enter lúc đang soạn chữ gửi sau `compositionend` kèm cả chữ vừa chốt, và model đi theo chữ đang soạn; Shift+Enter hoặc chốt chữ mà không có Enter thì không gửi. Build production exit 0.
+- Kiểm trên Chromium thật, giả lập bộ gõ qua DevTools Protocol (`Input.imeSetComposition` + phím 229 + `insertText`): bản sửa vào phòng với tên "Siêu nhân đỏ" và gửi danmaku "Hay quá nhỉ" chỉ với một lần Enter. Bản `main` chưa sửa (build đối chứng) **không** vào được phòng, đúng như lỗi người dùng báo.
+
 ### Phòng chiếu: chủ phòng đổi giờ công chiếu như tua video — 2026-11-05 (local, chưa deploy)
 
 - Yêu cầu của chủ dự án (kèm ảnh dải điều khiển): "thêm một nút nữa để chủ phòng điều chỉnh giờ công chiếu giống tua video".

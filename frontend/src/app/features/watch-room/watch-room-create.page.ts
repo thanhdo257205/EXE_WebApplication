@@ -1,6 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { COMPOSITION_BUFFER_MODE, FormsModule } from '@angular/forms';
+import { ImeEnterDirective } from '../../shared/forms/ime-enter.directive';
 import { Router, RouterModule } from '@angular/router';
 import { WatchRoomService } from '../../core/watch-room/watch-room.service';
 import { AuthService } from '../../core/auth/auth.service';
@@ -8,7 +9,9 @@ import { AuthService } from '../../core/auth/auth.service';
 @Component({
   selector: 'app-watch-room-create',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, ImeEnterDirective],
+  // Vietnamese IMEs: the model must include the word still being composed when the form is sent.
+  providers: [{ provide: COMPOSITION_BUFFER_MODE, useValue: false }],
   template: `
     <div class="min-h-screen bg-[#0e0f14] text-slate-100 flex flex-col font-sans">
       <!-- Header -->
@@ -51,6 +54,8 @@ import { AuthService } from '../../core/auth/auth.service';
                 type="text"
                 [(ngModel)]="title"
                 name="title"
+                appImeEnter
+                (imeEnter)="submitCreate()"
                 required
                 maxlength="120"
                 placeholder="Ví dụ: Đêm chiếu phim anime cùng cả nhà..."
